@@ -1,0 +1,59 @@
+:root {
+  color: #f8fafc;
+  background: #111827;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.home {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.home__card {
+  width: min(100%, 720px);
+  padding: 48px;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 24px;
+  background: rgb(30 41 59 / 72%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 24%);
+}
+
+.home__eyebrow {
+  margin: 0 0 12px;
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  line-height: 1;
+}
+
+.home__description {
+  max-width: 52ch;
+  margin: 24px 0 0;
+  color: #cbd5e1;
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+
