@@ -1,4 +1,446 @@
+# AGENTS.md
+
+## Project Overview
+
+RinhaDasLendas is an internal League of Legends platform used to organize matches, players, drafts, statistics and future Discord/Riot integrations.
+
+The project follows a Specification Driven Development (SDD) workflow using Spec Kit.
+
+All implementation decisions must respect:
+
+* Constitution
+* Specifications
+* Plans
+* Tasks
+* Architecture documentation
+
+---
+
+# Spec Kit Workflow
+
+Always follow this sequence:
+
+1. Constitution
+2. Specify
+3. Plan
+4. Tasks
+5. Implement
+
+Do not skip phases.
+
+Do not start implementation before tasks are approved.
+
+---
+
+# Git Workflow
+
+Before starting any feature:
+
+1. Check the current branch.
+
+2. If the current branch is `main`, create a feature branch.
+
+Branch naming:
+
+```text
+feature/<feature-id>-<slug>
+```
+
+Example:
+
+```text
+feature/003-cadastro-jogadores-rotas
+```
+
+3. Never implement features directly on `main`.
+
+4. Commit after each phase:
+
+* specify
+* plan
+* tasks
+* implement
+
+Examples:
+
+```bash
+git commit -m "docs: complete feature specification"
+git commit -m "docs: complete implementation plan"
+git commit -m "docs: generate tasks"
+git commit -m "feat: implement player registration"
+```
+
+---
+
+# Commit Messages
+
+All commit messages must be written in Brazilian Portuguese.
+
+Preferred patterns:
+
+```text
+docs: adicionar diretrizes de arquitetura
+docs: atualizar plano da feature cadastro de jogadores
+
+feat: implementar cadastro de jogadores
+feat: adicionar atualização de preferências de rotas
+
+fix: corrigir validação de prioridades de rota
+fix: corrigir consulta de jogadores inativos
+
+refactor: reorganizar camada de aplicação
+refactor: simplificar validações de jogador
+
+test: adicionar testes de cadastro de jogador
+test: adicionar testes de preferências de rotas
+
+chore: atualizar dependências
+chore: ajustar configuração do devcontainer
+```
+
+Do not create commit messages in English.
+
+Avoid messages such as:
+
+```text
+feat: implement player registration
+fix: update route validation
+docs: update architecture docs
+```
+
+Always prefer Portuguese commit messages.
+
+---
+
+# Repository Structure
+
+The repository already contains:
+
+```text
+BackEnd/
+FrontEnd/
+.devcontainer/
+docs/
+specs/
+```
+
+All backend code must be created inside:
+
+```text
+BackEnd/
+```
+
+All frontend code must be created inside:
+
+```text
+FrontEnd/
+```
+
+Do not create alternative root folders such as:
+
+```text
+backend/
+frontend/
+api/
+web/
+application/
+server/
+client/
+```
+
+Use the existing project structure.
+
+---
+
+# Architecture Documentation
+
+Always follow the documents located at:
+
+```text
+docs/architecture/
+```
+
+Current documents:
+
+```text
+docs/architecture/DESIGN_PATTERNS.md
+docs/architecture/DDD_GUIDELINES.md
+docs/architecture/API_STANDARDS.md
+docs/architecture/DATABASE_GUIDELINES.md
+```
+
+These documents are considered the source of truth for architectural decisions.
+
+---
+
+# Backend Standards
+
+Mandatory technologies:
+
+* .NET 10
+* ASP.NET Core Web API
+* Entity Framework Core
+* PostgreSQL
+* FluentValidation
+* MediatR
+* Dependency Injection
+
+Preferred architecture:
+
+```text
+Api
+Application
+Domain
+Infrastructure
+Tests
+```
+
+Business rules must not be implemented inside Controllers.
+
+Controllers should only:
+
+* receive requests;
+* validate input;
+* execute use cases;
+* return responses.
+
+---
+
+# Frontend Standards
+
+Mandatory technologies:
+
+* Vue 3
+* TypeScript
+* Composition API
+
+Frontend responsibilities:
+
+* user interaction;
+* state management;
+* API consumption.
+
+Backend remains the source of truth.
+
+Business rules must not exist only in frontend code.
+
+---
+
+# Database Standards
+
+Mandatory database:
+
+```text
+PostgreSQL
+```
+
+Guidelines:
+
+* UUID primary keys
+* Explicit foreign keys
+* Snake_case naming
+* Migrations required
+* Relational modeling preferred over JSON
+
+---
+
+# DDD Rules
+
+The Domain layer must contain:
+
+* Entities
+* Value Objects
+* Domain Rules
+* Domain Events
+* Domain Exceptions
+
+The Domain layer must not depend on:
+
+* Entity Framework
+* PostgreSQL
+* HTTP
+* Controllers
+* DTOs
+* External APIs
+
+The domain should be executable without infrastructure dependencies.
+
+---
+
+# CQRS Rules
+
+Commands and Queries must be separated.
+
+Examples:
+
+```text
+Commands/
+Queries/
+```
+
+Do not mix read and write responsibilities.
+
+---
+
+# Validation Rules
+
+Use FluentValidation.
+
+All user input must be validated.
+
+Examples:
+
+* required fields;
+* route priorities;
+* URL validation;
+* business constraints.
+
+Avoid duplicating validation logic across layers.
+
+---
+
+# Design Patterns
+
+Preferred patterns:
+
+1. Repository
+2. Dependency Injection
+3. CQRS
+4. Strategy
+5. Command
+6. Observer
+7. Adapter
+8. Facade
+9. Builder
+
+Apply patterns only when they solve a real problem.
+
+Do not introduce unnecessary complexity.
+
+---
+
+# Testing Standards
+
+Mandatory:
+
+* xUnit
+* FluentAssertions
+* Moq
+
+Minimum coverage:
+
+* Domain Rules
+* Validators
+* Application Use Cases
+
+Tests should be created together with implementation whenever possible.
+
+---
+
+# API Standards
+
+Always follow:
+
+```text
+docs/architecture/API_STANDARDS.md
+```
+
+Requirements:
+
+* REST
+* Swagger
+* DTOs
+* Proper HTTP Status Codes
+* Consistent error responses
+
+Never expose entities directly.
+
+---
+
+# Documentation Rules
+
+Whenever a significant decision is made:
+
+Create or update documentation under:
+
+```text
+docs/
+```
+
+Examples:
+
+```text
+docs/architecture/
+docs/domain/
+docs/decisions/
+```
+
+Document first, implement second.
+
+---
+
+# Implementation Priority
+
+Always prioritize:
+
+1. Simplicity
+2. Readability
+3. Maintainability
+4. Testability
+5. Extensibility
+
+Avoid premature optimization.
+
+Avoid overengineering.
+
+---
+
+# UI and Design System
+
+Always follow the documents located at:
+
+docs/design/
+
+Current documents:
+
+- docs/design/DESIGN_SYSTEM.md
+- docs/design/DESIGN_TOKENS.md
+- docs/design/UI_GUIDELINES.md
+
+All frontend implementations must follow these standards.
+
+Do not invent colors, spacing scales, typography scales or component styles.
+
+Use the documented design tokens whenever possible.
+
+---
+
+# Frontend Design Rules
+
+Before implementing any frontend feature:
+
+1. Read docs/design/DESIGN_SYSTEM.md
+2. Read docs/design/DESIGN_TOKENS.md
+3. Read docs/design/UI_GUIDELINES.md
+
+Frontend code must respect:
+
+- Colors
+- Typography
+- Spacing
+- Components
+- Responsive behavior
+
+defined in the design documentation.
+
+Do not create new design tokens unless explicitly approved.
+
+---
+
+# Current Feature Context
+
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+
+Implementation Plan: specs/003-cadastro-jogadores-rotas/plan.md
+
 <!-- SPECKIT END -->
