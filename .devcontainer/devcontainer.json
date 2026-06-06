@@ -27,9 +27,16 @@
         "Vue.volar",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode"
-      ]
+      ],
+      "settings": {
+        "dev.containers.mountWaylandSocket": false
+      }
     }
+  },
+  "containerEnv": {
+    "DISPLAY": "",
+    "WAYLAND_DISPLAY": "",
+    "XDG_RUNTIME_DIR": ""
   },
   "remoteUser": "vscode"
 }
-
