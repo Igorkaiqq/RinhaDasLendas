@@ -9,8 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
@@ -20,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\RinhaDasLendas.Application\RinhaDasLendas.Application.csproj" />
+    <ProjectReference Include="..\..\src\RinhaDasLendas.Api\RinhaDasLendas.Api.csproj" />
     <ProjectReference Include="..\..\src\RinhaDasLendas.Domain\RinhaDasLendas.Domain.csproj" />
     <ProjectReference Include="..\..\src\RinhaDasLendas.Infrastructure\RinhaDasLendas.Infrastructure.csproj" />
   </ItemGroup>

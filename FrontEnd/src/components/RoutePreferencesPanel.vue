@@ -1,0 +1,57 @@
+<script setup lang="ts">
+import type { RoutePreference } from '@/services/players'
+
+const props = defineProps<{
+  preferences: RoutePreference[]
+}>()
+
+function orderedPreferences() {
+  return [...props.preferences].sort((first, second) => first.prioridade - second.prioridade)
+}
+</script>
+
+<template>
+  <div class="route-panel" aria-label="Preferencias de rotas">
+    <span
+      v-for="preference in orderedPreferences()"
+      :key="preference.rota"
+      class="route-panel__badge"
+      :class="`route-panel__badge--${preference.rota.toLowerCase()}`"
+    >
+      {{ preference.prioridade }}. {{ preference.rota }}
+      <strong v-if="preference.naoJogoNemLascando">Bloqueada</strong>
+    </span>
+  </div>
+</template>
+
+<style scoped>
+.route-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.route-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 4%);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.route-panel__badge strong {
+  color: var(--color-danger);
+  font-size: 0.68rem;
+}
+
+.route-panel__badge--top { color: var(--role-top); }
+.route-panel__badge--jungle { color: var(--role-jungle); }
+.route-panel__badge--mid { color: var(--role-mid); }
+.route-panel__badge--adc { color: var(--role-adc); }
+.route-panel__badge--support { color: var(--role-support); }
+</style>

@@ -17,7 +17,7 @@ public sealed class ProjectStructureTests
             typeof(InfrastructureAssemblyReference).Assembly.GetName().Name
         };
 
-        assemblyNames.Should().OnlyContain(name => name is not null);
+        assemblyNames.Should().OnlyContain(name => name != null);
     }
 }
 
