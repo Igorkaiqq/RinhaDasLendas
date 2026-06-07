@@ -1,0 +1,157 @@
+@baseUrl = http://127.0.0.1:5099
+@missingId = 00000000-0000-0000-0000-000000000000
+
+### Health check
+GET {{baseUrl}}/health
+Accept: text/plain
+
+### Criar jogador valido
+# @name criarJogador
+POST {{baseUrl}}/api/v1/jogadores
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nomeExibicao": "HTTP Teste Manual",
+  "nomeReal": "Cliente HTTP",
+  "discord": "cliente#1234",
+  "riotId": "Cliente#BR1",
+  "opGgUrl": "https://www.op.gg/summoners/br/Cliente-BR1",
+  "deepLolUrl": "https://www.deeplol.gg/summoner/br/Cliente-BR1",
+  "elo": "Ouro",
+  "divisao": "II",
+  "preferencias": [
+    { "rota": "Top", "prioridade": 1, "naoJogoNemLascando": false },
+    { "rota": "Jungle", "prioridade": 2, "naoJogoNemLascando": false },
+    { "rota": "Mid", "prioridade": 3, "naoJogoNemLascando": false },
+    { "rota": "Adc", "prioridade": 4, "naoJogoNemLascando": false },
+    { "rota": "Support", "prioridade": 5, "naoJogoNemLascando": false }
+  ]
+}
+
+### Criar jogador invalido
+POST {{baseUrl}}/api/v1/jogadores
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nomeExibicao": "",
+  "opGgUrl": "not-a-url",
+  "preferencias": []
+}
+
+### Listar jogadores valido
+GET {{baseUrl}}/api/v1/jogadores?page=1&pageSize=20&somenteAtivos=false
+Accept: application/json
+
+### Listar jogadores com query invalida
+GET {{baseUrl}}/api/v1/jogadores?somenteAtivos=abc&page=-1&pageSize=999
+Accept: application/json
+
+### Buscar jogador por id valido
+@jogadorId = {{criarJogador.response.body.$.id}}
+GET {{baseUrl}}/api/v1/jogadores/{{jogadorId}}
+Accept: application/json
+
+### Buscar jogador inexistente
+GET {{baseUrl}}/api/v1/jogadores/{{missingId}}
+Accept: application/json
+
+### Buscar jogador com route param invalido
+GET {{baseUrl}}/api/v1/jogadores/not-a-guid
+Accept: application/json
+
+### Atualizar dados basicos valido
+PUT {{baseUrl}}/api/v1/jogadores/{{jogadorId}}/dados-basicos
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nomeExibicao": "HTTP Teste Manual Atualizado",
+  "nomeReal": "Cliente HTTP Atualizado",
+  "discord": "cliente#4321",
+  "riotId": "ClienteAtualizado#BR1",
+  "opGgUrl": "https://www.op.gg/summoners/br/ClienteAtualizado-BR1",
+  "deepLolUrl": "https://www.deeplol.gg/summoner/br/ClienteAtualizado-BR1",
+  "elo": "Platina",
+  "divisao": "IV"
+}
+
+### Atualizar dados basicos invalido
+PUT {{baseUrl}}/api/v1/jogadores/{{jogadorId}}/dados-basicos
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nomeExibicao": "",
+  "opGgUrl": "url-invalida"
+}
+
+### Atualizar dados basicos de jogador inexistente
+PUT {{baseUrl}}/api/v1/jogadores/{{missingId}}/dados-basicos
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nomeExibicao": "Jogador Inexistente",
+  "nomeReal": "Ninguem",
+  "discord": "ninguem#0000",
+  "riotId": "Ninguem#BR1",
+  "opGgUrl": "https://www.op.gg/summoners/br/Ninguem-BR1",
+  "deepLolUrl": "https://www.deeplol.gg/summoner/br/Ninguem-BR1",
+  "elo": "Prata I"
+}
+
+### Atualizar preferencias valido
+PUT {{baseUrl}}/api/v1/jogadores/{{jogadorId}}/preferencias-rotas
+Accept: application/json
+Content-Type: application/json
+
+{
+  "preferencias": [
+    { "rota": "Mid", "prioridade": 1, "naoJogoNemLascando": false },
+    { "rota": "Adc", "prioridade": 2, "naoJogoNemLascando": false },
+    { "rota": "Jungle", "prioridade": 3, "naoJogoNemLascando": false },
+    { "rota": "Top", "prioridade": 4, "naoJogoNemLascando": true },
+    { "rota": "Support", "prioridade": 5, "naoJogoNemLascando": false }
+  ]
+}
+
+### Atualizar preferencias invalido
+PUT {{baseUrl}}/api/v1/jogadores/{{jogadorId}}/preferencias-rotas
+Accept: application/json
+Content-Type: application/json
+
+{
+  "preferencias": [
+    { "rota": "Mid", "prioridade": 1, "naoJogoNemLascando": false },
+    { "rota": "Mid", "prioridade": 1, "naoJogoNemLascando": false }
+  ]
+}
+
+### Atualizar preferencias de jogador inexistente
+PUT {{baseUrl}}/api/v1/jogadores/{{missingId}}/preferencias-rotas
+Accept: application/json
+Content-Type: application/json
+
+{
+  "preferencias": [
+    { "rota": "Mid", "prioridade": 1, "naoJogoNemLascando": false },
+    { "rota": "Adc", "prioridade": 2, "naoJogoNemLascando": false },
+    { "rota": "Jungle", "prioridade": 3, "naoJogoNemLascando": false },
+    { "rota": "Top", "prioridade": 4, "naoJogoNemLascando": true },
+    { "rota": "Support", "prioridade": 5, "naoJogoNemLascando": false }
+  ]
+}
+
+### Inativar jogador valido
+PATCH {{baseUrl}}/api/v1/jogadores/{{jogadorId}}/inativar
+Accept: application/json
+
+### Inativar jogador inexistente
+PATCH {{baseUrl}}/api/v1/jogadores/{{missingId}}/inativar
+Accept: application/json
+
+### Listar somente ativos apos inativacao
+GET {{baseUrl}}/api/v1/jogadores?somenteAtivos=true&page=1&pageSize=20
+Accept: application/json

@@ -21,3 +21,9 @@ Thumbs.db
 # Environment
 .env
 
+
+# TypeScript
+*.tsbuildinfo
+
+# Test artifacts
+BackEnd/tests/**/TestResults/

@@ -6,11 +6,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RinhaDasLendas.Application\RinhaDasLendas.Application.csproj" />
+    <ProjectReference Include="..\RinhaDasLendas.Domain\RinhaDasLendas.Domain.csproj" />
     <ProjectReference Include="..\RinhaDasLendas.Infrastructure\RinhaDasLendas.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
