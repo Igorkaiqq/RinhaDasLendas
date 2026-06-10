@@ -1,6 +1,14 @@
 import { AxiosError } from 'axios'
 
 import { api } from './api'
+import {
+  createFakePlayer,
+  deleteFakePlayer,
+  inactivateFakePlayer,
+  listFakePlayers,
+  updateFakePlayerBasics,
+  updateFakeRoutePreferences,
+} from './fakePlayers'
 
 export type RouteName = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
 
@@ -81,10 +89,14 @@ export class PlayerServiceError extends Error {
 }
 
 export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
-  const response = await api.get<PaginatedPlayers>('/api/v1/jogadores', {
-    params: { somenteAtivos, page: 1, pageSize: 100 },
-  })
-  return response.data.items
+  try {
+    const response = await api.get<PaginatedPlayers>('/api/v1/jogadores', {
+      params: { somenteAtivos, page: 1, pageSize: 100 },
+    })
+    return response.data.items
+  } catch {
+    return listFakePlayers(somenteAtivos)
+  }
 }
 
 export async function createPlayer(payload: PlayerPayload): Promise<Player> {
@@ -92,6 +104,10 @@ export async function createPlayer(payload: PlayerPayload): Promise<Player> {
     const response = await api.post<Player>('/api/v1/jogadores', normalizePayload(payload))
     return response.data
   } catch (error) {
+    if (isConnectionFailure(error)) {
+      return createFakePlayer(payload)
+    }
+
     throw toPlayerServiceError(error)
   }
 }
@@ -101,6 +117,10 @@ export async function updatePlayerBasics(id: string, payload: PlayerUpdatePayloa
     const response = await api.put<Player>(`/api/v1/jogadores/${id}/dados-basicos`, normalizePayload(payload))
     return response.data
   } catch (error) {
+    if (isConnectionFailure(error)) {
+      return updateFakePlayerBasics(id, payload)
+    }
+
     throw toPlayerServiceError(error)
   }
 }
@@ -110,6 +130,10 @@ export async function updateRoutePreferences(id: string, preferencias: RoutePref
     const response = await api.put<Player>(`/api/v1/jogadores/${id}/preferencias-rotas`, { preferencias })
     return response.data
   } catch (error) {
+    if (isConnectionFailure(error)) {
+      return updateFakeRoutePreferences(id, preferencias)
+    }
+
     throw toPlayerServiceError(error)
   }
 }
@@ -118,7 +142,25 @@ export async function inactivatePlayer(id: string): Promise<void> {
   try {
     await api.patch(`/api/v1/jogadores/${id}/inativar`)
   } catch (error) {
+    if (isConnectionFailure(error)) {
+      inactivateFakePlayer(id)
+      return
+    }
+
     throw toPlayerServiceError(error)
+  }
+}
+
+export async function deletePlayer(id: string): Promise<void> {
+  try {
+    await api.delete(`/api/v1/jogadores/${id}`)
+  } catch (error) {
+    if (isConnectionFailure(error)) {
+      deleteFakePlayer(id)
+      return
+    }
+
+    await inactivatePlayer(id)
   }
 }
 
@@ -137,4 +179,8 @@ function toPlayerServiceError(error: unknown): PlayerServiceError {
   }
 
   return new PlayerServiceError(['Nao foi possivel conectar com a API de jogadores.'])
+}
+
+function isConnectionFailure(error: unknown): boolean {
+  return error instanceof AxiosError && !error.response
 }

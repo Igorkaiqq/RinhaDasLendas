@@ -66,3 +66,19 @@ Before implementation tasks are executed:
 4. Document any token gap before introducing new CSS variables.
 
 If Figma access is temporarily unavailable, implementation may continue only with explicit approval and must remain aligned with `docs/design/`.
+
+## AppShell Usage Contract
+
+Implementation components:
+
+- `FrontEnd/src/components/layout/AppShell.vue` owns the protected page frame and renders page content through a slot.
+- `FrontEnd/src/components/layout/SidebarNav.vue` owns sidebar navigation and active-route state.
+- `FrontEnd/src/components/layout/Topbar.vue` owns search, global actions and user profile summary.
+- `FrontEnd/src/components/layout/ProfileMenu.vue` owns profile menu placeholder actions.
+
+Rules:
+
+- Protected views must render only their page content; they must not duplicate sidebar or topbar markup.
+- New protected routes should add route metadata in `FrontEnd/src/router/index.ts` and a navigation item in `AppShell.vue`.
+- Placeholder pages must use `FrontEnd/src/views/PlaceholderView.vue` until their specific feature is planned.
+- Layout colors, spacing and typography must use variables from `FrontEnd/src/styles/main.css`, which are mapped from the Figma node and documented design tokens.

@@ -18,11 +18,11 @@
 
 **Purpose**: Prepare design inputs, inspect current frontend structure, and make the implementation safe to start.
 
-- [ ] T001 Obtain the node-specific Figma URL for the main layout and Jogadores screen and record fileKey/nodeId plus screenshot notes in specs/004-layout-jogadores/research.md
-- [ ] T002 Map Figma MCP colors, typography, spacing, component hierarchy, and screenshots against docs/design/DESIGN_TOKENS.md in specs/004-layout-jogadores/research.md
-- [ ] T003 [P] Review current route and shell behavior in FrontEnd/src/App.vue and FrontEnd/src/router/index.ts against specs/004-layout-jogadores/contracts/layout-ui.md
-- [ ] T004 [P] Review current Jogadores service and screen behavior in FrontEnd/src/services/players.ts and FrontEnd/src/views/PlayersView.vue against specs/004-layout-jogadores/contracts/jogadores-ui-service.md
-- [ ] T005 [P] Create component target directories FrontEnd/src/components/layout/ and FrontEnd/src/components/players/
+- [X] T001 Obtain the node-specific Figma URL for the main layout and Jogadores screen and record fileKey/nodeId plus screenshot notes in specs/004-layout-jogadores/research.md
+- [X] T002 Map Figma MCP colors, typography, spacing, component hierarchy, and screenshots against docs/design/DESIGN_TOKENS.md in specs/004-layout-jogadores/research.md
+- [X] T003 [P] Review current route and shell behavior in FrontEnd/src/App.vue and FrontEnd/src/router/index.ts against specs/004-layout-jogadores/contracts/layout-ui.md
+- [X] T004 [P] Review current Jogadores service and screen behavior in FrontEnd/src/services/players.ts and FrontEnd/src/views/PlayersView.vue against specs/004-layout-jogadores/contracts/jogadores-ui-service.md
+- [X] T005 [P] Create component target directories FrontEnd/src/components/layout/ and FrontEnd/src/components/players/
 
 ---
 
@@ -32,12 +32,12 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T006 Define layout navigation and user summary types in FrontEnd/src/types/layout.ts
-- [ ] T007 Define shared player UI form and feedback types in FrontEnd/src/types/players.ts
-- [ ] T008 [P] Add deterministic fake player data and fake service operations in FrontEnd/src/services/fakePlayers.ts
-- [ ] T009 Update FrontEnd/src/services/players.ts to expose API-first operations with fake fallback through the same service contract
-- [ ] T010 Normalize global CSS token usage and remove duplicate toast/sidebar fragments in FrontEnd/src/styles/main.css
-- [ ] T011 Update FrontEnd/src/router/index.ts with stable routes for dashboard, jogadores, times, draft, partidas, estatisticas, and configuracoes
+- [X] T006 Define layout navigation and user summary types in FrontEnd/src/types/layout.ts
+- [X] T007 Define shared player UI form and feedback types in FrontEnd/src/types/players.ts
+- [X] T008 [P] Add deterministic fake player data and fake service operations in FrontEnd/src/services/fakePlayers.ts
+- [X] T009 Update FrontEnd/src/services/players.ts to expose API-first operations with fake fallback through the same service contract
+- [X] T010 Normalize global CSS token usage and remove duplicate toast/sidebar fragments in FrontEnd/src/styles/main.css
+- [X] T011 Update FrontEnd/src/router/index.ts with stable routes for dashboard, jogadores, times, draft, partidas, estatisticas, and configuracoes
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel.
 
@@ -51,14 +51,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implement reusable shell wrapper in FrontEnd/src/components/layout/AppShell.vue
-- [ ] T013 [P] [US1] Implement sidebar navigation component with active-route state in FrontEnd/src/components/layout/SidebarNav.vue
-- [ ] T014 [P] [US1] Implement topbar component with app name and user summary in FrontEnd/src/components/layout/Topbar.vue
-- [ ] T015 [P] [US1] Implement profile menu placeholder actions in FrontEnd/src/components/layout/ProfileMenu.vue
-- [ ] T016 [US1] Replace inline shell markup in FrontEnd/src/App.vue with FrontEnd/src/components/layout/AppShell.vue
-- [ ] T017 [US1] Add placeholder protected page view for future sections in FrontEnd/src/views/PlaceholderView.vue
-- [ ] T018 [US1] Wire placeholder routes and route metadata in FrontEnd/src/router/index.ts
-- [ ] T019 [US1] Add desktop and tablet shell styles for sidebar, topbar, active states, and content region in FrontEnd/src/styles/main.css
+- [X] T012 [P] [US1] Implement reusable shell wrapper in FrontEnd/src/components/layout/AppShell.vue
+- [X] T013 [P] [US1] Implement sidebar navigation component with active-route state in FrontEnd/src/components/layout/SidebarNav.vue
+- [X] T014 [P] [US1] Implement topbar component with app name and user summary in FrontEnd/src/components/layout/Topbar.vue
+- [X] T015 [P] [US1] Implement profile menu placeholder actions in FrontEnd/src/components/layout/ProfileMenu.vue
+- [X] T016 [US1] Replace inline shell markup in FrontEnd/src/App.vue with FrontEnd/src/components/layout/AppShell.vue
+- [X] T017 [US1] Add placeholder protected page view for future sections in FrontEnd/src/views/PlaceholderView.vue
+- [X] T018 [US1] Wire placeholder routes and route metadata in FrontEnd/src/router/index.ts
+- [X] T019 [US1] Add desktop and tablet shell styles for sidebar, topbar, active states, and content region in FrontEnd/src/styles/main.css
 
 **Checkpoint**: User Story 1 is independently functional and can be demoed as the MVP shell.
 
@@ -72,14 +72,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Extract player list rendering into FrontEnd/src/components/players/PlayerList.vue
-- [ ] T021 [P] [US2] Extract player card display into FrontEnd/src/components/players/PlayerCard.vue
-- [ ] T022 [P] [US2] Move player list loading, empty, and error presentation into FrontEnd/src/components/players/PlayerListStates.vue
-- [ ] T023 [US2] Refactor FrontEnd/src/views/PlayersView.vue to consume PlayerList.vue and the shared player service contract
-- [ ] T024 [US2] Add OP.GG external link rendering and missing-link fallback in FrontEnd/src/components/players/PlayerCard.vue
-- [ ] T025 [US2] Ensure elo, Discord, status, and ordered route preferences render consistently using FrontEnd/src/components/PlayerStatusBadge.vue and FrontEnd/src/components/RoutePreferencesPanel.vue
-- [ ] T026 [US2] Add desktop and tablet list/card styles matching Figma-derived tokens in FrontEnd/src/styles/main.css
-- [ ] T027 [US2] Validate Jogadores list scenarios from specs/004-layout-jogadores/quickstart.md and record any design gaps in specs/004-layout-jogadores/research.md
+- [X] T020 [P] [US2] Extract player list rendering into FrontEnd/src/components/players/PlayerList.vue
+- [X] T021 [P] [US2] Extract player card display into FrontEnd/src/components/players/PlayerCard.vue
+- [X] T022 [P] [US2] Move player list loading, empty, and error presentation into FrontEnd/src/components/players/PlayerListStates.vue
+- [X] T023 [US2] Refactor FrontEnd/src/views/PlayersView.vue to consume PlayerList.vue and the shared player service contract
+- [X] T024 [US2] Add OP.GG external link rendering and missing-link fallback in FrontEnd/src/components/players/PlayerCard.vue
+- [X] T025 [US2] Ensure elo, Discord, status, and ordered route preferences render consistently using FrontEnd/src/components/PlayerStatusBadge.vue and FrontEnd/src/components/RoutePreferencesPanel.vue
+- [X] T026 [US2] Add desktop and tablet list/card styles matching Figma-derived tokens in FrontEnd/src/styles/main.css
+- [X] T027 [US2] Validate Jogadores list scenarios from specs/004-layout-jogadores/quickstart.md and record any design gaps in specs/004-layout-jogadores/research.md
 
 **Checkpoint**: User Story 2 is independently functional and validates the redesigned player list.
 
@@ -93,14 +93,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T028 [P] [US3] Implement create/edit form drawer component in FrontEnd/src/components/players/PlayerFormDrawer.vue
-- [ ] T029 [P] [US3] Implement destructive action confirmation dialog in FrontEnd/src/components/players/PlayerDeleteDialog.vue
-- [ ] T030 [US3] Refactor create-player form state from FrontEnd/src/views/PlayersView.vue into FrontEnd/src/components/players/PlayerFormDrawer.vue
-- [ ] T031 [US3] Add edit-player flow using updatePlayerBasics and updateRoutePreferences in FrontEnd/src/views/PlayersView.vue
-- [ ] T032 [US3] Add delete/inactivate flow with confirmation using the service contract in FrontEnd/src/views/PlayersView.vue
-- [ ] T033 [US3] Add required-field, URL, elo/division, and route-preference validation messaging in FrontEnd/src/components/players/PlayerFormDrawer.vue
-- [ ] T034 [US3] Ensure fake service create, update, and delete/inactivate behavior is deterministic in FrontEnd/src/services/fakePlayers.ts
-- [ ] T035 [US3] Add drawer, dialog, form, and feedback styles for desktop/tablet in FrontEnd/src/styles/main.css
+- [X] T028 [P] [US3] Implement create/edit form drawer component in FrontEnd/src/components/players/PlayerFormDrawer.vue
+- [X] T029 [P] [US3] Implement destructive action confirmation dialog in FrontEnd/src/components/players/PlayerDeleteDialog.vue
+- [X] T030 [US3] Refactor create-player form state from FrontEnd/src/views/PlayersView.vue into FrontEnd/src/components/players/PlayerFormDrawer.vue
+- [X] T031 [US3] Add edit-player flow using updatePlayerBasics and updateRoutePreferences in FrontEnd/src/views/PlayersView.vue
+- [X] T032 [US3] Add delete/inactivate flow with confirmation using the service contract in FrontEnd/src/views/PlayersView.vue
+- [X] T033 [US3] Add required-field, URL, elo/division, and route-preference validation messaging in FrontEnd/src/components/players/PlayerFormDrawer.vue
+- [X] T034 [US3] Ensure fake service create, update, and delete/inactivate behavior is deterministic in FrontEnd/src/services/fakePlayers.ts
+- [X] T035 [US3] Add drawer, dialog, form, and feedback styles for desktop/tablet in FrontEnd/src/styles/main.css
 
 **Checkpoint**: User Story 3 is independently functional for temporary player management.
 
@@ -114,11 +114,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T036 [P] [US4] Document AppShell usage expectations in specs/004-layout-jogadores/contracts/layout-ui.md
-- [ ] T037 [US4] Ensure FrontEnd/src/views/HomeView.vue renders as shell content without page-level layout duplication
-- [ ] T038 [US4] Ensure FrontEnd/src/views/PlaceholderView.vue accepts route metadata for Times, Draft, Partidas, Estatisticas, and Configuracoes
-- [ ] T039 [US4] Move reusable page heading and action-area styles into shared selectors in FrontEnd/src/styles/main.css
-- [ ] T040 [US4] Validate placeholder protected pages against specs/004-layout-jogadores/quickstart.md
+- [X] T036 [P] [US4] Document AppShell usage expectations in specs/004-layout-jogadores/contracts/layout-ui.md
+- [X] T037 [US4] Ensure FrontEnd/src/views/HomeView.vue renders as shell content without page-level layout duplication
+- [X] T038 [US4] Ensure FrontEnd/src/views/PlaceholderView.vue accepts route metadata for Times, Draft, Partidas, Estatisticas, and Configuracoes
+- [X] T039 [US4] Move reusable page heading and action-area styles into shared selectors in FrontEnd/src/styles/main.css
+- [X] T040 [US4] Validate placeholder protected pages against specs/004-layout-jogadores/quickstart.md
 
 **Checkpoint**: User Story 4 is independently functional for future screen reuse.
 
@@ -128,13 +128,13 @@
 
 **Purpose**: Validate build quality, design fidelity, responsiveness, and documentation.
 
-- [ ] T041 [P] Run frontend lint with npm run lint in FrontEnd/
-- [ ] T042 [P] Run frontend build with npm run build in FrontEnd/
-- [ ] T043 Run backend regression tests with dotnet test BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj if FrontEnd/src/services/players.ts API calls changed
-- [ ] T044 Validate desktop and tablet quickstart scenarios in specs/004-layout-jogadores/quickstart.md
-- [ ] T045 Compare implementation against Figma screenshot and update specs/004-layout-jogadores/research.md with any accepted visual deviations
-- [ ] T046 Update specs/004-layout-jogadores/quickstart.md if final validation commands or routes differ from the plan
-- [ ] T047 Review FrontEnd/src/styles/main.css for token-only colors, no overlapping text, and no one-off visual values outside documented design tokens
+- [X] T041 [P] Run frontend lint with npm run lint in FrontEnd/
+- [X] T042 [P] Run frontend build with npm run build in FrontEnd/
+- [X] T043 Run backend regression tests with dotnet test BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj if FrontEnd/src/services/players.ts API calls changed
+- [X] T044 Validate desktop and tablet quickstart scenarios in specs/004-layout-jogadores/quickstart.md
+- [X] T045 Compare implementation against Figma screenshot and update specs/004-layout-jogadores/research.md with any accepted visual deviations
+- [X] T046 Update specs/004-layout-jogadores/quickstart.md if final validation commands or routes differ from the plan
+- [X] T047 Review FrontEnd/src/styles/main.css for token-only colors, no overlapping text, and no one-off visual values outside documented design tokens
 
 ---
 

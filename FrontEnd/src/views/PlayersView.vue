@@ -1,103 +1,57 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import PlayerStatusBadge from '@/components/PlayerStatusBadge.vue'
-import RoutePreferenceEditor from '@/components/RoutePreferenceEditor.vue'
-import RoutePreferencesPanel from '@/components/RoutePreferencesPanel.vue'
+import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
+import PlayerFormDrawer from '@/components/players/PlayerFormDrawer.vue'
+import PlayerList from '@/components/players/PlayerList.vue'
 import {
   createPlayer,
-  inactivatePlayer,
+  deletePlayer,
   listPlayers,
   PlayerServiceError,
+  updatePlayerBasics,
   updateRoutePreferences,
-  Elo,
-  Divisao,
   type Player,
   type PlayerPayload,
-  type RoutePreference,
 } from '@/services/players'
-
-const defaultPreferences = (): RoutePreference[] => [
-  { rota: 'Top', prioridade: 1, naoJogoNemLascando: false },
-  { rota: 'Jungle', prioridade: 2, naoJogoNemLascando: false },
-  { rota: 'Mid', prioridade: 3, naoJogoNemLascando: false },
-  { rota: 'Adc', prioridade: 4, naoJogoNemLascando: false },
-  { rota: 'Support', prioridade: 5, naoJogoNemLascando: false },
-]
-
-const eloOptions: Elo[] = [
-  Elo.Ferro,
-  Elo.Bronze,
-  Elo.Prata,
-  Elo.Ouro,
-  Elo.Platina,
-  Elo.Esmeralda,
-  Elo.Diamante,
-  Elo.Mestre,
-  Elo.GraoMestre,
-  Elo.Desafiante,
-]
-const divisionOptions: Divisao[] = [Divisao.IV, Divisao.III, Divisao.II, Divisao.I]
-const elosComDivisao = new Set<Elo>([Elo.Ferro, Elo.Bronze, Elo.Prata, Elo.Ouro, Elo.Platina, Elo.Esmeralda, Elo.Diamante])
+import type { FeedbackState, PlayerFormMode } from '@/types/players'
 
 const players = ref<Player[]>([])
-const selectedPlayerId = ref<string | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const onlyActive = ref(false)
+const searchTerm = ref('')
+const selectedRank = ref('')
+const selectedRoute = ref('')
 const errors = ref<string[]>([])
-const formSubmitted = ref(false)
-const selectedElo = ref<Elo | ''>('')
-const selectedDivision = ref<Divisao | ''>('')
-type NotificationTone = "success" | "danger" | "info"
-
-const notification = ref<{ tone: NotificationTone; message: string } | null>(null)
+const serviceErrors = ref<string[]>([])
+const drawerOpen = ref(false)
+const formMode = ref<PlayerFormMode>('create')
+const editingPlayer = ref<Player | null>(null)
+const deletingPlayer = ref<Player | null>(null)
+const notification = ref<FeedbackState | null>(null)
 let notificationTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
-const form = reactive<PlayerPayload>({
-  nomeExibicao: '',
-  discord: '',
-  riotId: '',
-  opGgUrl: '',
-  deepLolUrl: '',
-  preferencias: defaultPreferences(),
+const rankOptions = computed(() => [...new Set(players.value.map((player) => player.elo).filter(Boolean))] as string[])
+const routeOptions = ['Top', 'Jungle', 'Mid', 'Adc', 'Support']
+
+const filteredPlayers = computed(() => {
+  const normalizedSearch = searchTerm.value.trim().toLowerCase()
+
+  return players.value.filter((player) => {
+    const primaryRoute = player.preferencias.find((preference) => preference.prioridade === 1)?.rota
+    const matchesSearch =
+      !normalizedSearch ||
+      player.nomeExibicao.toLowerCase().includes(normalizedSearch) ||
+      player.discord?.toLowerCase().includes(normalizedSearch) ||
+      player.riotId?.toLowerCase().includes(normalizedSearch)
+    const matchesRank = !selectedRank.value || player.elo === selectedRank.value
+    const matchesRoute = !selectedRoute.value || primaryRoute === selectedRoute.value
+    const matchesStatus = !onlyActive.value || player.status === 'Ativo'
+
+    return matchesSearch && matchesRank && matchesRoute && matchesStatus
+  })
 })
-
-const selectedPlayer = computed(() => players.value.find((player) => player.id === selectedPlayerId.value))
-const selectedEloRequiresDivision = computed(() => selectedElo.value !== "" && elosComDivisao.has(selectedElo.value))
-
-const formErrors = computed(() => {
-  const messages: string[] = []
-  const priorities = form.preferencias.map((preference) => preference.prioridade)
-
-  if (!form.nomeExibicao.trim()) {
-    messages.push('Nome e obrigatorio.')
-  }
-
-  if (!form.discord?.trim()) {
-    messages.push('Informe o Discord do jogador.')
-  }
-
-  if (!selectedElo.value) {
-    messages.push('Selecione um Elo.')
-  }
-
-  if (selectedEloRequiresDivision.value && !selectedDivision.value) {
-    messages.push('Selecione uma Divisão.')
-  }
-
-  if (new Set(priorities).size !== 5) {
-    messages.push('Cada prioridade deve ser unica.')
-  }
-
-  if (form.preferencias.filter((preference) => preference.naoJogoNemLascando).length > 1) {
-    messages.push('Marque no maximo uma rota bloqueada.')
-  }
-
-  return messages
-})
-
-const visibleFormErrors = computed(() => (formSubmitted.value ? formErrors.value : []))
 
 onMounted(async () => {
   await loadPlayers()
@@ -107,7 +61,93 @@ onUnmounted(() => {
   clearNotificationTimer()
 })
 
-function showNotification(tone: NotificationTone, message: string) {
+async function loadPlayers() {
+  loading.value = true
+  errors.value = []
+
+  try {
+    players.value = await listPlayers(false)
+  } catch (error) {
+    captureError(error)
+  } finally {
+    loading.value = false
+  }
+}
+
+function openCreateDrawer() {
+  formMode.value = 'create'
+  editingPlayer.value = null
+  serviceErrors.value = []
+  drawerOpen.value = true
+}
+
+function openEditDrawer(player: Player) {
+  formMode.value = 'edit'
+  editingPlayer.value = player
+  serviceErrors.value = []
+  drawerOpen.value = true
+}
+
+function closeDrawer() {
+  drawerOpen.value = false
+  editingPlayer.value = null
+  serviceErrors.value = []
+}
+
+async function savePlayer(payload: PlayerPayload & { id?: string }) {
+  saving.value = true
+  serviceErrors.value = []
+
+  try {
+    if (formMode.value === 'edit' && payload.id) {
+      const updatedBasics = await updatePlayerBasics(payload.id, payload)
+      const updatedPreferences = await updateRoutePreferences(payload.id, payload.preferencias)
+      const updated = { ...updatedBasics, preferencias: updatedPreferences.preferencias }
+      players.value = players.value.map((player) => (player.id === updated.id ? updated : player))
+      showNotification('success', `Jogador ${updated.nomeExibicao} atualizado.`)
+    } else {
+      const created = await createPlayer(payload)
+      players.value = [created, ...players.value.filter((player) => player.id !== created.id)]
+      showNotification('success', `Jogador ${created.nomeExibicao} cadastrado.`)
+    }
+
+    closeDrawer()
+  } catch (error) {
+    serviceErrors.value = error instanceof PlayerServiceError ? error.errors : ['Nao foi possivel salvar o jogador.']
+    showNotification('danger', serviceErrors.value[0] ?? 'Nao foi possivel salvar o jogador.')
+  } finally {
+    saving.value = false
+  }
+}
+
+function requestDelete(player: Player) {
+  deletingPlayer.value = player
+}
+
+async function confirmDelete() {
+  if (!deletingPlayer.value) {
+    return
+  }
+
+  try {
+    const player = deletingPlayer.value
+    await deletePlayer(player.id)
+    players.value = players.value.filter((current) => current.id !== player.id)
+    deletingPlayer.value = null
+    showNotification('success', `Jogador ${player.nomeExibicao} removido.`)
+  } catch (error) {
+    captureError(error)
+  }
+}
+
+function resetFilters() {
+  searchTerm.value = ''
+  selectedRank.value = ''
+  selectedRoute.value = ''
+  onlyActive.value = false
+}
+
+function showNotification(tone: FeedbackState['tone'], message: string) {
   notification.value = { tone, message }
   clearNotificationTimer()
   notificationTimer = globalThis.setTimeout(() => {
@@ -128,117 +168,14 @@ function clearNotificationTimer() {
   }
 }
 
-async function loadPlayers() {
-  loading.value = true
-  errors.value = []
-
-  try {
-    players.value = await listPlayers(onlyActive.value)
-  } catch (error) {
-    captureError(error)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function applyActiveFilter() {
-  await loadPlayers()
-  showNotification("info", onlyActive.value ? "Exibindo somente jogadores ativos." : "Exibindo todos os jogadores.")
-}
-
-function handleEloChange() {
-  selectedDivision.value = ''
-}
-
-async function submitPlayer() {
-  formSubmitted.value = true
-
-  if (formErrors.value.length > 0) {
-    showNotification("danger", "Revise os campos destacados antes de cadastrar.")
-    return
-  }
-
-  saving.value = true
-  errors.value = []
-
-  try {
-    const player = await createPlayer({
-      ...form,
-      elo: selectedElo.value as Elo,
-      divisao: selectedEloRequiresDivision.value ? (selectedDivision.value as Divisao) : null,
-      preferencias: [...form.preferencias],
-    })
-    players.value = [player, ...players.value.filter((current) => current.id !== player.id)]
-    selectedPlayerId.value = player.id
-    showNotification("success", "Jogador " + player.nomeExibicao + " cadastrado.")
-    resetForm()
-  } catch (error) {
-    captureError(error)
-  } finally {
-    saving.value = false
-  }
-}
-
-async function savePreferences(player: Player) {
-  errors.value = []
-
-  try {
-    const updated = await updateRoutePreferences(player.id, player.preferencias)
-    players.value = players.value.map((current) => (current.id === updated.id ? updated : current))
-    showNotification("success", "Rotas de " + updated.nomeExibicao + " atualizadas.")
-  } catch (error) {
-    captureError(error)
-  }
-}
-
-async function inactivate(player: Player) {
-  errors.value = []
-
-  try {
-    await inactivatePlayer(player.id)
-    players.value = players.value.map((current) =>
-      current.id === player.id ? { ...current, status: 'Inativo' } : current,
-    )
-    showNotification("success", player.nomeExibicao + " foi inativado.")
-  } catch (error) {
-    captureError(error)
-  }
-}
-
-function formatPlayerElo(player: Player) {
-  if (!player.elo) {
-    return null
-  }
-
-  return player.divisao ? player.elo + " " + player.divisao : player.elo
-}
-
-function resetForm() {
-  formSubmitted.value = false
-  form.nomeExibicao = ''
-  form.discord = ''
-  form.riotId = ''
-  form.opGgUrl = ''
-  form.deepLolUrl = ''
-  selectedElo.value = ''
-  selectedDivision.value = ''
-  form.preferencias = defaultPreferences()
-}
-
-function setPlayerPreferences(player: Player, preferences: RoutePreference[]) {
-  players.value = players.value.map((current) =>
-    current.id === player.id ? { ...current, preferencias: preferences } : current,
-  )
-}
-
 function captureError(error: unknown) {
   errors.value = error instanceof PlayerServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
-  showNotification("danger", errors.value[0] ?? 'Nao foi possivel concluir a acao.')
+  showNotification('danger', errors.value[0] ?? 'Nao foi possivel concluir a acao.')
 }
 </script>
 
 <template>
-  <main class="players-page">
+  <section class="players-page">
     <div
       v-if="notification"
       class="app-toast"
@@ -250,118 +187,84 @@ function captureError(error: unknown) {
       <p>{{ notification.message }}</p>
       <button type="button" aria-label="Fechar notificacao" @click="dismissNotification">x</button>
     </div>
-    <section class="players-page__header">
+
+    <header class="players-hero">
       <div>
-        <p class="players-page__eyebrow">Jogadores</p>
-        <h1>Cadastro de jogadores</h1>
-        <p>Gerencie participantes, rotas preferidas, rota bloqueada e status para as proximas rinhas.</p>
+        <h1>Banco de Dados de Jogadores</h1>
+        <p>Explore, filtre e recrute os melhores talentos para o seu time.</p>
       </div>
-      <label class="players-page__filter">
-        <input v-model="onlyActive" type="checkbox" @change="applyActiveFilter" />
-        Somente ativos
+      <button type="button" @click="openCreateDrawer">+ Cadastrar Jogador</button>
+    </header>
+
+    <section class="filter-bar" aria-label="Filtros de jogadores">
+      <label class="filter-field filter-field--wide">
+        Buscar Nome
+        <span>
+          <span aria-hidden="true">S</span>
+          <input v-model="searchTerm" type="search" placeholder="e.g. Faker, Chovy..." />
+        </span>
       </label>
+
+      <label class="filter-field">
+        Rank / Elo
+        <select v-model="selectedRank">
+          <option value="">Todos os Ranks</option>
+          <option v-for="rank in rankOptions" :key="rank" :value="rank">{{ rank }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        Rota Principal
+        <select v-model="selectedRoute">
+          <option value="">Qualquer Rota</option>
+          <option v-for="route in routeOptions" :key="route" :value="route">{{ route }}</option>
+        </select>
+      </label>
+
+      <label class="switch-field">
+        <input v-model="onlyActive" type="checkbox" />
+        <span aria-hidden="true" />
+        LFA (Procurando Time)
+      </label>
+
+      <button class="filter-reset" type="button" aria-label="Limpar filtros" @click="resetFilters">=</button>
     </section>
 
-    <section class="players-page__layout">
-      <form class="player-form" @submit.prevent="submitPlayer">
-        <div class="player-form__header">
-          <h2>Novo jogador</h2>
-          <button type="submit" :disabled="saving">{{ saving ? 'Salvando...' : 'Cadastrar' }}</button>
-        </div>
+    <PlayerList
+      :players="filteredPlayers"
+      :loading="loading"
+      :errors="errors"
+      @create="openCreateDrawer"
+      @edit="openEditDrawer"
+      @delete="requestDelete"
+    />
 
-        <div class="player-form__grid">
-          <label class="player-form__field player-form__field--wide">
-            Nome de exibicao
-            <span>Nome pelo qual o jogador e conhecido no grupo, Discord ou League of Legends.</span>
-            <input v-model="form.nomeExibicao" autocomplete="off" placeholder="Rona, Antena, ChuZS..." />
-          </label>
-          <label>
-            Discord
-            <input v-model="form.discord" autocomplete="off" placeholder="usuario#1234" />
-          </label>
-          <label>
-            Elo
-            <select v-model="selectedElo" @change="handleEloChange">
-              <option value="" disabled>Selecione</option>
-              <option v-for="elo in eloOptions" :key="elo" :value="elo">{{ elo }}</option>
-            </select>
-          </label>
-          <label v-if="selectedEloRequiresDivision">
-            Divisao
-            <select v-model="selectedDivision">
-              <option value="" disabled>Selecione</option>
-              <option v-for="division in divisionOptions" :key="division" :value="division">{{ division }}</option>
-            </select>
-          </label>
-          <label>
-            Riot ID
-            <input v-model="form.riotId" autocomplete="off" placeholder="Nome#BR1" />
-          </label>
-          <label>
-            OP.GG
-            <input v-model="form.opGgUrl" autocomplete="off" placeholder="https://www.op.gg/..." />
-          </label>
-          <label>
-            Deeplol
-            <input v-model="form.deepLolUrl" autocomplete="off" placeholder="https://www.deeplol.gg/..." />
-          </label>
-        </div>
+    <footer class="players-pagination" aria-label="Paginacao de jogadores">
+      <span>Mostrando {{ filteredPlayers.length ? 1 : 0 }}-{{ filteredPlayers.length }} de {{ players.length }} jogadores</span>
+      <div>
+        <button type="button" disabled>&lt;</button>
+        <button type="button" class="is-active">1</button>
+        <button type="button">2</button>
+        <button type="button">3</button>
+        <button type="button">&gt;</button>
+      </div>
+    </footer>
 
-        <RoutePreferenceEditor v-model="form.preferencias" />
+    <PlayerFormDrawer
+      :open="drawerOpen"
+      :mode="formMode"
+      :player="editingPlayer"
+      :saving="saving"
+      :service-errors="serviceErrors"
+      @close="closeDrawer"
+      @submit="savePlayer"
+    />
 
-        <div v-if="errors.length || visibleFormErrors.length" class="player-form__errors">
-          <p v-for="error in [...new Set([...errors, ...visibleFormErrors])]" :key="error">{{ error }}</p>
-        </div>
-      </form>
-
-      <section class="players-list" aria-label="Lista de jogadores">
-        <div v-if="loading" class="players-list__skeleton">
-          <span v-for="item in 4" :key="item" />
-        </div>
-
-        <div v-else-if="players.length === 0" class="players-list__empty">
-          <h2>Nenhum jogador cadastrado</h2>
-          <p>Cadastre o primeiro participante para liberar a base das filas e drafts.</p>
-          <button type="button" @click="resetForm">Preparar formulario</button>
-        </div>
-
-        <article
-          v-for="player in players"
-          v-else
-          :key="player.id"
-          class="player-card"
-          :class="{ 'player-card--selected': selectedPlayerId === player.id }"
-          @click="selectedPlayerId = player.id"
-        >
-          <div class="player-card__avatar" aria-hidden="true">{{ player.nomeExibicao.slice(0, 2).toUpperCase() }}</div>
-          <div class="player-card__body">
-            <div class="player-card__topline">
-              <div>
-                <h2>{{ player.nomeExibicao }}</h2>
-                <p>{{ formatPlayerElo(player) || 'Elo nao informado' }}</p>
-              </div>
-              <PlayerStatusBadge :status="player.status" />
-            </div>
-            <RoutePreferencesPanel :preferences="player.preferencias" />
-            <div class="player-card__actions">
-              <button type="button" @click.stop="savePreferences(player)">Salvar rotas</button>
-              <button
-                type="button"
-                class="player-card__danger"
-                :disabled="player.status === 'Inativo'"
-                @click.stop="inactivate(player)"
-              >
-                Inativar
-              </button>
-            </div>
-            <RoutePreferenceEditor
-              v-if="selectedPlayer?.id === player.id"
-              :model-value="player.preferencias"
-              @update:model-value="setPlayerPreferences(player, $event)"
-            />
-          </div>
-        </article>
-      </section>
-    </section>
-  </main>
+    <PlayerDeleteDialog
+      :open="Boolean(deletingPlayer)"
+      :player="deletingPlayer"
+      @cancel="deletingPlayer = null"
+      @confirm="confirmDelete"
+    />
+  </section>
 </template>

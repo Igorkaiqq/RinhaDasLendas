@@ -51,3 +51,59 @@
 **Alternatives considered**:
 - Mobile-first implementation in this phase: deferred because mobile is useful but not the required acceptance target.
 - Desktop-only implementation: rejected because tablet is an explicit non-functional requirement.
+
+## Figma Extraction: Rinha das Lendas node 1:1702
+
+**Source**: `https://www.figma.com/design/LzgFvkseX36IRNhEIO8uyV/Rinha-das-Lendas?node-id=1-1702&t=cyFEHPHASTp1gXdF-4`
+
+**fileKey**: `LzgFvkseX36IRNhEIO8uyV`
+
+**nodeId**: `1:1702`
+
+**Decision**: Map the Figma layout to the existing Vue app with a reusable shell and player card grid.
+
+**Rationale**: The node describes a desktop player directory with fixed 240px sidebar, 64px topbar, 40px main canvas padding, filter bar, four-column player grid, and simple pagination. The implementation keeps those dimensions as the desktop baseline and adapts to tablet using two-column grids and collapsed sidebar behavior.
+
+**Colors extracted**:
+- App canvas: `#0c1320`
+- Sidebar: `#070e1b`
+- Surface/card/filter: `#151c29`
+- Secondary surface/buttons: `#2e3543`
+- Border: `#464555`
+- Primary action/accent: `#5f59f7`
+- Main text: `#dce2f5`
+- Muted text: `#c7c4d8`
+- Subtle text: `#918fa1`
+- Positive/active light text: `#c2c1ff`
+- Danger/unavailable: `#ffb4ab`
+
+**Typography extracted**:
+- Body and headings use Hanken Grotesk.
+- Navigation labels, filters, badges and stats use JetBrains Mono.
+- Page heading: 24px / 32px, bold.
+- Card title: 18px / 24px, semibold.
+- Body/filter input text: 14px / 20-21px.
+- Navigation/filter labels: 12px / 16px with 0.96px letter spacing.
+
+**Spacing and layout extracted**:
+- Sidebar width: 240px.
+- Topbar height: 64px.
+- Main canvas padding: 40px.
+- Main section gap: 24px.
+- Filter bar gap: 16px, padding 17px, border radius 8px.
+- Player grid gap: 24px, desktop four columns.
+- Player cards: padding 17px, border radius 8px.
+- Avatar size: 56px.
+- Pagination top border spacing: 25px.
+
+**Components extracted**:
+- `AppShell`: sidebar + topbar + central scrollable content.
+- `SidebarNav`: brand, navigation links, active left border, tournament CTA, support/logout footer.
+- `Topbar`: global search, Discord link, notification/settings buttons, profile pill.
+- `PlayersView`: hero heading/action, filter bar, player grid, pagination.
+- `PlayerCard`: avatar, elo/status badges, identity, route information, external profile action.
+- `PlayerFormDrawer` and `PlayerDeleteDialog`: implementation additions for feature management flows not fully represented in the static Figma card grid.
+
+**Alternatives considered**:
+- Using Figma asset URLs for icons/avatars: rejected because those URLs are short-lived MCP assets and should not become app runtime dependencies.
+- Keeping the previous sidebar inside `App.vue`: rejected because the Figma layout requires a reusable app shell and a topbar shared across protected pages.
