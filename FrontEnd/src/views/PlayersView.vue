@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
-import PlayerFormDrawer from '@/components/players/PlayerFormDrawer.vue'
+import PlayerFormModal from '@/components/players/PlayerFormModal.vue'
 import PlayerList from '@/components/players/PlayerList.vue'
 import {
   createPlayer,
@@ -25,7 +25,7 @@ const selectedRank = ref('')
 const selectedRoute = ref('')
 const errors = ref<string[]>([])
 const serviceErrors = ref<string[]>([])
-const drawerOpen = ref(false)
+const playerModalOpen = ref(false)
 const formMode = ref<PlayerFormMode>('create')
 const editingPlayer = ref<Player | null>(null)
 const deletingPlayer = ref<Player | null>(null)
@@ -74,22 +74,22 @@ async function loadPlayers() {
   }
 }
 
-function openCreateDrawer() {
+function openCreateModal() {
   formMode.value = 'create'
   editingPlayer.value = null
   serviceErrors.value = []
-  drawerOpen.value = true
+  playerModalOpen.value = true
 }
 
-function openEditDrawer(player: Player) {
+function openEditModal(player: Player) {
   formMode.value = 'edit'
   editingPlayer.value = player
   serviceErrors.value = []
-  drawerOpen.value = true
+  playerModalOpen.value = true
 }
 
-function closeDrawer() {
-  drawerOpen.value = false
+function closeModal() {
+  playerModalOpen.value = false
   editingPlayer.value = null
   serviceErrors.value = []
 }
@@ -111,7 +111,7 @@ async function savePlayer(payload: PlayerPayload & { id?: string }) {
       showNotification('success', `Jogador ${created.nomeExibicao} cadastrado.`)
     }
 
-    closeDrawer()
+    closeModal()
   } catch (error) {
     serviceErrors.value = error instanceof PlayerServiceError ? error.errors : ['Nao foi possivel salvar o jogador.']
     showNotification('danger', serviceErrors.value[0] ?? 'Nao foi possivel salvar o jogador.')
@@ -193,7 +193,7 @@ function captureError(error: unknown) {
         <h1>Banco de Dados de Jogadores</h1>
         <p>Explore, filtre e recrute os melhores talentos para o seu time.</p>
       </div>
-      <button type="button" @click="openCreateDrawer">+ Cadastrar Jogador</button>
+      <button type="button" @click="openCreateModal">+ Cadastrar Jogador</button>
     </header>
 
     <section class="filter-bar" aria-label="Filtros de jogadores">
@@ -234,8 +234,8 @@ function captureError(error: unknown) {
       :players="filteredPlayers"
       :loading="loading"
       :errors="errors"
-      @create="openCreateDrawer"
-      @edit="openEditDrawer"
+      @create="openCreateModal"
+      @edit="openEditModal"
       @delete="requestDelete"
     />
 
@@ -250,13 +250,13 @@ function captureError(error: unknown) {
       </div>
     </footer>
 
-    <PlayerFormDrawer
-      :open="drawerOpen"
+    <PlayerFormModal
+      :open="playerModalOpen"
       :mode="formMode"
       :player="editingPlayer"
       :saving="saving"
       :service-errors="serviceErrors"
-      @close="closeDrawer"
+      @close="closeModal"
       @submit="savePlayer"
     />
 

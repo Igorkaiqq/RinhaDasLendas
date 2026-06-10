@@ -639,7 +639,7 @@ p {
 .player-card__actions,
 .player-card__links,
 .confirm-dialog__actions,
-.player-drawer__actions,
+.player-modal__actions,
 .players-pagination div {
   display: flex;
   align-items: center;
@@ -810,7 +810,7 @@ p {
   background: var(--color-primary);
 }
 
-.drawer-backdrop,
+.player-modal-backdrop,
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -818,20 +818,48 @@ p {
   background: rgb(7 14 27 / 72%);
 }
 
-.player-drawer {
-  position: absolute;
-  top: 0;
-  right: 0;
+.player-modal-backdrop {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  width: min(520px, 100vw);
-  height: 100%;
-  border-left: 1px solid var(--color-hairline);
-  background: var(--color-surface-1);
-  box-shadow: -18px 0 48px rgb(0 0 0 / 32%);
+  place-items: center;
+  padding: var(--space-lg);
 }
 
-.player-drawer__header {
+.player-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(90vh, 820px);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 40%);
+  overflow: hidden;
+}
+
+.player-modal-enter-active,
+.player-modal-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.player-modal-enter-active .player-modal,
+.player-modal-leave-active .player-modal {
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.player-modal-enter-from,
+.player-modal-leave-to {
+  opacity: 0;
+}
+
+.player-modal-enter-from .player-modal,
+.player-modal-leave-to .player-modal {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.player-modal__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -839,7 +867,7 @@ p {
   padding: var(--space-lg);
 }
 
-.player-drawer__header h2,
+.player-modal__header h2,
 .confirm-dialog h2,
 .players-empty h2,
 .home-card h2 {
@@ -869,7 +897,7 @@ p {
 .player-form__field--wide,
 .route-preference-editor,
 .player-form__errors,
-.player-drawer__actions {
+.player-modal__actions {
   grid-column: 1 / -1;
 }
 
@@ -880,7 +908,7 @@ p {
   font-size: 12px;
 }
 
-.player-drawer__actions {
+.player-modal__actions {
   justify-content: end;
 }
 
@@ -1019,6 +1047,20 @@ p {
   .home-page__grid,
   .player-form {
     grid-template-columns: 1fr;
+  }
+
+  .player-modal-backdrop {
+    padding: var(--space-sm);
+  }
+
+  .player-modal {
+    width: min(100%, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+  }
+
+  .player-modal__header,
+  .player-form {
+    padding: var(--space-md);
   }
 }
 
