@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import Topbar from '@/components/layout/Topbar.vue'
 import type { SidebarNavigationItem, TopbarUserSummary } from '@/types/layout'
@@ -23,11 +25,13 @@ const user: TopbarUserSummary = {
     { id: 'logout', label: 'Sair', action: 'logout' },
   ],
 }
+
+const sidebarCollapsed = ref(false)
 </script>
 
 <template>
-  <div class="app-shell">
-    <SidebarNav :items="navigationItems" />
+  <div class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
+    <SidebarNav :items="navigationItems" :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" />
     <section class="app-shell__workspace">
       <Topbar :user="user" />
       <main class="app-shell__content">

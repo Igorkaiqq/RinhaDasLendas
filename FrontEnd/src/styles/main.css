@@ -118,8 +118,13 @@ p {
 .app-shell {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
+  transition: grid-template-columns 180ms ease;
   min-height: 100vh;
   background: var(--color-canvas);
+}
+
+.app-shell--collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
 }
 
 .app-shell__workspace {
@@ -145,15 +150,39 @@ p {
   background: var(--color-sidebar);
 }
 
+.sidebar__brand-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: var(--space-xs);
+  align-items: center;
+  min-height: 80px;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: var(--space-lg) var(--space-sm) var(--space-lg) var(--space-lg);
+}
+
 .sidebar__brand {
   display: flex;
   gap: var(--space-sm);
   align-items: center;
-  min-height: 80px;
-  border-bottom: 1px solid var(--color-hairline);
-  padding: var(--space-lg);
+  min-width: 0;
   color: var(--color-ink);
   text-decoration: none;
+}
+
+.sidebar__toggle {
+  display: grid;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  place-items: center;
+  border-color: var(--color-hairline);
+  padding: 0;
+  color: var(--color-ink-muted);
+  background: var(--color-surface-1);
+}
+
+.sidebar__toggle:hover {
+  color: var(--color-ink);
 }
 
 .sidebar__mark {
@@ -986,4 +1015,41 @@ p {
   .player-form {
     grid-template-columns: 1fr;
   }
+}
+
+.app-shell--collapsed .sidebar__brand-row {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.app-shell--collapsed .sidebar__brand {
+  justify-content: center;
+}
+
+.app-shell--collapsed .sidebar__brand-copy,
+.app-shell--collapsed .sidebar__label,
+.app-shell--collapsed .sidebar__tournament {
+  display: none;
+}
+
+.app-shell--collapsed .sidebar__nav,
+.app-shell--collapsed .sidebar__footer {
+  padding-right: var(--space-xs);
+  padding-left: var(--space-xs);
+}
+
+.app-shell--collapsed .sidebar__item,
+.app-shell--collapsed .sidebar__item--active,
+.app-shell--collapsed .sidebar__item.router-link-active {
+  justify-content: center;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.app-shell--collapsed .sidebar__item--active,
+.app-shell--collapsed .sidebar__item.router-link-active {
+  border-left-width: 0;
+  border-top: 2px solid #c2c1ff;
 }

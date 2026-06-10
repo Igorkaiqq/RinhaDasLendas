@@ -5,6 +5,11 @@ import type { SidebarNavigationItem } from '@/types/layout'
 
 defineProps<{
   items: SidebarNavigationItem[]
+  collapsed: boolean
+}>()
+
+defineEmits<{
+  toggle: []
 }>()
 
 const route = useRoute()
@@ -12,13 +17,25 @@ const route = useRoute()
 
 <template>
   <aside class="sidebar" aria-label="Navegacao principal">
-    <RouterLink class="sidebar__brand" to="/" aria-label="RinhaDasLendas">
-      <span class="sidebar__mark" aria-hidden="true">RL</span>
-      <span>
-        <strong>RinhaDasLendas</strong>
-        <small>Liga de Elite</small>
-      </span>
-    </RouterLink>
+    <div class="sidebar__brand-row">
+      <RouterLink class="sidebar__brand" to="/" aria-label="RinhaDasLendas">
+        <span class="sidebar__mark" aria-hidden="true">RL</span>
+        <span class="sidebar__brand-copy">
+          <strong>RinhaDasLendas</strong>
+          <small>Liga de Elite</small>
+        </span>
+      </RouterLink>
+
+      <button
+        class="sidebar__toggle"
+        type="button"
+        :aria-label="collapsed ? 'Expandir menu lateral' : 'Minimizar menu lateral'"
+        :title="collapsed ? 'Expandir menu' : 'Minimizar menu'"
+        @click="$emit('toggle')"
+      >
+        <span aria-hidden="true">{{ collapsed ? '&gt;' : '&lt;' }}</span>
+      </button>
+    </div>
 
     <nav class="sidebar__nav">
       <RouterLink
@@ -30,19 +47,19 @@ const route = useRoute()
         :title="item.label"
       >
         <span class="sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
-        <span>{{ item.label }}</span>
+        <span class="sidebar__label">{{ item.label }}</span>
       </RouterLink>
     </nav>
 
     <div class="sidebar__footer">
       <button type="button" class="sidebar__tournament">Entrar no Torneio</button>
-      <RouterLink class="sidebar__item" to="/configuracoes">
+      <RouterLink class="sidebar__item" to="/configuracoes" title="Suporte">
         <span class="sidebar__icon" aria-hidden="true">?</span>
-        <span>Suporte</span>
+        <span class="sidebar__label">Suporte</span>
       </RouterLink>
-      <button type="button" class="sidebar__item">
+      <button type="button" class="sidebar__item" title="Sair">
         <span class="sidebar__icon" aria-hidden="true">-&gt;</span>
-        <span>Sair</span>
+        <span class="sidebar__label">Sair</span>
       </button>
     </div>
   </aside>
