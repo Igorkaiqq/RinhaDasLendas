@@ -30,6 +30,7 @@
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 40px;
+  --sidebar-toggle-y: 42%;
   color: var(--color-ink);
   background: var(--color-canvas);
   font-family:
@@ -172,7 +173,7 @@ p {
 
 .sidebar__toggle {
   position: absolute;
-  top: 50%;
+  top: var(--sidebar-toggle-y);
   right: 0;
   z-index: 25;
   display: grid;
