@@ -1,6 +1,9 @@
 import { AxiosError } from 'axios'
 
+import { MessageCode } from '@/constants/messageCode'
+
 import { api } from './api'
+import { getMessage } from './messageService'
 import {
   createFakePlayer,
   deleteFakePlayer,
@@ -84,8 +87,14 @@ export interface PaginatedPlayers {
 
 export class PlayerServiceError extends Error {
   constructor(public readonly errors: string[]) {
-    super(errors[0] ?? 'Nao foi possivel concluir a acao.')
+    super(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
+}
+
+interface ApiMessageErrorResponse {
+  messageCode?: string
+  message?: string
+  errors?: string[]
 }
 
 export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
@@ -172,13 +181,18 @@ function normalizePayload<T extends object>(payload: T): T {
 
 function toPlayerServiceError(error: unknown): PlayerServiceError {
   if (error instanceof AxiosError) {
-    const errors = error.response?.data?.errors
+    const data = error.response?.data as ApiMessageErrorResponse | undefined
+    const errors = data?.errors
     if (Array.isArray(errors) && errors.length > 0) {
       return new PlayerServiceError(errors)
     }
+
+    if (data?.messageCode) {
+      return new PlayerServiceError([getMessage(data.messageCode)])
+    }
   }
 
-  return new PlayerServiceError(['Nao foi possivel conectar com a API de jogadores.'])
+  return new PlayerServiceError([getMessage(MessageCode.ServerConnectionFailed)])
 }
 
 function isConnectionFailure(error: unknown): boolean {

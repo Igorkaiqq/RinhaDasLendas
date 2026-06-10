@@ -125,18 +125,18 @@
 
 ### Tests for User Story 4
 
-- [ ] T044 [P] [US4] [Frontend] Add pt-BR message lookup test in FrontEnd/src/services/messageService.spec.ts
-- [ ] T045 [P] [US4] [Frontend] Add en-US message lookup test in FrontEnd/src/services/messageService.spec.ts
-- [ ] T046 [P] [US4] [Frontend] Add unknown code fallback test in FrontEnd/src/services/messageService.spec.ts
+- [X] T044 [P] [US4] [Frontend] Add pt-BR message lookup test in FrontEnd/src/services/messageService.spec.ts
+- [X] T045 [P] [US4] [Frontend] Add en-US message lookup test in FrontEnd/src/services/messageService.spec.ts
+- [X] T046 [P] [US4] [Frontend] Add unknown code fallback test in FrontEnd/src/services/messageService.spec.ts
 
 ### Implementation for User Story 4
 
-- [ ] T047 [P] [US4] [Frontend] Create locale code type and defaults in FrontEnd/src/types/i18n.ts
-- [ ] T048 [P] [US4] [Frontend] Create message code enum in FrontEnd/src/constants/messageCode.ts
-- [ ] T049 [P] [US4] [Frontend] Create message category enum in FrontEnd/src/constants/messageCategory.ts
-- [ ] T050 [US4] [Frontend] Implement getMessage service in FrontEnd/src/services/messageService.ts
-- [ ] T051 [US4] [Frontend] Replace hardcoded player service feedback messages with message service calls in FrontEnd/src/services/players.ts
-- [ ] T052 [US4] [Frontend] Run frontend unit tests for message service in FrontEnd/src/services/messageService.spec.ts
+- [X] T047 [P] [US4] [Frontend] Create locale code type and defaults in FrontEnd/src/types/i18n.ts
+- [X] T048 [P] [US4] [Frontend] Create message code enum in FrontEnd/src/constants/messageCode.ts
+- [X] T049 [P] [US4] [Frontend] Create message category enum in FrontEnd/src/constants/messageCategory.ts
+- [X] T050 [US4] [Frontend] Implement getMessage service in FrontEnd/src/services/messageService.ts
+- [X] T051 [US4] [Frontend] Replace hardcoded player service feedback messages with message service calls in FrontEnd/src/services/players.ts
+- [X] T052 [US4] [Frontend] Run frontend unit tests for message service in FrontEnd/src/services/messageService.spec.ts
 
 **Checkpoint**: User Story 4 is complete and frontend code can retrieve messages through one service.
 
