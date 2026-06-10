@@ -143,9 +143,11 @@ p {
 .sidebar {
   position: sticky;
   top: 0;
+  align-self: start;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   border-right: 1px solid var(--color-hairline);
   background: var(--color-sidebar);
 }
