@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="MI001" xml:space="preserve"><value>Loading information</value></data>
+  <data name="MI002" xml:space="preserve"><value>Waiting for server response</value></data>
+  <data name="MI003" xml:space="preserve"><value>Syncing data</value></data>
+  <data name="MI004" xml:space="preserve"><value>No records found</value></data>
+  <data name="MI005" xml:space="preserve"><value>Filters applied</value></data>
+  <data name="MI006" xml:space="preserve"><value>Preferences loaded</value></data>
+  <data name="MI007" xml:space="preserve"><value>Draft waiting for players</value></data>
+  <data name="MI008" xml:space="preserve"><value>Queue waiting for confirmation</value></data>
+  <data name="MI009" xml:space="preserve"><value>Statistics updating</value></data>
+  <data name="MSIS001" xml:space="preserve"><value>Operation completed successfully</value></data>
+  <data name="MSIS002" xml:space="preserve"><value>Player created successfully</value></data>
+  <data name="MSIS003" xml:space="preserve"><value>Player updated successfully</value></data>
+  <data name="MSIS004" xml:space="preserve"><value>Player deactivated successfully</value></data>
+  <data name="MSIS005" xml:space="preserve"><value>Route preferences updated</value></data>
+  <data name="MSIS006" xml:space="preserve"><value>Queue created successfully</value></data>
+  <data name="MSIS007" xml:space="preserve"><value>Attendance confirmed</value></data>
+  <data name="MSIS008" xml:space="preserve"><value>Draft saved successfully</value></data>
+  <data name="MSIS009" xml:space="preserve"><value>Result registered successfully</value></data>
+  <data name="ME001" xml:space="preserve"><value>An unexpected error occurred</value></data>
+  <data name="ME002" xml:space="preserve"><value>Failed to connect to server</value></data>
+  <data name="ME003" xml:space="preserve"><value>Player not found</value></data>
+  <data name="ME004" xml:space="preserve"><value>Could not save player</value></data>
+  <data name="ME005" xml:space="preserve"><value>Could not update player</value></data>
+  <data name="ME006" xml:space="preserve"><value>Could not deactivate player</value></data>
+  <data name="ME007" xml:space="preserve"><value>Route preferences not found</value></data>
+  <data name="ME008" xml:space="preserve"><value>Queue not found</value></data>
+  <data name="ME009" xml:space="preserve"><value>Draft not found</value></data>
+  <data name="ME010" xml:space="preserve"><value>Match not found</value></data>
+  <data name="ME011" xml:space="preserve"><value>Series not found</value></data>
+  <data name="ME012" xml:space="preserve"><value>Failed to load statistics</value></data>
+  <data name="ME013" xml:space="preserve"><value>Failed to register result</value></data>
+  <data name="ME014" xml:space="preserve"><value>External integration unavailable</value></data>
+  <data name="ME015" xml:space="preserve"><value>Unauthorized access</value></data>
+  <data name="ME016" xml:space="preserve"><value>Insufficient permission</value></data>
+  <data name="ME017" xml:space="preserve"><value>Resource temporarily unavailable</value></data>
+  <data name="ME018" xml:space="preserve"><value>Inconsistent data was found</value></data>
+  <data name="ME019" xml:space="preserve"><value>Could not process the request</value></data>
+  <data name="ME020" xml:space="preserve"><value>Request timed out</value></data>
+  <data name="MV001" xml:space="preserve"><value>Required field</value></data>
+  <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
+  <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
+  <data name="MV004" xml:space="preserve"><value>League of Legends nickname is required</value></data>
+  <data name="MV005" xml:space="preserve"><value>Player region is required</value></data>
+  <data name="MV006" xml:space="preserve"><value>Invalid OP.GG link</value></data>
+  <data name="MV007" xml:space="preserve"><value>Invalid Deeplol link</value></data>
+  <data name="MV008" xml:space="preserve"><value>Route priorities must be unique</value></data>
+  <data name="MV009" xml:space="preserve"><value>Route priorities must be between 1 and 5</value></data>
+  <data name="MV010" xml:space="preserve"><value>Only one role can be marked as never play</value></data>
+  <data name="MV011" xml:space="preserve"><value>Player already exists</value></data>
+  <data name="MV012" xml:space="preserve"><value>Inactive player cannot join queue</value></data>
+  <data name="MV013" xml:space="preserve"><value>Queue already has the player limit</value></data>
+  <data name="MV014" xml:space="preserve"><value>Player is already in queue</value></data>
+  <data name="MV015" xml:space="preserve"><value>A team cannot have more than five players</value></data>
+  <data name="MV016" xml:space="preserve"><value>Duplicate player in match</value></data>
+  <data name="MV017" xml:space="preserve"><value>Champion is required</value></data>
+  <data name="MV018" xml:space="preserve"><value>Match result is required</value></data>
+  <data name="MV019" xml:space="preserve"><value>Series must be best-of-three or best-of-five</value></data>
+  <data name="MC001" xml:space="preserve"><value>Confirm this action?</value></data>
+  <data name="MC002" xml:space="preserve"><value>Do you want to deactivate this player?</value></data>
+  <data name="MC003" xml:space="preserve"><value>Do you want to remove the player from the queue?</value></data>
+  <data name="MC004" xml:space="preserve"><value>Do you want to close the current queue?</value></data>
+  <data name="MC005" xml:space="preserve"><value>Do you want to save this draft?</value></data>
+  <data name="MC006" xml:space="preserve"><value>Do you want to register this result?</value></data>
+  <data name="MC007" xml:space="preserve"><value>Do you want to overwrite the statistics?</value></data>
+  <data name="MC008" xml:space="preserve"><value>Do you want to change the captains?</value></data>
+  <data name="MC009" xml:space="preserve"><value>Do you want to discard changes?</value></data>
+  <data name="MA001" xml:space="preserve"><value>There are unsaved changes</value></data>
+  <data name="MA002" xml:space="preserve"><value>External integration will be skipped</value></data>
+  <data name="MA003" xml:space="preserve"><value>Manually entered data needs review</value></data>
+  <data name="MA004" xml:space="preserve"><value>Player has incomplete route preferences</value></data>
+  <data name="MA005" xml:space="preserve"><value>Queue is near the player limit</value></data>
+  <data name="MA006" xml:space="preserve"><value>Draft is incomplete</value></data>
+  <data name="MA007" xml:space="preserve"><value>Statistics may be outdated</value></data>
+  <data name="MA008" xml:space="preserve"><value>Action available only to administrators</value></data>
+  <data name="MA009" xml:space="preserve"><value>Review the data before continuing</value></data>
+</root>

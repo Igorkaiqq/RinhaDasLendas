@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { PlayerStatus, type PlayerStatusValue } from '@/constants/playerStatus'
+
 defineProps<{
-  status: 'Ativo' | 'Inativo'
+  status: PlayerStatusValue
 }>()
 </script>
 
 <template>
-  <span class="status-badge" :class="status === 'Ativo' ? 'status-badge--active' : 'status-badge--inactive'">
+  <span class="status-badge" :class="status === PlayerStatus.Active ? 'status-badge--active' : 'status-badge--inactive'">
     {{ status }}
   </span>
 </template>

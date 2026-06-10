@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import RoutePreferenceEditor from '@/components/RoutePreferenceEditor.vue'
+import { LeagueRole } from '@/constants/leagueRoles'
 import { Divisao, Elo, type Player, type PlayerPayload, type RoutePreference } from '@/services/players'
 import type { PlayerFormMode } from '@/types/players'
 
@@ -23,12 +25,14 @@ const emit = defineEmits<{
   submit: [payload: PlayerPayload & { id?: string }]
 }>()
 
+const { t } = useI18n()
+
 const defaultPreferences = (): RoutePreference[] => [
-  { rota: 'Top', prioridade: 1, naoJogoNemLascando: false },
-  { rota: 'Jungle', prioridade: 2, naoJogoNemLascando: false },
-  { rota: 'Mid', prioridade: 3, naoJogoNemLascando: false },
-  { rota: 'Adc', prioridade: 4, naoJogoNemLascando: false },
-  { rota: 'Support', prioridade: 5, naoJogoNemLascando: false },
+  { rota: LeagueRole.Top, prioridade: 1, naoJogoNemLascando: false },
+  { rota: LeagueRole.Jungle, prioridade: 2, naoJogoNemLascando: false },
+  { rota: LeagueRole.Mid, prioridade: 3, naoJogoNemLascando: false },
+  { rota: LeagueRole.Adc, prioridade: 4, naoJogoNemLascando: false },
+  { rota: LeagueRole.Support, prioridade: 5, naoJogoNemLascando: false },
 ]
 
 const eloOptions: Elo[] = [
@@ -62,7 +66,7 @@ const form = reactive({
   submitted: false,
 })
 
-const title = computed(() => (props.mode === 'edit' ? 'Editar jogador' : 'Cadastrar jogador'))
+const title = computed(() => (props.mode === 'edit' ? t('playerForm.editTitle') : t('playerForm.createTitle')))
 const selectedEloRequiresDivision = computed(() => form.elo !== '' && elosComDivisao.has(form.elo))
 
 const validationErrors = computed(() => {
@@ -70,31 +74,31 @@ const validationErrors = computed(() => {
   const priorities = form.preferencias.map((preference) => preference.prioridade)
 
   if (!form.nomeExibicao.trim()) {
-    messages.push('Nome e obrigatorio.')
+    messages.push(t('playerForm.errors.nameRequired'))
   }
 
   if (!form.discord.trim()) {
-    messages.push('Informe o Discord do jogador.')
+    messages.push(t('playerForm.errors.discordRequired'))
   }
 
   if (!form.elo) {
-    messages.push('Selecione um Elo.')
+    messages.push(t('playerForm.errors.eloRequired'))
   }
 
   if (selectedEloRequiresDivision.value && !form.divisao) {
-    messages.push('Selecione uma divisao.')
+    messages.push(t('playerForm.errors.divisionRequired'))
   }
 
   if (new Set(priorities).size !== 5) {
-    messages.push('Cada prioridade deve ser unica.')
+    messages.push(t('playerForm.errors.uniquePriorities'))
   }
 
   if (form.preferencias.filter((preference) => preference.naoJogoNemLascando).length > 1) {
-    messages.push('Marque no maximo uma rota bloqueada.')
+    messages.push(t('playerForm.errors.singleBlockedRoute'))
   }
 
   if (form.opGgUrl && !form.opGgUrl.startsWith('https://')) {
-    messages.push('Informe um link OP.GG iniciado por https://.')
+    messages.push(t('playerForm.errors.opggHttps'))
   }
 
   return messages
@@ -235,36 +239,36 @@ function submit() {
         >
           <header class="player-modal__header">
             <div>
-              <p class="page-kicker">Jogadores</p>
+              <p class="page-kicker">{{ t('players.kicker') }}</p>
               <h2 id="player-form-title">{{ title }}</h2>
             </div>
-            <button type="button" aria-label="Fechar formulario" @click="close">x</button>
+            <button type="button" :aria-label="t('playerForm.close')" @click="close">x</button>
           </header>
 
           <form class="player-form player-form--modal" @submit.prevent="submit">
             <label class="player-form__field player-form__field--wide">
-              Nome de exibicao
+              {{ t('playerForm.displayName') }}
               <input ref="firstFieldRef" v-model="form.nomeExibicao" autocomplete="off" placeholder="Hide on bush" />
             </label>
             <label class="player-form__field">
-              Discord
+              {{ t('playerForm.discord') }}
               <input v-model="form.discord" autocomplete="off" placeholder="usuario#1234" />
             </label>
             <label class="player-form__field">
-              Riot ID
+              {{ t('playerForm.riotId') }}
               <input v-model="form.riotId" autocomplete="off" placeholder="Nome#BR1" />
             </label>
             <label class="player-form__field">
-              Elo
+              {{ t('playerForm.elo') }}
               <select v-model="form.elo" @change="form.divisao = ''">
-                <option value="" disabled>Selecione</option>
+                <option value="" disabled>{{ t('playerForm.select') }}</option>
                 <option v-for="elo in eloOptions" :key="elo" :value="elo">{{ elo }}</option>
               </select>
             </label>
             <label v-if="selectedEloRequiresDivision" class="player-form__field">
-              Divisao
+              {{ t('playerForm.division') }}
               <select v-model="form.divisao">
-                <option value="" disabled>Selecione</option>
+                <option value="" disabled>{{ t('playerForm.select') }}</option>
                 <option v-for="division in divisionOptions" :key="division" :value="division">{{ division }}</option>
               </select>
             </label>
@@ -284,8 +288,8 @@ function submit() {
             </div>
 
             <div class="player-modal__actions">
-              <button type="button" @click="close">Cancelar</button>
-              <button type="submit" :disabled="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+              <button type="button" @click="close">{{ t('playerForm.cancel') }}</button>
+              <button type="submit" :disabled="saving">{{ saving ? t('playerForm.saving') : t('playerForm.save') }}</button>
             </div>
           </form>
         </section>

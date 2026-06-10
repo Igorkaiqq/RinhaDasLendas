@@ -1,11 +1,13 @@
+import type { AppRouteName, AppRoutePath } from '@/constants/appRoutes'
+
 export type NavigationStatus = 'available' | 'placeholder' | 'disabled'
 
 export interface SidebarNavigationItem {
   id: string
   label: string
   icon: string
-  routeName: string
-  path: string
+  routeName: AppRouteName
+  path: AppRoutePath
   status: NavigationStatus
 }
 

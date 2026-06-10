@@ -1,0 +1,100 @@
+{
+  "app": {
+    "name": "RinhaDasLendas",
+    "league": "Elite League"
+  },
+  "navigation": {
+    "main": "Main navigation",
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "teams": "Teams",
+    "draft": "Draft",
+    "matches": "Matches",
+    "stats": "Statistics",
+    "settings": "Settings",
+    "support": "Support",
+    "logout": "Log out",
+    "joinTournament": "Join Tournament",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu"
+  },
+  "topbar": {
+    "globalSearch": "Global search",
+    "searchPlaceholder": "Search players, matches...",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "profile": {
+    "trigger": "Profile",
+    "displayName": "Profile",
+    "subtitle": "Organizer",
+    "myProfile": "My profile",
+    "preferences": "Preferences",
+    "language": "Language",
+    "ptBR": "Portuguese",
+    "enUS": "English"
+  },
+  "players": {
+    "kicker": "Players",
+    "title": "Player Database",
+    "subtitle": "Explore, filter, and recruit the best talent for your team.",
+    "create": "Create Player",
+    "closeNotification": "Close notification",
+    "filtersLabel": "Player filters",
+    "searchName": "Search Name",
+    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "rank": "Rank / Elo",
+    "allRanks": "All Ranks",
+    "primaryRoute": "Primary Role",
+    "anyRoute": "Any Role",
+    "onlyActive": "LFA (Looking for Team)",
+    "clearFilters": "Clear filters",
+    "paginationLabel": "Player pagination",
+    "paginationSummary": "Showing {start}-{end} of {total} players",
+    "updated": "Player {name} updated.",
+    "created": "Player {name} created.",
+    "removed": "Player {name} removed.",
+    "saveError": "Could not save player.",
+    "actionError": "Could not complete the action."
+  },
+  "playerForm": {
+    "createTitle": "Create player",
+    "editTitle": "Edit player",
+    "close": "Close form",
+    "displayName": "Display name",
+    "discord": "Discord",
+    "riotId": "Riot ID",
+    "elo": "Elo",
+    "division": "Division",
+    "select": "Select",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "errors": {
+      "nameRequired": "Name is required.",
+      "discordRequired": "Enter the player's Discord.",
+      "eloRequired": "Select an Elo.",
+      "divisionRequired": "Select a division.",
+      "uniquePriorities": "Each priority must be unique.",
+      "singleBlockedRoute": "Mark at most one blocked role.",
+      "opggHttps": "Enter an OP.GG link starting with https://."
+    }
+  },
+  "messages": {
+    "MI001": "Loading information",
+    "MSIS001": "Operation completed successfully",
+    "MV001": "Required field",
+    "ME001": "An unexpected error occurred"
+  },
+  "playerStates": {
+    "loading": "Loading players",
+    "errorKicker": "Error",
+    "emptyKicker": "Empty list",
+    "errorTitle": "Could not load players",
+    "emptyTitle": "No players found",
+    "tryAgain": "Try again shortly.",
+    "emptyDescription": "Create the first participant or adjust filters to view the roster."
+  }
+}

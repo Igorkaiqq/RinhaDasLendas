@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { RouteName, RoutePreference } from '@/services/players'
+import { LEAGUE_ROLES, type LeagueRoleValue } from '@/constants/leagueRoles'
+import type { RoutePreference } from '@/services/players'
 
 const props = defineProps<{
   modelValue: RoutePreference[]
@@ -11,7 +12,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: RoutePreference[]]
 }>()
 
-const routes: RouteName[] = ['Top', 'Jungle', 'Mid', 'Adc', 'Support']
+const routes = LEAGUE_ROLES
 
 const errors = computed(() => {
   const messages: string[] = []
@@ -29,7 +30,7 @@ const errors = computed(() => {
   return messages
 })
 
-function updatePriority(rota: RouteName, prioridade: number) {
+function updatePriority(rota: LeagueRoleValue, prioridade: number) {
   emit(
     'update:modelValue',
     props.modelValue.map((preference) =>
@@ -38,7 +39,7 @@ function updatePriority(rota: RouteName, prioridade: number) {
   )
 }
 
-function updateBlocked(rota: RouteName, checked: boolean) {
+function updateBlocked(rota: LeagueRoleValue, checked: boolean) {
   emit(
     'update:modelValue',
     props.modelValue.map((preference) => ({
@@ -48,7 +49,7 @@ function updateBlocked(rota: RouteName, checked: boolean) {
   )
 }
 
-function preferenceFor(rota: RouteName) {
+function preferenceFor(rota: LeagueRoleValue) {
   return props.modelValue.find((preference) => preference.rota === rota)
 }
 </script>

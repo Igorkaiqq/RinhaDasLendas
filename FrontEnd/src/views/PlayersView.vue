@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
 import PlayerFormModal from '@/components/players/PlayerFormModal.vue'
 import PlayerList from '@/components/players/PlayerList.vue'
+import { LEAGUE_ROLES } from '@/constants/leagueRoles'
+import { PlayerStatus } from '@/constants/playerStatus'
 import {
   createPlayer,
   deletePlayer,
@@ -16,6 +19,7 @@ import {
 } from '@/services/players'
 import type { FeedbackState, PlayerFormMode } from '@/types/players'
 
+const { t } = useI18n()
 const players = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -33,7 +37,8 @@ const notification = ref<FeedbackState | null>(null)
 let notificationTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
 const rankOptions = computed(() => [...new Set(players.value.map((player) => player.elo).filter(Boolean))] as string[])
-const routeOptions = ['Top', 'Jungle', 'Mid', 'Adc', 'Support']
+const routeOptions = LEAGUE_ROLES
+const paginationStart = computed(() => (filteredPlayers.value.length ? 1 : 0))
 
 const filteredPlayers = computed(() => {
   const normalizedSearch = searchTerm.value.trim().toLowerCase()
@@ -47,7 +52,7 @@ const filteredPlayers = computed(() => {
       player.riotId?.toLowerCase().includes(normalizedSearch)
     const matchesRank = !selectedRank.value || player.elo === selectedRank.value
     const matchesRoute = !selectedRoute.value || primaryRoute === selectedRoute.value
-    const matchesStatus = !onlyActive.value || player.status === 'Ativo'
+    const matchesStatus = !onlyActive.value || player.status === PlayerStatus.Active
 
     return matchesSearch && matchesRank && matchesRoute && matchesStatus
   })
@@ -104,17 +109,17 @@ async function savePlayer(payload: PlayerPayload & { id?: string }) {
       const updatedPreferences = await updateRoutePreferences(payload.id, payload.preferencias)
       const updated = { ...updatedBasics, preferencias: updatedPreferences.preferencias }
       players.value = players.value.map((player) => (player.id === updated.id ? updated : player))
-      showNotification('success', `Jogador ${updated.nomeExibicao} atualizado.`)
+      showNotification('success', t('players.updated', { name: updated.nomeExibicao }))
     } else {
       const created = await createPlayer(payload)
       players.value = [created, ...players.value.filter((player) => player.id !== created.id)]
-      showNotification('success', `Jogador ${created.nomeExibicao} cadastrado.`)
+      showNotification('success', t('players.created', { name: created.nomeExibicao }))
     }
 
     closeModal()
   } catch (error) {
-    serviceErrors.value = error instanceof PlayerServiceError ? error.errors : ['Nao foi possivel salvar o jogador.']
-    showNotification('danger', serviceErrors.value[0] ?? 'Nao foi possivel salvar o jogador.')
+    serviceErrors.value = error instanceof PlayerServiceError ? error.errors : [t('players.saveError')]
+    showNotification('danger', serviceErrors.value[0] ?? t('players.saveError'))
   } finally {
     saving.value = false
   }
@@ -134,7 +139,7 @@ async function confirmDelete() {
     await deletePlayer(player.id)
     players.value = players.value.filter((current) => current.id !== player.id)
     deletingPlayer.value = null
-    showNotification('success', `Jogador ${player.nomeExibicao} removido.`)
+    showNotification('success', t('players.removed', { name: player.nomeExibicao }))
   } catch (error) {
     captureError(error)
   }
@@ -169,8 +174,8 @@ function clearNotificationTimer() {
 }
 
 function captureError(error: unknown) {
-  errors.value = error instanceof PlayerServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
-  showNotification('danger', errors.value[0] ?? 'Nao foi possivel concluir a acao.')
+  errors.value = error instanceof PlayerServiceError ? error.errors : [t('players.actionError')]
+  showNotification('danger', errors.value[0] ?? t('players.actionError'))
 }
 </script>
 
@@ -185,38 +190,38 @@ function captureError(error: unknown) {
     >
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification.message }}</p>
-      <button type="button" aria-label="Fechar notificacao" @click="dismissNotification">x</button>
+      <button type="button" :aria-label="t('players.closeNotification')" @click="dismissNotification">x</button>
     </div>
 
     <header class="players-hero">
       <div>
-        <h1>Banco de Dados de Jogadores</h1>
-        <p>Explore, filtre e recrute os melhores talentos para o seu time.</p>
+        <h1>{{ t('players.title') }}</h1>
+        <p>{{ t('players.subtitle') }}</p>
       </div>
-      <button type="button" @click="openCreateModal">+ Cadastrar Jogador</button>
+      <button type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
     </header>
 
-    <section class="filter-bar" aria-label="Filtros de jogadores">
+    <section class="filter-bar" :aria-label="t('players.filtersLabel')">
       <label class="filter-field filter-field--wide">
-        Buscar Nome
+        {{ t('players.searchName') }}
         <span>
           <span aria-hidden="true">S</span>
-          <input v-model="searchTerm" type="search" placeholder="e.g. Faker, Chovy..." />
+          <input v-model="searchTerm" type="search" :placeholder="t('players.searchPlaceholder')" />
         </span>
       </label>
 
       <label class="filter-field">
-        Rank / Elo
+        {{ t('players.rank') }}
         <select v-model="selectedRank">
-          <option value="">Todos os Ranks</option>
+          <option value="">{{ t('players.allRanks') }}</option>
           <option v-for="rank in rankOptions" :key="rank" :value="rank">{{ rank }}</option>
         </select>
       </label>
 
       <label class="filter-field">
-        Rota Principal
+        {{ t('players.primaryRoute') }}
         <select v-model="selectedRoute">
-          <option value="">Qualquer Rota</option>
+          <option value="">{{ t('players.anyRoute') }}</option>
           <option v-for="route in routeOptions" :key="route" :value="route">{{ route }}</option>
         </select>
       </label>
@@ -224,10 +229,10 @@ function captureError(error: unknown) {
       <label class="switch-field">
         <input v-model="onlyActive" type="checkbox" />
         <span aria-hidden="true" />
-        LFA (Procurando Time)
+        {{ t('players.onlyActive') }}
       </label>
 
-      <button class="filter-reset" type="button" aria-label="Limpar filtros" @click="resetFilters">=</button>
+      <button class="filter-reset" type="button" :aria-label="t('players.clearFilters')" @click="resetFilters">=</button>
     </section>
 
     <PlayerList
@@ -239,8 +244,10 @@ function captureError(error: unknown) {
       @delete="requestDelete"
     />
 
-    <footer class="players-pagination" aria-label="Paginacao de jogadores">
-      <span>Mostrando {{ filteredPlayers.length ? 1 : 0 }}-{{ filteredPlayers.length }} de {{ players.length }} jogadores</span>
+    <footer class="players-pagination" :aria-label="t('players.paginationLabel')">
+      <span>
+        {{ t('players.paginationSummary', { start: paginationStart, end: filteredPlayers.length, total: players.length }) }}
+      </span>
       <div>
         <button type="button" disabled>&lt;</button>
         <button type="button" class="is-active">1</button>
