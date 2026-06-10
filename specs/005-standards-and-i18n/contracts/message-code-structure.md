@@ -2,24 +2,26 @@
 
 ## Overview
 
-The message code system provides a centralized, standardized approach to handling all user-facing messages in RinhaDasLendas. Each message has a unique code that maps to localized text and metadata.
+The message code system centralizes user-facing messages in RinhaDasLendas. Each message has one immutable code, one category, localized text, context, and severity.
 
 ## Message Code Format
 
 **Pattern**: `[CATEGORY_PREFIX][3-DIGIT_SEQUENCE]`
 
-**Example**: `MSIS001`, `ME042`, `MV005`
+Examples: `MSIS001`, `ME020`, `MV005`.
 
-## Categories
+## Official Categories and Ranges
 
-| Prefix | Category | Use Case | Count |
-|--------|----------|----------|-------|
-| `MI` | Mensagem Informativa | Neutral information, loading states | 001-009 |
-| `MSIS` | Mensagem de Sucesso | Operation completed successfully | 001-009 |
-| `ME` | Mensagem de Erro | Unexpected errors, exceptions | 001-029 |
-| `MV` | Mensagem de Validação | Input validation failures | 001-019 |
-| `MC` | Mensagem de Confirmação | User confirmation prompts | 001-009 |
-| `MA` | Mensagem de Alerta | Warnings, cautionary messages | 001-009 |
+| Prefix | Category | Use Case | Active Range |
+|--------|----------|----------|--------------|
+| `MI` | Mensagem Informativa | Neutral information and loading states | `001-009` |
+| `MSIS` | Mensagem de Sucesso | Successful operations | `001-009` |
+| `ME` | Mensagem de Erro | Unexpected errors, exceptions, and missing resources | `001-020` |
+| `MV` | Mensagem de Validação | Input validation failures | `001-019` |
+| `MC` | Mensagem de Confirmação | User confirmation prompts | `001-009` |
+| `MA` | Mensagem de Alerta | Warnings and cautionary states | `001-009` |
+
+The initial catalog intentionally keeps all categories inside these ranges. Future expansion may add new ranges through a documented standards update.
 
 ## Message Catalog Entry Structure
 
@@ -31,74 +33,55 @@ The message code system provides a centralized, standardized approach to handlin
   "ptBR": "Operação realizada com sucesso",
   "enUS": "Operation completed successfully",
   "description": "Generic success message for successful operations",
-  "context": "Player creation, update, deletion; Fila creation; Draft operations",
+  "context": "Player creation, update, deletion; queue and draft operations",
   "severity": "info"
 }
 ```
 
-## Backend Response Structure (Phase 3+)
+## Backend Response Structure
 
 ### Response with Message Code
 
-```typescript
+```json
 {
   "messageCode": "MSIS001",
   "message": "Operação realizada com sucesso",
   "messageCategory": "Success",
-  "data": {
-    // Operation-specific data
-  }
+  "data": {}
 }
 ```
 
 ### Error Response with Message Code
 
-```typescript
+```json
 {
   "messageCode": "MV001",
   "message": "Campo obrigatório",
   "messageCategory": "Validation",
   "details": {
     "field": "name",
-    "value": "",
     "rule": "required"
   }
 }
 ```
 
-## Message Code Ranges by Domain
-
-**Player Management** (MI001-MI009, MSIS001-MSIS009, MV001-MV009, ME001-ME009)
-- Player creation, update, deletion
-- Validation of player data
-- Status changes
-
-**Fila/Queue** (MI010-MI019, MSIS010-MSIS019, MV010-MV019)
-- Queue join/leave operations
-- Player confirmation/absence
-
-**Draft Operations** (MI020-MI029, MSIS020-MSIS029, MV020-MV029)
-- Draft start, pick, ban
-- Team formation
-
-**System Messages** (MI030+, MA001-MA009, ME020-ME029)
-- Loading, warnings, alerts
-- System-level errors
-
 ## Backend Implementation Strategy
 
-**Message Code Storage**: `MessageCodes.cs` (constants only)
+**Message Code Storage**: `MessageCodes.cs` contains constants only.
+
 ```csharp
 public const string OperationSuccess = "MSIS001";
 public const string UnexpectedError = "ME001";
 ```
 
-**Message Text Storage**: `.resx` files (native .NET resource files)
-- `Messages.resx` (Portuguese - Brazil, default)
-- `Messages.pt-BR.resx` (Portuguese - Brazil, explicit)
-- `Messages.en-US.resx` (English - US)
+**Message Text Storage**: `.resx` files in `BackEnd/src/RinhaDasLendas.Infrastructure/Messages/`.
 
-**Message Retrieval**: `IMessageProvider` interface and `ResourceMessageProvider` implementation
+- `Messages.resx`: default Portuguese text.
+- `Messages.pt-BR.resx`: explicit Portuguese locale.
+- `Messages.en-US.resx`: English locale.
+
+**Message Retrieval**: `IMessageProvider` and `ResourceMessageProvider`.
+
 ```csharp
 public interface IMessageProvider
 {
@@ -107,31 +90,21 @@ public interface IMessageProvider
 }
 ```
 
-**Key Points**:
-- Message codes (strings like "MSIS001") are constants in `MessageCodes.cs`
-- Message text (localized strings) lives in `.resx` files, not in code
-- `ResourceMessageProvider` uses `System.Resources.ResourceManager` and `CultureInfo` to retrieve localized text
-- No hardcoded message strings in classes
-- Backend supports native .NET i18n; text changes don't require code recompilation
-
 ## Frontend Implementation Strategy
 
-**Message Code Storage**: TypeScript enums or constants
-**Message Text Storage**: JSON i18n files (`locales/pt-BR.json`, `locales/en-US.json`)
-**Message Retrieval**: `messageService.ts` (wrapper around i18n library)
+- Codes are represented as TypeScript enum or constants.
+- Localized text lives in JSON locale files.
+- `messageService.ts` resolves a code and locale with fallback to `pt-BR`.
 
-**Note**: Frontend and backend have different storage strategies (JSON vs .resx) optimized for each platform's conventions.
+## Versioning and Evolution
 
-## Versioning & Evolution
-
-- Message codes are **immutable** once released
-- New codes are added with the next available sequence number
-- Deprecation: If a message no longer applies, mark as deprecated in catalog but keep code for backward compatibility
-- Localization updates don't change code; they update the text mapping
+- Codes are immutable once released.
+- New codes use the next available number in the category.
+- Deprecated codes remain documented for compatibility.
+- Localization text can change without changing the code.
 
 ## Catalog Maintenance
 
-- Catalog stored in `docs/messages/message-catalog.md`
-- All new codes MUST be registered before deployment
-- Code review: Every PR that adds new user-facing messages MUST update the catalog
-- Automation: Phase 6 will define CI/CD hook to validate all codes used in code exist in catalog
+- Source of truth: `docs/messages/message-catalog.md`.
+- Quick reference: `docs/messages/message-codes.md`.
+- Every PR adding user-facing messages must update the catalog before implementation.

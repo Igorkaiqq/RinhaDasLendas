@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
+using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Repositories;
 
 namespace RinhaDasLendas.Infrastructure;
@@ -17,6 +19,7 @@ public static class DependencyInjection
 
         services.AddDbContext<RinhaDasLendasDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IJogadorRepository, JogadorRepository>();
+        services.AddSingleton<IMessageProvider, ResourceMessageProvider>();
 
         return services;
     }

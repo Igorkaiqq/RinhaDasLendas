@@ -18,11 +18,11 @@
 
 **Purpose**: Prepare folders and confirm baseline project context before story work starts.
 
-- [ ] T001 [Docs] Create standards documentation folder with placeholder index in docs/standards/README.md
-- [ ] T002 [Docs] Create messages documentation folder with placeholder index in docs/messages/README.md
-- [ ] T003 [P] [Backend] Create backend message folder placeholder in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/.gitkeep
-- [ ] T004 [P] [Frontend] Create frontend constants folder placeholder in FrontEnd/src/constants/.gitkeep
-- [ ] T005 [P] [Frontend] Create frontend i18n locale folder placeholder in FrontEnd/src/i18n/locales/.gitkeep
+- [X] T001 [Docs] Create standards documentation folder with placeholder index in docs/standards/README.md
+- [X] T002 [Docs] Create messages documentation folder with placeholder index in docs/messages/README.md
+- [X] T003 [P] [Backend] Create backend message folder placeholder in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/.gitkeep
+- [X] T004 [P] [Frontend] Create frontend constants folder placeholder in FrontEnd/src/constants/.gitkeep
+- [X] T005 [P] [Frontend] Create frontend i18n locale folder placeholder in FrontEnd/src/i18n/locales/.gitkeep
 
 ---
 
@@ -32,11 +32,11 @@
 
 **CRITICAL**: No user story implementation should start until this phase is complete.
 
-- [ ] T006 [Docs] Record canonical feature scope and phase order in specs/005-standards-and-i18n/REVISION_SUMMARY.md
-- [ ] T007 [Docs] Align message code ranges with contracts in specs/005-standards-and-i18n/contracts/message-code-structure.md
-- [ ] T008 [Docs] Align branch pattern examples with current feature branch in specs/005-standards-and-i18n/contracts/branch-naming-contract.md
-- [ ] T009 [P] [Docs] Add architecture compliance notes for standards and i18n in docs/standards/README.md
-- [ ] T010 [P] [Docs] Add message catalog maintenance rules in docs/messages/README.md
+- [X] T006 [Docs] Record canonical feature scope and phase order in specs/005-standards-and-i18n/REVISION_SUMMARY.md
+- [X] T007 [Docs] Align message code ranges with contracts in specs/005-standards-and-i18n/contracts/message-code-structure.md
+- [X] T008 [Docs] Align branch pattern examples with current feature branch in specs/005-standards-and-i18n/contracts/branch-naming-contract.md
+- [X] T009 [P] [Docs] Add architecture compliance notes for standards and i18n in docs/standards/README.md
+- [X] T010 [P] [Docs] Add message catalog maintenance rules in docs/messages/README.md
 
 **Checkpoint**: Standards and message rules are defined enough for story work to begin.
 
@@ -50,15 +50,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] [Docs] Write standards overview and navigation in docs/standards/README.md
-- [ ] T012 [P] [US1] [Docs] Document feature branch pattern feature/NNN-slug with examples in docs/standards/BRANCH_NAMING.md
-- [ ] T013 [P] [US1] [Docs] Document Portuguese semantic commit message rules in docs/standards/COMMIT_MESSAGES.md
-- [ ] T014 [P] [US1] [Docs] Document Constitution to Specify to Plan to Tasks to Implement workflow in docs/standards/SPECS_AND_PLANNING.md
-- [ ] T015 [P] [US1] [Docs] Document pull request title, description, and review expectations in docs/standards/PR_STANDARDS.md
-- [ ] T016 [P] [US1] [Docs] Document constants, enums, and type usage rules in docs/standards/CONSTANTS_AND_ENUMS.md
-- [ ] T017 [P] [US1] [Docs] Document i18n key, locale file, and fallback rules in docs/standards/I18N_GUIDELINES.md
-- [ ] T018 [US1] [Docs] Cross-link AGENTS.md and architecture docs from docs/standards/README.md
-- [ ] T019 [US1] [Docs] Validate US1 onboarding scenario against specs/005-standards-and-i18n/quickstart.md
+- [X] T011 [P] [US1] [Docs] Write standards overview and navigation in docs/standards/README.md
+- [X] T012 [P] [US1] [Docs] Document feature branch pattern feature/NNN-slug with examples in docs/standards/BRANCH_NAMING.md
+- [X] T013 [P] [US1] [Docs] Document Portuguese semantic commit message rules in docs/standards/COMMIT_MESSAGES.md
+- [X] T014 [P] [US1] [Docs] Document Constitution to Specify to Plan to Tasks to Implement workflow in docs/standards/SPECS_AND_PLANNING.md
+- [X] T015 [P] [US1] [Docs] Document pull request title, description, and review expectations in docs/standards/PR_STANDARDS.md
+- [X] T016 [P] [US1] [Docs] Document constants, enums, and type usage rules in docs/standards/CONSTANTS_AND_ENUMS.md
+- [X] T017 [P] [US1] [Docs] Document i18n key, locale file, and fallback rules in docs/standards/I18N_GUIDELINES.md
+- [X] T018 [US1] [Docs] Cross-link AGENTS.md and architecture docs from docs/standards/README.md
+- [X] T019 [US1] [Docs] Validate US1 onboarding scenario against specs/005-standards-and-i18n/quickstart.md
 
 **Checkpoint**: User Story 1 is complete and independently reviewable through docs/standards/.
 
@@ -72,16 +72,16 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] [Docs] Write message catalog purpose and usage guide in docs/messages/README.md
-- [ ] T021 [P] [US2] [Docs] Create Info message entries MI001 through MI009 in docs/messages/message-catalog.md
-- [ ] T022 [P] [US2] [Docs] Create Success message entries MSIS001 through MSIS009 in docs/messages/message-catalog.md
-- [ ] T023 [P] [US2] [Docs] Create Error message entries ME001 through ME020 in docs/messages/message-catalog.md
-- [ ] T024 [P] [US2] [Docs] Create Validation message entries MV001 through MV019 in docs/messages/message-catalog.md
-- [ ] T025 [P] [US2] [Docs] Create Confirmation message entries MC001 through MC009 in docs/messages/message-catalog.md
-- [ ] T026 [P] [US2] [Docs] Create Alert message entries MA001 through MA009 in docs/messages/message-catalog.md
-- [ ] T027 [US2] [Docs] Create quick reference grouped by category in docs/messages/message-codes.md
-- [ ] T028 [US2] [Docs] Document code immutability and deprecation policy in docs/messages/message-codes.md
-- [ ] T029 [US2] [Docs] Validate catalog has at least 50 unique codes in docs/messages/message-catalog.md
+- [X] T020 [P] [US2] [Docs] Write message catalog purpose and usage guide in docs/messages/README.md
+- [X] T021 [P] [US2] [Docs] Create Info message entries MI001 through MI009 in docs/messages/message-catalog.md
+- [X] T022 [P] [US2] [Docs] Create Success message entries MSIS001 through MSIS009 in docs/messages/message-catalog.md
+- [X] T023 [P] [US2] [Docs] Create Error message entries ME001 through ME020 in docs/messages/message-catalog.md
+- [X] T024 [P] [US2] [Docs] Create Validation message entries MV001 through MV019 in docs/messages/message-catalog.md
+- [X] T025 [P] [US2] [Docs] Create Confirmation message entries MC001 through MC009 in docs/messages/message-catalog.md
+- [X] T026 [P] [US2] [Docs] Create Alert message entries MA001 through MA009 in docs/messages/message-catalog.md
+- [X] T027 [US2] [Docs] Create quick reference grouped by category in docs/messages/message-codes.md
+- [X] T028 [US2] [Docs] Document code immutability and deprecation policy in docs/messages/message-codes.md
+- [X] T029 [US2] [Docs] Validate catalog has at least 50 unique codes in docs/messages/message-catalog.md
 
 **Checkpoint**: User Story 2 is complete and message codes are discoverable before backend/frontend usage.
 
@@ -95,23 +95,23 @@
 
 ### Tests for User Story 3
 
-- [ ] T030 [P] [US3] [Backend] Add ResourceMessageProvider pt-BR lookup test in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
-- [ ] T031 [P] [US3] [Backend] Add ResourceMessageProvider en-US lookup test in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
-- [ ] T032 [P] [US3] [Backend] Add fallback lookup test for unknown message code in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
-- [ ] T033 [P] [US3] [Backend] Add MessageResponseDto shape test in BackEnd/tests/RinhaDasLendas.Tests/Messages/MessageResponseDtoTests.cs
+- [X] T030 [P] [US3] [Backend] Add ResourceMessageProvider pt-BR lookup test in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
+- [X] T031 [P] [US3] [Backend] Add ResourceMessageProvider en-US lookup test in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
+- [X] T032 [P] [US3] [Backend] Add fallback lookup test for unknown message code in BackEnd/tests/RinhaDasLendas.Tests/Messages/ResourceMessageProviderTests.cs
+- [X] T033 [P] [US3] [Backend] Add MessageResponseDto shape test in BackEnd/tests/RinhaDasLendas.Tests/Messages/MessageResponseDtoTests.cs
 
 ### Implementation for User Story 3
 
-- [ ] T034 [P] [US3] [Backend] Create message code constants in BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs
-- [ ] T035 [P] [US3] [Backend] Create message category enum in BackEnd/src/RinhaDasLendas.Domain/Enums/MessageCategory.cs
-- [ ] T036 [P] [US3] [Backend] Create message response DTO in BackEnd/src/RinhaDasLendas.Application/Dtos/MessageResponseDto.cs
-- [ ] T037 [P] [US3] [Backend] Create message provider interface in BackEnd/src/RinhaDasLendas.Application/Interfaces/IMessageProvider.cs
-- [ ] T038 [P] [US3] [Backend] Add default Portuguese resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx
-- [ ] T039 [P] [US3] [Backend] Add explicit Portuguese resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.pt-BR.resx
-- [ ] T040 [P] [US3] [Backend] Add English resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.en-US.resx
-- [ ] T041 [US3] [Backend] Implement resource-backed provider in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/ResourceMessageProvider.cs
-- [ ] T042 [US3] [Backend] Register IMessageProvider dependency injection in BackEnd/src/RinhaDasLendas.Infrastructure/DependencyInjection.cs
-- [ ] T043 [US3] [Backend] Build backend to validate infrastructure in BackEnd/RinhaDasLendas.sln
+- [X] T034 [P] [US3] [Backend] Create message code constants in BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs
+- [X] T035 [P] [US3] [Backend] Create message category enum in BackEnd/src/RinhaDasLendas.Domain/Enums/MessageCategory.cs
+- [X] T036 [P] [US3] [Backend] Create message response DTO in BackEnd/src/RinhaDasLendas.Application/Dtos/MessageResponseDto.cs
+- [X] T037 [P] [US3] [Backend] Create message provider interface in BackEnd/src/RinhaDasLendas.Application/Interfaces/IMessageProvider.cs
+- [X] T038 [P] [US3] [Backend] Add default Portuguese resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx
+- [X] T039 [P] [US3] [Backend] Add explicit Portuguese resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.pt-BR.resx
+- [X] T040 [P] [US3] [Backend] Add English resources in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.en-US.resx
+- [X] T041 [US3] [Backend] Implement resource-backed provider in BackEnd/src/RinhaDasLendas.Infrastructure/Messages/ResourceMessageProvider.cs
+- [X] T042 [US3] [Backend] Register IMessageProvider dependency injection in BackEnd/src/RinhaDasLendas.Infrastructure/DependencyInjection.cs
+- [X] T043 [US3] [Backend] Build backend to validate infrastructure in BackEnd/RinhaDasLendas.sln
 
 **Checkpoint**: User Story 3 is complete and backend message infrastructure can be used by future endpoint changes.
 

@@ -191,3 +191,26 @@ O plano agora segue **melhores práticas nativas do .NET** para internacionaliza
 - Compatibilidade com fases anteriores
 
 **Próximo passo**: Gerar tasks para Phase 1 quando estiver pronto.
+
+---
+
+## Escopo Canônico da Feature 005
+
+A feature `005-standards-and-i18n` estabelece os padrões de documentação, catálogo de mensagens e base de internacionalização para o RinhaDasLendas.
+
+### Ordem canônica de implementação
+
+1. **Phase 1 - Setup**: criar diretórios e placeholders compartilhados.
+2. **Phase 2 - Foundational**: alinhar escopo, contratos e regras base de documentação/mensagens.
+3. **Phase 3 - US1**: documentar padrões de branches, commits, Spec Kit, PRs, constantes e i18n.
+4. **Phase 4 - US2**: criar catálogo inicial de mensagens com códigos estáveis.
+5. **Phase 5 - US3**: implementar infraestrutura backend de mensagens.
+6. **Phase 6 - US4**: implementar serviço frontend de mensagens.
+7. **Phase 7 - US5**: adicionar infraestrutura frontend de i18n.
+8. **Phase 8 - US6**: centralizar constantes, enums e tipos.
+9. **Phase 9 - US7**: documentar checklist de governança para novas features.
+10. **Final Phase**: validar build, testes, catálogo e links.
+
+### Regra de escopo
+
+As phases 2, 3 e 4 são exclusivamente documentais nesta execução. Código backend e frontend funcional começa em tasks posteriores.
