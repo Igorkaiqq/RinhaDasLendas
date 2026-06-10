@@ -150,21 +150,21 @@
 
 ### Tests for User Story 5
 
-- [ ] T053 [P] [US5] [Frontend] Add i18n locale loading test in FrontEnd/src/i18n/i18n.spec.ts
-- [ ] T054 [P] [US5] [Frontend] Add navigation translation key test in FrontEnd/src/components/layout/SidebarNav.spec.ts
+- [X] T053 [P] [US5] [Frontend] Add i18n locale loading test in FrontEnd/src/i18n/i18n.spec.ts
+- [X] T054 [P] [US5] [Frontend] Add navigation translation key test in FrontEnd/src/components/layout/SidebarNav.spec.ts
 
 ### Implementation for User Story 5
 
-- [ ] T055 [P] [US5] [Frontend] Add Vue I18n setup in FrontEnd/src/i18n/index.ts
-- [ ] T056 [P] [US5] [Frontend] Add Portuguese translations in FrontEnd/src/i18n/locales/pt-BR.json
-- [ ] T057 [P] [US5] [Frontend] Add English translations in FrontEnd/src/i18n/locales/en-US.json
-- [ ] T058 [US5] [Frontend] Register i18n plugin in FrontEnd/src/main.ts
-- [ ] T059 [US5] [Frontend] Replace sidebar labels with translation keys in FrontEnd/src/components/layout/SidebarNav.vue
-- [ ] T060 [US5] [Frontend] Replace topbar labels with translation keys in FrontEnd/src/components/layout/Topbar.vue
-- [ ] T061 [US5] [Frontend] Replace player page labels with translation keys in FrontEnd/src/views/PlayersView.vue
-- [ ] T062 [US5] [Frontend] Replace player modal labels with translation keys in FrontEnd/src/components/players/PlayerFormModal.vue
-- [ ] T063 [US5] [Frontend] Add locale switching control in FrontEnd/src/components/layout/ProfileMenu.vue
-- [ ] T064 [US5] [Frontend] Run frontend build validation in FrontEnd/package.json
+- [X] T055 [P] [US5] [Frontend] Add Vue I18n setup in FrontEnd/src/i18n/index.ts
+- [X] T056 [P] [US5] [Frontend] Add Portuguese translations in FrontEnd/src/i18n/locales/pt-BR.json
+- [X] T057 [P] [US5] [Frontend] Add English translations in FrontEnd/src/i18n/locales/en-US.json
+- [X] T058 [US5] [Frontend] Register i18n plugin in FrontEnd/src/main.ts
+- [X] T059 [US5] [Frontend] Replace sidebar labels with translation keys in FrontEnd/src/components/layout/SidebarNav.vue
+- [X] T060 [US5] [Frontend] Replace topbar labels with translation keys in FrontEnd/src/components/layout/Topbar.vue
+- [X] T061 [US5] [Frontend] Replace player page labels with translation keys in FrontEnd/src/views/PlayersView.vue
+- [X] T062 [US5] [Frontend] Replace player modal labels with translation keys in FrontEnd/src/components/players/PlayerFormModal.vue
+- [X] T063 [US5] [Frontend] Add locale switching control in FrontEnd/src/components/layout/ProfileMenu.vue
+- [X] T064 [US5] [Frontend] Run frontend build validation in FrontEnd/package.json
 
 **Checkpoint**: User Story 5 is complete and frontend text is ready for pt-BR/en-US usage.
 

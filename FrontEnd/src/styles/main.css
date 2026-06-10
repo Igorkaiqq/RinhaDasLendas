@@ -1105,3 +1105,17 @@ p {
   border-left-width: 0;
   border-top: 2px solid #c2c1ff;
 }
+
+.profile-menu__locale {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xxs);
+  border-top: 1px solid var(--color-hairline-soft);
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+}
+
+.profile-menu__locale button.is-active {
+  color: #f8f4ff;
+  background: var(--color-primary);
+}
