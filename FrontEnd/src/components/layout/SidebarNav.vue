@@ -17,6 +17,15 @@ const route = useRoute()
 
 <template>
   <aside class="sidebar" aria-label="Navegacao principal">
+    <button
+      class="sidebar__toggle"
+      type="button"
+      :aria-label="collapsed ? 'Expandir menu lateral' : 'Minimizar menu lateral'"
+      :title="collapsed ? 'Expandir menu' : 'Minimizar menu'"
+      @click="$emit('toggle')"
+    >
+      <span aria-hidden="true">{{ collapsed ? '&gt;' : '&lt;' }}</span>
+    </button>
     <div class="sidebar__brand-row">
       <RouterLink class="sidebar__brand" to="/" aria-label="RinhaDasLendas">
         <span class="sidebar__mark" aria-hidden="true">RL</span>
@@ -26,15 +35,6 @@ const route = useRoute()
         </span>
       </RouterLink>
 
-      <button
-        class="sidebar__toggle"
-        type="button"
-        :aria-label="collapsed ? 'Expandir menu lateral' : 'Minimizar menu lateral'"
-        :title="collapsed ? 'Expandir menu' : 'Minimizar menu'"
-        @click="$emit('toggle')"
-      >
-        <span aria-hidden="true">{{ collapsed ? '&gt;' : '&lt;' }}</span>
-      </button>
     </div>
 
     <nav class="sidebar__nav">

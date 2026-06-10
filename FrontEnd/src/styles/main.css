@@ -152,8 +152,7 @@ p {
 
 .sidebar__brand-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
-  gap: var(--space-xs);
+  grid-template-columns: 1fr;
   align-items: center;
   min-height: 80px;
   border-bottom: 1px solid var(--color-hairline);
@@ -170,19 +169,45 @@ p {
 }
 
 .sidebar__toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 25;
   display: grid;
-  width: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
   place-items: center;
-  border-color: var(--color-hairline);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
   padding: 0;
   color: var(--color-ink-muted);
   background: var(--color-surface-1);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 34%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) translateX(-4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
 }
 
-.sidebar__toggle:hover {
+.sidebar:hover .sidebar__toggle,
+.sidebar:focus-within .sidebar__toggle {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.sidebar__toggle:hover,
+.sidebar__toggle:focus-visible {
+  border-color: var(--color-primary-hover);
   color: var(--color-ink);
+  background: var(--color-primary);
+  transform: translate(-50%, -50%) translateX(3px);
 }
 
 .sidebar__mark {
@@ -925,30 +950,6 @@ p {
 }
 
 @media (max-width: 1180px) {
-  .app-shell {
-    grid-template-columns: 76px minmax(0, 1fr);
-  }
-
-  .sidebar__brand {
-    justify-content: center;
-    padding-right: 0;
-    padding-left: 0;
-  }
-
-  .sidebar__brand span:last-child,
-  .sidebar__item span:last-child,
-  .sidebar__tournament {
-    display: none;
-  }
-
-  .sidebar__item,
-  .sidebar__item--active,
-  .sidebar__item.router-link-active {
-    justify-content: center;
-    padding-right: 0;
-    padding-left: 0;
-  }
-
   .topbar__user-copy,
   .topbar__link,
   .topbar__divider {
@@ -975,7 +976,8 @@ p {
   }
 
   .sidebar__nav,
-  .sidebar__footer {
+  .sidebar__footer,
+  .sidebar__toggle {
     display: none;
   }
 
@@ -1018,7 +1020,6 @@ p {
 }
 
 .app-shell--collapsed .sidebar__brand-row {
-  grid-template-columns: 1fr;
   justify-items: center;
   padding-right: 0;
   padding-left: 0;
