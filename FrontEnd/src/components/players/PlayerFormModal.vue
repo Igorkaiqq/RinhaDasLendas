@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import RoutePreferenceEditor from '@/components/RoutePreferenceEditor.vue'
+import { LeagueRole } from '@/constants/leagueRoles'
 import { Divisao, Elo, type Player, type PlayerPayload, type RoutePreference } from '@/services/players'
 import type { PlayerFormMode } from '@/types/players'
 
@@ -27,11 +28,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const defaultPreferences = (): RoutePreference[] => [
-  { rota: 'Top', prioridade: 1, naoJogoNemLascando: false },
-  { rota: 'Jungle', prioridade: 2, naoJogoNemLascando: false },
-  { rota: 'Mid', prioridade: 3, naoJogoNemLascando: false },
-  { rota: 'Adc', prioridade: 4, naoJogoNemLascando: false },
-  { rota: 'Support', prioridade: 5, naoJogoNemLascando: false },
+  { rota: LeagueRole.Top, prioridade: 1, naoJogoNemLascando: false },
+  { rota: LeagueRole.Jungle, prioridade: 2, naoJogoNemLascando: false },
+  { rota: LeagueRole.Mid, prioridade: 3, naoJogoNemLascando: false },
+  { rota: LeagueRole.Adc, prioridade: 4, naoJogoNemLascando: false },
+  { rota: LeagueRole.Support, prioridade: 5, naoJogoNemLascando: false },
 ]
 
 const eloOptions: Elo[] = [

@@ -312,3 +312,25 @@ O plano foi **revisado e melhorado** com foco em:
 - Melhorar manutenibilidade (sem classes gigantes)
 
 A estratégia é mais **robusta, testável e alinhada com as melhores práticas do .NET**.
+
+---
+
+## Resultado da Implementacao
+
+A feature foi implementada em fases incrementais, preservando a separacao entre documentacao, backend e frontend.
+
+### Decisoes confirmadas durante a implementacao
+
+- Backend manteve os codigos em `MessageCodes.cs` e os textos localizados em resource files `.resx`.
+- `IMessageProvider` ficou na camada Application e `ResourceMessageProvider` na Infrastructure, respeitando a direcao de dependencias.
+- Frontend passou a usar `messageService.ts`, Vue I18n, arquivos `pt-BR.json` e `en-US.json` para textos visiveis e mensagens localizadas.
+- Valores fechados foram centralizados em `FrontEnd/src/constants/`, `FrontEnd/src/types/` e `BackEnd/src/RinhaDasLendas.Domain/Constants/`.
+- O processo futuro de feature ficou documentado em `docs/standards/FEATURE_CHECKLIST.md`.
+
+### Validacao final
+
+- `dotnet test BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj`: passou com 27 testes.
+- `npm run lint --prefix FrontEnd`: passou.
+- `npm run build --prefix FrontEnd`: passou.
+- Todos os codigos de mensagem usados em `BackEnd/src` e `FrontEnd/src` existem em `docs/messages/message-catalog.md`.
+- Links do indice `docs/standards/README.md` foram verificados.

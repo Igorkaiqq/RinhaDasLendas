@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
 import HomeView from '@/views/HomeView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 import PlayersView from '@/views/PlayersView.vue'
@@ -8,44 +9,44 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
-      name: 'home',
+      path: AppRoutes.Home,
+      name: AppRouteNames.Home,
       component: HomeView,
       meta: { title: 'Painel' },
     },
     {
-      path: '/jogadores',
-      name: 'players',
+      path: AppRoutes.Players,
+      name: AppRouteNames.Players,
       component: PlayersView,
       meta: { title: 'Jogadores' },
     },
     {
-      path: '/times',
-      name: 'teams',
+      path: AppRoutes.Teams,
+      name: AppRouteNames.Teams,
       component: PlaceholderView,
       meta: { title: 'Times' },
     },
     {
-      path: '/draft',
-      name: 'draft',
+      path: AppRoutes.Draft,
+      name: AppRouteNames.Draft,
       component: PlaceholderView,
       meta: { title: 'Draft' },
     },
     {
-      path: '/partidas',
-      name: 'matches',
+      path: AppRoutes.Matches,
+      name: AppRouteNames.Matches,
       component: PlaceholderView,
       meta: { title: 'Partidas' },
     },
     {
-      path: '/estatisticas',
-      name: 'stats',
+      path: AppRoutes.Stats,
+      name: AppRouteNames.Stats,
       component: PlaceholderView,
       meta: { title: 'Estatisticas' },
     },
     {
-      path: '/configuracoes',
-      name: 'settings',
+      path: AppRoutes.Settings,
+      name: AppRouteNames.Settings,
       component: PlaceholderView,
       meta: { title: 'Configuracoes' },
     },

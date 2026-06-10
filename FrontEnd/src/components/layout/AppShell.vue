@@ -4,23 +4,66 @@ import { useI18n } from 'vue-i18n'
 
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import Topbar from '@/components/layout/Topbar.vue'
+import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
 import type { SidebarNavigationItem, TopbarUserSummary } from '@/types/layout'
 
 const { t } = useI18n()
 
 const navigationItems = computed<SidebarNavigationItem[]>(() => [
-  { id: 'dashboard', label: t('navigation.dashboard'), icon: '#', routeName: 'home', path: '/', status: 'available' },
-  { id: 'players', label: t('navigation.players'), icon: 'J', routeName: 'players', path: '/jogadores', status: 'available' },
-  { id: 'teams', label: t('navigation.teams'), icon: 'T', routeName: 'teams', path: '/times', status: 'placeholder' },
-  { id: 'draft', label: t('navigation.draft'), icon: 'D', routeName: 'draft', path: '/draft', status: 'placeholder' },
-  { id: 'matches', label: t('navigation.matches'), icon: 'P', routeName: 'matches', path: '/partidas', status: 'placeholder' },
-  { id: 'stats', label: t('navigation.stats'), icon: 'E', routeName: 'stats', path: '/estatisticas', status: 'placeholder' },
+  {
+    id: 'dashboard',
+    label: t('navigation.dashboard'),
+    icon: '#',
+    routeName: AppRouteNames.Home,
+    path: AppRoutes.Home,
+    status: 'available',
+  },
+  {
+    id: 'players',
+    label: t('navigation.players'),
+    icon: 'J',
+    routeName: AppRouteNames.Players,
+    path: AppRoutes.Players,
+    status: 'available',
+  },
+  {
+    id: 'teams',
+    label: t('navigation.teams'),
+    icon: 'T',
+    routeName: AppRouteNames.Teams,
+    path: AppRoutes.Teams,
+    status: 'placeholder',
+  },
+  {
+    id: 'draft',
+    label: t('navigation.draft'),
+    icon: 'D',
+    routeName: AppRouteNames.Draft,
+    path: AppRoutes.Draft,
+    status: 'placeholder',
+  },
+  {
+    id: 'matches',
+    label: t('navigation.matches'),
+    icon: 'P',
+    routeName: AppRouteNames.Matches,
+    path: AppRoutes.Matches,
+    status: 'placeholder',
+  },
+  {
+    id: 'stats',
+    label: t('navigation.stats'),
+    icon: 'E',
+    routeName: AppRouteNames.Stats,
+    path: AppRoutes.Stats,
+    status: 'placeholder',
+  },
   {
     id: 'settings',
     label: t('navigation.settings'),
     icon: '*',
-    routeName: 'settings',
-    path: '/configuracoes',
+    routeName: AppRouteNames.Settings,
+    path: AppRoutes.Settings,
     status: 'placeholder',
   },
 ])

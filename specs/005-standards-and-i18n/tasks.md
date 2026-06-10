@@ -178,21 +178,21 @@
 
 ### Tests for User Story 6
 
-- [ ] T065 [P] [US6] [Backend] Add project structure test for backend constants folder in BackEnd/tests/RinhaDasLendas.Tests/ProjectStructureTests.cs
-- [ ] T066 [P] [US6] [Frontend] Add route constants test in FrontEnd/src/constants/appRoutes.spec.ts
+- [X] T065 [P] [US6] [Backend] Add project structure test for backend constants folder in BackEnd/tests/RinhaDasLendas.Tests/ProjectStructureTests.cs
+- [X] T066 [P] [US6] [Frontend] Add route constants test in FrontEnd/src/constants/appRoutes.spec.ts
 
 ### Implementation for User Story 6
 
-- [ ] T067 [P] [US6] [Frontend] Create app route constants in FrontEnd/src/constants/appRoutes.ts
-- [ ] T068 [P] [US6] [Frontend] Create player status constants in FrontEnd/src/constants/playerStatus.ts
-- [ ] T069 [P] [US6] [Frontend] Create League role constants in FrontEnd/src/constants/leagueRoles.ts
-- [ ] T070 [P] [US6] [Frontend] Create League rank type in FrontEnd/src/types/leagueRank.ts
-- [ ] T071 [US6] [Frontend] Use AppRoutes constants in FrontEnd/src/router/index.ts
-- [ ] T072 [US6] [Frontend] Use AppRoutes constants in FrontEnd/src/components/layout/SidebarNav.vue
-- [ ] T073 [US6] [Frontend] Use PlayerStatus constants in FrontEnd/src/components/PlayerStatusBadge.vue
-- [ ] T074 [US6] [Frontend] Use LeagueRole constants in FrontEnd/src/components/RoutePreferenceEditor.vue
-- [ ] T075 [P] [US6] [Backend] Add message validation constants in BackEnd/src/RinhaDasLendas.Domain/Constants/ValidationConstants.cs
-- [ ] T076 [US6] [Backend] Run backend build validation in BackEnd/RinhaDasLendas.sln
+- [X] T067 [P] [US6] [Frontend] Create app route constants in FrontEnd/src/constants/appRoutes.ts
+- [X] T068 [P] [US6] [Frontend] Create player status constants in FrontEnd/src/constants/playerStatus.ts
+- [X] T069 [P] [US6] [Frontend] Create League role constants in FrontEnd/src/constants/leagueRoles.ts
+- [X] T070 [P] [US6] [Frontend] Create League rank type in FrontEnd/src/types/leagueRank.ts
+- [X] T071 [US6] [Frontend] Use AppRoutes constants in FrontEnd/src/router/index.ts
+- [X] T072 [US6] [Frontend] Use AppRoutes constants in FrontEnd/src/components/layout/SidebarNav.vue
+- [X] T073 [US6] [Frontend] Use PlayerStatus constants in FrontEnd/src/components/PlayerStatusBadge.vue
+- [X] T074 [US6] [Frontend] Use LeagueRole constants in FrontEnd/src/components/RoutePreferenceEditor.vue
+- [X] T075 [P] [US6] [Backend] Add message validation constants in BackEnd/src/RinhaDasLendas.Domain/Constants/ValidationConstants.cs
+- [X] T076 [US6] [Backend] Run backend build validation in BackEnd/RinhaDasLendas.sln
 
 **Checkpoint**: User Story 6 is complete and common fixed values are centralized.
 
@@ -206,13 +206,13 @@
 
 ### Implementation for User Story 7
 
-- [ ] T077 [P] [US7] [Docs] Create feature development checklist in docs/standards/FEATURE_CHECKLIST.md
-- [ ] T078 [P] [US7] [Docs] Add message catalog update steps to docs/standards/FEATURE_CHECKLIST.md
-- [ ] T079 [P] [US7] [Docs] Add translation file update steps to docs/standards/FEATURE_CHECKLIST.md
-- [ ] T080 [P] [US7] [Docs] Add constants and enums review steps to docs/standards/FEATURE_CHECKLIST.md
-- [ ] T081 [P] [US7] [Docs] Add validation command checklist to docs/standards/FEATURE_CHECKLIST.md
-- [ ] T082 [US7] [Docs] Link feature checklist from docs/standards/README.md
-- [ ] T083 [US7] [Docs] Validate US7 governance scenario against specs/005-standards-and-i18n/quickstart.md
+- [X] T077 [P] [US7] [Docs] Create feature development checklist in docs/standards/FEATURE_CHECKLIST.md
+- [X] T078 [P] [US7] [Docs] Add message catalog update steps to docs/standards/FEATURE_CHECKLIST.md
+- [X] T079 [P] [US7] [Docs] Add translation file update steps to docs/standards/FEATURE_CHECKLIST.md
+- [X] T080 [P] [US7] [Docs] Add constants and enums review steps to docs/standards/FEATURE_CHECKLIST.md
+- [X] T081 [P] [US7] [Docs] Add validation command checklist to docs/standards/FEATURE_CHECKLIST.md
+- [X] T082 [US7] [Docs] Link feature checklist from docs/standards/README.md
+- [X] T083 [US7] [Docs] Validate US7 governance scenario against specs/005-standards-and-i18n/quickstart.md
 
 **Checkpoint**: User Story 7 is complete and future feature governance is documented.
 
@@ -222,13 +222,13 @@
 
 **Purpose**: Validate the full feature and update generated artifacts after all selected stories are complete.
 
-- [ ] T084 [P] [Docs] Update quickstart validation results in specs/005-standards-and-i18n/quickstart.md
-- [ ] T085 [P] [Docs] Update revision notes with implementation decisions in specs/005-standards-and-i18n/REVISION_NOTES.md
-- [ ] T086 [P] [Backend] Run complete backend test suite in BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj
-- [ ] T087 [P] [Frontend] Run frontend lint validation in FrontEnd/package.json
-- [ ] T088 [P] [Frontend] Run frontend build validation in FrontEnd/package.json
-- [ ] T089 [Docs] Verify every message code used in BackEnd/src and FrontEnd/src exists in docs/messages/message-catalog.md
-- [ ] T090 [Docs] Confirm no unchecked standards links remain in docs/standards/README.md
+- [X] T084 [P] [Docs] Update quickstart validation results in specs/005-standards-and-i18n/quickstart.md
+- [X] T085 [P] [Docs] Update revision notes with implementation decisions in specs/005-standards-and-i18n/REVISION_NOTES.md
+- [X] T086 [P] [Backend] Run complete backend test suite in BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj
+- [X] T087 [P] [Frontend] Run frontend lint validation in FrontEnd/package.json
+- [X] T088 [P] [Frontend] Run frontend build validation in FrontEnd/package.json
+- [X] T089 [Docs] Verify every message code used in BackEnd/src and FrontEnd/src exists in docs/messages/message-catalog.md
+- [X] T090 [Docs] Confirm no unchecked standards links remain in docs/standards/README.md
 
 ---
 

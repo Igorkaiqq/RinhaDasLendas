@@ -12,6 +12,7 @@ Este diretório centraliza os padrões de desenvolvimento do RinhaDasLendas. Ele
 | Pull Requests | [PR_STANDARDS.md](PR_STANDARDS.md) | Antes de abrir ou revisar PR |
 | Constantes e enums | [CONSTANTS_AND_ENUMS.md](CONSTANTS_AND_ENUMS.md) | Ao adicionar valores fechados ou evitar magic strings |
 | i18n | [I18N_GUIDELINES.md](I18N_GUIDELINES.md) | Ao adicionar texto visível ao usuário |
+| Checklist de feature | [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md) | Antes de implementar e antes de abrir review |
 
 ## Ordem obrigatória de trabalho
 

@@ -2,6 +2,7 @@
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
+import { AppRoutes } from '@/constants/appRoutes'
 import type { SidebarNavigationItem } from '@/types/layout'
 
 const props = defineProps<{
@@ -29,7 +30,7 @@ const { t } = useI18n()
       <span aria-hidden="true">{{ props.collapsed ? '&gt;' : '&lt;' }}</span>
     </button>
     <div class="sidebar__brand-row">
-      <RouterLink class="sidebar__brand" to="/" :aria-label="t('app.name')">
+      <RouterLink class="sidebar__brand" :to="AppRoutes.Home" :aria-label="t('app.name')">
         <span class="sidebar__mark" aria-hidden="true">RL</span>
         <span class="sidebar__brand-copy">
           <strong>{{ t('app.name') }}</strong>
@@ -54,7 +55,7 @@ const { t } = useI18n()
 
     <div class="sidebar__footer">
       <button type="button" class="sidebar__tournament">{{ t('navigation.joinTournament') }}</button>
-      <RouterLink class="sidebar__item" to="/configuracoes" :title="t('navigation.support')">
+      <RouterLink class="sidebar__item" :to="AppRoutes.Settings" :title="t('navigation.support')">
         <span class="sidebar__icon" aria-hidden="true">?</span>
         <span class="sidebar__label">{{ t('navigation.support') }}</span>
       </RouterLink>

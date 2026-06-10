@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AppRoutes } from '@/constants/appRoutes'
 import { ref } from 'vue'
 
 const notification = ref<string | null>(null)
@@ -44,7 +45,7 @@ function showUnderConstruction() {
         </div>
       </article>
 
-      <RouterLink class="home-card home-card--link" to="/jogadores">
+      <RouterLink class="home-card home-card--link" :to="AppRoutes.Players">
         <span class="home-card__icon" aria-hidden="true">J</span>
         <div>
           <h2>Jogadores</h2>

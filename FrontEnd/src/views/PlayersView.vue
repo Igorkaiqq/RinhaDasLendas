@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n'
 import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
 import PlayerFormModal from '@/components/players/PlayerFormModal.vue'
 import PlayerList from '@/components/players/PlayerList.vue'
+import { LEAGUE_ROLES } from '@/constants/leagueRoles'
+import { PlayerStatus } from '@/constants/playerStatus'
 import {
   createPlayer,
   deletePlayer,
@@ -35,7 +37,7 @@ const notification = ref<FeedbackState | null>(null)
 let notificationTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
 const rankOptions = computed(() => [...new Set(players.value.map((player) => player.elo).filter(Boolean))] as string[])
-const routeOptions = ['Top', 'Jungle', 'Mid', 'Adc', 'Support']
+const routeOptions = LEAGUE_ROLES
 const paginationStart = computed(() => (filteredPlayers.value.length ? 1 : 0))
 
 const filteredPlayers = computed(() => {
@@ -50,7 +52,7 @@ const filteredPlayers = computed(() => {
       player.riotId?.toLowerCase().includes(normalizedSearch)
     const matchesRank = !selectedRank.value || player.elo === selectedRank.value
     const matchesRoute = !selectedRoute.value || primaryRoute === selectedRoute.value
-    const matchesStatus = !onlyActive.value || player.status === 'Ativo'
+    const matchesStatus = !onlyActive.value || player.status === PlayerStatus.Active
 
     return matchesSearch && matchesRank && matchesRoute && matchesStatus
   })

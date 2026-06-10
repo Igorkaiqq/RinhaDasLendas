@@ -1,7 +1,10 @@
+import { LeagueRole } from '@/constants/leagueRoles'
+import { PlayerStatus } from '@/constants/playerStatus'
+
 import type { Divisao, Elo, Player, PlayerPayload, PlayerUpdatePayload, RoutePreference } from './players'
 
 const defaultPreferences = (primary: RoutePreference['rota']): RoutePreference[] => {
-  const order: RoutePreference['rota'][] = [primary, 'Jungle', 'Mid', 'Adc', 'Support', 'Top']
+  const order: RoutePreference['rota'][] = [primary, LeagueRole.Jungle, LeagueRole.Mid, LeagueRole.Adc, LeagueRole.Support, LeagueRole.Top]
   const uniqueOrder = [...new Set(order)].slice(0, 5)
 
   return uniqueOrder.map((rota, index) => ({
@@ -23,10 +26,10 @@ let fakePlayers: Player[] = [
     deepLolUrl: null,
     elo: 'Desafiante' as Elo,
     divisao: null,
-    status: 'Ativo',
+    status: PlayerStatus.Active,
     dataCadastro: now,
     dataAtualizacao: now,
-    preferencias: defaultPreferences('Mid'),
+    preferencias: defaultPreferences(LeagueRole.Mid),
   },
   {
     id: 'fake-canyon',
@@ -37,10 +40,10 @@ let fakePlayers: Player[] = [
     deepLolUrl: null,
     elo: 'Mestre' as Elo,
     divisao: null,
-    status: 'Ativo',
+    status: PlayerStatus.Active,
     dataCadastro: now,
     dataAtualizacao: now,
-    preferencias: defaultPreferences('Jungle'),
+    preferencias: defaultPreferences(LeagueRole.Jungle),
   },
   {
     id: 'fake-zeus',
@@ -51,10 +54,10 @@ let fakePlayers: Player[] = [
     deepLolUrl: null,
     elo: 'Diamante' as Elo,
     divisao: 'I' as Divisao,
-    status: 'Ativo',
+    status: PlayerStatus.Active,
     dataCadastro: now,
     dataAtualizacao: now,
-    preferencias: defaultPreferences('Top'),
+    preferencias: defaultPreferences(LeagueRole.Top),
   },
   {
     id: 'fake-ruler',
@@ -65,15 +68,15 @@ let fakePlayers: Player[] = [
     deepLolUrl: null,
     elo: 'Desafiante' as Elo,
     divisao: null,
-    status: 'Inativo',
+    status: PlayerStatus.Inactive,
     dataCadastro: now,
     dataAtualizacao: now,
-    preferencias: defaultPreferences('Adc'),
+    preferencias: defaultPreferences(LeagueRole.Adc),
   },
 ]
 
 export function listFakePlayers(somenteAtivos = false): Player[] {
-  return fakePlayers.filter((player) => !somenteAtivos || player.status === 'Ativo')
+  return fakePlayers.filter((player) => !somenteAtivos || player.status === PlayerStatus.Active)
 }
 
 export function createFakePlayer(payload: PlayerPayload): Player {
@@ -88,7 +91,7 @@ export function createFakePlayer(payload: PlayerPayload): Player {
     deepLolUrl: payload.deepLolUrl?.trim() || null,
     elo: payload.elo ?? null,
     divisao: payload.divisao ?? null,
-    status: 'Ativo',
+    status: PlayerStatus.Active,
     dataCadastro: new Date().toISOString(),
     dataAtualizacao: new Date().toISOString(),
     preferencias: [...payload.preferencias],
@@ -136,7 +139,7 @@ export function updateFakeRoutePreferences(id: string, preferencias: RoutePrefer
 export function inactivateFakePlayer(id: string): void {
   const current = getFakePlayer(id)
   fakePlayers = fakePlayers.map((player) =>
-    player.id === id ? { ...current, status: 'Inativo', dataAtualizacao: new Date().toISOString() } : player,
+    player.id === id ? { ...current, status: PlayerStatus.Inactive, dataAtualizacao: new Date().toISOString() } : player,
   )
 }
 

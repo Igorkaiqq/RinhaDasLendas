@@ -1,6 +1,8 @@
 import { AxiosError } from 'axios'
 
+import type { LeagueRoleValue } from '@/constants/leagueRoles'
 import { MessageCode } from '@/constants/messageCode'
+import type { PlayerStatusValue } from '@/constants/playerStatus'
 
 import { api } from './api'
 import { getMessage } from './messageService'
@@ -13,7 +15,7 @@ import {
   updateFakeRoutePreferences,
 } from './fakePlayers'
 
-export type RouteName = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
+export type RouteName = LeagueRoleValue
 
 export enum Elo {
   Ferro = 'Ferro',
@@ -73,7 +75,7 @@ export interface Player {
   deepLolUrl?: string | null
   elo?: Elo | null
   divisao?: Divisao | null
-  status: 'Ativo' | 'Inativo'
+  status: PlayerStatusValue
   dataCadastro: string
   dataAtualizacao: string
   preferencias: RoutePreference[]
