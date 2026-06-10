@@ -268,11 +268,11 @@ function submit() {
                 <option v-for="division in divisionOptions" :key="division" :value="division">{{ division }}</option>
               </select>
             </label>
-            <label class="player-form__field player-form__field--wide">
+            <label class="player-form__field">
               OP.GG
               <input v-model="form.opGgUrl" autocomplete="off" placeholder="https://www.op.gg/..." />
             </label>
-            <label class="player-form__field player-form__field--wide">
+            <label class="player-form__field">
               Deeplol
               <input v-model="form.deepLolUrl" autocomplete="off" placeholder="https://www.deeplol.gg/..." />
             </label>
