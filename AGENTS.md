@@ -441,6 +441,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/003-cadastro-jogadores-rotas/plan.md
+Implementation Plan: specs/004-layout-jogadores/plan.md
 
 <!-- SPECKIT END -->

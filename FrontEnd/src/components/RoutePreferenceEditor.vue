@@ -57,25 +57,27 @@ function preferenceFor(rota: RouteName) {
   <fieldset class="route-editor">
     <legend>Preferencias de rotas</legend>
 
-    <div v-for="route in routes" :key="route" class="route-editor__row">
-      <span class="route-editor__role" :class="`route-editor__role--${route.toLowerCase()}`">{{ route }}</span>
-      <label>
-        Prioridade
-        <select
-          :value="preferenceFor(route)?.prioridade"
-          @change="updatePriority(route, Number(($event.target as HTMLSelectElement).value))"
-        >
-          <option v-for="priority in 5" :key="priority" :value="priority">{{ priority }}</option>
-        </select>
-      </label>
-      <label class="route-editor__blocked">
-        <input
-          type="checkbox"
-          :checked="preferenceFor(route)?.naoJogoNemLascando"
-          @change="updateBlocked(route, ($event.target as HTMLInputElement).checked)"
-        />
-        Nao jogo nem lascando
-      </label>
+    <div class="route-editor__grid">
+      <div v-for="route in routes" :key="route" class="route-editor__card">
+        <span class="route-editor__role" :class="`route-editor__role--${route.toLowerCase()}`">{{ route }}</span>
+        <label class="route-editor__priority">
+          Prioridade
+          <select
+            :value="preferenceFor(route)?.prioridade"
+            @change="updatePriority(route, Number(($event.target as HTMLSelectElement).value))"
+          >
+            <option v-for="priority in 5" :key="priority" :value="priority">{{ priority }}</option>
+          </select>
+        </label>
+        <label class="route-editor__blocked">
+          <input
+            type="checkbox"
+            :checked="preferenceFor(route)?.naoJogoNemLascando"
+            @change="updateBlocked(route, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>Nao jogo nem lascando</span>
+        </label>
+      </div>
     </div>
 
     <p v-for="error in errors" :key="error" class="route-editor__error">{{ error }}</p>
@@ -84,11 +86,12 @@ function preferenceFor(rota: RouteName) {
 
 <style scoped>
 .route-editor {
+  grid-column: 1 / -1;
   display: grid;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   min-width: 0;
   margin: 0;
-  padding: var(--space-md);
+  padding: var(--space-sm);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   background: var(--color-surface-1);
@@ -100,11 +103,22 @@ function preferenceFor(rota: RouteName) {
   font-weight: 700;
 }
 
-.route-editor__row {
+.route-editor__grid {
   display: grid;
-  grid-template-columns: minmax(72px, 0.8fr) minmax(112px, 1fr) minmax(160px, 1.2fr);
-  gap: var(--space-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs);
+}
+
+.route-editor__card {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(92px, 1fr);
+  gap: var(--space-xs);
   align-items: center;
+  min-width: 0;
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs);
+  background: rgb(12 19 32 / 50%);
 }
 
 .route-editor__role {
@@ -113,13 +127,13 @@ function preferenceFor(rota: RouteName) {
 
 .route-editor label {
   display: grid;
-  gap: var(--space-xxs);
+  gap: 4px;
   color: var(--color-ink-muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .route-editor select {
-  min-height: 38px;
+  min-height: 32px;
   border: 1px solid var(--color-hairline-strong);
   border-radius: var(--radius-sm);
   color: var(--color-ink);
@@ -127,9 +141,14 @@ function preferenceFor(rota: RouteName) {
 }
 
 .route-editor__blocked {
-  grid-template-columns: 18px 1fr;
+  grid-column: 1 / -1;
+  grid-template-columns: 16px 1fr;
   align-items: center;
   color: var(--color-ink);
+}
+
+.route-editor__blocked input {
+  margin: 0;
 }
 
 .route-editor__error {
@@ -145,7 +164,11 @@ function preferenceFor(rota: RouteName) {
 .route-editor__role--support { color: var(--role-support); }
 
 @media (max-width: 720px) {
-  .route-editor__row {
+  .route-editor__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .route-editor__card {
     grid-template-columns: 1fr;
   }
 }
