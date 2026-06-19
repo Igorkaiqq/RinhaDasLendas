@@ -79,6 +79,60 @@ public partial class RinhaDasLendasDbContextModelSnapshot : ModelSnapshot
             b.ToTable("time_membros");
         });
 
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftSessao", b =>
+        {
+            b.Property<Guid>("Id").HasColumnName("id");
+            b.Property<Guid>("CapitaoTimeAId").HasColumnName("capitao_time_a_id");
+            b.Property<Guid>("CapitaoTimeBId").HasColumnName("capitao_time_b_id");
+            b.Property<string>("CriterioCapitaes").IsRequired().HasMaxLength(20).HasColumnName("criterio_capitaes");
+            b.Property<string>("CriterioPrimeiroPick").IsRequired().HasMaxLength(20).HasColumnName("criterio_primeiro_pick");
+            b.Property<DateTimeOffset>("DataAtualizacao").HasColumnName("data_atualizacao");
+            b.Property<DateTimeOffset>("DataCadastro").HasColumnName("data_cadastro");
+            b.Property<string>("MotivoCancelamento").HasMaxLength(500).HasColumnName("motivo_cancelamento");
+            b.Property<string>("Nome").IsRequired().HasMaxLength(120).HasColumnName("nome");
+            b.Property<string>("Observacoes").HasMaxLength(500).HasColumnName("observacoes");
+            b.Property<string>("ProximoTime").HasMaxLength(20).HasColumnName("proximo_time");
+            b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnName("status");
+            b.Property<int>("TamanhoTime").HasColumnName("tamanho_time");
+            b.HasKey("Id");
+            b.HasIndex("CapitaoTimeAId");
+            b.HasIndex("CapitaoTimeBId");
+            b.HasIndex("DataCadastro");
+            b.HasIndex("Status");
+            b.ToTable("drafts");
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
+        {
+            b.Property<Guid>("Id").HasColumnName("id");
+            b.Property<bool>("Capitao").HasDefaultValue(false).HasColumnName("capitao");
+            b.Property<DateTimeOffset>("DataCadastro").HasColumnName("data_cadastro");
+            b.Property<Guid>("DraftSessaoId").HasColumnName("draft_sessao_id");
+            b.Property<Guid>("JogadorId").HasColumnName("jogador_id");
+            b.Property<string>("Time").HasMaxLength(20).HasColumnName("time");
+            b.HasKey("Id");
+            b.HasIndex("JogadorId");
+            b.HasIndex("DraftSessaoId", "JogadorId").IsUnique();
+            b.ToTable("draft_participantes");
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftEscolha", b =>
+        {
+            b.Property<Guid>("Id").HasColumnName("id");
+            b.Property<Guid>("CapitaoId").HasColumnName("capitao_id");
+            b.Property<DateTimeOffset>("DataEscolha").HasColumnName("data_escolha");
+            b.Property<Guid>("DraftSessaoId").HasColumnName("draft_sessao_id");
+            b.Property<Guid>("JogadorId").HasColumnName("jogador_id");
+            b.Property<int>("Sequencia").HasColumnName("sequencia");
+            b.Property<string>("Time").IsRequired().HasMaxLength(20).HasColumnName("time");
+            b.HasKey("Id");
+            b.HasIndex("CapitaoId");
+            b.HasIndex("JogadorId");
+            b.HasIndex("DraftSessaoId", "JogadorId").IsUnique();
+            b.HasIndex("DraftSessaoId", "Sequencia").IsUnique();
+            b.ToTable("draft_escolhas");
+        });
+
         modelBuilder.Entity("RinhaDasLendas.Domain.Entities.PreferenciaRota", b =>
         {
             b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
@@ -111,6 +165,68 @@ public partial class RinhaDasLendasDbContextModelSnapshot : ModelSnapshot
                 .IsRequired();
 
             b.Navigation("Jogador");
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftSessao", b =>
+        {
+            b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                .WithMany()
+                .HasForeignKey("CapitaoTimeAId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                .WithMany()
+                .HasForeignKey("CapitaoTimeBId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
+        {
+            b.HasOne("RinhaDasLendas.Domain.Entities.DraftSessao", null)
+                .WithMany("Participantes")
+                .HasForeignKey("DraftSessaoId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Jogador")
+                .WithMany()
+                .HasForeignKey("JogadorId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            b.Navigation("Jogador");
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftEscolha", b =>
+        {
+            b.HasOne("RinhaDasLendas.Domain.Entities.DraftSessao", null)
+                .WithMany("Escolhas")
+                .HasForeignKey("DraftSessaoId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Capitao")
+                .WithMany()
+                .HasForeignKey("CapitaoId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Jogador")
+                .WithMany()
+                .HasForeignKey("JogadorId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            b.Navigation("Capitao");
+            b.Navigation("Jogador");
+        });
+
+        modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftSessao", b =>
+        {
+            b.Navigation("Escolhas");
+            b.Navigation("Participantes");
         });
 
         modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Time", b =>

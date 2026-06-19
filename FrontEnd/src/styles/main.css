@@ -761,6 +761,143 @@ p {
   resize: vertical;
 }
 
+.draft-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+}
+
+.draft-list,
+.draft-main,
+.draft-panel,
+.draft-empty-card,
+.draft-team,
+.draft-available {
+  border: 1px solid var(--color-hairline);
+  border-radius: 20px;
+  background: var(--color-surface-1);
+}
+
+.draft-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+}
+
+.draft-list > button {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 14px;
+  color: var(--color-ink);
+  text-align: left;
+  background: var(--color-surface-2);
+}
+
+.draft-list > button.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.draft-main {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.draft-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.draft-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.draft-team,
+.draft-available,
+.draft-panel,
+.draft-empty-card {
+  padding: 18px;
+}
+
+.draft-team ul,
+.draft-picks {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 16px 0 0;
+  list-style: none;
+}
+
+.draft-team li,
+.draft-picks li {
+  padding: 10px 12px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 12px;
+  background: var(--color-surface-2);
+}
+
+.draft-player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.draft-player-grid button {
+  padding: 12px;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 999px;
+  color: var(--color-ink);
+  background: var(--color-surface-2);
+}
+
+.draft-player-grid button:not(:disabled):hover {
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.team-status--aberto {
+  border-color: rgba(34, 197, 94, 0.35);
+  color: var(--color-success);
+}
+
+.team-status--concluido {
+  border-color: rgba(59, 130, 246, 0.35);
+  color: var(--color-info);
+}
+
+.team-status--cancelado {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--color-danger);
+}
+
+.checkbox-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-line input {
+  width: auto;
+}
+
+@media (max-width: 1024px) {
+  .draft-layout,
+  .draft-board {
+    grid-template-columns: 1fr;
+  }
+}
+
 .player-card__links {
   justify-content: space-between;
   min-width: 0;

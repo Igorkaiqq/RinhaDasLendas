@@ -26,6 +26,9 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | MSIS011 | Success | Time atualizado com sucesso | Team updated successfully | Edicao de time | info |
 | MSIS012 | Success | Time inativado com sucesso | Team deactivated successfully | Inativacao de time | info |
 | MSIS013 | Success | Time reativado com sucesso | Team reactivated successfully | Reativacao de time | info |
+| MSIS014 | Success | Draft criado com sucesso | Draft created successfully | Criacao de draft | info |
+| MSIS015 | Success | Pick registrado com sucesso | Pick registered successfully | Escolha de jogador no draft | info |
+| MSIS016 | Success | Draft cancelado com sucesso | Draft canceled successfully | Cancelamento de draft | info |
 | ME001 | Error | Ocorreu um erro inesperado | An unexpected error occurred | Erro genérico não tratado | error |
 | ME002 | Error | Falha ao conectar ao servidor | Failed to connect to server | Falha de comunicação HTTP | error |
 | ME003 | Error | Jogador não encontrado | Player not found | Busca por jogador inexistente | error |
@@ -48,6 +51,7 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | ME020 | Error | Tempo limite excedido | Request timed out | Timeout de operação | error |
 | ME021 | Error | Time não encontrado | Team not found | Busca por time inexistente | error |
 | ME022 | Error | Não foi possível salvar o time | Could not save team | Falha persistindo time | error |
+| ME023 | Error | Não foi possível salvar o draft | Could not save draft | Falha persistindo draft | error |
 | MV001 | Validation | Campo obrigatório | Required field | Validação de campo vazio | warning |
 | MV002 | Validation | Formato de email inválido | Invalid email format | Validação de email | warning |
 | MV003 | Validation | Nome do jogador deve ser informado | Player name is required | Cadastro de jogador | warning |
@@ -73,6 +77,11 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | MV023 | Validation | Jogador já está neste time | Player is already in this team | Composição de time | warning |
 | MV024 | Validation | Capitão deve fazer parte do time | Captain must be a team member | Composição de time | warning |
 | MV025 | Validation | Jogador inativo não pode entrar em time ativo | Inactive player cannot join an active team | Composição de time | warning |
+| MV026 | Validation | Nome do draft deve ser informado | Draft name is required | Criacao de draft | warning |
+| MV027 | Validation | Capitães do draft devem ser informados | Draft captains are required | Criacao de draft | warning |
+| MV028 | Validation | Jogador já foi escolhido neste draft | Player has already been picked in this draft | Pick duplicado | warning |
+| MV029 | Validation | Draft não está aberto para escolhas | Draft is not open for picks | Status do draft | warning |
+| MV030 | Validation | Jogador inválido para este draft | Invalid player for this draft | Pick de jogador | warning |
 | MC001 | Confirmation | Confirmar esta ação? | Confirm this action? | Confirmação genérica | info |
 | MC002 | Confirmation | Deseja inativar este jogador? | Do you want to deactivate this player? | Inativação de jogador | warning |
 | MC003 | Confirmation | Deseja remover o jogador da fila? | Do you want to remove the player from the queue? | Fila/votação | warning |

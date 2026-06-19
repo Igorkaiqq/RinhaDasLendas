@@ -26,6 +26,9 @@
   <data name="MSIS011" xml:space="preserve"><value>Time atualizado com sucesso</value></data>
   <data name="MSIS012" xml:space="preserve"><value>Time inativado com sucesso</value></data>
   <data name="MSIS013" xml:space="preserve"><value>Time reativado com sucesso</value></data>
+  <data name="MSIS014" xml:space="preserve"><value>Draft criado com sucesso</value></data>
+  <data name="MSIS015" xml:space="preserve"><value>Pick registrado com sucesso</value></data>
+  <data name="MSIS016" xml:space="preserve"><value>Draft cancelado com sucesso</value></data>
   <data name="ME001" xml:space="preserve"><value>Ocorreu um erro inesperado</value></data>
   <data name="ME002" xml:space="preserve"><value>Falha ao conectar ao servidor</value></data>
   <data name="ME003" xml:space="preserve"><value>Jogador não encontrado</value></data>
@@ -48,6 +51,7 @@
   <data name="ME020" xml:space="preserve"><value>Tempo limite excedido</value></data>
   <data name="ME021" xml:space="preserve"><value>Time não encontrado</value></data>
   <data name="ME022" xml:space="preserve"><value>Não foi possível salvar o time</value></data>
+  <data name="ME023" xml:space="preserve"><value>Não foi possível salvar o draft</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -73,6 +77,11 @@
   <data name="MV023" xml:space="preserve"><value>Jogador já está neste time</value></data>
   <data name="MV024" xml:space="preserve"><value>Capitão deve fazer parte do time</value></data>
   <data name="MV025" xml:space="preserve"><value>Jogador inativo não pode entrar em time ativo</value></data>
+  <data name="MV026" xml:space="preserve"><value>Nome do draft deve ser informado</value></data>
+  <data name="MV027" xml:space="preserve"><value>Capitães do draft devem ser informados</value></data>
+  <data name="MV028" xml:space="preserve"><value>Jogador já foi escolhido neste draft</value></data>
+  <data name="MV029" xml:space="preserve"><value>Draft não está aberto para escolhas</value></data>
+  <data name="MV030" xml:space="preserve"><value>Jogador inválido para este draft</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>
   <data name="MC002" xml:space="preserve"><value>Deseja inativar este jogador?</value></data>
   <data name="MC003" xml:space="preserve"><value>Deseja remover o jogador da fila?</value></data>

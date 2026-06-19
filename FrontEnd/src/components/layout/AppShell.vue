@@ -40,7 +40,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
     icon: 'D',
     routeName: AppRouteNames.Draft,
     path: AppRoutes.Draft,
-    status: 'placeholder',
+    status: 'available',
   },
   {
     id: 'matches',

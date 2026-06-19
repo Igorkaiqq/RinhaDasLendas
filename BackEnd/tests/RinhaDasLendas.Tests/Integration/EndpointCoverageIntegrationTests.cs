@@ -57,6 +57,7 @@ public sealed class EndpointCoverageIntegrationTests
         {
             await ExecuteJogadoresFlowAsync(factory, client);
             await ExecuteTimesFlowAsync(client);
+            await ExecuteDraftsFlowAsync(client);
         }
         catch (Exception exception)
         {
@@ -223,6 +224,56 @@ public sealed class EndpointCoverageIntegrationTests
         active!.Status.Should().Be("Ativo");
     }
 
+    private static async Task ExecuteDraftsFlowAsync(HttpClient client)
+    {
+        var jogadores = new[]
+        {
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}")
+        };
+
+        var createRequest = new CreateDraftRequestDto(
+            $"Draft Integracao {Guid.NewGuid():N}",
+            "Draft criado pelo teste de integracao",
+            2,
+            false,
+            jogadores[0].Id,
+            jogadores[1].Id,
+            false,
+            "TimeA",
+            jogadores.Select(jogador => jogador.Id).ToList());
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/drafts", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        created.Should().NotBeNull();
+        created!.Status.Should().Be("Aberto");
+        created.Disponiveis.Should().HaveCount(2);
+
+        var listResponse = await client.GetAsync("/api/v1/drafts?page=1&pageSize=20");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await listResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<DraftResponseDto>>();
+        list.Should().NotBeNull();
+        list!.Items.Should().Contain(draft => draft.Id == created.Id);
+
+        var getByIdResponse = await client.GetAsync($"/api/v1/drafts/{created.Id}");
+        getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var pickResponse = await client.PostAsJsonAsync($"/api/v1/drafts/{created.Id}/picks", new RegistrarPickDraftRequestDto(jogadores[2].Id));
+        pickResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var picked = await pickResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        picked.Should().NotBeNull();
+        picked!.Escolhas.Should().ContainSingle();
+
+        var cancelResponse = await client.PatchAsJsonAsync($"/api/v1/drafts/{created.Id}/cancelar", new CancelarDraftRequestDto("Teste finalizado"));
+        cancelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var canceled = await cancelResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        canceled.Should().NotBeNull();
+        canceled!.Status.Should().Be("Cancelado");
+    }
+
     private static async Task<JogadorResponseDto> CreateJogadorAsync(HttpClient client, string nome)
     {
         var request = CreateRequest(nome);
@@ -367,7 +418,12 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("POST", "/api/v1/times"),
             EndpointKey.From("PUT", "/api/v1/times/{id}"),
             EndpointKey.From("PATCH", "/api/v1/times/{id}/inativar"),
-            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar")
+            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar"),
+            EndpointKey.From("GET", "/api/v1/drafts"),
+            EndpointKey.From("GET", "/api/v1/drafts/{id}"),
+            EndpointKey.From("POST", "/api/v1/drafts"),
+            EndpointKey.From("POST", "/api/v1/drafts/{id}/picks"),
+            EndpointKey.From("PATCH", "/api/v1/drafts/{id}/cancelar")
         ];
     }
 

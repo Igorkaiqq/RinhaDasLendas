@@ -71,6 +71,15 @@
     "emptyTitle": "No teams found",
     "emptyDescription": "Create the first team or adjust filters to view the roster."
   },
+  "drafts": {
+    "title": "Player Draft",
+    "subtitle": "Build teams with captains, pick order, and transparent history.",
+    "create": "Create Draft",
+    "created": "Draft {name} created.",
+    "canceled": "Draft {name} canceled.",
+    "picked": "{name} picked.",
+    "emptyTitle": "No drafts found"
+  },
   "playerForm": {
     "createTitle": "Create player",
     "editTitle": "Edit player",
