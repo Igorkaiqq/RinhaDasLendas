@@ -22,6 +22,10 @@
   <data name="MSIS007" xml:space="preserve"><value>Attendance confirmed</value></data>
   <data name="MSIS008" xml:space="preserve"><value>Draft saved successfully</value></data>
   <data name="MSIS009" xml:space="preserve"><value>Result registered successfully</value></data>
+  <data name="MSIS010" xml:space="preserve"><value>Team created successfully</value></data>
+  <data name="MSIS011" xml:space="preserve"><value>Team updated successfully</value></data>
+  <data name="MSIS012" xml:space="preserve"><value>Team deactivated successfully</value></data>
+  <data name="MSIS013" xml:space="preserve"><value>Team reactivated successfully</value></data>
   <data name="ME001" xml:space="preserve"><value>An unexpected error occurred</value></data>
   <data name="ME002" xml:space="preserve"><value>Failed to connect to server</value></data>
   <data name="ME003" xml:space="preserve"><value>Player not found</value></data>
@@ -42,6 +46,8 @@
   <data name="ME018" xml:space="preserve"><value>Inconsistent data was found</value></data>
   <data name="ME019" xml:space="preserve"><value>Could not process the request</value></data>
   <data name="ME020" xml:space="preserve"><value>Request timed out</value></data>
+  <data name="ME021" xml:space="preserve"><value>Team not found</value></data>
+  <data name="ME022" xml:space="preserve"><value>Could not save team</value></data>
   <data name="MV001" xml:space="preserve"><value>Required field</value></data>
   <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
   <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
@@ -61,6 +67,12 @@
   <data name="MV017" xml:space="preserve"><value>Champion is required</value></data>
   <data name="MV018" xml:space="preserve"><value>Match result is required</value></data>
   <data name="MV019" xml:space="preserve"><value>Series must be best-of-three or best-of-five</value></data>
+  <data name="MV020" xml:space="preserve"><value>Team name is required</value></data>
+  <data name="MV021" xml:space="preserve"><value>Team tag is required</value></data>
+  <data name="MV022" xml:space="preserve"><value>Active team already exists with this name or tag</value></data>
+  <data name="MV023" xml:space="preserve"><value>Player is already in this team</value></data>
+  <data name="MV024" xml:space="preserve"><value>Captain must be a team member</value></data>
+  <data name="MV025" xml:space="preserve"><value>Inactive player cannot join an active team</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirm this action?</value></data>
   <data name="MC002" xml:space="preserve"><value>Do you want to deactivate this player?</value></data>
   <data name="MC003" xml:space="preserve"><value>Do you want to remove the player from the queue?</value></data>

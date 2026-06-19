@@ -59,6 +59,18 @@
     "saveError": "Não foi possível salvar o jogador.",
     "actionError": "Não foi possível concluir a ação."
   },
+  "teams": {
+    "title": "Times",
+    "subtitle": "Cadastre composições reutilizáveis para partidas, drafts e consultas futuras.",
+    "create": "Cadastrar Time",
+    "updated": "Time {name} atualizado.",
+    "created": "Time {name} cadastrado.",
+    "inactivated": "Time {name} inativado.",
+    "reactivated": "Time {name} reativado.",
+    "searchPlaceholder": "Nome, tag ou jogador",
+    "emptyTitle": "Nenhum time encontrado",
+    "emptyDescription": "Cadastre o primeiro time ou ajuste os filtros para visualizar a base da rinha."
+  },
   "playerForm": {
     "createTitle": "Cadastrar jogador",
     "editTitle": "Editar jogador",

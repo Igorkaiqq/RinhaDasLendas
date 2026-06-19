@@ -441,6 +441,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/005-standards-and-i18n/plan.md
+Implementation Plan: specs/006-cadastro-time/plan.md
 
 <!-- SPECKIT END -->
