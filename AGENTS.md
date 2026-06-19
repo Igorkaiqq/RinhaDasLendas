@@ -441,6 +441,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/006-cadastro-time/plan.md
+Implementation Plan: specs/007-draft-jogadores/plan.md
 
 <!-- SPECKIT END -->
