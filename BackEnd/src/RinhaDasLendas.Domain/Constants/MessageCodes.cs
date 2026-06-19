@@ -21,6 +21,10 @@ public static class MessageCodes
     public const string AttendanceConfirmed = "MSIS007";
     public const string DraftSaved = "MSIS008";
     public const string ResultRegistered = "MSIS009";
+    public const string TeamCreated = "MSIS010";
+    public const string TeamUpdated = "MSIS011";
+    public const string TeamDeactivated = "MSIS012";
+    public const string TeamReactivated = "MSIS013";
 
     public const string UnexpectedError = "ME001";
     public const string ServerConnectionFailed = "ME002";
@@ -42,6 +46,8 @@ public static class MessageCodes
     public const string InconsistentDataFound = "ME018";
     public const string RequestProcessingFailed = "ME019";
     public const string RequestTimedOut = "ME020";
+    public const string TeamNotFound = "ME021";
+    public const string TeamSaveFailed = "ME022";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -62,6 +68,12 @@ public static class MessageCodes
     public const string ChampionRequired = "MV017";
     public const string MatchResultRequired = "MV018";
     public const string SeriesMustBeBestOfThreeOrFive = "MV019";
+    public const string TeamNameRequired = "MV020";
+    public const string TeamTagRequired = "MV021";
+    public const string TeamAlreadyExists = "MV022";
+    public const string PlayerAlreadyInTeam = "MV023";
+    public const string TeamCaptainMustBeMember = "MV024";
+    public const string InactivePlayerCannotJoinTeam = "MV025";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

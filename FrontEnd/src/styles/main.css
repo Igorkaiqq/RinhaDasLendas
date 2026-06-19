@@ -750,6 +750,17 @@ p {
   font-size: 10px;
 }
 
+.route-pill.is-selected {
+  border-color: var(--color-primary);
+  color: #f8f4ff;
+  background: var(--color-primary);
+}
+
+.player-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
 .player-card__links {
   justify-content: space-between;
   min-width: 0;

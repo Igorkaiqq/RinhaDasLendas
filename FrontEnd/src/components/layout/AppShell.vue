@@ -32,7 +32,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
     icon: 'T',
     routeName: AppRouteNames.Teams,
     path: AppRoutes.Teams,
-    status: 'placeholder',
+    status: 'available',
   },
   {
     id: 'draft',

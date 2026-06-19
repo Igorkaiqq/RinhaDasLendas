@@ -59,6 +59,18 @@
     "saveError": "Could not save player.",
     "actionError": "Could not complete the action."
   },
+  "teams": {
+    "title": "Teams",
+    "subtitle": "Create reusable rosters for matches, drafts, and future lookups.",
+    "create": "Create Team",
+    "updated": "Team {name} updated.",
+    "created": "Team {name} created.",
+    "inactivated": "Team {name} deactivated.",
+    "reactivated": "Team {name} reactivated.",
+    "searchPlaceholder": "Name, tag, or player",
+    "emptyTitle": "No teams found",
+    "emptyDescription": "Create the first team or adjust filters to view the roster."
+  },
   "playerForm": {
     "createTitle": "Create player",
     "editTitle": "Edit player",

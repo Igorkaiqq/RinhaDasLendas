@@ -4,6 +4,7 @@ import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
 import HomeView from '@/views/HomeView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 import PlayersView from '@/views/PlayersView.vue'
+import TeamsView from '@/views/TeamsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,7 +24,7 @@ const router = createRouter({
     {
       path: AppRoutes.Teams,
       name: AppRouteNames.Teams,
-      component: PlaceholderView,
+      component: TeamsView,
       meta: { title: 'Times' },
     },
     {

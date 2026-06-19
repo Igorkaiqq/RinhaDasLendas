@@ -19,6 +19,7 @@ public static class DependencyInjection
 
         services.AddDbContext<RinhaDasLendasDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IJogadorRepository, JogadorRepository>();
+        services.AddScoped<ITimeRepository, TimeRepository>();
         services.AddSingleton<IMessageProvider, ResourceMessageProvider>();
 
         return services;

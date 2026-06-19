@@ -56,6 +56,7 @@ public sealed class EndpointCoverageIntegrationTests
         try
         {
             await ExecuteJogadoresFlowAsync(factory, client);
+            await ExecuteTimesFlowAsync(client);
         }
         catch (Exception exception)
         {
@@ -157,6 +158,80 @@ public sealed class EndpointCoverageIntegrationTests
         inativarResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         await AssertPersistedAsync(factory, created.Id, jogador => jogador.Status.Should().Be(JogadorStatus.Inativo));
+    }
+
+    private static async Task ExecuteTimesFlowAsync(HttpClient client)
+    {
+        var jogadorA = await CreateJogadorAsync(client, $"Jogador Time {Guid.NewGuid():N}");
+        var jogadorB = await CreateJogadorAsync(client, $"Jogador Time {Guid.NewGuid():N}");
+
+        var createRequest = new CreateTimeRequestDto(
+            $"Time Integracao {Guid.NewGuid():N}",
+            $"TI{Random.Shared.Next(1000, 9999)}",
+            "Time criado pelo teste de integracao",
+            jogadorA.Id,
+            [jogadorA.Id, jogadorB.Id]);
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/times", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<TimeResponseDto>();
+        created.Should().NotBeNull();
+        created!.Nome.Should().Be(createRequest.Nome);
+        created.Membros.Should().HaveCount(2);
+
+        var listResponse = await client.GetAsync("/api/v1/times?page=1&pageSize=20");
+
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await listResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<TimeResponseDto>>();
+        list.Should().NotBeNull();
+        list!.Page.Should().Be(1);
+        list.PageSize.Should().Be(20);
+        list.TotalItems.Should().BeGreaterThanOrEqualTo(1);
+        list.TotalPages.Should().BeGreaterThanOrEqualTo(1);
+        list.Items.Should().Contain(time => time.Id == created.Id);
+
+        var getByIdResponse = await client.GetAsync($"/api/v1/times/{created.Id}");
+        getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var found = await getByIdResponse.Content.ReadFromJsonAsync<TimeResponseDto>();
+        found.Should().NotBeNull();
+        found!.Id.Should().Be(created.Id);
+
+        var updateRequest = new UpdateTimeRequestDto(
+            $"{createRequest.Nome} Atualizado",
+            createRequest.Tag,
+            "Time atualizado pelo teste de integracao",
+            jogadorB.Id,
+            [jogadorA.Id, jogadorB.Id]);
+        var updateResponse = await client.PutAsJsonAsync($"/api/v1/times/{created.Id}", updateRequest);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<TimeResponseDto>();
+        updated.Should().NotBeNull();
+        updated!.Nome.Should().Be(updateRequest.Nome);
+        updated.Capitao.Should().NotBeNull();
+        updated.Capitao!.Id.Should().Be(jogadorB.Id);
+
+        var inativarResponse = await client.PatchAsync($"/api/v1/times/{created.Id}/inativar", null);
+        inativarResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var inactive = await inativarResponse.Content.ReadFromJsonAsync<TimeResponseDto>();
+        inactive.Should().NotBeNull();
+        inactive!.Status.Should().Be("Inativo");
+
+        var reativarResponse = await client.PatchAsync($"/api/v1/times/{created.Id}/reativar", null);
+        reativarResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var active = await reativarResponse.Content.ReadFromJsonAsync<TimeResponseDto>();
+        active.Should().NotBeNull();
+        active!.Status.Should().Be("Ativo");
+    }
+
+    private static async Task<JogadorResponseDto> CreateJogadorAsync(HttpClient client, string nome)
+    {
+        var request = CreateRequest(nome);
+        var response = await client.PostAsJsonAsync("/api/v1/jogadores", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await response.Content.ReadFromJsonAsync<JogadorResponseDto>();
+        created.Should().NotBeNull();
+        return created!;
     }
 
     private static async Task AssertPersistedAsync(PostgreSqlApiFactory factory, Guid jogadorId, Action<RinhaDasLendas.Domain.Entities.Jogador> assertion)
@@ -286,7 +361,13 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("GET", "/api/v1/jogadores/{id}"),
             EndpointKey.From("PUT", "/api/v1/jogadores/{id}/dados-basicos"),
             EndpointKey.From("PUT", "/api/v1/jogadores/{id}/preferencias-rotas"),
-            EndpointKey.From("PATCH", "/api/v1/jogadores/{id}/inativar")
+            EndpointKey.From("PATCH", "/api/v1/jogadores/{id}/inativar"),
+            EndpointKey.From("GET", "/api/v1/times"),
+            EndpointKey.From("GET", "/api/v1/times/{id}"),
+            EndpointKey.From("POST", "/api/v1/times"),
+            EndpointKey.From("PUT", "/api/v1/times/{id}"),
+            EndpointKey.From("PATCH", "/api/v1/times/{id}/inativar"),
+            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar")
         ];
     }
 
@@ -374,13 +455,16 @@ public sealed class EndpointCoverageIntegrationTests
 
     private static JogadorCreateRequestDto CreateRequest(string nome)
     {
+        var suffix = Regex.Replace(nome, "[^A-Za-z0-9]", string.Empty);
+        suffix = suffix.Length > 12 ? suffix[..12] : suffix;
+
         return new JogadorCreateRequestDto(
             nome,
             "Joao Silva",
-            "joao#1234",
-            "Faker#BR1",
-            "https://www.op.gg/summoners/br/Faker-BR1",
-            "https://www.deeplol.gg/summoner/br/Faker-BR1",
+            $"joao-{suffix}#1234",
+            $"{suffix}#BR1",
+            $"https://www.op.gg/summoners/br/{suffix}-BR1",
+            $"https://www.deeplol.gg/summoner/br/{suffix}-BR1",
             "Ouro",
             "II",
             [

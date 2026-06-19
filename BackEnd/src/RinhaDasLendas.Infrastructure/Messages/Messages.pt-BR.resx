@@ -22,6 +22,10 @@
   <data name="MSIS007" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS008" xml:space="preserve"><value>Draft salvo com sucesso</value></data>
   <data name="MSIS009" xml:space="preserve"><value>Resultado registrado com sucesso</value></data>
+  <data name="MSIS010" xml:space="preserve"><value>Time criado com sucesso</value></data>
+  <data name="MSIS011" xml:space="preserve"><value>Time atualizado com sucesso</value></data>
+  <data name="MSIS012" xml:space="preserve"><value>Time inativado com sucesso</value></data>
+  <data name="MSIS013" xml:space="preserve"><value>Time reativado com sucesso</value></data>
   <data name="ME001" xml:space="preserve"><value>Ocorreu um erro inesperado</value></data>
   <data name="ME002" xml:space="preserve"><value>Falha ao conectar ao servidor</value></data>
   <data name="ME003" xml:space="preserve"><value>Jogador não encontrado</value></data>
@@ -42,6 +46,8 @@
   <data name="ME018" xml:space="preserve"><value>Dados inconsistentes foram encontrados</value></data>
   <data name="ME019" xml:space="preserve"><value>Não foi possível processar a solicitação</value></data>
   <data name="ME020" xml:space="preserve"><value>Tempo limite excedido</value></data>
+  <data name="ME021" xml:space="preserve"><value>Time não encontrado</value></data>
+  <data name="ME022" xml:space="preserve"><value>Não foi possível salvar o time</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -61,6 +67,12 @@
   <data name="MV017" xml:space="preserve"><value>Campeão deve ser informado</value></data>
   <data name="MV018" xml:space="preserve"><value>Resultado da partida é obrigatório</value></data>
   <data name="MV019" xml:space="preserve"><value>Série deve ser MD3 ou MD5</value></data>
+  <data name="MV020" xml:space="preserve"><value>Nome do time deve ser informado</value></data>
+  <data name="MV021" xml:space="preserve"><value>Tag do time deve ser informada</value></data>
+  <data name="MV022" xml:space="preserve"><value>Time ativo já existe com este nome ou tag</value></data>
+  <data name="MV023" xml:space="preserve"><value>Jogador já está neste time</value></data>
+  <data name="MV024" xml:space="preserve"><value>Capitão deve fazer parte do time</value></data>
+  <data name="MV025" xml:space="preserve"><value>Jogador inativo não pode entrar em time ativo</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>
   <data name="MC002" xml:space="preserve"><value>Deseja inativar este jogador?</value></data>
   <data name="MC003" xml:space="preserve"><value>Deseja remover o jogador da fila?</value></data>

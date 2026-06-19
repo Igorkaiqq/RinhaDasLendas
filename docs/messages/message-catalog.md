@@ -22,6 +22,10 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | MSIS007 | Success | Presença confirmada | Attendance confirmed | Confirmação em fila | info |
 | MSIS008 | Success | Draft salvo com sucesso | Draft saved successfully | Salvamento de draft | info |
 | MSIS009 | Success | Resultado registrado com sucesso | Result registered successfully | Registro manual de partida | info |
+| MSIS010 | Success | Time criado com sucesso | Team created successfully | Cadastro de time | info |
+| MSIS011 | Success | Time atualizado com sucesso | Team updated successfully | Edicao de time | info |
+| MSIS012 | Success | Time inativado com sucesso | Team deactivated successfully | Inativacao de time | info |
+| MSIS013 | Success | Time reativado com sucesso | Team reactivated successfully | Reativacao de time | info |
 | ME001 | Error | Ocorreu um erro inesperado | An unexpected error occurred | Erro genérico não tratado | error |
 | ME002 | Error | Falha ao conectar ao servidor | Failed to connect to server | Falha de comunicação HTTP | error |
 | ME003 | Error | Jogador não encontrado | Player not found | Busca por jogador inexistente | error |
@@ -42,6 +46,8 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | ME018 | Error | Dados inconsistentes foram encontrados | Inconsistent data was found | Estado inválido detectado | error |
 | ME019 | Error | Não foi possível processar a solicitação | Could not process the request | Falha de aplicação recuperável | error |
 | ME020 | Error | Tempo limite excedido | Request timed out | Timeout de operação | error |
+| ME021 | Error | Time não encontrado | Team not found | Busca por time inexistente | error |
+| ME022 | Error | Não foi possível salvar o time | Could not save team | Falha persistindo time | error |
 | MV001 | Validation | Campo obrigatório | Required field | Validação de campo vazio | warning |
 | MV002 | Validation | Formato de email inválido | Invalid email format | Validação de email | warning |
 | MV003 | Validation | Nome do jogador deve ser informado | Player name is required | Cadastro de jogador | warning |
@@ -61,6 +67,12 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | MV017 | Validation | Campeão deve ser informado | Champion is required | Picks e bans | warning |
 | MV018 | Validation | Resultado da partida é obrigatório | Match result is required | Registro de resultado | warning |
 | MV019 | Validation | Série deve ser MD3 ou MD5 | Series must be best-of-three or best-of-five | Séries | warning |
+| MV020 | Validation | Nome do time deve ser informado | Team name is required | Cadastro de time | warning |
+| MV021 | Validation | Tag do time deve ser informada | Team tag is required | Cadastro de time | warning |
+| MV022 | Validation | Time ativo já existe com este nome ou tag | Active team already exists with this name or tag | Cadastro duplicado de time | warning |
+| MV023 | Validation | Jogador já está neste time | Player is already in this team | Composição de time | warning |
+| MV024 | Validation | Capitão deve fazer parte do time | Captain must be a team member | Composição de time | warning |
+| MV025 | Validation | Jogador inativo não pode entrar em time ativo | Inactive player cannot join an active team | Composição de time | warning |
 | MC001 | Confirmation | Confirmar esta ação? | Confirm this action? | Confirmação genérica | info |
 | MC002 | Confirmation | Deseja inativar este jogador? | Do you want to deactivate this player? | Inativação de jogador | warning |
 | MC003 | Confirmation | Deseja remover o jogador da fila? | Do you want to remove the player from the queue? | Fila/votação | warning |
