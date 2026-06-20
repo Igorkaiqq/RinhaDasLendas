@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IJogadorRepository, JogadorRepository>();
         services.AddScoped<ITimeRepository, TimeRepository>();
         services.AddScoped<IDraftRepository, DraftRepository>();
+        services.AddScoped<IDraftMontagemRepository, DraftMontagemRepository>();
         services.AddSingleton<IMessageProvider, ResourceMessageProvider>();
 
         return services;

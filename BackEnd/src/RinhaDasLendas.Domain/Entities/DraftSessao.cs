@@ -47,8 +47,8 @@ public sealed class DraftSessao
     public string? MotivoCancelamento { get; private set; }
     public DateTimeOffset DataCadastro { get; private set; }
     public DateTimeOffset DataAtualizacao { get; private set; }
-    public IReadOnlyCollection<DraftParticipante> Participantes => _participantes.AsReadOnly();
-    public IReadOnlyCollection<DraftEscolha> Escolhas => _escolhas.AsReadOnly();
+    public IReadOnlyCollection<DraftParticipante> Participantes => _participantes;
+    public IReadOnlyCollection<DraftEscolha> Escolhas => _escolhas;
 
     public void RegistrarPick(Guid jogadorId)
     {

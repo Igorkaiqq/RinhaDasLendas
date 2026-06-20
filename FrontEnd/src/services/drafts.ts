@@ -105,6 +105,10 @@ function createFakeDraft(payload: DraftPayload): Draft {
   const capitaoB = players.find((player) => player.id === payload.capitaoTimeBId) ?? players[1]
   const now = new Date().toISOString()
 
+  if (!capitaoA || !capitaoB) {
+    throw new DraftServiceError(['Selecione jogadores suficientes para criar o draft.'])
+  }
+
   return {
     id: crypto.randomUUID(),
     nome: payload.nome,

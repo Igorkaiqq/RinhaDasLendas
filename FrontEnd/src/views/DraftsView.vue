@@ -1,35 +1,38 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import DraftBoard from '@/components/drafts/DraftBoard.vue'
-import DraftCancelDialog from '@/components/drafts/DraftCancelDialog.vue'
-import DraftCreateModal from '@/components/drafts/DraftCreateModal.vue'
-import DraftPickHistory from '@/components/drafts/DraftPickHistory.vue'
-import DraftStatusBadge from '@/components/drafts/DraftStatusBadge.vue'
-import { DRAFT_STATUS_OPTIONS } from '@/constants/draftStatus'
+import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
+import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
 import { listPlayers, type Player } from '@/services/players'
-import { cancelDraft, createDraft, DraftServiceError, listDrafts, registerDraftPick } from '@/services/drafts'
-import type { Draft, DraftPayload, DraftPlayer, DraftStatusValue } from '@/types/draft'
+import {
+  cancelDraftMontagem,
+  createDraftMontagem,
+  DraftMontagemServiceError,
+  drawDraftMontagemCaptains,
+  finalizeDraftMontagem,
+  getDraftMontagemById,
+  listDraftMontagens,
+  saveDraftMontagemLayout,
+} from '@/services/draftMontagens'
+import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
-const drafts = ref<Draft[]>([])
 const players = ref<Player[]>([])
-const selectedDraftId = ref<string | null>(null)
 const loading = ref(true)
 const saving = ref(false)
-const picking = ref(false)
 const errors = ref<string[]>([])
 const serviceErrors = ref<string[]>([])
 const notification = ref<string | null>(null)
-const createModalOpen = ref(false)
-const cancelingDraft = ref<Draft | null>(null)
+const visualSetupOpen = ref(false)
 const searchTerm = ref('')
-const selectedStatus = ref<DraftStatusValue | ''>('')
+const selectedStatus = ref<DraftMontagemStatus | ''>('')
+const selectedMontagem = ref<DraftMontagem | null>(null)
+const visualMontagens = ref<DraftMontagemResumo[]>([])
 
-const selectedDraft = computed(() => drafts.value.find((draft) => draft.id === selectedDraftId.value) ?? drafts.value[0] ?? null)
+const statusOptions: DraftMontagemStatus[] = ['Aberta', 'Finalizada', 'Cancelada']
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
-  return drafts.value.filter((draft) => {
+  return visualMontagens.value.filter((draft) => {
     const matchesStatus = !selectedStatus.value || draft.status === selectedStatus.value
     const matchesSearch = !search || draft.nome.toLowerCase().includes(search)
     return matchesStatus && matchesSearch
@@ -37,21 +40,8 @@ const filteredDrafts = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadDrafts(), loadPlayers()])
+  await Promise.all([loadPlayers(), loadVisualMontagens()])
 })
-
-async function loadDrafts() {
-  loading.value = true
-  errors.value = []
-  try {
-    drafts.value = await listDrafts()
-    selectedDraftId.value = drafts.value[0]?.id ?? null
-  } catch (error) {
-    captureError(error)
-  } finally {
-    loading.value = false
-  }
-}
 
 async function loadPlayers() {
   try {
@@ -61,57 +51,110 @@ async function loadPlayers() {
   }
 }
 
-async function saveDraft(payload: DraftPayload) {
-  saving.value = true
-  serviceErrors.value = []
+async function loadVisualMontagens() {
+  loading.value = true
   try {
-    const created = await createDraft(payload)
-    drafts.value = [created, ...drafts.value]
-    selectedDraftId.value = created.id
-    notification.value = `Draft ${created.nome} criado.`
-    createModalOpen.value = false
+    visualMontagens.value = await listDraftMontagens()
+    if (!selectedMontagem.value && visualMontagens.value[0]) {
+      await openMontagem(visualMontagens.value[0].id)
+    }
   } catch (error) {
-    serviceErrors.value = error instanceof DraftServiceError ? error.errors : ['Nao foi possivel criar o draft.']
+    captureError(error)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function openMontagem(id: string) {
+  saving.value = true
+  errors.value = []
+  try {
+    selectedMontagem.value = await getDraftMontagemById(id)
+  } catch (error) {
+    captureError(error)
   } finally {
     saving.value = false
   }
 }
 
-async function pickPlayer(player: DraftPlayer) {
-  if (!selectedDraft.value) {
+async function saveMontagem(payload: DraftMontagemPayload) {
+  saving.value = true
+  serviceErrors.value = []
+  try {
+    selectedMontagem.value = await createDraftMontagem(payload)
+    await loadVisualMontagens()
+    notification.value = `Draft ${selectedMontagem.value.nome} criado.`
+    visualSetupOpen.value = false
+  } catch (error) {
+    serviceErrors.value = error instanceof DraftMontagemServiceError ? error.errors : ['Nao foi possivel criar o draft.']
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
+  if (!selectedMontagem.value) {
     return
   }
-
-  picking.value = true
+  saving.value = true
   errors.value = []
   try {
-    const updated = await registerDraftPick(selectedDraft.value.id, player.id)
-    replaceDraft(updated)
-    notification.value = `${player.nomeExibicao} escolhido.`
+    selectedMontagem.value = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
+    await loadVisualMontagens()
+    notification.value = 'Layout do draft salvo.'
   } catch (error) {
     captureError(error)
   } finally {
-    picking.value = false
+    saving.value = false
   }
 }
 
-async function confirmCancel(motivo: string) {
-  if (!cancelingDraft.value) {
+async function drawMontagemCaptains() {
+  if (!selectedMontagem.value) {
+    return
+  }
+  saving.value = true
+  try {
+    selectedMontagem.value = await drawDraftMontagemCaptains(selectedMontagem.value.id)
+    notification.value = 'Capitaes sorteados.'
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function finalizeMontagem() {
+  if (!selectedMontagem.value) {
+    return
+  }
+  saving.value = true
+  try {
+    selectedMontagem.value = await finalizeDraftMontagem(selectedMontagem.value.id)
+    await loadVisualMontagens()
+    notification.value = 'Draft finalizado.'
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function cancelMontagem() {
+  if (!selectedMontagem.value) {
     return
   }
 
+  saving.value = true
   try {
-    const updated = await cancelDraft(cancelingDraft.value.id, motivo)
-    replaceDraft(updated)
-    notification.value = `Draft ${updated.nome} cancelado.`
-    cancelingDraft.value = null
+    selectedMontagem.value = await cancelDraftMontagem(selectedMontagem.value.id, 'Draft cancelado')
+    await loadVisualMontagens()
+    notification.value = 'Draft cancelado.'
   } catch (error) {
     captureError(error)
+  } finally {
+    saving.value = false
   }
-}
-
-function replaceDraft(updated: Draft) {
-  drafts.value = drafts.value.map((draft) => (draft.id === updated.id ? updated : draft))
 }
 
 function resetFilters() {
@@ -120,7 +163,7 @@ function resetFilters() {
 }
 
 function captureError(error: unknown) {
-  errors.value = error instanceof DraftServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
+  errors.value = error instanceof DraftMontagemServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
 }
 </script>
 
@@ -135,9 +178,11 @@ function captureError(error: unknown) {
     <header class="players-hero drafts-hero">
       <div>
         <h1>Draft de Jogadores</h1>
-        <p>Monte os times com capitaes, ordem de picks e historico transparente.</p>
+        <p>Monte os times visualmente com capitaes, reservas, rotas e layout persistente.</p>
       </div>
-      <button type="button" @click="createModalOpen = true">+ Criar Draft</button>
+      <div class="draft-hero-actions">
+        <button type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
+      </div>
     </header>
 
     <section class="filter-bar" aria-label="Filtros de drafts">
@@ -152,7 +197,7 @@ function captureError(error: unknown) {
         Status
         <select v-model="selectedStatus">
           <option value="">Todos</option>
-          <option v-for="status in DRAFT_STATUS_OPTIONS" :key="status" :value="status">{{ status }}</option>
+          <option v-for="status in statusOptions" :key="status" :value="status">{{ status }}</option>
         </select>
       </label>
       <button class="filter-reset" type="button" aria-label="Limpar filtros" @click="resetFilters">=</button>
@@ -168,12 +213,12 @@ function captureError(error: unknown) {
           v-for="draft in filteredDrafts"
           :key="draft.id"
           type="button"
-          :class="{ 'is-selected': selectedDraft?.id === draft.id }"
-          @click="selectedDraftId = draft.id"
+          :class="{ 'is-selected': selectedMontagem?.id === draft.id }"
+          @click="openMontagem(draft.id)"
         >
           <strong>{{ draft.nome }}</strong>
-          <DraftStatusBadge :status="draft.status" />
-          <span>{{ draft.escolhas.length }} picks</span>
+          <span>{{ draft.status }}</span>
+          <span>{{ draft.quantidadeTimes }} times · {{ draft.quantidadeReservas }} reservas</span>
         </button>
         <div v-if="!loading && !filteredDrafts.length" class="draft-empty-card">
           <h2>Nenhum draft encontrado</h2>
@@ -182,31 +227,29 @@ function captureError(error: unknown) {
       </aside>
 
       <main class="draft-main">
-        <header v-if="selectedDraft" class="draft-summary">
-          <div>
-            <DraftStatusBadge :status="selectedDraft.status" />
-            <h2>{{ selectedDraft.nome }}</h2>
-            <p>{{ selectedDraft.observacoes || 'Sem observacoes.' }}</p>
-          </div>
-          <button v-if="selectedDraft.status === 'Aberto'" type="button" class="button-secondary" @click="cancelingDraft = selectedDraft">
-            Cancelar
-          </button>
-        </header>
-
-        <DraftBoard :draft="selectedDraft" :picking="picking" @pick="pickPlayer" />
-        <DraftPickHistory v-if="selectedDraft" :picks="selectedDraft.escolhas" />
+        <DraftVisualBoard
+          v-if="selectedMontagem"
+          :montagem="selectedMontagem"
+          :saving="saving"
+          @save="saveMontagemLayout"
+          @draw-captains="drawMontagemCaptains"
+          @finalize="finalizeMontagem"
+          @cancel="cancelMontagem"
+        />
+        <section v-else class="draft-empty-card">
+          <h2>Nenhum draft selecionado</h2>
+          <p>Crie ou selecione um draft para montar os times.</p>
+        </section>
       </main>
     </section>
 
-    <DraftCreateModal
-      :open="createModalOpen"
+    <DraftVisualSetup
+      :open="visualSetupOpen"
       :players="players"
       :saving="saving"
-      :service-errors="serviceErrors"
-      @close="createModalOpen = false"
-      @submit="saveDraft"
+      :errors="serviceErrors"
+      @close="visualSetupOpen = false"
+      @submit="saveMontagem"
     />
-
-    <DraftCancelDialog :open="Boolean(cancelingDraft)" :draft="cancelingDraft" @cancel="cancelingDraft = null" @confirm="confirmCancel" />
   </section>
 </template>

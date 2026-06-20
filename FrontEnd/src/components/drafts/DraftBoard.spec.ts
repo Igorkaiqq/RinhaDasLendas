@@ -27,7 +27,7 @@ const draft: Draft = {
 
 describe('DraftBoard', () => {
   it('renders captains and emits pick', async () => {
-    const wrapper = mount(DraftBoard, { props: { draft, picking: false } })
+    const wrapper = mount(DraftBoard, { props: { draft, players: [], picking: false } })
 
     await wrapper.find('.draft-player-grid button').trigger('click')
 
