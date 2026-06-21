@@ -14,8 +14,14 @@ const status = ref<'Ativo' | 'Desativado' | ''>('')
 
 <template>
   <form class="panel-card user-filters" @submit.prevent="emit('filter', { search, role, status })">
-    <label>Busca <input v-model="search" placeholder="Nome ou e-mail" /></label>
-    <label>
+    <label class="user-filter-search">
+      Busca
+      <span>
+        <span aria-hidden="true">S</span>
+        <input v-model="search" placeholder="Nome ou e-mail" />
+      </span>
+    </label>
+    <label class="user-filter-select">
       Role
       <select v-model="role">
         <option value="">Todas</option>
@@ -26,7 +32,7 @@ const status = ref<'Ativo' | 'Desativado' | ''>('')
         <option>Jogador</option>
       </select>
     </label>
-    <label>
+    <label class="user-filter-select">
       Status
       <select v-model="status">
         <option value="">Todos</option>
@@ -34,6 +40,6 @@ const status = ref<'Ativo' | 'Desativado' | ''>('')
         <option>Desativado</option>
       </select>
     </label>
-    <button class="button button--primary" type="submit">Filtrar</button>
+    <button class="button button--primary user-filter-submit" type="submit">Filtrar</button>
   </form>
 </template>

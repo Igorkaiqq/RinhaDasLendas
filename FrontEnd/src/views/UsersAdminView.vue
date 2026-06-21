@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import UserDetailsDrawer from '@/components/users/UserDetailsDrawer.vue'
+import UserDetailsModal from '@/components/users/UserDetailsModal.vue'
 import UserFilters from '@/components/users/UserFilters.vue'
 import UserList from '@/components/users/UserList.vue'
 import { listUsers, type UserFilters as Filters } from '@/services/users'
@@ -34,6 +34,6 @@ onMounted(() => load())
     <UserFilters @filter="load" />
     <p v-if="loading">Carregando usuários...</p>
     <UserList :users="users" @select="selectedId = $event" />
-    <UserDetailsDrawer v-if="selectedId" :id="selectedId" @close="selectedId = null" @updated="load" />
+    <UserDetailsModal v-if="selectedId" :id="selectedId" @close="selectedId = null" @updated="load" />
   </section>
 </template>

@@ -36,11 +36,18 @@ async function save() {
 
 <template>
   <section class="roles-editor">
-    <h3>Roles</h3>
-    <label v-for="option in options" :key="option.nome">
-      <input v-model="selected" type="checkbox" :value="option.nome" />
-      {{ option.nome }}
-    </label>
-    <button class="button" type="button" @click="save">Salvar roles</button>
+    <header>
+      <div>
+        <span class="eyebrow">Permissões</span>
+        <h3>Roles do usuário</h3>
+      </div>
+      <button class="button" type="button" @click="save">Salvar roles</button>
+    </header>
+    <div class="role-selector" role="group" aria-label="Roles atribuíveis">
+      <label v-for="option in options" :key="option.nome" class="role-option" :class="{ 'is-selected': selected.includes(option.nome) }">
+        <input v-model="selected" type="checkbox" :value="option.nome" />
+        <span>{{ option.nome }}</span>
+      </label>
+    </div>
   </section>
 </template>
