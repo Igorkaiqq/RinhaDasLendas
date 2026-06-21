@@ -66,14 +66,21 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
       <h1>Minha conta</h1>
       <p>Gerencie seus dados de acesso e vínculo com jogador.</p>
     </header>
-    <form class="panel-card" @submit.prevent="save">
+    <form class="panel-card profile-account-card" @submit.prevent="save">
+      <header>
+        <span class="eyebrow">Conta</span>
+        <h2>Dados de acesso</h2>
+        <p>Esses dados identificam sua conta na plataforma.</p>
+      </header>
       <label>Nome <input v-model="nome" required maxlength="120" /></label>
       <label>E-mail <input :value="user?.email" disabled /></label>
-      <p>Roles: {{ user?.roles.join(', ') }}</p>
-      <p v-if="message">{{ message }}</p>
-      <button class="button button--primary" type="submit">Salvar perfil</button>
+      <p class="profile-role-line">Roles: {{ user?.roles.join(', ') }}</p>
+      <p v-if="message" class="status-ok profile-inline-message">{{ message }}</p>
+      <div class="profile-actions">
+        <button class="button button--primary" type="submit">Salvar perfil</button>
+      </div>
     </form>
-    <p v-if="loadingJogador" class="panel-card">Carregando perfil de jogador...</p>
+    <p v-if="loadingJogador" class="panel-card profile-loading-card">Carregando perfil de jogador...</p>
     <CompletePlayerProfileCard
       v-else
       :jogador="jogador"
@@ -81,7 +88,7 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
       :errors="jogadorErrors"
       @submit="saveJogador"
     />
-    <p v-if="jogadorMessage" class="panel-card status-ok">{{ jogadorMessage }}</p>
+    <p v-if="jogadorMessage" class="panel-card status-ok profile-inline-message">{{ jogadorMessage }}</p>
     <ChangePasswordForm />
     <DiscordLinkSection />
   </section>

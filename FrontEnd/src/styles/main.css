@@ -147,7 +147,7 @@ body {
 
 .page-stack {
   display: grid;
-  gap: 24px;
+  gap: 28px;
 }
 
 .page-header-card,
@@ -458,7 +458,7 @@ body {
 
 .complete-player-card {
   display: grid;
-  gap: 16px;
+  gap: 18px 20px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -467,6 +467,8 @@ body {
 .complete-player-card__errors,
 .complete-player-card > button {
   grid-column: 1 / -1;
+  justify-self: start;
+  width: auto;
 }
 
 .complete-player-card h2,
@@ -477,6 +479,70 @@ body {
 .complete-player-card header p {
   color: var(--color-ink-muted);
   margin-top: 6px;
+}
+
+.profile-account-card {
+  display: grid;
+  gap: 18px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-account-card header,
+.profile-role-line,
+.profile-inline-message,
+.profile-actions {
+  grid-column: 1 / -1;
+}
+
+.profile-account-card h2,
+.profile-account-card p,
+.profile-loading-card,
+.profile-inline-message {
+  margin: 0;
+}
+
+.profile-account-card header p,
+.profile-role-line {
+  color: var(--color-ink-muted);
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.profile-actions .button,
+.complete-player-card > .button,
+.profile-completion-modal__actions .button {
+  min-width: 0;
+  width: auto;
+}
+
+.profile-completion-modal-backdrop {
+  z-index: 80;
+}
+
+.dialog-card.profile-completion-modal {
+  gap: 14px;
+  max-width: 520px;
+}
+
+.profile-completion-modal h2,
+.profile-completion-modal p {
+  margin: 0;
+}
+
+.profile-completion-modal p {
+  color: var(--color-ink-muted);
+  line-height: 1.55;
+}
+
+.profile-completion-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .user-meta-grid div {
@@ -527,7 +593,9 @@ body {
 
   .user-profile-summary,
   .user-edit-form,
-  .user-meta-grid {
+  .user-meta-grid,
+  .profile-account-card,
+  .complete-player-card {
     grid-template-columns: 1fr;
   }
 
@@ -536,6 +604,14 @@ body {
   .user-details-modal__actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .profile-completion-modal__actions {
+    justify-content: stretch;
+  }
+
+  .profile-completion-modal__actions .button {
+    width: 100%;
   }
 }
 
