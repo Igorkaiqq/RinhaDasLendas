@@ -41,7 +41,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   try {
     const response = await api.post<AuthResponse>('/api/v1/auth/login', payload)
     setSession(response.data.accessToken, response.data.usuario)
-    await loadPermissions()
+    await loadPermissions(response.data.accessToken)
     return response.data
   } catch (error) {
     throw toAuthError(error)
@@ -85,8 +85,10 @@ export async function updateOwnProfile(payload: UpdateOwnProfilePayload): Promis
   return response.data
 }
 
-export async function loadPermissions(): Promise<UserPermissions> {
-  const response = await api.get<UserPermissions>('/api/v1/auth/me/permissions')
+export async function loadPermissions(accessToken = getAccessToken()): Promise<UserPermissions> {
+  const response = await api.get<UserPermissions>('/api/v1/auth/me/permissions', {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  })
   setPermissions(response.data)
   return response.data
 }
