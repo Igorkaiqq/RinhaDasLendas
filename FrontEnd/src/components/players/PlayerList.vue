@@ -7,6 +7,7 @@ defineProps<{
   players: Player[]
   loading: boolean
   errors: string[]
+  canManage: boolean
 }>()
 
 defineEmits<{
@@ -20,7 +21,7 @@ defineEmits<{
   <PlayerListStates v-if="loading" state="loading" />
   <PlayerListStates v-else-if="errors.length" state="error" :errors="errors" />
   <PlayerListStates v-else-if="players.length === 0" state="empty">
-    <button type="button" @click="$emit('create')">Cadastrar Jogador</button>
+    <button v-if="canManage" type="button" @click="$emit('create')">Cadastrar Jogador</button>
   </PlayerListStates>
 
   <section v-else class="player-grid" aria-label="Lista de jogadores">
@@ -28,6 +29,7 @@ defineEmits<{
       v-for="player in players"
       :key="player.id"
       :player="player"
+      :can-manage="canManage"
       @edit="$emit('edit', $event)"
       @delete="$emit('delete', $event)"
     />

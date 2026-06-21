@@ -24,6 +24,11 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(new ApiErrorResponse("Erro de validacao", [exception.Message]));
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(exception.Message, []));
+        }
         catch (Exception exception)
         {
             logger.LogError(exception, "Erro inesperado ao processar requisicao.");

@@ -110,6 +110,17 @@ export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
   }
 }
 
+export async function listEligibleCaptains(): Promise<Player[]> {
+  try {
+    const response = await api.get<PaginatedPlayers>('/api/v1/jogadores/capitaes-elegiveis', {
+      params: { page: 1, pageSize: 100 },
+    })
+    return response.data.items
+  } catch {
+    return []
+  }
+}
+
 export async function createPlayer(payload: PlayerPayload): Promise<Player> {
   try {
     const response = await api.post<Player>('/api/v1/jogadores', normalizePayload(payload))
@@ -164,14 +175,14 @@ export async function inactivatePlayer(id: string): Promise<void> {
 
 export async function deletePlayer(id: string): Promise<void> {
   try {
-    await api.delete(`/api/v1/jogadores/${id}`)
+    await api.patch(`/api/v1/jogadores/${id}/inativar`)
   } catch (error) {
     if (isConnectionFailure(error)) {
       deleteFakePlayer(id)
       return
     }
 
-    await inactivatePlayer(id)
+    throw toPlayerServiceError(error)
   }
 }
 

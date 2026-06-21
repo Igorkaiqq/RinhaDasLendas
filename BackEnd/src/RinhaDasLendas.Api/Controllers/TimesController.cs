@@ -1,13 +1,16 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Times;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Queries.Times;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/times")]
 [Produces("application/json")]
 public sealed class TimesController(ISender sender) : ControllerBase
@@ -37,6 +40,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthPermissions.CanManageMatches)]
     [ProducesResponseType(typeof(TimeResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateTimeRequestDto request, CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthPermissions.CanManageMatches)]
     [ProducesResponseType(typeof(TimeResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -58,6 +63,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/inativar")]
+    [Authorize(Policy = AuthPermissions.CanManageMatches)]
     [ProducesResponseType(typeof(TimeResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Inativar([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -69,6 +75,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/reativar")]
+    [Authorize(Policy = AuthPermissions.CanManageMatches)]
     [ProducesResponseType(typeof(TimeResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]

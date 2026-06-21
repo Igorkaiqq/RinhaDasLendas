@@ -10,6 +10,10 @@ defineProps<{
   user: TopbarUserSummary
 }>()
 
+defineEmits<{
+  menuAction: [string]
+}>()
+
 const { t } = useI18n()
 </script>
 
@@ -31,7 +35,7 @@ const { t } = useI18n()
           <strong>{{ user.displayName }}</strong>
           <span>{{ user.subtitle }}</span>
         </div>
-        <ProfileMenu :items="user.menuItems" />
+        <ProfileMenu :items="user.menuItems" @action="$emit('menuAction', $event)" />
       </div>
     </div>
   </header>

@@ -32,6 +32,7 @@ public sealed class Jogador
     }
 
     public Guid Id { get; private set; }
+    public Guid? UsuarioId { get; private set; }
     public string NomeExibicao { get; private set; } = string.Empty;
     public string? NomeReal { get; private set; }
     public string? Discord { get; private set; }
@@ -44,6 +45,12 @@ public sealed class Jogador
     public DateTimeOffset DataCadastro { get; private set; }
     public DateTimeOffset DataAtualizacao { get; private set; }
     public IReadOnlyCollection<PreferenciaRota> Preferencias => _preferencias.AsReadOnly();
+
+    public void VincularUsuario(Guid usuarioId)
+    {
+        UsuarioId = usuarioId;
+        Touch();
+    }
 
     public void AtualizarDadosBasicos(
         string nomeExibicao,

@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import Topbar from '@/components/layout/Topbar.vue'
 import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
+import { Permissions } from '@/constants/permissions'
+import { logout } from '@/services/auth'
+import { useAuthState } from '@/services/authState'
 import type { SidebarNavigationItem, TopbarUserSummary } from '@/types/layout'
 
 const { t } = useI18n()
+const auth = useAuthState()
+const router = useRouter()
 
 const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
@@ -66,12 +72,29 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
     path: AppRoutes.Settings,
     status: 'placeholder',
   },
+  ...(auth.hasPermission(Permissions.CanViewUsers)
+    ? [
+        {
+          id: 'users',
+          label: 'Usuários',
+          icon: 'U',
+          routeName: AppRouteNames.UsersAdmin,
+          path: AppRoutes.UsersAdmin,
+          status: 'available' as const,
+        },
+      ]
+    : []),
 ])
 
 const user = computed<TopbarUserSummary>(() => ({
-  displayName: t('profile.displayName'),
-  subtitle: t('profile.subtitle'),
-  initials: 'RL',
+  displayName: auth.user.value?.nome ?? t('profile.displayName'),
+  subtitle: auth.user.value?.roles.join(', ') ?? t('profile.subtitle'),
+  initials: (auth.user.value?.nome ?? 'RL')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase(),
   menuItems: [
     { id: 'profile', label: t('profile.myProfile'), action: 'profile' },
     { id: 'settings', label: t('profile.preferences'), action: 'settings' },
@@ -80,13 +103,30 @@ const user = computed<TopbarUserSummary>(() => ({
 }))
 
 const sidebarCollapsed = ref(false)
+
+async function handleMenuAction(action: string) {
+  if (action === 'logout') {
+    await logout()
+    await router.push(AppRoutes.Login)
+    return
+  }
+
+  if (action === 'profile') {
+    await router.push(AppRoutes.Profile)
+    return
+  }
+
+  if (action === 'settings') {
+    await router.push(AppRoutes.Settings)
+  }
+}
 </script>
 
 <template>
   <div class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
     <SidebarNav :items="navigationItems" :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" />
     <section class="app-shell__workspace">
-      <Topbar :user="user" />
+      <Topbar :user="user" @menu-action="handleMenuAction" />
       <main class="app-shell__content">
         <slot />
       </main>

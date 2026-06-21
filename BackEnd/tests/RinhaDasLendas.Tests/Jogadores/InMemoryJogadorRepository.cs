@@ -34,6 +34,16 @@ internal sealed class InMemoryJogadorRepository : IJogadorRepository
             .ToList());
     }
 
+    public Task<IReadOnlyCollection<Jogador>> ListCapitaesElegiveisAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyCollection<Jogador>>(_jogadores
+            .Where(jogador => jogador.Status == JogadorStatus.Ativo && jogador.UsuarioId is not null)
+            .OrderBy(jogador => jogador.NomeExibicao)
+            .Skip((Math.Max(page, 1) - 1) * Math.Clamp(pageSize, 1, 100))
+            .Take(Math.Clamp(pageSize, 1, 100))
+            .ToList());
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;

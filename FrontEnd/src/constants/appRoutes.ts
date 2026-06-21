@@ -6,6 +6,13 @@ export const AppRouteNames = {
   Matches: 'matches',
   Stats: 'stats',
   Settings: 'settings',
+  Login: 'login',
+  Register: 'register',
+  ForgotPassword: 'forgot-password',
+  ResetPassword: 'reset-password',
+  Profile: 'profile',
+  UsersAdmin: 'users-admin',
+  Forbidden: 'forbidden',
 } as const
 
 export const AppRoutes = {
@@ -16,6 +23,13 @@ export const AppRoutes = {
   Matches: '/partidas',
   Stats: '/estatisticas',
   Settings: '/configuracoes',
+  Login: '/login',
+  Register: '/cadastro',
+  ForgotPassword: '/esqueci-senha',
+  ResetPassword: '/redefinir-senha',
+  Profile: '/perfil',
+  UsersAdmin: '/usuarios',
+  Forbidden: '/403',
 } as const
 
 export type AppRouteName = (typeof AppRouteNames)[keyof typeof AppRouteNames]

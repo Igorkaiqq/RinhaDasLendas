@@ -6,6 +6,7 @@ import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
 import PlayerFormModal from '@/components/players/PlayerFormModal.vue'
 import PlayerList from '@/components/players/PlayerList.vue'
 import { LEAGUE_ROLES } from '@/constants/leagueRoles'
+import { Permissions } from '@/constants/permissions'
 import { PlayerStatus } from '@/constants/playerStatus'
 import {
   createPlayer,
@@ -17,9 +18,11 @@ import {
   type Player,
   type PlayerPayload,
 } from '@/services/players'
+import { useAuthState } from '@/services/authState'
 import type { FeedbackState, PlayerFormMode } from '@/types/players'
 
 const { t } = useI18n()
+const auth = useAuthState()
 const players = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -39,6 +42,7 @@ let notificationTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 const rankOptions = computed(() => [...new Set(players.value.map((player) => player.elo).filter(Boolean))] as string[])
 const routeOptions = LEAGUE_ROLES
 const paginationStart = computed(() => (filteredPlayers.value.length ? 1 : 0))
+const canManagePlayers = computed(() => auth.hasPermission(Permissions.CanManageUsers))
 
 const filteredPlayers = computed(() => {
   const normalizedSearch = searchTerm.value.trim().toLowerCase()
@@ -80,6 +84,10 @@ async function loadPlayers() {
 }
 
 function openCreateModal() {
+  if (!canManagePlayers.value) {
+    return
+  }
+
   formMode.value = 'create'
   editingPlayer.value = null
   serviceErrors.value = []
@@ -87,6 +95,10 @@ function openCreateModal() {
 }
 
 function openEditModal(player: Player) {
+  if (!canManagePlayers.value) {
+    return
+  }
+
   formMode.value = 'edit'
   editingPlayer.value = player
   serviceErrors.value = []
@@ -126,6 +138,10 @@ async function savePlayer(payload: PlayerPayload & { id?: string }) {
 }
 
 function requestDelete(player: Player) {
+  if (!canManagePlayers.value) {
+    return
+  }
+
   deletingPlayer.value = player
 }
 
@@ -198,7 +214,7 @@ function captureError(error: unknown) {
         <h1>{{ t('players.title') }}</h1>
         <p>{{ t('players.subtitle') }}</p>
       </div>
-      <button type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
+      <button v-if="canManagePlayers" type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
     </header>
 
     <section class="filter-bar" :aria-label="t('players.filtersLabel')">
@@ -239,6 +255,7 @@ function captureError(error: unknown) {
       :players="filteredPlayers"
       :loading="loading"
       :errors="errors"
+      :can-manage="canManagePlayers"
       @create="openCreateModal"
       @edit="openEditModal"
       @delete="requestDelete"

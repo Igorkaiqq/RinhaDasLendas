@@ -28,6 +28,12 @@ public static class MessageCodes
     public const string DraftCreated = "MSIS014";
     public const string DraftPickRegistered = "MSIS015";
     public const string DraftCanceled = "MSIS016";
+    public const string UserCreated = "MSIS017";
+    public const string LoginSuccess = "MSIS018";
+    public const string LogoutSuccess = "MSIS019";
+    public const string PasswordChanged = "MSIS020";
+    public const string PasswordRecoveryRequested = "MSIS021";
+    public const string UserRolesUpdated = "MSIS022";
 
     public const string UnexpectedError = "ME001";
     public const string ServerConnectionFailed = "ME002";
@@ -52,6 +58,13 @@ public static class MessageCodes
     public const string TeamNotFound = "ME021";
     public const string TeamSaveFailed = "ME022";
     public const string DraftSaveFailed = "ME023";
+    public const string InvalidCredentials = "ME024";
+    public const string SessionExpired = "ME025";
+    public const string InvalidRefreshToken = "ME026";
+    public const string UserDeactivated = "ME027";
+    public const string AccessDenied = "ME028";
+    public const string AuthenticationFailed = "ME029";
+    public const string UserUpdateFailed = "ME030";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -83,6 +96,11 @@ public static class MessageCodes
     public const string DraftPlayerAlreadyPicked = "MV028";
     public const string DraftClosed = "MV029";
     public const string DraftInvalidPlayer = "MV030";
+    public const string WeakPassword = "MV031";
+    public const string PasswordConfirmationMismatch = "MV032";
+    public const string EmailAlreadyRegistered = "MV033";
+    public const string InvalidRole = "MV034";
+    public const string RoleHierarchyOperationDenied = "MV035";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";
@@ -93,6 +111,8 @@ public static class MessageCodes
     public const string ConfirmOverwriteStatistics = "MC007";
     public const string ConfirmChangeCaptains = "MC008";
     public const string ConfirmDiscardChanges = "MC009";
+    public const string ConfirmUserDeactivate = "MC010";
+    public const string ConfirmUserPasswordReset = "MC011";
 
     public const string UnsavedChanges = "MA001";
     public const string ExternalIntegrationSkipped = "MA002";
@@ -103,4 +123,5 @@ public static class MessageCodes
     public const string StatisticsMayBeOutdated = "MA007";
     public const string AdminOnlyAction = "MA008";
     public const string ReviewDataBeforeContinue = "MA009";
+    public const string SessionExpiredAlert = "MA010";
 }
