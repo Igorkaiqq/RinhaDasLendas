@@ -9,6 +9,10 @@ const props = defineProps<{
   items: ProfileMenuItem[]
 }>()
 
+const emit = defineEmits<{
+  action: [string]
+}>()
+
 const open = ref(false)
 const { locale, t } = useI18n()
 
@@ -30,7 +34,13 @@ function selectLocale(value: LocaleCode) {
       {{ t('profile.trigger') }}
     </button>
     <div v-if="open" class="profile-menu__panel" role="menu">
-      <button v-for="item in props.items" :key="item.id" type="button" role="menuitem" @click="open = false">
+      <button
+        v-for="item in props.items"
+        :key="item.id"
+        type="button"
+        role="menuitem"
+        @click="open = false; emit('action', item.action)"
+      >
         {{ item.label }}
       </button>
       <div class="profile-menu__locale" role="group" :aria-label="t('profile.language')">

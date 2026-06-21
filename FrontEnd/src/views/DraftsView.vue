@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
-import { listPlayers, type Player } from '@/services/players'
+import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
 import {
   cancelDraftMontagem,
   createDraftMontagem,
@@ -17,6 +17,7 @@ import {
 import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
+const captains = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const errors = ref<string[]>([])
@@ -40,7 +41,7 @@ const filteredDrafts = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadPlayers(), loadVisualMontagens()])
+  await Promise.all([loadPlayers(), loadCaptains(), loadVisualMontagens()])
 })
 
 async function loadPlayers() {
@@ -49,6 +50,10 @@ async function loadPlayers() {
   } catch {
     players.value = []
   }
+}
+
+async function loadCaptains() {
+  captains.value = await listEligibleCaptains()
 }
 
 async function loadVisualMontagens() {
@@ -246,6 +251,7 @@ function captureError(error: unknown) {
     <DraftVisualSetup
       :open="visualSetupOpen"
       :players="players"
+      :captains="captains"
       :saving="saving"
       :errors="serviceErrors"
       @close="visualSetupOpen = false"

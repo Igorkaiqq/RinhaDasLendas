@@ -110,6 +110,17 @@ export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
   }
 }
 
+export async function listEligibleCaptains(): Promise<Player[]> {
+  try {
+    const response = await api.get<PaginatedPlayers>('/api/v1/jogadores/capitaes-elegiveis', {
+      params: { page: 1, pageSize: 100 },
+    })
+    return response.data.items
+  } catch {
+    return []
+  }
+}
+
 export async function createPlayer(payload: PlayerPayload): Promise<Player> {
   try {
     const response = await api.post<Player>('/api/v1/jogadores', normalizePayload(payload))

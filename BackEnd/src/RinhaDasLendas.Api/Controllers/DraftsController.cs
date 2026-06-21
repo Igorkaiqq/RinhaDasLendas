@@ -1,13 +1,16 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Drafts;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Queries.Drafts;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/drafts")]
 [Produces("application/json")]
 public sealed class DraftsController(ISender sender) : ControllerBase
@@ -37,6 +40,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateDraftRequestDto request, CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{id:guid}/picks")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -58,6 +63,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/cancelar")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]

@@ -7,7 +7,8 @@ namespace RinhaDasLendas.Application.Handlers.Jogadores;
 
 public sealed class GetJogadoresQueryHandler(IJogadorRepository jogadorRepository)
     : IRequestHandler<GetJogadoresQuery, PaginatedResponseDto<JogadorResponseDto>>,
-        IRequestHandler<GetJogadorByIdQuery, JogadorResponseDto?>
+        IRequestHandler<GetJogadorByIdQuery, JogadorResponseDto?>,
+        IRequestHandler<GetCapitaesElegiveisQuery, PaginatedResponseDto<JogadorResponseDto>>
 {
     public async Task<PaginatedResponseDto<JogadorResponseDto>> Handle(GetJogadoresQuery query, CancellationToken cancellationToken)
     {
@@ -25,5 +26,13 @@ public sealed class GetJogadoresQueryHandler(IJogadorRepository jogadorRepositor
     {
         var jogador = await jogadorRepository.GetByIdAsync(query.JogadorId, cancellationToken);
         return jogador is null ? null : JogadorResponseDto.FromEntity(jogador);
+    }
+
+    public async Task<PaginatedResponseDto<JogadorResponseDto>> Handle(GetCapitaesElegiveisQuery query, CancellationToken cancellationToken)
+    {
+        var page = Math.Max(query.Page, 1);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var jogadores = await jogadorRepository.ListCapitaesElegiveisAsync(page, pageSize, cancellationToken);
+        return new PaginatedResponseDto<JogadorResponseDto>(page, pageSize, jogadores.Select(JogadorResponseDto.FromEntity).ToList());
     }
 }

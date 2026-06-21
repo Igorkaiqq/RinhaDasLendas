@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* global document, window, HTMLElement, HTMLCanvasElement */
 import { computed, ref, watch } from 'vue'
 
 import type {
@@ -132,11 +133,6 @@ function preferredRoutes(player: DraftMontagemParticipante) {
     .filter((route): route is DraftMontagemRota => Boolean(route))
     .filter((route, index, allRoutes) => allRoutes.indexOf(route) === index)
     .slice(0, 2)
-}
-
-function routeSummary(player: DraftMontagemParticipante) {
-  const routes = preferredRoutes(player)
-  return routes.length ? routes.join(' / ') : '--'
 }
 
 function eloSummary(player: DraftMontagemParticipante) {

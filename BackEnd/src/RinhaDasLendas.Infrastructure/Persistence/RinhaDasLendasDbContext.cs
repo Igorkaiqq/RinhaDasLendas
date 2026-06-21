@@ -1,9 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Infrastructure.Identity;
 
 namespace RinhaDasLendas.Infrastructure.Persistence;
 
-public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbContext> options) : DbContext(options)
+public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbContext> options)
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>(options)
 {
     public DbSet<Jogador> Jogadores => Set<Jogador>();
     public DbSet<PreferenciaRota> PreferenciasRotas => Set<PreferenciaRota>();
@@ -15,15 +20,23 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<DraftMontagem> DraftMontagens => Set<DraftMontagem>();
     public DbSet<DraftMontagemTime> DraftMontagemTimes => Set<DraftMontagemTime>();
     public DbSet<DraftMontagemParticipante> DraftMontagemParticipantes => Set<DraftMontagemParticipante>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<VinculoDiscord> VinculosDiscord => Set<VinculoDiscord>();
+    public DbSet<AuditoriaUsuario> AuditoriaUsuarios => Set<AuditoriaUsuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        ConfigureIdentity(modelBuilder);
+
         modelBuilder.Entity<Jogador>(entity =>
         {
             entity.ToTable("jogadores");
             entity.HasKey(jogador => jogador.Id);
 
             entity.Property(jogador => jogador.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(jogador => jogador.UsuarioId).HasColumnName("usuario_id");
             entity.Property(jogador => jogador.NomeExibicao).HasColumnName("nome_exibicao").HasMaxLength(100).IsRequired();
             entity.Property(jogador => jogador.NomeReal).HasColumnName("nome_real").HasMaxLength(120);
             entity.Property(jogador => jogador.Discord).HasColumnName("discord").HasMaxLength(120);
@@ -43,6 +56,15 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
 
             entity.Navigation(jogador => jogador.Preferencias)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(jogador => jogador.UsuarioId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(jogador => jogador.UsuarioId)
+                .IsUnique()
+                .HasFilter("usuario_id IS NOT NULL");
         });
 
         modelBuilder.Entity<PreferenciaRota>(entity =>
@@ -297,5 +319,164 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(participante => participante.JogadorId);
             entity.HasIndex(participante => participante.TimeId);
         });
+    }
+
+    private static void ConfigureIdentity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("usuarios");
+            entity.Property(user => user.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(user => user.Nome).HasColumnName("nome").HasMaxLength(120).IsRequired();
+            entity.Property(user => user.Ativo).HasColumnName("ativo").HasDefaultValue(true).IsRequired();
+            entity.Property(user => user.UltimoLoginEm).HasColumnName("ultimo_login_em");
+            entity.Property(user => user.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.Property(user => user.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+            entity.Property(user => user.UserName).HasColumnName("user_name").HasMaxLength(256);
+            entity.Property(user => user.NormalizedUserName).HasColumnName("normalized_user_name").HasMaxLength(256);
+            entity.Property(user => user.Email).HasColumnName("email").HasMaxLength(256);
+            entity.Property(user => user.NormalizedEmail).HasColumnName("normalized_email").HasMaxLength(256);
+            entity.Property(user => user.EmailConfirmed).HasColumnName("email_confirmed").IsRequired();
+            entity.Property(user => user.PasswordHash).HasColumnName("password_hash");
+            entity.Property(user => user.SecurityStamp).HasColumnName("security_stamp");
+            entity.Property(user => user.ConcurrencyStamp).HasColumnName("concurrency_stamp");
+            entity.Property(user => user.PhoneNumber).HasColumnName("phone_number");
+            entity.Property(user => user.PhoneNumberConfirmed).HasColumnName("phone_number_confirmed");
+            entity.Property(user => user.TwoFactorEnabled).HasColumnName("two_factor_enabled");
+            entity.Property(user => user.LockoutEnd).HasColumnName("lockout_end");
+            entity.Property(user => user.LockoutEnabled).HasColumnName("lockout_enabled");
+            entity.Property(user => user.AccessFailedCount).HasColumnName("access_failed_count");
+            entity.HasIndex(user => user.NormalizedEmail).IsUnique();
+            entity.HasIndex(user => user.Ativo);
+        });
+
+        modelBuilder.Entity<ApplicationRole>(entity =>
+        {
+            entity.ToTable("roles");
+            entity.Property(role => role.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(role => role.Name).HasColumnName("name").HasMaxLength(120).IsRequired();
+            entity.Property(role => role.NormalizedName).HasColumnName("normalized_name").HasMaxLength(120).IsRequired();
+            entity.Property(role => role.ConcurrencyStamp).HasColumnName("concurrency_stamp");
+            entity.Property(role => role.NivelHierarquico).HasColumnName("nivel_hierarquico").IsRequired();
+            entity.HasIndex(role => role.NormalizedName).IsUnique();
+            entity.HasData(AuthRoles.Levels.Select(role => new ApplicationRole
+            {
+                Id = RoleId(role.Key),
+                Name = role.Key,
+                NormalizedName = role.Key.ToUpperInvariant(),
+                NivelHierarquico = role.Value,
+                ConcurrencyStamp = RoleId(role.Key).ToString(),
+            }));
+        });
+
+        modelBuilder.Entity<IdentityUserRole<Guid>>(entity =>
+        {
+            entity.ToTable("usuario_roles");
+            entity.Property(userRole => userRole.UserId).HasColumnName("usuario_id");
+            entity.Property(userRole => userRole.RoleId).HasColumnName("role_id");
+        });
+
+        modelBuilder.Entity<IdentityUserClaim<Guid>>(entity =>
+        {
+            entity.ToTable("usuario_claims");
+            entity.Property(claim => claim.Id).HasColumnName("id");
+            entity.Property(claim => claim.UserId).HasColumnName("usuario_id");
+            entity.Property(claim => claim.ClaimType).HasColumnName("claim_type");
+            entity.Property(claim => claim.ClaimValue).HasColumnName("claim_value");
+        });
+
+        modelBuilder.Entity<IdentityUserLogin<Guid>>(entity =>
+        {
+            entity.ToTable("usuario_logins");
+            entity.Property(login => login.LoginProvider).HasColumnName("login_provider");
+            entity.Property(login => login.ProviderKey).HasColumnName("provider_key");
+            entity.Property(login => login.ProviderDisplayName).HasColumnName("provider_display_name");
+            entity.Property(login => login.UserId).HasColumnName("usuario_id");
+        });
+
+        modelBuilder.Entity<IdentityUserToken<Guid>>(entity =>
+        {
+            entity.ToTable("usuario_tokens");
+            entity.Property(token => token.UserId).HasColumnName("usuario_id");
+            entity.Property(token => token.LoginProvider).HasColumnName("login_provider");
+            entity.Property(token => token.Name).HasColumnName("name");
+            entity.Property(token => token.Value).HasColumnName("value");
+        });
+
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>(entity =>
+        {
+            entity.ToTable("role_claims");
+            entity.Property(claim => claim.Id).HasColumnName("id");
+            entity.Property(claim => claim.RoleId).HasColumnName("role_id");
+            entity.Property(claim => claim.ClaimType).HasColumnName("claim_type");
+            entity.Property(claim => claim.ClaimValue).HasColumnName("claim_value");
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(token => token.Id);
+            entity.Property(token => token.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(token => token.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(token => token.TokenHash).HasColumnName("token_hash").IsRequired();
+            entity.Property(token => token.FamiliaId).HasColumnName("familia_id").IsRequired();
+            entity.Property(token => token.CriadoEm).HasColumnName("criado_em").IsRequired();
+            entity.Property(token => token.ExpiraEm).HasColumnName("expira_em").IsRequired();
+            entity.Property(token => token.RevogadoEm).HasColumnName("revogado_em");
+            entity.Property(token => token.SubstituidoPorTokenId).HasColumnName("substituido_por_token_id");
+            entity.Property(token => token.IpCriacao).HasColumnName("ip_criacao").HasMaxLength(64);
+            entity.Property(token => token.UserAgentCriacao).HasColumnName("user_agent_criacao").HasMaxLength(500);
+            entity.Property(token => token.IpRevogacao).HasColumnName("ip_revogacao").HasMaxLength(64);
+            entity.Property(token => token.MotivoRevogacao).HasColumnName("motivo_revogacao").HasMaxLength(200);
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => token.UsuarioId);
+            entity.HasIndex(token => token.FamiliaId);
+        });
+
+        modelBuilder.Entity<VinculoDiscord>(entity =>
+        {
+            entity.ToTable("vinculos_discord");
+            entity.HasKey(link => link.Id);
+            entity.Property(link => link.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(link => link.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(link => link.DiscordUserId).HasColumnName("discord_user_id").HasMaxLength(64).IsRequired();
+            entity.Property(link => link.DiscordUsername).HasColumnName("discord_username").HasMaxLength(120);
+            entity.Property(link => link.DiscordGlobalName).HasColumnName("discord_global_name").HasMaxLength(120);
+            entity.Property(link => link.DiscordAvatarHash).HasColumnName("discord_avatar_hash").HasMaxLength(120);
+            entity.Property(link => link.VinculadoEm).HasColumnName("vinculado_em").IsRequired();
+            entity.Property(link => link.DesvinculadoEm).HasColumnName("desvinculado_em");
+            entity.Property(link => link.Escopos).HasColumnName("escopos").HasMaxLength(500);
+            entity.HasIndex(link => link.UsuarioId).IsUnique().HasFilter("desvinculado_em IS NULL");
+            entity.HasIndex(link => link.DiscordUserId).IsUnique().HasFilter("desvinculado_em IS NULL");
+        });
+
+        modelBuilder.Entity<AuditoriaUsuario>(entity =>
+        {
+            entity.ToTable("auditoria_usuarios");
+            entity.HasKey(audit => audit.Id);
+            entity.Property(audit => audit.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(audit => audit.UsuarioAlvoId).HasColumnName("usuario_alvo_id");
+            entity.Property(audit => audit.UsuarioExecutorId).HasColumnName("usuario_executor_id");
+            entity.Property(audit => audit.Acao).HasColumnName("acao").HasMaxLength(80).IsRequired();
+            entity.Property(audit => audit.Detalhes).HasColumnName("detalhes");
+            entity.Property(audit => audit.Ip).HasColumnName("ip").HasMaxLength(64);
+            entity.Property(audit => audit.UserAgent).HasColumnName("user_agent").HasMaxLength(500);
+            entity.Property(audit => audit.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.HasIndex(audit => audit.UsuarioAlvoId);
+            entity.HasIndex(audit => audit.UsuarioExecutorId);
+            entity.HasIndex(audit => audit.DataCadastro);
+        });
+    }
+
+    private static Guid RoleId(string role)
+    {
+        return role switch
+        {
+            AuthRoles.SuperAdmin => Guid.Parse("10000000-0000-0000-0000-000000000001"),
+            AuthRoles.Admin => Guid.Parse("10000000-0000-0000-0000-000000000002"),
+            AuthRoles.Moderador => Guid.Parse("10000000-0000-0000-0000-000000000003"),
+            AuthRoles.Capitao => Guid.Parse("10000000-0000-0000-0000-000000000004"),
+            _ => Guid.Parse("10000000-0000-0000-0000-000000000005"),
+        };
     }
 }

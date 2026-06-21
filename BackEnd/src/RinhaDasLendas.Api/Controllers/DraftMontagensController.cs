@@ -1,13 +1,16 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Queries.DraftMontagens;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/draft-montagens")]
 [Produces("application/json")]
 public sealed class DraftMontagensController(ISender sender) : ControllerBase
@@ -30,6 +33,7 @@ public sealed class DraftMontagensController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateDraftMontagemRequestDto request, CancellationToken cancellationToken)
@@ -39,6 +43,7 @@ public sealed class DraftMontagensController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/layout")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -49,6 +54,7 @@ public sealed class DraftMontagensController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{id:guid}/capitaes/sortear")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DrawCaptains([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -58,6 +64,7 @@ public sealed class DraftMontagensController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/finalizar")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Finalize([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -67,6 +74,7 @@ public sealed class DraftMontagensController(ISender sender) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/cancelar")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Cancel([FromRoute] Guid id, [FromBody] CancelarDraftMontagemRequestDto request, CancellationToken cancellationToken)
