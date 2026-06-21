@@ -11,7 +11,7 @@ import type {
 
 import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
-const props = defineProps<{ montagem: DraftMontagem; saving: boolean }>()
+const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean }>()
 const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
   drawCaptains: []
@@ -35,7 +35,7 @@ const routeByFilter: Record<string, DraftMontagemRota | null> = {
   SUPORTE: 'Support',
 }
 
-const isReadOnly = computed(() => localMontagem.value.status !== 'Aberta')
+const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== 'Aberta')
 const availablePlayers = computed(() => [...localMontagem.value.livres, ...localMontagem.value.reservas])
 const filteredAvailablePlayers = computed(() => {
   const search = playerSearch.value.trim().toLowerCase()
@@ -188,11 +188,11 @@ async function exportImage() {
         <p>{{ localMontagem.quantidadeTimes }} times · {{ localMontagem.quantidadeReservas }} reservas.</p>
       </div>
       <div class="draft-visual-actions">
-        <button type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">Sortear capitaes</button>
-        <button type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? 'Salvando...' : 'Salvar layout' }}</button>
+        <button v-if="canManage" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">Sortear capitaes</button>
+        <button v-if="canManage" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? 'Salvando...' : 'Salvar layout' }}</button>
         <button type="button" class="button-secondary" @click="exportImage">Exportar imagem</button>
-        <button type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('cancel')">Cancelar</button>
-        <button type="button" :disabled="isReadOnly || dirty || saving" @click="emit('finalize')">Finalizar</button>
+        <button v-if="canManage" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('cancel')">Cancelar</button>
+        <button v-if="canManage" type="button" :disabled="isReadOnly || dirty || saving" @click="emit('finalize')">Finalizar</button>
       </div>
     </header>
 

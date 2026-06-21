@@ -175,14 +175,14 @@ export async function inactivatePlayer(id: string): Promise<void> {
 
 export async function deletePlayer(id: string): Promise<void> {
   try {
-    await api.delete(`/api/v1/jogadores/${id}`)
+    await api.patch(`/api/v1/jogadores/${id}/inativar`)
   } catch (error) {
     if (isConnectionFailure(error)) {
       deleteFakePlayer(id)
       return
     }
 
-    await inactivatePlayer(id)
+    throw toPlayerServiceError(error)
   }
 }
 

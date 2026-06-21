@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
+import { Permissions } from '@/constants/permissions'
+import { useAuthState } from '@/services/authState'
 import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
 import {
   cancelDraftMontagem,
@@ -17,6 +19,7 @@ import {
 import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
+const auth = useAuthState()
 const captains = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -30,6 +33,7 @@ const selectedMontagem = ref<DraftMontagem | null>(null)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
 
 const statusOptions: DraftMontagemStatus[] = ['Aberta', 'Finalizada', 'Cancelada']
+const canManageDrafts = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -83,6 +87,10 @@ async function openMontagem(id: string) {
 }
 
 async function saveMontagem(payload: DraftMontagemPayload) {
+  if (!canManageDrafts.value) {
+    return
+  }
+
   saving.value = true
   serviceErrors.value = []
   try {
@@ -98,7 +106,7 @@ async function saveMontagem(payload: DraftMontagemPayload) {
 }
 
 async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
-  if (!selectedMontagem.value) {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
     return
   }
   saving.value = true
@@ -115,7 +123,7 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
 }
 
 async function drawMontagemCaptains() {
-  if (!selectedMontagem.value) {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
     return
   }
   saving.value = true
@@ -130,7 +138,7 @@ async function drawMontagemCaptains() {
 }
 
 async function finalizeMontagem() {
-  if (!selectedMontagem.value) {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
     return
   }
   saving.value = true
@@ -146,7 +154,7 @@ async function finalizeMontagem() {
 }
 
 async function cancelMontagem() {
-  if (!selectedMontagem.value) {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
     return
   }
 
@@ -186,7 +194,7 @@ function captureError(error: unknown) {
         <p>Monte os times visualmente com capitaes, reservas, rotas e layout persistente.</p>
       </div>
       <div class="draft-hero-actions">
-        <button type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
+        <button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
       </div>
     </header>
 
@@ -236,6 +244,7 @@ function captureError(error: unknown) {
           v-if="selectedMontagem"
           :montagem="selectedMontagem"
           :saving="saving"
+          :can-manage="canManageDrafts"
           @save="saveMontagemLayout"
           @draw-captains="drawMontagemCaptains"
           @finalize="finalizeMontagem"
