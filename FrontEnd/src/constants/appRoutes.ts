@@ -12,7 +12,7 @@ export const AppRoutes = {
   Home: '/',
   Players: '/jogadores',
   Teams: '/times',
-  Draft: '/draft',
+  Draft: '/drafts',
   Matches: '/partidas',
   Stats: '/estatisticas',
   Settings: '/configuracoes',

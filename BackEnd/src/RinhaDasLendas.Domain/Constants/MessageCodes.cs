@@ -25,6 +25,9 @@ public static class MessageCodes
     public const string TeamUpdated = "MSIS011";
     public const string TeamDeactivated = "MSIS012";
     public const string TeamReactivated = "MSIS013";
+    public const string DraftCreated = "MSIS014";
+    public const string DraftPickRegistered = "MSIS015";
+    public const string DraftCanceled = "MSIS016";
 
     public const string UnexpectedError = "ME001";
     public const string ServerConnectionFailed = "ME002";
@@ -48,6 +51,7 @@ public static class MessageCodes
     public const string RequestTimedOut = "ME020";
     public const string TeamNotFound = "ME021";
     public const string TeamSaveFailed = "ME022";
+    public const string DraftSaveFailed = "ME023";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -74,6 +78,11 @@ public static class MessageCodes
     public const string PlayerAlreadyInTeam = "MV023";
     public const string TeamCaptainMustBeMember = "MV024";
     public const string InactivePlayerCannotJoinTeam = "MV025";
+    public const string DraftNameRequired = "MV026";
+    public const string DraftCaptainRequired = "MV027";
+    public const string DraftPlayerAlreadyPicked = "MV028";
+    public const string DraftClosed = "MV029";
+    public const string DraftInvalidPlayer = "MV030";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

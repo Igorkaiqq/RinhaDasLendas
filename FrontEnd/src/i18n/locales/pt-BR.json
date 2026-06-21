@@ -71,6 +71,15 @@
     "emptyTitle": "Nenhum time encontrado",
     "emptyDescription": "Cadastre o primeiro time ou ajuste os filtros para visualizar a base da rinha."
   },
+  "drafts": {
+    "title": "Draft de Jogadores",
+    "subtitle": "Monte os times com capitães, ordem de picks e histórico transparente.",
+    "create": "Criar Draft",
+    "created": "Draft {name} criado.",
+    "canceled": "Draft {name} cancelado.",
+    "picked": "{name} escolhido.",
+    "emptyTitle": "Nenhum draft encontrado"
+  },
   "playerForm": {
     "createTitle": "Cadastrar jogador",
     "editTitle": "Editar jogador",

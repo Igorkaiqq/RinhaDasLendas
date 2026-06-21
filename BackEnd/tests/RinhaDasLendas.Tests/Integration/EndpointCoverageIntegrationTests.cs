@@ -57,6 +57,8 @@ public sealed class EndpointCoverageIntegrationTests
         {
             await ExecuteJogadoresFlowAsync(factory, client);
             await ExecuteTimesFlowAsync(client);
+            await ExecuteDraftsFlowAsync(client);
+            await ExecuteDraftMontagensFlowAsync(client);
         }
         catch (Exception exception)
         {
@@ -223,6 +225,123 @@ public sealed class EndpointCoverageIntegrationTests
         active!.Status.Should().Be("Ativo");
     }
 
+    private static async Task ExecuteDraftsFlowAsync(HttpClient client)
+    {
+        var jogadores = new[]
+        {
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Draft {Guid.NewGuid():N}")
+        };
+
+        var createRequest = new CreateDraftRequestDto(
+            $"Draft Integracao {Guid.NewGuid():N}",
+            "Draft criado pelo teste de integracao",
+            2,
+            false,
+            jogadores[0].Id,
+            jogadores[1].Id,
+            false,
+            "TimeA",
+            jogadores.Select(jogador => jogador.Id).ToList());
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/drafts", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        created.Should().NotBeNull();
+        created!.Status.Should().Be("Aberto");
+        created.Disponiveis.Should().HaveCount(2);
+
+        var listResponse = await client.GetAsync("/api/v1/drafts?page=1&pageSize=20");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await listResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<DraftResponseDto>>();
+        list.Should().NotBeNull();
+        list!.Items.Should().Contain(draft => draft.Id == created.Id);
+
+        var getByIdResponse = await client.GetAsync($"/api/v1/drafts/{created.Id}");
+        getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var pickResponse = await client.PostAsJsonAsync($"/api/v1/drafts/{created.Id}/picks", new RegistrarPickDraftRequestDto(jogadores[2].Id));
+        pickResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var picked = await pickResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        picked.Should().NotBeNull();
+        picked!.Escolhas.Should().ContainSingle();
+
+        var cancelResponse = await client.PatchAsJsonAsync($"/api/v1/drafts/{created.Id}/cancelar", new CancelarDraftRequestDto("Teste finalizado"));
+        cancelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var canceled = await cancelResponse.Content.ReadFromJsonAsync<DraftResponseDto>();
+        canceled.Should().NotBeNull();
+        canceled!.Status.Should().Be("Cancelado");
+    }
+
+    private static async Task ExecuteDraftMontagensFlowAsync(HttpClient client)
+    {
+        var jogadores = new[]
+        {
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}"),
+            await CreateJogadorAsync(client, $"Jogador Montagem {Guid.NewGuid():N}")
+        };
+
+        var createRequest = new CreateDraftMontagemRequestDto(
+            $"Montagem Integracao {Guid.NewGuid():N}",
+            "Montagem criada pelo teste de integracao",
+            3,
+            false,
+            [jogadores[0].Id, jogadores[1].Id],
+            jogadores.Select(jogador => jogador.Id).ToList());
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        created.Should().NotBeNull();
+        created!.QuantidadeTimes.Should().Be(2);
+        created.QuantidadeReservas.Should().Be(0);
+
+        var listResponse = await client.GetAsync("/api/v1/draft-montagens?page=1&pageSize=20");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getByIdResponse = await client.GetAsync($"/api/v1/draft-montagens/{created.Id}");
+        getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var firstFree = created.Livres.First();
+        var secondFree = created.Livres.Skip(1).First();
+        var layoutRequest = new SalvarLayoutDraftMontagemRequestDto(
+            created.Times.Select((time, index) => new DraftMontagemLayoutTimeDto(
+                time.Id,
+                time.Nome,
+                time.CapitaoId,
+                time.Jogadores.Select((jogador, jogadorIndex) => new DraftMontagemLayoutParticipanteDto(jogador.JogadorId, jogadorIndex + 1, null))
+                    .Append(new DraftMontagemLayoutParticipanteDto(index == 0 ? firstFree.JogadorId : secondFree.JogadorId, time.Jogadores.Count + 1, index == 0 ? "Mid" : "Support"))
+                    .ToList())).ToList(),
+            created.Livres.Where(jogador => jogador.JogadorId != firstFree.JogadorId && jogador.JogadorId != secondFree.JogadorId).Select((jogador, index) => new DraftMontagemLayoutParticipanteDto(jogador.JogadorId, index + 1, null)).ToList(),
+            []);
+
+        var saveLayoutResponse = await client.PutAsJsonAsync($"/api/v1/draft-montagens/{created.Id}/layout", layoutRequest);
+        saveLayoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var saved = await saveLayoutResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        saved.Should().NotBeNull();
+        saved!.Times.SelectMany(time => time.Jogadores).Should().Contain(jogador => jogador.RotaContextual == "Mid");
+
+        var drawResponse = await client.PostAsync($"/api/v1/draft-montagens/{created.Id}/capitaes/sortear", null);
+        drawResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var finalizeResponse = await client.PatchAsync($"/api/v1/draft-montagens/{created.Id}/finalizar", null);
+        finalizeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var cancelCreateResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", createRequest with { Nome = $"Montagem Cancelar {Guid.NewGuid():N}" });
+        cancelCreateResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var cancelTarget = await cancelCreateResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        cancelTarget.Should().NotBeNull();
+
+        var cancelResponse = await client.PatchAsJsonAsync($"/api/v1/draft-montagens/{cancelTarget!.Id}/cancelar", new CancelarDraftMontagemRequestDto("Teste cancelado"));
+        cancelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     private static async Task<JogadorResponseDto> CreateJogadorAsync(HttpClient client, string nome)
     {
         var request = CreateRequest(nome);
@@ -367,7 +486,19 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("POST", "/api/v1/times"),
             EndpointKey.From("PUT", "/api/v1/times/{id}"),
             EndpointKey.From("PATCH", "/api/v1/times/{id}/inativar"),
-            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar")
+            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar"),
+            EndpointKey.From("GET", "/api/v1/drafts"),
+            EndpointKey.From("GET", "/api/v1/drafts/{id}"),
+            EndpointKey.From("POST", "/api/v1/drafts"),
+            EndpointKey.From("POST", "/api/v1/drafts/{id}/picks"),
+            EndpointKey.From("PATCH", "/api/v1/drafts/{id}/cancelar"),
+            EndpointKey.From("GET", "/api/v1/draft-montagens"),
+            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens"),
+            EndpointKey.From("PUT", "/api/v1/draft-montagens/{id}/layout"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/capitaes/sortear"),
+            EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/finalizar"),
+            EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/cancelar")
         ];
     }
 

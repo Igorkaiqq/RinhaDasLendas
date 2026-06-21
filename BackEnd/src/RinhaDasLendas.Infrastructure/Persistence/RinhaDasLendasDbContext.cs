@@ -9,6 +9,12 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<PreferenciaRota> PreferenciasRotas => Set<PreferenciaRota>();
     public DbSet<Time> Times => Set<Time>();
     public DbSet<TimeMembro> TimeMembros => Set<TimeMembro>();
+    public DbSet<DraftSessao> Drafts => Set<DraftSessao>();
+    public DbSet<DraftParticipante> DraftParticipantes => Set<DraftParticipante>();
+    public DbSet<DraftEscolha> DraftEscolhas => Set<DraftEscolha>();
+    public DbSet<DraftMontagem> DraftMontagens => Set<DraftMontagem>();
+    public DbSet<DraftMontagemTime> DraftMontagemTimes => Set<DraftMontagemTime>();
+    public DbSet<DraftMontagemParticipante> DraftMontagemParticipantes => Set<DraftMontagemParticipante>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -17,7 +23,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.ToTable("jogadores");
             entity.HasKey(jogador => jogador.Id);
 
-            entity.Property(jogador => jogador.Id).HasColumnName("id");
+            entity.Property(jogador => jogador.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(jogador => jogador.NomeExibicao).HasColumnName("nome_exibicao").HasMaxLength(100).IsRequired();
             entity.Property(jogador => jogador.NomeReal).HasColumnName("nome_real").HasMaxLength(120);
             entity.Property(jogador => jogador.Discord).HasColumnName("discord").HasMaxLength(120);
@@ -47,7 +53,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             });
 
             entity.HasKey(preferencia => preferencia.Id);
-            entity.Property(preferencia => preferencia.Id).HasColumnName("id");
+            entity.Property(preferencia => preferencia.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(preferencia => preferencia.JogadorId).HasColumnName("jogador_id").IsRequired();
             entity.Property(preferencia => preferencia.Rota).HasColumnName("rota").HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(preferencia => preferencia.Prioridade).HasColumnName("prioridade").IsRequired();
@@ -62,7 +68,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.ToTable("times");
             entity.HasKey(time => time.Id);
 
-            entity.Property(time => time.Id).HasColumnName("id");
+            entity.Property(time => time.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(time => time.Nome).HasColumnName("nome").HasMaxLength(100).IsRequired();
             entity.Property(time => time.NomeNormalizado).HasColumnName("nome_normalizado").HasMaxLength(100).IsRequired();
             entity.Property(time => time.Tag).HasColumnName("tag").HasMaxLength(10).IsRequired();
@@ -100,7 +106,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.ToTable("time_membros");
             entity.HasKey(membro => membro.Id);
 
-            entity.Property(membro => membro.Id).HasColumnName("id");
+            entity.Property(membro => membro.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(membro => membro.TimeId).HasColumnName("time_id").IsRequired();
             entity.Property(membro => membro.JogadorId).HasColumnName("jogador_id").IsRequired();
             entity.Property(membro => membro.Principal).HasColumnName("principal").HasDefaultValue(true).IsRequired();
@@ -114,6 +120,182 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(membro => new { membro.TimeId, membro.JogadorId }).IsUnique();
             entity.HasIndex(membro => membro.TimeId);
             entity.HasIndex(membro => membro.JogadorId);
+        });
+
+        modelBuilder.Entity<DraftSessao>(entity =>
+        {
+            entity.ToTable("drafts");
+            entity.HasKey(draft => draft.Id);
+
+            entity.Property(draft => draft.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(draft => draft.Nome).HasColumnName("nome").HasMaxLength(120).IsRequired();
+            entity.Property(draft => draft.Observacoes).HasColumnName("observacoes").HasMaxLength(500);
+            entity.Property(draft => draft.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(draft => draft.TamanhoTime).HasColumnName("tamanho_time").IsRequired();
+            entity.Property(draft => draft.CapitaoTimeAId).HasColumnName("capitao_time_a_id").IsRequired();
+            entity.Property(draft => draft.CapitaoTimeBId).HasColumnName("capitao_time_b_id").IsRequired();
+            entity.Property(draft => draft.CriterioCapitaes).HasColumnName("criterio_capitaes").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(draft => draft.ProximoTime).HasColumnName("proximo_time").HasConversion<string>().HasMaxLength(20);
+            entity.Property(draft => draft.CriterioPrimeiroPick).HasColumnName("criterio_primeiro_pick").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(draft => draft.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
+            entity.Property(draft => draft.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.Property(draft => draft.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+
+            entity.HasOne<Jogador>()
+                .WithMany()
+                .HasForeignKey(draft => draft.CapitaoTimeAId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Jogador>()
+                .WithMany()
+                .HasForeignKey(draft => draft.CapitaoTimeBId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(draft => draft.Participantes)
+                .WithOne()
+                .HasForeignKey(participante => participante.DraftSessaoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(draft => draft.Escolhas)
+                .WithOne()
+                .HasForeignKey(escolha => escolha.DraftSessaoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(draft => draft.Status);
+            entity.HasIndex(draft => draft.DataCadastro);
+
+            entity.Navigation(draft => draft.Participantes).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(draft => draft.Escolhas).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<DraftParticipante>(entity =>
+        {
+            entity.ToTable("draft_participantes");
+            entity.HasKey(participante => participante.Id);
+
+            entity.Property(participante => participante.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(participante => participante.DraftSessaoId).HasColumnName("draft_sessao_id").IsRequired();
+            entity.Property(participante => participante.JogadorId).HasColumnName("jogador_id").IsRequired();
+            entity.Property(participante => participante.Time).HasColumnName("time").HasConversion<string>().HasMaxLength(20);
+            entity.Property(participante => participante.Capitao).HasColumnName("capitao").HasDefaultValue(false).IsRequired();
+            entity.Property(participante => participante.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+
+            entity.HasOne(participante => participante.Jogador)
+                .WithMany()
+                .HasForeignKey(participante => participante.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(participante => new { participante.DraftSessaoId, participante.JogadorId }).IsUnique();
+            entity.HasIndex(participante => participante.JogadorId);
+        });
+
+        modelBuilder.Entity<DraftEscolha>(entity =>
+        {
+            entity.ToTable("draft_escolhas");
+            entity.HasKey(escolha => escolha.Id);
+
+            entity.Property(escolha => escolha.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(escolha => escolha.DraftSessaoId).HasColumnName("draft_sessao_id").IsRequired();
+            entity.Property(escolha => escolha.Sequencia).HasColumnName("sequencia").IsRequired();
+            entity.Property(escolha => escolha.Time).HasColumnName("time").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(escolha => escolha.CapitaoId).HasColumnName("capitao_id").IsRequired();
+            entity.Property(escolha => escolha.JogadorId).HasColumnName("jogador_id").IsRequired();
+            entity.Property(escolha => escolha.DataEscolha).HasColumnName("data_escolha").IsRequired();
+
+            entity.HasOne(escolha => escolha.Capitao)
+                .WithMany()
+                .HasForeignKey(escolha => escolha.CapitaoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(escolha => escolha.Jogador)
+                .WithMany()
+                .HasForeignKey(escolha => escolha.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(escolha => new { escolha.DraftSessaoId, escolha.Sequencia }).IsUnique();
+            entity.HasIndex(escolha => new { escolha.DraftSessaoId, escolha.JogadorId }).IsUnique();
+        });
+
+        modelBuilder.Entity<DraftMontagem>(entity =>
+        {
+            entity.ToTable("draft_montagens");
+            entity.HasKey(montagem => montagem.Id);
+
+            entity.Property(montagem => montagem.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(montagem => montagem.Nome).HasColumnName("nome").HasMaxLength(120).IsRequired();
+            entity.Property(montagem => montagem.Observacoes).HasColumnName("observacoes").HasMaxLength(500);
+            entity.Property(montagem => montagem.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(montagem => montagem.TamanhoEquipe).HasColumnName("tamanho_equipe").IsRequired();
+            entity.Property(montagem => montagem.QuantidadeTimes).HasColumnName("quantidade_times").IsRequired();
+            entity.Property(montagem => montagem.QuantidadeReservas).HasColumnName("quantidade_reservas").IsRequired();
+            entity.Property(montagem => montagem.CriterioCapitaes).HasColumnName("criterio_capitaes").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(montagem => montagem.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
+            entity.Property(montagem => montagem.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.Property(montagem => montagem.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+
+            entity.HasMany(montagem => montagem.Times)
+                .WithOne()
+                .HasForeignKey(time => time.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(montagem => montagem.Participantes)
+                .WithOne()
+                .HasForeignKey(participante => participante.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(montagem => montagem.Status);
+            entity.HasIndex(montagem => montagem.DataCadastro);
+            entity.Navigation(montagem => montagem.Times).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(montagem => montagem.Participantes).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<DraftMontagemTime>(entity =>
+        {
+            entity.ToTable("draft_montagem_times");
+            entity.HasKey(time => time.Id);
+            entity.Property(time => time.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(time => time.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
+            entity.Property(time => time.Nome).HasColumnName("nome").HasMaxLength(100).IsRequired();
+            entity.Property(time => time.Ordem).HasColumnName("ordem").IsRequired();
+            entity.Property(time => time.Cor).HasColumnName("cor").HasMaxLength(30).IsRequired();
+            entity.Property(time => time.CapitaoId).HasColumnName("capitao_id");
+
+            entity.HasOne<Jogador>()
+                .WithMany()
+                .HasForeignKey(time => time.CapitaoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(time => new { time.DraftMontagemId, time.Ordem }).IsUnique();
+        });
+
+        modelBuilder.Entity<DraftMontagemParticipante>(entity =>
+        {
+            entity.ToTable("draft_montagem_participantes");
+            entity.HasKey(participante => participante.Id);
+            entity.Property(participante => participante.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(participante => participante.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
+            entity.Property(participante => participante.JogadorId).HasColumnName("jogador_id").IsRequired();
+            entity.Property(participante => participante.TimeId).HasColumnName("time_id");
+            entity.Property(participante => participante.Estado).HasColumnName("estado").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(participante => participante.Capitao).HasColumnName("capitao").HasDefaultValue(false).IsRequired();
+            entity.Property(participante => participante.RotaContextual).HasColumnName("rota_contextual").HasConversion<string>().HasMaxLength(20);
+            entity.Property(participante => participante.Ordem).HasColumnName("ordem").IsRequired();
+            entity.Property(participante => participante.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.Property(participante => participante.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+
+            entity.HasOne(participante => participante.Jogador)
+                .WithMany()
+                .HasForeignKey(participante => participante.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<DraftMontagemTime>()
+                .WithMany()
+                .HasForeignKey(participante => participante.TimeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(participante => new { participante.DraftMontagemId, participante.JogadorId }).IsUnique();
+            entity.HasIndex(participante => participante.JogadorId);
+            entity.HasIndex(participante => participante.TimeId);
         });
     }
 }
