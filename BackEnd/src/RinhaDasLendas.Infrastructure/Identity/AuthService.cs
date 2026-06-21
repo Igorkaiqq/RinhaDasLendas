@@ -120,8 +120,7 @@ public sealed class AuthService(
         storedToken.MotivoRevogacao = "Rotacao";
 
         var newToken = await CreateTokenAsync(user, storedToken.FamiliaId, ipAddress, userAgent, cancellationToken);
-        var replacement = await dbContext.RefreshTokens.FirstAsync(token => token.TokenHash == Hash(newToken.RefreshToken), cancellationToken);
-        storedToken.SubstituidoPorTokenId = replacement.Id;
+        storedToken.SubstituidoPorTokenId = newToken.RefreshTokenId;
 
         await auditoriaService.RegistrarAsync("RefreshTokenRotacionado", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -259,7 +258,7 @@ public sealed class AuthService(
 
         var jwt = new JwtSecurityToken(options.Issuer, options.Audience, claims, expires: expires, signingCredentials: credentials);
         var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
-        await dbContext.RefreshTokens.AddAsync(new RefreshToken
+        var refreshTokenEntity = new RefreshToken
         {
             UsuarioId = user.Id,
             TokenHash = Hash(refreshToken),
@@ -267,9 +266,10 @@ public sealed class AuthService(
             ExpiraEm = DateTimeOffset.UtcNow.AddDays(options.RefreshTokenDays),
             IpCriacao = ipAddress,
             UserAgentCriacao = userAgent,
-        }, cancellationToken);
+        };
+        await dbContext.RefreshTokens.AddAsync(refreshTokenEntity, cancellationToken);
 
-        return new TokenResult(new JwtSecurityTokenHandler().WriteToken(jwt), refreshToken, options.AccessTokenMinutes * 60);
+        return new TokenResult(new JwtSecurityTokenHandler().WriteToken(jwt), refreshToken, refreshTokenEntity.Id, options.AccessTokenMinutes * 60);
     }
 
     private async Task<AuthenticatedUserDto> BuildUserDtoAsync(ApplicationUser user, CancellationToken cancellationToken)
