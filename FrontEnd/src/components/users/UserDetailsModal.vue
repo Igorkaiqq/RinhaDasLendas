@@ -89,6 +89,10 @@ onMounted(load)
             <strong>{{ user.discord?.vinculado ? user.discord.username : 'Não vinculado' }}</strong>
           </div>
           <div>
+            <span>Perfil de jogador</span>
+            <strong>{{ user.jogadorId ? 'Completo' : 'Pendente' }}</strong>
+          </div>
+          <div>
             <span>Criado em</span>
             <strong>{{ new Date(user.dataCadastro).toLocaleString() }}</strong>
           </div>

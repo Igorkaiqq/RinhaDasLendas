@@ -32,6 +32,31 @@ public sealed class UpdatePreferenciasRotasRequestDtoValidator : AbstractValidat
     }
 }
 
+public sealed class MeuJogadorProfileRequestDtoValidator : AbstractValidator<MeuJogadorProfileRequestDto>
+{
+    public MeuJogadorProfileRequestDtoValidator()
+    {
+        Include(new JogadorDadosBasicosValidator());
+
+        RuleFor(request => request.RiotId)
+            .NotEmpty()
+            .WithMessage("Informe o Riot ID.")
+            .MaximumLength(120)
+            .WithMessage("Riot ID deve ter no maximo 120 caracteres.");
+
+        RuleFor(request => request.OpGgUrl)
+            .NotEmpty()
+            .WithMessage("Informe o link de OP.GG.");
+
+        RuleFor(request => request.DeepLolUrl)
+            .NotEmpty()
+            .WithMessage("Informe o link de Deeplol.");
+
+        RuleFor(request => request.Preferencias)
+            .SetValidator(new PreferenciasRotasValidator());
+    }
+}
+
 internal sealed class JogadorDadosBasicosValidator : AbstractValidator<IJogadorDadosBasicos>
 {
     public JogadorDadosBasicosValidator()

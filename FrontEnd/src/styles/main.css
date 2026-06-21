@@ -251,7 +251,7 @@ body {
   color: var(--color-ink, #fafafa);
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(240px, 1fr) minmax(180px, auto) auto auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, auto) auto auto auto;
   padding: 16px;
   text-align: left;
 }
@@ -436,7 +436,47 @@ body {
 .user-meta-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.pending-player-notice {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.pending-player-notice h2,
+.pending-player-notice p {
+  margin: 0;
+}
+
+.pending-player-notice p {
+  color: var(--color-ink-muted);
+  margin-top: 6px;
+}
+
+.complete-player-card {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.complete-player-card header,
+.complete-player-card .route-editor,
+.complete-player-card__errors,
+.complete-player-card > button {
+  grid-column: 1 / -1;
+}
+
+.complete-player-card h2,
+.complete-player-card p {
+  margin: 0;
+}
+
+.complete-player-card header p {
+  color: var(--color-ink-muted);
+  margin-top: 6px;
 }
 
 .user-meta-grid div {

@@ -24,6 +24,9 @@ defineEmits<{
       <span class="user-role-stack">
         <span v-for="role in user.roles" :key="role" class="role-chip">{{ role }}</span>
       </span>
+      <span class="status-pill" :class="user.jogadorId ? 'status-pill--active' : 'status-pill--inactive'">
+        {{ user.jogadorId ? 'Jogador completo' : 'Jogador pendente' }}
+      </span>
       <span class="status-pill" :class="user.ativo ? 'status-pill--active' : 'status-pill--inactive'">{{ user.ativo ? 'Ativo' : 'Desativado' }}</span>
       <span class="user-row__chevron" aria-hidden="true">›</span>
     </button>

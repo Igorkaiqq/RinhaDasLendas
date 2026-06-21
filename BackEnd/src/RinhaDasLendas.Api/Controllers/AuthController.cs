@@ -107,6 +107,40 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
         return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
     }
 
+    [HttpGet("me/jogador")]
+    [Authorize]
+    [ProducesResponseType(typeof(JogadorResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> MeuJogador(CancellationToken cancellationToken)
+    {
+        var jogador = await sender.Send(new GetMeuJogadorProfileQuery(CurrentUserId()), cancellationToken);
+        return jogador is null ? NotFound(new ApiErrorResponse("Perfil de jogador nao encontrado", [])) : Ok(jogador);
+    }
+
+    [HttpPost("me/jogador")]
+    [Authorize]
+    [ProducesResponseType(typeof(JogadorResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CompleteMeuJogador([FromBody] MeuJogadorProfileRequestDto request, CancellationToken cancellationToken)
+    {
+        var jogador = await sender.Send(new CompleteMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
+        return jogador is null
+            ? Conflict(new ApiErrorResponse("Usuario ja possui perfil de jogador vinculado", []))
+            : CreatedAtAction(nameof(MeuJogador), jogador);
+    }
+
+    [HttpPut("me/jogador")]
+    [Authorize]
+    [ProducesResponseType(typeof(JogadorResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateMeuJogador([FromBody] MeuJogadorProfileRequestDto request, CancellationToken cancellationToken)
+    {
+        var jogador = await sender.Send(new UpdateMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
+        return jogador is null ? NotFound(new ApiErrorResponse("Perfil de jogador nao encontrado", [])) : Ok(jogador);
+    }
+
     [HttpGet("me/permissions")]
     [Authorize]
     [ProducesResponseType(typeof(UserPermissionsDto), StatusCodes.Status200OK)]

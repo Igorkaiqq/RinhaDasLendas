@@ -19,6 +19,11 @@ internal sealed class InMemoryJogadorRepository : IJogadorRepository
         return Task.FromResult(_jogadores.FirstOrDefault(jogador => jogador.Id == id));
     }
 
+    public Task<Jogador?> GetByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(_jogadores.FirstOrDefault(jogador => jogador.UsuarioId == usuarioId));
+    }
+
     public Task<IReadOnlyCollection<Jogador>> ListAsync(bool somenteAtivos, int page, int pageSize, CancellationToken cancellationToken)
     {
         var query = _jogadores.AsEnumerable();
