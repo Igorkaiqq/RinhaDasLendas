@@ -487,21 +487,33 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.change-password-card {
+  display: grid;
+  gap: 18px 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .profile-account-card header,
+.change-password-card header,
 .profile-role-line,
 .profile-inline-message,
-.profile-actions {
+.profile-actions,
+.change-password-card .form-error,
+.change-password-card .status-ok {
   grid-column: 1 / -1;
 }
 
 .profile-account-card h2,
 .profile-account-card p,
+.change-password-card h2,
+.change-password-card p,
 .profile-loading-card,
 .profile-inline-message {
   margin: 0;
 }
 
 .profile-account-card header p,
+.change-password-card header p,
 .profile-role-line {
   color: var(--color-ink-muted);
 }
@@ -595,7 +607,8 @@ body {
   .user-edit-form,
   .user-meta-grid,
   .profile-account-card,
-  .complete-player-card {
+  .complete-player-card,
+  .change-password-card {
     grid-template-columns: 1fr;
   }
 
@@ -702,6 +715,7 @@ p {
 .app-shell__content {
   min-width: 0;
   min-height: 0;
+  padding: 28px 32px 48px;
   overflow: auto;
 }
 

@@ -25,13 +25,19 @@ async function submit() {
 </script>
 
 <template>
-  <form class="panel-card" @submit.prevent="submit">
-    <h2>Alterar senha</h2>
+  <form class="panel-card change-password-card" @submit.prevent="submit">
+    <header>
+      <span class="eyebrow">Segurança</span>
+      <h2>Alterar senha</h2>
+      <p>Atualize sua senha local de acesso à plataforma.</p>
+    </header>
     <label>Senha atual <input v-model="senhaAtual" type="password" required /></label>
     <label>Nova senha <input v-model="novaSenha" type="password" required minlength="8" /></label>
     <label>Confirmar senha <input v-model="confirmacaoSenha" type="password" required minlength="8" /></label>
-    <p v-if="message">{{ message }}</p>
+    <p v-if="message" class="status-ok">{{ message }}</p>
     <p v-if="error" class="form-error">{{ error }}</p>
-    <button class="button button--primary" type="submit">Alterar senha</button>
+    <div class="profile-actions">
+      <button class="button button--primary" type="submit">Alterar senha</button>
+    </div>
   </form>
 </template>
