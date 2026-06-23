@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import PlayerDeleteDialog from '@/components/players/PlayerDeleteDialog.vue'
 import PlayerFormModal from '@/components/players/PlayerFormModal.vue'
 import PlayerList from '@/components/players/PlayerList.vue'
+import PendingPlayerProfileNotice from '@/components/users/PendingPlayerProfileNotice.vue'
 import { LEAGUE_ROLES } from '@/constants/leagueRoles'
 import { Permissions } from '@/constants/permissions'
 import { PlayerStatus } from '@/constants/playerStatus'
@@ -43,6 +44,7 @@ const rankOptions = computed(() => [...new Set(players.value.map((player) => pla
 const routeOptions = LEAGUE_ROLES
 const paginationStart = computed(() => (filteredPlayers.value.length ? 1 : 0))
 const canManagePlayers = computed(() => auth.hasPermission(Permissions.CanManageUsers))
+const hasPlayerProfile = computed(() => Boolean(auth.user.value?.jogadorId))
 
 const filteredPlayers = computed(() => {
   const normalizedSearch = searchTerm.value.trim().toLowerCase()
@@ -216,6 +218,8 @@ function captureError(error: unknown) {
       </div>
       <button v-if="canManagePlayers" type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
     </header>
+
+    <PendingPlayerProfileNotice v-if="!hasPlayerProfile" />
 
     <section class="filter-bar" :aria-label="t('players.filtersLabel')">
       <label class="filter-field filter-field--wide">

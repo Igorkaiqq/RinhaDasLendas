@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
+import PendingPlayerProfileNotice from '@/components/users/PendingPlayerProfileNotice.vue'
 import { Permissions } from '@/constants/permissions'
 import { useAuthState } from '@/services/authState'
 import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
@@ -34,6 +35,7 @@ const visualMontagens = ref<DraftMontagemResumo[]>([])
 
 const statusOptions: DraftMontagemStatus[] = ['Aberta', 'Finalizada', 'Cancelada']
 const canManageDrafts = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
+const hasPlayerProfile = computed(() => Boolean(auth.user.value?.jogadorId))
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -197,6 +199,8 @@ function captureError(error: unknown) {
         <button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
       </div>
     </header>
+
+    <PendingPlayerProfileNotice v-if="!hasPlayerProfile" />
 
     <section class="filter-bar" aria-label="Filtros de drafts">
       <label class="filter-field filter-field--wide">

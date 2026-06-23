@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import Topbar from '@/components/layout/Topbar.vue'
@@ -14,6 +14,7 @@ import type { SidebarNavigationItem, TopbarUserSummary } from '@/types/layout'
 const { t } = useI18n()
 const auth = useAuthState()
 const router = useRouter()
+const route = useRoute()
 
 const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
@@ -103,6 +104,33 @@ const user = computed<TopbarUserSummary>(() => ({
 }))
 
 const sidebarCollapsed = ref(false)
+const showPlayerProfileModal = ref(false)
+const dismissedForPath = ref<string | null>(null)
+
+const shouldAskForPlayerProfile = computed(() => {
+  return Boolean(auth.isAuthenticated.value && auth.user.value && !auth.user.value.jogadorId && route.name !== AppRouteNames.Profile)
+})
+
+watch(
+  () => route.fullPath,
+  (path) => {
+    showPlayerProfileModal.value = shouldAskForPlayerProfile.value && dismissedForPath.value !== path
+  },
+  { immediate: true },
+)
+
+watch(shouldAskForPlayerProfile, (shouldAsk) => {
+  showPlayerProfileModal.value = shouldAsk && dismissedForPath.value !== route.fullPath
+})
+
+watch(
+  () => auth.user.value?.jogadorId,
+  (jogadorId) => {
+    if (jogadorId) {
+      showPlayerProfileModal.value = false
+    }
+  },
+)
 
 async function handleMenuAction(action: string) {
   if (action === 'logout') {
@@ -120,6 +148,16 @@ async function handleMenuAction(action: string) {
     await router.push(AppRoutes.Settings)
   }
 }
+
+async function goToProfileCompletion() {
+  showPlayerProfileModal.value = false
+  await router.push(AppRoutes.Profile)
+}
+
+function dismissPlayerProfileModal() {
+  dismissedForPath.value = route.fullPath
+  showPlayerProfileModal.value = false
+}
 </script>
 
 <template>
@@ -131,5 +169,18 @@ async function handleMenuAction(action: string) {
         <slot />
       </main>
     </section>
+    <div v-if="showPlayerProfileModal" class="dialog-backdrop profile-completion-modal-backdrop" role="presentation" @click.self="dismissPlayerProfileModal">
+      <section class="dialog-card profile-completion-modal" role="dialog" aria-modal="true" aria-labelledby="profile-completion-title">
+        <span class="eyebrow">Perfil incompleto</span>
+        <h2 id="profile-completion-title">Complete seu perfil de jogador</h2>
+        <p>
+          Você já consegue navegar pela plataforma, mas só entra na lista de jogadores e nos drafts depois de preencher Riot ID, elo, links e rotas.
+        </p>
+        <div class="profile-completion-modal__actions">
+          <button class="button" type="button" @click="dismissPlayerProfileModal">Agora não</button>
+          <button class="button button--primary" type="button" @click="goToProfileCompletion">Completar perfil</button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>

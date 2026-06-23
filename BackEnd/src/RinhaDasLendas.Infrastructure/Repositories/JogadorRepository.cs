@@ -21,6 +21,13 @@ public sealed class JogadorRepository(RinhaDasLendasDbContext dbContext) : IJoga
             .FirstOrDefaultAsync(jogador => jogador.Id == id, cancellationToken);
     }
 
+    public Task<Jogador?> GetByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken)
+    {
+        return dbContext.Jogadores
+            .Include(jogador => jogador.Preferencias)
+            .FirstOrDefaultAsync(jogador => jogador.UsuarioId == usuarioId, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Jogador>> ListAsync(bool somenteAtivos, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);

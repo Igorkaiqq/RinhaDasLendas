@@ -88,5 +88,6 @@
     "WAYLAND_DISPLAY": "",
     "XDG_RUNTIME_DIR": ""
   },
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "postCreateCommand": "npm install -g figma-developer-mcp@0.13.2"
 }

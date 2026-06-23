@@ -441,6 +441,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/009-usuarios-auth-rbac/plan.md
+Implementation Plan: specs/010-integracao-usuario-jogador/plan.md
 
 <!-- SPECKIT END -->

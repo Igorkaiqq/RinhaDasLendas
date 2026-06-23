@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     command: sleep infinity
+    env_file:
+      - .env
     volumes:
       - ..:/workspaces/RinhaDasLendas:cached
     depends_on:
@@ -29,4 +31,3 @@ services:
 
 volumes:
   postgres-data:
-
