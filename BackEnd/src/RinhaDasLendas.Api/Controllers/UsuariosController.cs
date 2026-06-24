@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Usuarios;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Usuarios;
 using RinhaDasLendas.Domain.Constants;
 
@@ -13,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 [Authorize]
 [Route("api/v1/usuarios")]
 [Produces("application/json")]
-public sealed class UsuariosController(ISender sender) : ControllerBase
+public sealed class UsuariosController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = AuthPermissions.CanViewUsers)]
@@ -37,7 +38,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new GetUsuarioByIdQuery(id), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpPut("{id:guid}")]
@@ -45,7 +46,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateUsuarioRequestDto request, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new UpdateUsuarioCommand(id, request), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpPut("{id:guid}/roles")]
@@ -53,7 +54,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> UpdateRoles([FromRoute] Guid id, [FromBody] UpdateUsuarioRolesRequestDto request, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new UpdateUsuarioRolesCommand(id, request), cancellationToken);
-        return result is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(result);
+        return result is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(result);
     }
 
     [HttpPatch("{id:guid}/ativar")]
@@ -61,7 +62,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> Ativar([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new AtivarUsuarioCommand(id), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpPatch("{id:guid}/desativar")]
@@ -69,7 +70,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> Desativar([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new DesativarUsuarioCommand(id), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpPost("{id:guid}/reset-password")]

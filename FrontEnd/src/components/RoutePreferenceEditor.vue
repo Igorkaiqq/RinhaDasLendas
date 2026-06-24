@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { LEAGUE_ROLES, type LeagueRoleValue } from '@/constants/leagueRoles'
 import type { RoutePreference } from '@/services/players'
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const routes = LEAGUE_ROLES
+const { t } = useI18n()
 
 const sortedRoutes = computed(() => {
   return [...routes].sort((left, right) => {
@@ -29,11 +31,11 @@ const errors = computed(() => {
   const blockedCount = props.modelValue.filter((preference) => preference.naoJogoNemLascando).length
 
   if (new Set(priorities).size !== 5) {
-    messages.push('Cada prioridade deve ser unica.')
+    messages.push(t('playerForm.errors.uniquePriorities'))
   }
 
   if (blockedCount > 1) {
-    messages.push('Marque no maximo uma rota bloqueada.')
+    messages.push(t('playerForm.errors.singleBlockedRoute'))
   }
 
   return messages
@@ -65,9 +67,9 @@ function preferenceFor(rota: LeagueRoleValue) {
 
 <template>
   <fieldset class="route-editor">
-    <legend>Preferencias de rotas</legend>
+    <legend>{{ t('routePreferences.title') }}</legend>
 
-    <p class="route-editor__hint">Ordene suas escolhas de 1 a 5 e marque no maximo uma rota para evitar.</p>
+    <p class="route-editor__hint">{{ t('routePreferences.hint') }}</p>
 
     <div class="route-editor__grid">
       <div v-for="route in sortedRoutes" :key="route" class="route-editor__card">
@@ -77,7 +79,7 @@ function preferenceFor(rota: LeagueRoleValue) {
         </div>
 
         <label class="route-editor__priority">
-          <span>Prioridade</span>
+          <span>{{ t('routePreferences.priority') }}</span>
           <select
             :value="preferenceFor(route)?.prioridade"
             @change="updatePriority(route, Number(($event.target as HTMLSelectElement).value))"
@@ -92,7 +94,7 @@ function preferenceFor(rota: LeagueRoleValue) {
             :checked="preferenceFor(route)?.naoJogoNemLascando"
             @change="updateBlocked(route, ($event.target as HTMLInputElement).checked)"
           />
-          <span>Evitar</span>
+          <span>{{ t('routePreferences.avoid') }}</span>
         </label>
       </div>
     </div>

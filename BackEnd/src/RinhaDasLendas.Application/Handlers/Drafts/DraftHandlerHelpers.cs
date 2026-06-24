@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -11,12 +12,12 @@ internal static class DraftHandlerHelpers
         var encontrados = jogadores.Select(jogador => jogador.Id).ToHashSet();
         if (jogadoresIds.Any(id => !encontrados.Contains(id)))
         {
-            throw new DomainException("Todos os jogadores do draft devem estar cadastrados.");
+            throw new DomainException(MessageCodes.DraftInvalidPlayer);
         }
 
         if (jogadores.Any(jogador => jogador.Status != JogadorStatus.Ativo))
         {
-            throw new DomainException("Apenas jogadores ativos podem participar do draft.");
+            throw new DomainException(MessageCodes.InactivePlayerCannotJoinQueue);
         }
     }
 
@@ -30,7 +31,7 @@ internal static class DraftHandlerHelpers
         var shuffled = request.JogadoresIds.OrderBy(_ => Guid.NewGuid()).Take(2).ToList();
         if (shuffled.Count < 2)
         {
-            throw new DomainException("Informe pelo menos dois jogadores para sortear capitaes.");
+            throw new DomainException(MessageCodes.DraftPlayersRequired);
         }
 
         return (shuffled[0], shuffled[1]);

@@ -248,15 +248,15 @@ function submit() {
           <form class="player-form player-form--modal" @submit.prevent="submit">
             <label class="player-form__field player-form__field--wide">
               {{ t('playerForm.displayName') }}
-              <input ref="firstFieldRef" v-model="form.nomeExibicao" autocomplete="off" placeholder="Hide on bush" />
+              <input ref="firstFieldRef" v-model="form.nomeExibicao" autocomplete="off" :placeholder="t('playerForm.placeholders.displayName')" />
             </label>
             <label class="player-form__field">
               {{ t('playerForm.discord') }}
-              <input v-model="form.discord" autocomplete="off" placeholder="usuario#1234" />
+              <input v-model="form.discord" autocomplete="off" :placeholder="t('playerForm.placeholders.discord')" />
             </label>
             <label class="player-form__field">
               {{ t('playerForm.riotId') }}
-              <input v-model="form.riotId" autocomplete="off" placeholder="Nome#BR1" />
+              <input v-model="form.riotId" autocomplete="off" :placeholder="t('playerForm.placeholders.riotId')" />
             </label>
             <label class="player-form__field">
               {{ t('playerForm.elo') }}
@@ -273,12 +273,12 @@ function submit() {
               </select>
             </label>
             <label class="player-form__field">
-              OP.GG
-              <input v-model="form.opGgUrl" autocomplete="off" placeholder="https://www.op.gg/..." />
+              {{ t('playerForm.opgg') }}
+              <input v-model="form.opGgUrl" autocomplete="off" :placeholder="t('playerForm.placeholders.opggUrl')" />
             </label>
             <label class="player-form__field">
-              Deeplol
-              <input v-model="form.deepLolUrl" autocomplete="off" placeholder="https://www.deeplol.gg/..." />
+              {{ t('playerForm.deeplol') }}
+              <input v-model="form.deepLolUrl" autocomplete="off" :placeholder="t('playerForm.placeholders.deeplolUrl')" />
             </label>
 
             <RoutePreferenceEditor v-model="form.preferencias" />

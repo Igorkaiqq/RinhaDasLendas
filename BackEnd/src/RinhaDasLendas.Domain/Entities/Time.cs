@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -59,22 +60,22 @@ public sealed class Time
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
-            throw new DomainException("Nome do time e obrigatorio.");
+            throw new DomainException(MessageCodes.TeamNameRequired);
         }
 
         if (string.IsNullOrWhiteSpace(tag))
         {
-            throw new DomainException("Tag do time e obrigatoria.");
+            throw new DomainException(MessageCodes.TeamTagRequired);
         }
 
         if (nome.Trim().Length > 100)
         {
-            throw new DomainException("Nome do time deve ter no maximo 100 caracteres.");
+            throw new DomainException(MessageCodes.MaxLengthExceeded);
         }
 
         if (tag.Trim().Length > 10)
         {
-            throw new DomainException("Tag do time deve ter no maximo 10 caracteres.");
+            throw new DomainException(MessageCodes.MaxLengthExceeded);
         }
 
         Nome = nome.Trim();
@@ -90,7 +91,7 @@ public sealed class Time
         var jogadores = jogadoresIds.Where(id => id != Guid.Empty).ToList();
         if (jogadores.Distinct().Count() != jogadores.Count)
         {
-            throw new DomainException("O mesmo jogador nao pode ser adicionado mais de uma vez.");
+            throw new DomainException(MessageCodes.PlayerAlreadyInTeam);
         }
 
         ValidarComposicao(jogadores, capitaoId);
@@ -113,17 +114,17 @@ public sealed class Time
     {
         if (jogadoresIds.Count == 0)
         {
-            throw new DomainException("Informe pelo menos um jogador para o time.");
+            throw new DomainException(MessageCodes.TeamPlayersRequired);
         }
 
         if (jogadoresIds.Count > MaximoJogadoresPrincipais)
         {
-            throw new DomainException("Um time pode ter no maximo cinco jogadores.");
+            throw new DomainException(MessageCodes.TeamPlayerLimitReached);
         }
 
         if (capitaoId is not null && !jogadoresIds.Contains(capitaoId.Value))
         {
-            throw new DomainException("Capitao deve fazer parte do time.");
+            throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
         }
     }
 

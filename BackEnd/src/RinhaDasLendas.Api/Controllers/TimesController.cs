@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Times;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Times;
 using RinhaDasLendas.Domain.Constants;
 
@@ -13,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 [Authorize]
 [Route("api/v1/times")]
 [Produces("application/json")]
-public sealed class TimesController(ISender sender) : ControllerBase
+public sealed class TimesController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResponseDto<TimeResponseDto>), StatusCodes.Status200OK)]
@@ -35,7 +36,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     {
         var time = await sender.Send(new GetTimeByIdQuery(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse("Time nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
             : Ok(time);
     }
 
@@ -58,7 +59,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     {
         var time = await sender.Send(new UpdateTimeCommand(id, request), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse("Time nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
             : Ok(time);
     }
 
@@ -70,7 +71,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     {
         var time = await sender.Send(new InativarTimeCommand(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse("Time nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
             : Ok(time);
     }
 
@@ -83,7 +84,7 @@ public sealed class TimesController(ISender sender) : ControllerBase
     {
         var time = await sender.Send(new ReativarTimeCommand(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse("Time nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
             : Ok(time);
     }
 }

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Application;
 
@@ -21,6 +22,6 @@ public sealed class DraftMontagemValidatorTests
         var result = validator.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Select(error => error.ErrorMessage).Should().Contain("Tamanho da equipe deve estar entre 1 e 5.");
+        result.Errors.Select(error => error.ErrorMessage).Should().Contain(MessageCodes.TeamSizeRange);
     }
 }

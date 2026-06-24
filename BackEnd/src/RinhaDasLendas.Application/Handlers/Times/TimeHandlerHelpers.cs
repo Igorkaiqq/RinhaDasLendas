@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -16,12 +17,12 @@ internal static class TimeHandlerHelpers
     {
         if (await repository.ExistsActiveNameAsync(Time.NormalizarChave(nome), ignoredId, cancellationToken))
         {
-            throw new DomainException("Ja existe um time ativo com este nome.");
+            throw new DomainException(MessageCodes.TeamAlreadyExists);
         }
 
         if (await repository.ExistsActiveTagAsync(Time.NormalizarChave(tag), ignoredId, cancellationToken))
         {
-            throw new DomainException("Ja existe um time ativo com esta tag.");
+            throw new DomainException(MessageCodes.TeamAlreadyExists);
         }
     }
 
@@ -34,12 +35,12 @@ internal static class TimeHandlerHelpers
 
         if (jogadores.Count != jogadoresIds.Distinct().Count())
         {
-            throw new DomainException("Informe apenas jogadores existentes.");
+            throw new DomainException(MessageCodes.PlayerNotFound);
         }
 
         if (jogadores.Any(jogador => jogador.Status != JogadorStatus.Ativo))
         {
-            throw new DomainException("Times ativos aceitam apenas jogadores ativos.");
+            throw new DomainException(MessageCodes.InactivePlayerCannotJoinTeam);
         }
     }
 }

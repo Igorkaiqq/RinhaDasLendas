@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { PlayerStatus, type PlayerStatusValue } from '@/constants/playerStatus'
 
 defineProps<{
   status: PlayerStatusValue
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <span class="status-badge" :class="status === PlayerStatus.Active ? 'status-badge--active' : 'status-badge--inactive'">
-    {{ status }}
+    {{ status === PlayerStatus.Active ? t('playerStatus.active') : t('playerStatus.inactive') }}
   </span>
 </template>
 

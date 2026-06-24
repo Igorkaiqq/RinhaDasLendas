@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import { i18n } from '@/i18n'
 import TeamDeleteDialog from './TeamDeleteDialog.vue'
 
 const team = {
@@ -19,7 +20,7 @@ const team = {
 
 describe('TeamDeleteDialog', () => {
   it('emits confirmation actions', async () => {
-    const wrapper = mount(TeamDeleteDialog, { props: { open: true, team } })
+    const wrapper = mount(TeamDeleteDialog, { global: { plugins: [i18n] }, props: { open: true, team } })
     const buttons = wrapper.findAll('button')
 
     await buttons[0]!.trigger('click')

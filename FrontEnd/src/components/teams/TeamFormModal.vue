@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { PlayerStatus } from '@/constants/playerStatus'
 import type { Team, TeamFormMode, TeamFormPayload, TeamPlayerOption } from '@/types/team'
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   submit: [payload: TeamFormPayload]
 }>()
 
+const { t } = useI18n()
+
 const form = reactive({
   nome: '',
   tag: '',
@@ -28,29 +31,29 @@ const form = reactive({
 })
 
 const activePlayers = computed(() => props.players.filter((player) => player.status === PlayerStatus.Active))
-const title = computed(() => (props.mode === 'edit' ? 'Editar time' : 'Cadastrar time'))
+const title = computed(() => (props.mode === 'edit' ? t('teams.form.editTitle') : t('teams.form.createTitle')))
 
 const validationErrors = computed(() => {
   const messages: string[] = []
 
   if (!form.nome.trim()) {
-    messages.push('Nome do time e obrigatorio.')
+    messages.push(t('teams.form.errors.nameRequired'))
   }
 
   if (!form.tag.trim()) {
-    messages.push('Tag do time e obrigatoria.')
+    messages.push(t('teams.form.errors.tagRequired'))
   }
 
   if (form.jogadoresIds.length === 0) {
-    messages.push('Selecione pelo menos um jogador.')
+    messages.push(t('teams.form.errors.playerRequired'))
   }
 
   if (form.jogadoresIds.length > 5) {
-    messages.push('Selecione no maximo cinco jogadores.')
+    messages.push(t('teams.form.errors.maxPlayers'))
   }
 
   if (form.capitaoId && !form.jogadoresIds.includes(form.capitaoId)) {
-    messages.push('Capitao deve fazer parte do time.')
+    messages.push(t('teams.form.errors.captainMustBeMember'))
   }
 
   return messages
@@ -122,29 +125,29 @@ function submit() {
         <section class="player-modal" role="dialog" aria-modal="true" aria-labelledby="team-form-title">
           <header class="player-modal__header">
             <div>
-              <p class="page-kicker">Times</p>
+              <p class="page-kicker">{{ t('teams.title') }}</p>
               <h2 id="team-form-title">{{ title }}</h2>
             </div>
-            <button type="button" aria-label="Fechar formulario" @click="$emit('close')">x</button>
+            <button type="button" :aria-label="t('teams.form.close')" @click="$emit('close')">x</button>
           </header>
 
           <form class="player-form player-form--modal" @submit.prevent="submit">
             <label class="player-form__field player-form__field--wide">
-              Nome
-              <input v-model="form.nome" autocomplete="off" placeholder="Os Sem Baron" />
+              {{ t('teams.form.name') }}
+              <input v-model="form.nome" autocomplete="off" :placeholder="t('teams.form.namePlaceholder')" />
             </label>
             <label class="player-form__field">
-              Tag
-              <input v-model="form.tag" autocomplete="off" maxlength="10" placeholder="OSB" />
+              {{ t('teams.form.tag') }}
+              <input v-model="form.tag" autocomplete="off" maxlength="10" :placeholder="t('teams.form.tagPlaceholder')" />
             </label>
             <label class="player-form__field player-form__field--wide">
-              Observacoes
-              <textarea v-model="form.observacoes" rows="3" placeholder="Notas internas do time" />
+              {{ t('teams.form.notes') }}
+              <textarea v-model="form.observacoes" rows="3" :placeholder="t('teams.form.notesPlaceholder')" />
             </label>
             <label class="player-form__field">
-              Capitao
+              {{ t('teams.form.captain') }}
               <select v-model="form.capitaoId">
-                <option value="">Sem capitao</option>
+                <option value="">{{ t('teams.form.noCaptain') }}</option>
                 <option v-for="player in activePlayers.filter((player) => form.jogadoresIds.includes(player.id))" :key="player.id" :value="player.id">
                   {{ player.nomeExibicao }}
                 </option>
@@ -152,7 +155,7 @@ function submit() {
             </label>
 
             <fieldset class="player-form__field player-form__field--wide">
-              <legend>Jogadores ativos</legend>
+              <legend>{{ t('teams.form.activePlayers') }}</legend>
               <div class="route-preferences-panel">
                 <button
                   v-for="player in activePlayers"
@@ -172,8 +175,8 @@ function submit() {
             </div>
 
             <div class="player-modal__actions">
-              <button type="button" class="button-secondary" @click="$emit('close')">Cancelar</button>
-              <button type="submit" :disabled="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+              <button type="button" class="button-secondary" @click="$emit('close')">{{ t('common.cancel') }}</button>
+              <button type="submit" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button>
             </div>
           </form>
         </section>

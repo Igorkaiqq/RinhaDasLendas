@@ -1,8 +1,10 @@
 import { AxiosError } from 'axios'
 
+import { MessageCode } from '@/constants/messageCode'
 import type { Team, TeamFilters, TeamPayload, TeamStatusValue } from '@/types/team'
 
 import { api } from './api'
+import { getMessage } from './messageService'
 
 interface PaginatedTeams {
   page: number
@@ -19,7 +21,7 @@ interface ApiErrorResponse {
 
 export class TeamServiceError extends Error {
   constructor(public readonly errors: string[]) {
-    super(errors[0] ?? 'Nao foi possivel processar o time.')
+    super(errors[0] ?? getMessage(MessageCode.TeamSaveFailed))
   }
 }
 
@@ -140,7 +142,7 @@ function createFakeTeam(payload: TeamPayload, id: string = crypto.randomUUID()):
 function updateFakeStatus(id: string, status: TeamStatusValue): Team {
   const team = fakeTeams.find((current) => current.id === id)
   if (!team) {
-    throw new TeamServiceError(['Time nao encontrado.'])
+    throw new TeamServiceError([getMessage(MessageCode.TeamNotFound)])
   }
 
   team.status = status
@@ -164,7 +166,7 @@ function toTeamServiceError(error: unknown): TeamServiceError {
     }
   }
 
-  return new TeamServiceError(['Falha ao conectar ao servidor.'])
+  return new TeamServiceError([getMessage(MessageCode.ServerConnectionFailed)])
 }
 
 function isConnectionFailure(error: unknown): boolean {

@@ -21,7 +21,7 @@ const { t } = useI18n()
 <template>
   <header class="topbar">
     <div class="topbar__context">
-      <span>RinhaDasLendas</span>
+      <span>{{ t('app.name') }}</span>
       <strong>{{ pageTitle }}</strong>
     </div>
 
@@ -33,7 +33,7 @@ const { t } = useI18n()
     </div>
 
     <div class="topbar__actions">
-      <a class="topbar__link" href="https://discord.com" target="_blank" rel="noreferrer">Discord</a>
+      <a class="topbar__link" href="https://discord.gg/UAu64Zhnd8" target="_blank" rel="noreferrer">{{ t('topbar.discord') }}</a>
       <span class="topbar__divider" aria-hidden="true" />
       <button class="topbar__icon" type="button" :aria-label="t('topbar.notifications')">NT</button>
       <button class="topbar__icon" type="button" :aria-label="t('topbar.settings')">CF</button>

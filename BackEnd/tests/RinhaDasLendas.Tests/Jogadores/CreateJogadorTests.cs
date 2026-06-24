@@ -4,6 +4,7 @@ using RinhaDasLendas.Application.Commands.Jogadores;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Handlers.Jogadores;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Jogadores;
 
@@ -32,7 +33,7 @@ public sealed class CreateJogadorTests
         var act = () => handler.Handle(new CreateJogadorCommand(request), CancellationToken.None);
 
         await act.Should().ThrowAsync<ValidationException>()
-            .WithMessage("*Nome e obrigatorio.*");
+            .WithMessage($"*{MessageCodes.PlayerNameRequired}*");
     }
 
     [Fact]
@@ -44,7 +45,7 @@ public sealed class CreateJogadorTests
         var result = await validator.ValidateAsync(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Informe o Discord do jogador.");
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.FieldRequired);
     }
 
     [Theory]

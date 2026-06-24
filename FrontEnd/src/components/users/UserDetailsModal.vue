@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ResetUserPasswordDialog from '@/components/users/ResetUserPasswordDialog.vue'
 import UserRolesEditor from '@/components/users/UserRolesEditor.vue'
@@ -20,6 +21,7 @@ const user = ref<UserDetails | null>(null)
 const editingName = ref('')
 const confirmStatus = ref(false)
 const resettingPassword = ref(false)
+const { t } = useI18n()
 
 async function load() {
   user.value = await getUser(props.id)
@@ -53,13 +55,13 @@ onMounted(load)
     <section class="dialog-card user-details-modal" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
       <header class="user-details-modal__header">
         <div>
-          <span class="eyebrow">Administração</span>
-          <h2 id="user-details-title">Editar usuário</h2>
+          <span class="eyebrow">{{ t('usersAdmin.details.eyebrow') }}</span>
+          <h2 id="user-details-title">{{ t('usersAdmin.details.title') }}</h2>
         </div>
-        <button class="icon-button" type="button" aria-label="Fechar" @click="$emit('close')">x</button>
+        <button class="icon-button" type="button" :aria-label="t('common.close')" @click="$emit('close')">x</button>
       </header>
 
-      <p v-if="!user" class="user-loading-card">Carregando usuário...</p>
+      <p v-if="!user" class="user-loading-card">{{ t('usersAdmin.details.loading') }}</p>
 
       <template v-else>
         <section class="user-profile-summary">
@@ -69,44 +71,44 @@ onMounted(load)
             <p>{{ user.email }}</p>
           </div>
           <span class="status-pill" :class="user.ativo ? 'status-pill--active' : 'status-pill--inactive'">
-            {{ user.ativo ? 'Ativo' : 'Desativado' }}
+            {{ user.ativo ? t('usersAdmin.status.active') : t('usersAdmin.status.disabled') }}
           </span>
         </section>
 
         <form class="user-edit-form" @submit.prevent="saveBasics">
           <label>
-            Nome de exibição
-            <input v-model="editingName" placeholder="Nome do usuário" />
+            {{ t('usersAdmin.details.displayName') }}
+            <input v-model="editingName" :placeholder="t('usersAdmin.details.namePlaceholder')" />
           </label>
-          <button class="button button--primary" type="submit">Salvar dados</button>
+          <button class="button button--primary" type="submit">{{ t('usersAdmin.details.saveData') }}</button>
         </form>
 
         <UserRolesEditor :user-id="user.id" :roles="user.roles" @saved="load(); emit('updated')" />
 
-        <section class="user-meta-grid" aria-label="Informações do usuário">
+        <section class="user-meta-grid" :aria-label="t('usersAdmin.details.infoLabel')">
           <div>
-            <span>Discord</span>
-            <strong>{{ user.discord?.vinculado ? user.discord.username : 'Não vinculado' }}</strong>
+            <span>{{ t('playerForm.discord') }}</span>
+            <strong>{{ user.discord?.vinculado ? user.discord.username : t('usersAdmin.details.notLinked') }}</strong>
           </div>
           <div>
-            <span>Perfil de jogador</span>
-            <strong>{{ user.jogadorId ? 'Completo' : 'Pendente' }}</strong>
+            <span>{{ t('usersAdmin.details.playerProfile') }}</span>
+            <strong>{{ user.jogadorId ? t('usersAdmin.details.complete') : t('usersAdmin.details.pending') }}</strong>
           </div>
           <div>
-            <span>Criado em</span>
+            <span>{{ t('usersAdmin.details.createdAt') }}</span>
             <strong>{{ new Date(user.dataCadastro).toLocaleString() }}</strong>
           </div>
           <div>
-            <span>Último login</span>
-            <strong>{{ user.ultimoLoginEm ? new Date(user.ultimoLoginEm).toLocaleString() : 'Nunca' }}</strong>
+            <span>{{ t('usersAdmin.details.lastLogin') }}</span>
+            <strong>{{ user.ultimoLoginEm ? new Date(user.ultimoLoginEm).toLocaleString() : t('usersAdmin.details.never') }}</strong>
           </div>
         </section>
 
         <footer class="user-details-modal__actions">
           <button class="button button--danger" type="button" @click="confirmStatus = true">
-            {{ user.ativo ? 'Desativar usuário' : 'Ativar usuário' }}
+            {{ user.ativo ? t('usersAdmin.details.deactivateUser') : t('usersAdmin.details.activateUser') }}
           </button>
-          <button class="button" type="button" @click="resettingPassword = true">Redefinir senha</button>
+          <button class="button" type="button" @click="resettingPassword = true">{{ t('usersAdmin.details.resetPassword') }}</button>
         </footer>
 
         <UserStatusConfirmDialog v-if="confirmStatus" :active="user.ativo" @confirm="toggleStatus" @cancel="confirmStatus = false" />

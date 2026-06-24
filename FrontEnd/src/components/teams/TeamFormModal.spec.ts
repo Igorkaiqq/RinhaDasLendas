@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import { PlayerStatus } from '@/constants/playerStatus'
+import { i18n } from '@/i18n'
 import type { TeamPlayerOption } from '@/types/team'
 
 import TeamFormModal from './TeamFormModal.vue'
@@ -30,20 +31,20 @@ describe('TeamFormModal', () => {
   it('shows validation errors and blocks invalid submit', async () => {
     const wrapper = mount(TeamFormModal, {
       props: { open: true, mode: 'create', team: null, players, saving: false, serviceErrors: [] },
-      global: { stubs: { Teleport: true, Transition: false } },
+      global: { plugins: [i18n], stubs: { Teleport: true, Transition: false } },
     })
 
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.text()).toContain('Nome do time e obrigatorio.')
-    expect(wrapper.text()).toContain('Tag do time e obrigatoria.')
+    expect(wrapper.text()).toContain('Nome do time é obrigatório.')
+    expect(wrapper.text()).toContain('Tag do time é obrigatória.')
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 
   it('submits edit payload with current captain and members', async () => {
     const wrapper = mount(TeamFormModal, {
       props: { open: true, mode: 'edit', team, players, saving: false, serviceErrors: [] },
-      global: { stubs: { Teleport: true, Transition: false } },
+      global: { plugins: [i18n], stubs: { Teleport: true, Transition: false } },
     })
 
     await wrapper.find('form').trigger('submit')

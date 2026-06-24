@@ -52,6 +52,19 @@
   <data name="ME021" xml:space="preserve"><value>Team not found</value></data>
   <data name="ME022" xml:space="preserve"><value>Could not save team</value></data>
   <data name="ME023" xml:space="preserve"><value>Could not save draft</value></data>
+  <data name="ME024" xml:space="preserve"><value>Invalid credentials</value></data>
+  <data name="ME025" xml:space="preserve"><value>Session expired</value></data>
+  <data name="ME026" xml:space="preserve"><value>Invalid refresh token</value></data>
+  <data name="ME027" xml:space="preserve"><value>User is deactivated</value></data>
+  <data name="ME028" xml:space="preserve"><value>Access denied</value></data>
+  <data name="ME029" xml:space="preserve"><value>Authentication failed</value></data>
+  <data name="ME030" xml:space="preserve"><value>Could not update user</value></data>
+  <data name="ME031" xml:space="preserve"><value>Validation error</value></data>
+  <data name="ME032" xml:space="preserve"><value>User not found</value></data>
+  <data name="ME033" xml:space="preserve"><value>Player profile not found</value></data>
+  <data name="ME034" xml:space="preserve"><value>Discord OAuth is not implemented yet</value></data>
+  <data name="ME035" xml:space="preserve"><value>Draft setup not found</value></data>
+  <data name="ME036" xml:space="preserve"><value>Invalid password reset token</value></data>
   <data name="MV001" xml:space="preserve"><value>Required field</value></data>
   <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
   <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
@@ -82,6 +95,29 @@
   <data name="MV028" xml:space="preserve"><value>Player has already been picked in this draft</value></data>
   <data name="MV029" xml:space="preserve"><value>Draft is not open for picks</value></data>
   <data name="MV030" xml:space="preserve"><value>Invalid player for this draft</value></data>
+  <data name="MV031" xml:space="preserve"><value>Password must contain at least one number</value></data>
+  <data name="MV032" xml:space="preserve"><value>Password confirmation does not match</value></data>
+  <data name="MV033" xml:space="preserve"><value>Email is already registered</value></data>
+  <data name="MV034" xml:space="preserve"><value>Invalid role</value></data>
+  <data name="MV035" xml:space="preserve"><value>Operation denied by role hierarchy</value></data>
+  <data name="MV036" xml:space="preserve"><value>Maximum length exceeded</value></data>
+  <data name="MV037" xml:space="preserve"><value>Enter the team players</value></data>
+  <data name="MV038" xml:space="preserve"><value>Enter the draft players</value></data>
+  <data name="MV039" xml:space="preserve"><value>Enter the draft setup players</value></data>
+  <data name="MV040" xml:space="preserve"><value>Enter only valid roles</value></data>
+  <data name="MV041" xml:space="preserve"><value>Enter route preferences</value></data>
+  <data name="MV042" xml:space="preserve"><value>Each route must appear only once</value></data>
+  <data name="MV043" xml:space="preserve"><value>Do not enter a division for this elo</value></data>
+  <data name="MV044" xml:space="preserve"><value>Team size must be between 1 and 5</value></data>
+  <data name="MV045" xml:space="preserve"><value>Enter two distinct draft captains</value></data>
+  <data name="MV046" xml:space="preserve"><value>Enter the first team or enable the draw</value></data>
+  <data name="MV047" xml:space="preserve"><value>Not enough players to form a full team</value></data>
+  <data name="MV048" xml:space="preserve"><value>Enter one captain for each generated team or enable the draw</value></data>
+  <data name="MV049" xml:space="preserve"><value>Captains must be distinct</value></data>
+  <data name="MV050" xml:space="preserve"><value>Captains must be part of the selected players</value></data>
+  <data name="MV051" xml:space="preserve"><value>Cancellation reason must have at most 500 characters</value></data>
+  <data name="MV052" xml:space="preserve"><value>User cannot change their own roles</value></data>
+  <data name="MV053" xml:space="preserve"><value>The system must keep at least one active SuperAdmin</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirm this action?</value></data>
   <data name="MC002" xml:space="preserve"><value>Do you want to deactivate this player?</value></data>
   <data name="MC003" xml:space="preserve"><value>Do you want to remove the player from the queue?</value></data>

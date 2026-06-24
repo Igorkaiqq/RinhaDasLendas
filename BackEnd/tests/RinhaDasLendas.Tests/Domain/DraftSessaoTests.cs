@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -42,7 +43,7 @@ public sealed class DraftSessaoTests
         draft.RegistrarPick(jogadores[2]);
         var act = () => draft.RegistrarPick(jogadores[2]);
 
-        act.Should().Throw<DomainException>().WithMessage("Jogador ja foi escolhido neste draft.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftPlayerAlreadyPicked);
     }
 
     [Fact]

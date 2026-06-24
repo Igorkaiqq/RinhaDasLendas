@@ -1,0 +1,594 @@
+{
+  "app": {
+    "name": "RinhaDasLendas",
+    "league": "Liga de Elite"
+  },
+  "navigation": {
+    "main": "Navegação principal",
+    "dashboard": "Painel",
+    "players": "Jogadores",
+    "teams": "Times",
+    "draft": "Draft",
+    "matches": "Partidas",
+    "stats": "Estatísticas",
+    "users": "Usuários",
+    "settings": "Configurações",
+    "support": "Suporte",
+    "logout": "Sair",
+    "joinTournament": "Entrar no Torneio",
+    "arena": "Arena",
+    "soon": "Em breve",
+    "expandSidebar": "Expandir menu lateral",
+    "collapseSidebar": "Minimizar menu lateral",
+    "expandMenu": "Expandir menu",
+    "collapseMenu": "Minimizar menu"
+  },
+  "topbar": {
+    "globalSearch": "Busca global",
+    "searchPlaceholder": "Buscar jogadores, partidas...",
+    "discord": "Discord",
+    "notifications": "Notificações",
+    "settings": "Configurações"
+  },
+  "common": {
+    "all": "Todos",
+    "status": "Status",
+    "clearFilters": "Limpar filtros",
+    "closeNotification": "Fechar notificação",
+    "close": "Fechar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "confirmation": "Confirmação",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "edit": "Editar",
+    "back": "Voltar",
+    "optional": "Opcional",
+    "select": "Selecione",
+    "notInformed": "Não informado",
+    "eloNotInformed": "Elo não informado",
+    "elo": "Elo",
+    "discord": "Discord",
+    "riotId": "Riot ID",
+    "opgg": "OP.GG",
+    "deepLol": "DeepLoL"
+  },
+  "home": {
+    "notifications": { "underConstruction": "Tela em desenvolvimento." },
+    "platformStatusLabel": "Status da plataforma",
+    "systemSummaryLabel": "Resumo do sistema",
+    "hero": {
+      "eyebrow": "Plataforma competitiva interna",
+      "title": "Organize a próxima rinha com ritmo de campeonato.",
+      "description": "Centralize jogadores, times, drafts e histórico da comunidade em uma experiência preparada para Discord, Riot e noites de confronto."
+    },
+    "signal": {
+      "label": "Live ops",
+      "status": "Drafts e jogadores prontos"
+    },
+    "cards": {
+      "discord": { "title": "Discord do grupo", "description": "Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo." },
+      "players": { "title": "Jogadores", "description": "Cadastre participantes, elos e preferências de rota." },
+      "draft": { "title": "Draft", "description": "Estrutura preparada para capitães, ordem de picks e times balanceados." },
+      "matches": { "title": "Partidas", "description": "Base visual pronta para registrar jogos, placares e histórico." }
+    }
+  },
+  "placeholder": {
+    "defaultTitle": "Tela em construção",
+    "badge": "Em breve",
+    "description": "Esta área já usa o layout principal e está pronta para receber a próxima etapa da rinha."
+  },
+  "profile": {
+    "trigger": "Perfil",
+    "displayName": "Perfil",
+    "subtitle": "Organizador",
+    "myProfile": "Meu perfil",
+    "preferences": "Preferências",
+    "language": "Idioma",
+    "ptBR": "Português",
+    "enUS": "Inglês",
+    "messages": { "updated": "Perfil atualizado." },
+    "account": {
+      "eyebrow": "Perfil do competidor",
+      "title": "Minha conta",
+      "description": "Gerencie seus dados de acesso, senha e vínculo com jogador para entrar em drafts e listas da comunidade.",
+      "sectionEyebrow": "Conta",
+      "accessData": "Dados de acesso",
+      "accessDescription": "Esses dados identificam sua conta na plataforma.",
+      "roles": "Roles",
+      "save": "Salvar perfil"
+    },
+    "completion": {
+      "eyebrow": "Perfil incompleto",
+      "title": "Complete seu perfil de jogador",
+      "description": "Você já consegue navegar pela plataforma, mas só entra na lista de jogadores e nos drafts depois de preencher Riot ID, elo, links e rotas.",
+      "notNow": "Agora não",
+      "complete": "Completar perfil"
+    },
+    "player": {
+      "loading": "Carregando perfil de jogador...",
+      "messages": { "saved": "Perfil de jogador salvo." },
+      "errors": { "saveFallback": "Não foi possível salvar o perfil de jogador." }
+    }
+  },
+  "routes": {
+    "home": { "title": "Painel" },
+    "players": { "title": "Jogadores" },
+    "teams": { "title": "Times" },
+    "draft": { "title": "Draft" },
+    "matches": { "title": "Partidas" },
+    "stats": { "title": "Estatísticas" },
+    "settings": { "title": "Configurações" },
+    "login": { "title": "Entrar" },
+    "register": { "title": "Cadastro" },
+    "forgotPassword": { "title": "Esqueci minha senha" },
+    "resetPassword": { "title": "Redefinir senha" },
+    "profile": { "title": "Perfil" },
+    "usersAdmin": { "title": "Usuários" },
+    "forbidden": { "title": "Acesso negado" }
+  },
+  "auth": {
+    "fields": {
+      "name": "Nome",
+      "email": "E-mail",
+      "password": "Senha",
+      "confirmPassword": "Confirmar senha",
+      "newPassword": "Nova senha",
+      "token": "Token"
+    },
+    "login": {
+      "eyebrow": "Arena interna",
+      "title": "Entre na Rinha",
+      "description": "Acesse sua conta para organizar jogadores, drafts e partidas da comunidade.",
+      "submit": "Entrar",
+      "submitting": "Entrando...",
+      "forgotPassword": "Esqueci minha senha",
+      "createAccount": "Criar conta",
+      "errors": { "fallback": "Não foi possível autenticar" }
+    },
+    "register": {
+      "eyebrow": "Conta de jogador",
+      "title": "Entrar para a comunidade",
+      "description": "Todo novo cadastro começa como jogador e pode evoluir com permissões da organização.",
+      "submit": "Criar conta",
+      "submitting": "Criando...",
+      "haveAccount": "Já tenho conta",
+      "errors": { "fallback": "Não foi possível cadastrar" }
+    },
+    "forgotPassword": {
+      "eyebrow": "Recuperação",
+      "title": "Recuperar senha",
+      "description": "Informe o e-mail da conta para receber as instruções de retorno à arena.",
+      "submit": "Enviar instruções",
+      "success": "Se o e-mail estiver cadastrado, enviaremos instruções de recuperação."
+    },
+    "resetPassword": {
+      "eyebrow": "Nova credencial",
+      "title": "Redefinir senha",
+      "description": "Use o token recebido para definir uma nova senha segura.",
+      "submit": "Redefinir",
+      "errors": { "fallback": "Não foi possível redefinir senha" }
+    }
+  },
+  "forbidden": {
+    "title": "Acesso negado",
+    "description": "Você não possui permissão para acessar esta área da organização."
+  },
+  "players": {
+    "kicker": "Base competitiva",
+    "kicker": "Jogadores",
+    "title": "Banco de Dados de Jogadores",
+    "subtitle": "Explore, filtre e recrute os melhores talentos para o seu time.",
+    "create": "Cadastrar Jogador",
+    "closeNotification": "Fechar notificação",
+    "filtersLabel": "Filtros de jogadores",
+    "searchName": "Buscar Nome",
+    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "rank": "Rank / Elo",
+    "allRanks": "Todos os Ranks",
+    "primaryRoute": "Rota Principal",
+    "anyRoute": "Qualquer Rota",
+    "onlyActive": "LFA (Procurando Time)",
+    "clearFilters": "Limpar filtros",
+    "listLabel": "Lista de jogadores",
+    "paginationLabel": "Paginação de jogadores",
+    "paginationSummary": "Mostrando {start}-{end} de {total} jogadores",
+    "metrics": { "visible": "{visible} / {total} jogadores" },
+    "updated": "Jogador {name} atualizado.",
+    "created": "Jogador {name} cadastrado.",
+    "removed": "Jogador {name} removido.",
+    "saveError": "Não foi possível salvar o jogador.",
+    "actionError": "Não foi possível concluir a ação."
+  },
+  "teams": {
+    "kicker": "Composições",
+    "title": "Times",
+    "subtitle": "Cadastre composições reutilizáveis para partidas, drafts e consultas futuras.",
+    "create": "Cadastrar Time",
+    "createWithIcon": "+ Cadastrar Time",
+    "updated": "Time {name} atualizado.",
+    "created": "Time {name} cadastrado.",
+    "inactivated": "Time {name} inativado.",
+    "reactivated": "Time {name} reativado.",
+    "filtersLabel": "Filtros de times",
+    "searchLabel": "Buscar time",
+    "searchPlaceholder": "Nome, tag ou jogador",
+    "paginationLabel": "Paginação de times",
+    "paginationSummary": "Mostrando {start}-{end} de {total} times",
+    "listLabel": "Lista de times",
+    "metrics": { "visible": "{visible} / {total} times" },
+    "errors": {
+      "save": "Não foi possível salvar o time.",
+      "action": "Não foi possível concluir a ação."
+    },
+    "emptyTitle": "Nenhum time encontrado",
+    "emptyDescription": "Cadastre o primeiro time ou ajuste os filtros para visualizar a base da rinha.",
+    "status": {
+      "active": "Ativo",
+      "inactive": "Inativo"
+    },
+    "states": {
+      "loading": "Carregando times",
+      "errorTitle": "Não foi possível carregar times"
+    },
+    "actions": {
+      "inactivate": "Inativar",
+      "reactivate": "Reativar"
+    },
+    "card": {
+      "noNotes": "Sem observações",
+      "captain": "Capitão",
+      "notDefined": "Não definido",
+      "players": "Jogadores",
+      "members": "Membros do time"
+    },
+    "delete": {
+      "title": "Inativar {name}?",
+      "description": "O time continuará consultável, mas deixará de aparecer como opção ativa para novos fluxos."
+    },
+    "form": {
+      "createTitle": "Cadastrar time",
+      "editTitle": "Editar time",
+      "close": "Fechar formulário",
+      "name": "Nome",
+      "namePlaceholder": "Os Sem Baron",
+      "tag": "Tag",
+      "tagPlaceholder": "OSB",
+      "notes": "Observações",
+      "notesPlaceholder": "Notas internas do time",
+      "captain": "Capitão",
+      "noCaptain": "Sem capitão",
+      "activePlayers": "Jogadores ativos",
+      "errors": {
+        "nameRequired": "Nome do time é obrigatório.",
+        "tagRequired": "Tag do time é obrigatória.",
+        "playerRequired": "Selecione pelo menos um jogador.",
+        "maxPlayers": "Selecione no máximo cinco jogadores.",
+        "captainMustBeMember": "Capitão deve fazer parte do time."
+      }
+    }
+  },
+  "drafts": {
+    "kicker": "Sala de estratégia",
+    "title": "Draft de Jogadores",
+    "subtitle": "Monte os times com capitães, ordem de picks e histórico transparente.",
+    "visualSubtitle": "Monte os times visualmente com capitães, reservas, rotas e layout persistente.",
+    "create": "Criar Draft",
+    "createWithIcon": "+ Criar Draft",
+    "created": "Draft {name} criado.",
+    "canceled": "Draft {name} cancelado.",
+    "picked": "{name} escolhido.",
+    "filtersLabel": "Filtros de drafts",
+    "searchLabel": "Buscar draft",
+    "searchPlaceholder": "Nome do draft",
+    "listLabel": "Lista de drafts",
+    "emptyTitle": "Nenhum draft encontrado",
+    "emptyDescription": "Crie o primeiro draft ou ajuste os filtros.",
+    "noSelectionTitle": "Nenhum draft selecionado",
+    "noSelectionDescription": "Crie ou selecione um draft para montar os times.",
+    "cardSummary": "{teams} times · {reserves} reservas",
+    "cancelReason": "Draft cancelado",
+    "metrics": { "visible": "{total} drafts" },
+    "messages": {
+      "layoutSaved": "Layout do draft salvo.",
+      "captainsDrawn": "Capitães sorteados.",
+      "finished": "Draft finalizado."
+    },
+    "errors": {
+      "create": "Não foi possível criar o draft.",
+      "action": "Não foi possível concluir a ação."
+    },
+    "teams": {
+      "teamA": "Time A",
+      "teamB": "Time B",
+      "blue": "Time Azul",
+      "red": "Time Vermelho"
+    },
+    "roles": {
+      "captain": "CAPITÃO",
+      "player": "JOGADOR"
+    },
+    "status": {
+      "Aberto": "Aberto",
+      "Concluido": "Concluído",
+      "Cancelado": "Cancelado",
+      "finished": "Finalizado"
+    },
+    "createModal": {
+      "eyebrow": "Novo draft",
+      "title": "Criar Draft",
+      "name": "Nome",
+      "namePlaceholder": "Rinha de sexta",
+      "teamSize": "Tamanho do time",
+      "notes": "Observações",
+      "eligiblePlayers": "Jogadores elegíveis",
+      "selectedCount": "{count} selecionados",
+      "minimum": "Mínimo: {count}",
+      "drawCaptains": "Sortear capitães",
+      "captainTeamA": "Capitão Time A",
+      "captainTeamB": "Capitão Time B",
+      "drawFirstPick": "Sortear primeiro pick",
+      "firstPick": "Primeiro pick",
+      "creating": "Criando...",
+      "submit": "Criar draft"
+    },
+    "cancelDialog": {
+      "title": "Cancelar draft?",
+      "description": "O draft {name} será fechado e não poderá receber novos picks.",
+      "reason": "Motivo",
+      "confirm": "Cancelar draft"
+    },
+    "board": {
+      "label": "Tabuleiro do draft",
+      "captain": "Capitão: {name}",
+      "selectPlayer": "Selecionar jogador",
+      "emptySlot": "Slot vazio",
+      "choosing": "ESCOLHENDO",
+      "searchPlaceholder": "Buscar jogadores por nome ou rota...",
+      "routeFilters": "Filtros de rota",
+      "nextPick": "Próximo pick",
+      "criteria": "Capitães: {captains} · Primeiro pick: {firstPick}",
+      "availablePlayers": "Jogadores disponíveis",
+      "player": "Jogador",
+      "route": "Rota",
+      "action": "Ação",
+      "pick": "Pick",
+      "noAvailablePlayers": "Sem jogadores disponíveis.",
+      "noSelectionDescription": "Crie ou selecione um draft para visualizar capitães, picks e jogadores disponíveis."
+    },
+    "pickHistory": {
+      "title": "Ordem de picks",
+      "empty": "Nenhuma escolha registrada ainda."
+    },
+    "visualSetup": {
+      "eyebrow": "Draft",
+      "title": "Novo draft",
+      "namePlaceholder": "Rinha multi-times",
+      "teamSize": "Tamanho da equipe",
+      "players": "Jogadores",
+      "summary": "{teams} times · {captains} capitães · {reserves} reservas",
+      "searchPlayer": "Buscar jogador",
+      "drawCaptainsAutomatically": "Sortear capitães automaticamente",
+      "captainsCount": "{selected} / {total} capitães",
+      "noCaptainRole": "Nenhum jogador selecionado possui role Capitão."
+    },
+    "visualBoard": {
+      "summary": "{teams} times · {reserves} reservas.",
+      "drawCaptains": "Sortear capitães",
+      "saveLayout": "Salvar layout",
+      "exportImage": "Exportar imagem",
+      "finalize": "Finalizar",
+      "oddTeams": "Times ímpares",
+      "evenTeams": "Times pares",
+      "pending": "pendente",
+      "searchPlaceholder": "Buscar jogadores por nome, elo ou rota...",
+      "displayedRoutes": "Rotas exibidas",
+      "available": "Disponíveis",
+      "availablePlayers": "Jogadores Disponíveis",
+      "reservesHint": "Reservas ficam marcados aqui",
+      "reserve": "Reserva",
+      "noPlayersForFilter": "Sem jogadores disponíveis para o filtro atual."
+    },
+    "playerDetails": {
+      "dialogLabel": "Detalhes de {name}",
+      "noRoute": "Sem rota",
+      "competitiveSummary": "Resumo competitivo",
+      "draftRoute": "Rota no draft",
+      "state": "Estado",
+      "order": "Ordem",
+      "identity": "Identidade",
+      "routePreferences": "Preferências de rota",
+      "doesNotPlay": "Não joga",
+      "priority": "Prioritária",
+      "preference": "Preferência",
+      "linksAndAudit": "Links e auditoria",
+      "openOpGg": "Abrir OP.GG",
+      "openDeepLol": "Abrir DeepLoL",
+      "createdAt": "Cadastrado",
+      "updatedAt": "Atualizado"
+    }
+  },
+  "usersAdmin": {
+    "header": {
+      "eyebrow": "Administração da arena",
+      "title": "Usuários",
+      "description": "Gerencie contas, permissões, status e vínculo com jogador sem sair do fluxo operacional."
+    },
+    "loading": "Carregando usuários...",
+    "status": {
+      "active": "Ativo",
+      "disabled": "Desativado"
+    },
+    "statusOptions": {
+      "Ativo": "Ativo",
+      "Desativado": "Desativado"
+    },
+    "filters": {
+      "search": "Busca",
+      "searchPlaceholder": "Nome ou e-mail",
+      "role": "Role",
+      "allRoles": "Todas",
+      "submit": "Filtrar"
+    },
+    "list": {
+      "empty": "Nenhum usuário encontrado.",
+      "playerComplete": "Jogador completo",
+      "playerPending": "Jogador pendente"
+    },
+    "roles": {
+      "eyebrow": "Permissões",
+      "title": "Roles do usuário",
+      "save": "Salvar roles",
+      "assignableLabel": "Roles atribuíveis"
+    },
+    "details": {
+      "eyebrow": "Administração",
+      "title": "Editar usuário",
+      "loading": "Carregando usuário...",
+      "displayName": "Nome de exibição",
+      "namePlaceholder": "Nome do usuário",
+      "saveData": "Salvar dados",
+      "infoLabel": "Informações do usuário",
+      "notLinked": "Não vinculado",
+      "playerProfile": "Perfil de jogador",
+      "complete": "Completo",
+      "pending": "Pendente",
+      "createdAt": "Criado em",
+      "lastLogin": "Último login",
+      "never": "Nunca",
+      "deactivateUser": "Desativar usuário",
+      "activateUser": "Ativar usuário",
+      "resetPassword": "Redefinir senha"
+    },
+    "statusDialog": {
+      "deactivateTitle": "Desativar usuário?",
+      "activateTitle": "Ativar usuário?",
+      "description": "Esta ação altera o acesso do usuário ao sistema."
+    },
+    "resetPassword": {
+      "title": "Redefinir senha",
+      "submit": "Redefinir"
+    },
+    "pendingProfile": {
+      "eyebrow": "Perfil de jogador pendente",
+      "title": "Complete seu perfil para entrar nos drafts",
+      "description": "Você já pode navegar pela plataforma, mas só aparece como jogador depois de informar Riot ID, links, elo e rotas.",
+      "action": "Completar perfil"
+    },
+    "discord": {
+      "linkedAs": "Vinculado como {username}",
+      "notLinkedDescription": "Discord ainda não vinculado. Login e vínculo via Discord serão habilitados em uma etapa futura.",
+      "linkSoon": "Vincular Discord em breve"
+    },
+    "playerProfile": {
+      "eyebrow": "Jogador",
+      "myTitle": "Meu perfil de jogador",
+      "completeTitle": "Complete seu perfil de jogador",
+      "description": "Preencha todos os dados para aparecer na lista de jogadores e ficar disponível para drafts.",
+      "displayNamePlaceholder": "Nome no campeonato",
+      "discordPlaceholder": "usuario#1234",
+      "riotIdPlaceholder": "Nome#BR1",
+      "opgg": "OP.GG",
+      "opggPlaceholder": "https://www.op.gg/...",
+      "deepLol": "DeepLOL",
+      "deepLolPlaceholder": "https://www.deeplol.gg/...",
+      "save": "Salvar perfil de jogador",
+      "complete": "Completar perfil de jogador",
+      "errors": {
+        "displayNameRequired": "Informe o nome de exibição.",
+        "discordRequired": "Informe o Discord.",
+        "riotIdRequired": "Informe o Riot ID.",
+        "opggRequired": "Informe o link de OP.GG.",
+        "deepLolRequired": "Informe o link de DeepLOL.",
+        "eloRequired": "Selecione um elo.",
+        "divisionRequired": "Selecione uma divisão.",
+        "opggHttps": "OP.GG deve iniciar com https://",
+        "deepLolHttps": "DeepLOL deve iniciar com https://",
+        "uniquePriorities": "Cada prioridade de rota deve ser única.",
+        "singleBlockedRoute": "Marque no máximo uma rota como não jogo nem lascando."
+      }
+    },
+    "changePassword": {
+      "eyebrow": "Segurança",
+      "title": "Alterar senha",
+      "description": "Atualize sua senha local de acesso à plataforma.",
+      "currentPassword": "Senha atual",
+      "submit": "Alterar senha",
+      "success": "Senha alterada com sucesso.",
+      "error": "Não foi possível alterar senha"
+    }
+  },
+  "playerForm": {
+    "createTitle": "Cadastrar jogador",
+    "editTitle": "Editar jogador",
+    "close": "Fechar formulário",
+    "displayName": "Nome de exibição",
+    "discord": "Discord",
+    "riotId": "Riot ID",
+    "elo": "Elo",
+    "division": "Divisão",
+    "opgg": "OP.GG",
+    "deeplol": "Deeplol",
+    "select": "Selecione",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "placeholders": {
+      "displayName": "Hide on bush",
+      "discord": "usuario#1234",
+      "riotId": "Nome#BR1",
+      "opggUrl": "https://www.op.gg/...",
+      "deeplolUrl": "https://www.deeplol.gg/..."
+    },
+    "errors": {
+      "nameRequired": "Nome é obrigatório.",
+      "discordRequired": "Informe o Discord do jogador.",
+      "eloRequired": "Selecione um Elo.",
+      "divisionRequired": "Selecione uma divisão.",
+      "uniquePriorities": "Cada prioridade deve ser única.",
+      "singleBlockedRoute": "Marque no máximo uma rota bloqueada.",
+      "opggHttps": "Informe um link OP.GG iniciado por https://."
+    }
+  },
+  "routePreferences": {
+    "title": "Preferências de rotas",
+    "hint": "Ordene suas escolhas de 1 a 5 e marque no máximo uma rota para evitar.",
+    "priority": "Prioridade",
+    "avoid": "Evitar",
+    "blocked": "Bloqueada"
+  },
+  "playerStatus": {
+    "active": "Ativo",
+    "inactive": "Inativo"
+  },
+  "playerCard": {
+    "noElo": "Sem elo",
+    "discordMissing": "Discord não informado",
+    "primaryRoute": "Rota principal",
+    "opggMissing": "OP.GG ausente",
+    "riotIdMissing": "Riot ID ausente",
+    "edit": "Editar",
+    "delete": "Excluir"
+  },
+  "playerDelete": {
+    "kicker": "Ação destrutiva",
+    "title": "Excluir {name}?",
+    "description": "Esta ação remove o jogador dos dados temporários. Com backend ativo, a ação usa a inativação segura.",
+    "confirm": "Confirmar"
+  },
+  "messages": {
+    "MI001": "Carregando informações",
+    "MSIS001": "Operação realizada com sucesso",
+    "MV001": "Campo obrigatório",
+    "ME001": "Ocorreu um erro inesperado"
+  },
+  "playerStates": {
+    "loading": "Carregando jogadores",
+    "errorKicker": "Erro",
+    "emptyKicker": "Lista vazia",
+    "errorTitle": "Não foi possível carregar jogadores",
+    "emptyTitle": "Nenhum jogador encontrado",
+    "tryAgain": "Tente novamente em instantes.",
+    "emptyDescription": "Cadastre o primeiro participante ou ajuste os filtros para visualizar a base da rinha."
+  }
+}

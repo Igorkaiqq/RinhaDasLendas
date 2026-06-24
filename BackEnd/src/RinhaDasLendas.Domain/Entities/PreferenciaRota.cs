@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -13,7 +14,7 @@ public sealed class PreferenciaRota
     {
         if (prioridade is < 1 or > 5)
         {
-            throw new DomainException("A prioridade da rota deve estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.RoutePrioritiesRange);
         }
 
         Id = Guid.NewGuid();
@@ -32,7 +33,7 @@ public sealed class PreferenciaRota
     {
         if (prioridade is < 1 or > 5)
         {
-            throw new DomainException("A prioridade da rota deve estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.RoutePrioritiesRange);
         }
 
         Prioridade = prioridade;

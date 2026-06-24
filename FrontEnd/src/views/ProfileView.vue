@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChangePasswordForm from '@/components/users/ChangePasswordForm.vue'
 import CompletePlayerProfileCard from '@/components/users/CompletePlayerProfileCard.vue'
@@ -10,6 +11,7 @@ import { completeMeuJogadorProfile, getMeuJogadorProfile, updateMeuJogadorProfil
 import type { MeuJogadorProfile, MeuJogadorProfilePayload } from '@/types/meuJogador'
 
 const auth = useAuthState()
+const { t } = useI18n()
 const nome = ref(auth.user.value?.nome ?? '')
 const message = ref('')
 const jogadorMessage = ref('')
@@ -24,7 +26,7 @@ onMounted(loadJogador)
 async function save() {
   const updated = await updateOwnProfile({ nome: nome.value })
   nome.value = updated.nome
-  message.value = 'Perfil atualizado.'
+  message.value = t('profile.messages.updated')
 }
 
 async function loadJogador() {
@@ -47,12 +49,12 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
     if (token) {
       setSession(token, updatedUser)
     }
-    jogadorMessage.value = 'Perfil de jogador salvo.'
+    jogadorMessage.value = t('profile.player.messages.saved')
   } catch (error: unknown) {
     const data = typeof error === 'object' && error !== null && 'response' in error
       ? (error as { response?: { data?: { message?: string; errors?: string[] } } }).response?.data
       : undefined
-    jogadorErrors.value = data?.errors?.length ? data.errors : [data?.message ?? 'Não foi possível salvar o perfil de jogador.']
+    jogadorErrors.value = data?.errors?.length ? data.errors : [data?.message ?? t('profile.player.errors.saveFallback')]
   } finally {
     savingJogador.value = false
   }
@@ -62,25 +64,25 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
 <template>
   <section class="page-stack">
     <header class="page-header-card">
-      <span>Perfil do competidor</span>
-      <h1>Minha conta</h1>
-      <p>Gerencie seus dados de acesso, senha e vínculo com jogador para entrar em drafts e listas da comunidade.</p>
+      <span>{{ t('profile.account.eyebrow') }}</span>
+      <h1>{{ t('profile.account.title') }}</h1>
+      <p>{{ t('profile.account.description') }}</p>
     </header>
     <form class="panel-card profile-account-card" @submit.prevent="save">
       <header>
-        <span class="eyebrow">Conta</span>
-        <h2>Dados de acesso</h2>
-        <p>Esses dados identificam sua conta na plataforma.</p>
+        <span class="eyebrow">{{ t('profile.account.sectionEyebrow') }}</span>
+        <h2>{{ t('profile.account.accessData') }}</h2>
+        <p>{{ t('profile.account.accessDescription') }}</p>
       </header>
-      <label>Nome <input v-model="nome" required maxlength="120" /></label>
-      <label>E-mail <input :value="user?.email" disabled /></label>
-      <p class="profile-role-line">Roles: {{ user?.roles.join(', ') }}</p>
+      <label>{{ t('auth.fields.name') }} <input v-model="nome" required maxlength="120" /></label>
+      <label>{{ t('auth.fields.email') }} <input :value="user?.email" disabled /></label>
+      <p class="profile-role-line">{{ t('profile.account.roles') }}: {{ user?.roles.join(', ') }}</p>
       <p v-if="message" class="status-ok profile-inline-message">{{ message }}</p>
       <div class="profile-actions">
-        <button class="button button--primary" type="submit">Salvar perfil</button>
+        <button class="button button--primary" type="submit">{{ t('profile.account.save') }}</button>
       </div>
     </form>
-    <p v-if="loadingJogador" class="panel-card profile-loading-card">Carregando perfil de jogador...</p>
+    <p v-if="loadingJogador" class="panel-card profile-loading-card">{{ t('profile.player.loading') }}</p>
     <CompletePlayerProfileCard
       v-else
       :jogador="jogador"

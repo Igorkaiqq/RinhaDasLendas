@@ -299,6 +299,38 @@ Avoid duplicating validation logic across layers.
 
 ---
 
+# Internationalization Rules
+
+All user-visible text must be internationalized.
+
+Frontend requirements:
+
+* Use translation keys from `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`.
+* Do not hardcode labels, buttons, titles, placeholders, tooltips, errors, confirmations, statuses, badges, empty states, toasts or validation messages in Vue components or frontend code.
+* Every new key added to `pt.json` must also exist in `en.json`.
+* Portuguese text must use correct accents.
+
+Backend requirements:
+
+* All API messages must come from `.resx` resources or an equivalent localization structure.
+* Do not hardcode user-facing messages in exceptions, validators, handlers, endpoints, middlewares, responses or domain notifications.
+* Every new resource key must exist in Portuguese and English.
+
+Before finalizing any implementation, audit and report:
+
+* Whether frontend hardcoded texts were found.
+* Whether backend hardcoded messages were found.
+* Whether `pt.json` and `en.json` are synchronized.
+* Whether backend resources are updated.
+* Whether Portuguese accentuation was reviewed.
+* Whether placeholders, buttons, titles, badges, toasts and empty messages were reviewed.
+* Whether frontend and backend validations use i18n/resource.
+* Whether new files respect this standard.
+
+Final responses for implementation tasks must include an `Auditoria de internacionalização` section. If any item is `Não`, the task is not complete.
+
+---
+
 # Design Patterns
 
 Preferred patterns:

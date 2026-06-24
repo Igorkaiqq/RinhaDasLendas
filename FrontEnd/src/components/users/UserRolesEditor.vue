@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { AuthRole } from '@/constants/authRoles'
 import { listAssignableRoles, updateUserRoles } from '@/services/users'
@@ -13,6 +14,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   saved: []
 }>()
+
+const { t } = useI18n()
 
 const options = ref<RoleOption[]>([])
 const selected = ref<AuthRole[]>([...props.roles])
@@ -38,12 +41,12 @@ async function save() {
   <section class="roles-editor">
     <header>
       <div>
-        <span class="eyebrow">Permissões</span>
-        <h3>Roles do usuário</h3>
+        <span class="eyebrow">{{ t('usersAdmin.roles.eyebrow') }}</span>
+        <h3>{{ t('usersAdmin.roles.title') }}</h3>
       </div>
-      <button class="button" type="button" @click="save">Salvar roles</button>
+      <button class="button" type="button" @click="save">{{ t('usersAdmin.roles.save') }}</button>
     </header>
-    <div class="role-selector" role="group" aria-label="Roles atribuíveis">
+    <div class="role-selector" role="group" :aria-label="t('usersAdmin.roles.assignableLabel')">
       <label v-for="option in options" :key="option.nome" class="role-option" :class="{ 'is-selected': selected.includes(option.nome) }">
         <input v-model="selected" type="checkbox" :value="option.nome" />
         <span>{{ option.nome }}</span>

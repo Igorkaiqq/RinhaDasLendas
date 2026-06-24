@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { Player } from '@/services/players'
 import type { DraftMontagemPayload } from '@/types/draftMontagem'
 
 const props = defineProps<{ open: boolean; players: Player[]; captains: Player[]; saving: boolean; errors: string[] }>()
+const { t } = useI18n()
 
 const emit = defineEmits<{ close: []; submit: [payload: DraftMontagemPayload] }>()
 
@@ -69,10 +71,10 @@ function submit() {
     <section class="player-modal draft-create-modal" role="dialog" aria-modal="true" aria-labelledby="draft-visual-title">
       <header class="player-modal__header">
         <div>
-          <span class="eyebrow">Draft</span>
-          <h2 id="draft-visual-title">Novo draft</h2>
+          <span class="eyebrow">{{ t('drafts.visualSetup.eyebrow') }}</span>
+          <h2 id="draft-visual-title">{{ t('drafts.visualSetup.title') }}</h2>
         </div>
-        <button type="button" aria-label="Fechar" @click="emit('close')">x</button>
+        <button type="button" :aria-label="t('common.close')" @click="emit('close')">x</button>
       </header>
 
       <form class="player-form draft-create-form" @submit.prevent="submit">
@@ -80,36 +82,36 @@ function submit() {
           <p v-for="error in errors" :key="error">{{ error }}</p>
         </div>
         <label class="player-form__field">
-          Nome
-          <input v-model="form.nome" required placeholder="Rinha multi-times" />
+          {{ t('drafts.createModal.name') }}
+          <input v-model="form.nome" required :placeholder="t('drafts.visualSetup.namePlaceholder')" />
         </label>
         <label class="player-form__field">
-          Tamanho da equipe
+          {{ t('drafts.visualSetup.teamSize') }}
           <input v-model.number="form.tamanhoEquipe" type="number" min="1" max="5" />
         </label>
         <label class="player-form__field player-form__field--wide">
-          Observacoes
+          {{ t('drafts.createModal.notes') }}
           <textarea v-model="form.observacoes" rows="2" />
         </label>
 
         <section class="draft-player-picker player-form__field--wide">
           <div class="draft-player-picker__header">
             <div>
-              <span class="eyebrow">Jogadores</span>
-              <h3>{{ form.jogadoresIds.length }} selecionados</h3>
+              <span class="eyebrow">{{ t('drafts.visualSetup.players') }}</span>
+              <h3>{{ t('drafts.createModal.selectedCount', { count: form.jogadoresIds.length }) }}</h3>
             </div>
-            <span>{{ quantidadeTimes }} times · {{ quantidadeTimes }} capitaes · {{ quantidadeReservas }} reservas</span>
+            <span>{{ t('drafts.visualSetup.summary', { teams: quantidadeTimes, captains: quantidadeTimes, reserves: quantidadeReservas }) }}</span>
           </div>
           <label class="draft-search-field">
             <span aria-hidden="true">S</span>
-            <input v-model="search" type="search" placeholder="Buscar jogador" />
+            <input v-model="search" type="search" :placeholder="t('drafts.visualSetup.searchPlayer')" />
           </label>
           <div class="draft-player-picker__grid">
             <button v-for="player in filteredPlayers" :key="player.id" type="button" class="draft-player-option" :class="{ 'is-selected': form.jogadoresIds.includes(player.id) }" @click="togglePlayer(player.id)">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
               <span>
                 <strong>{{ player.nomeExibicao }}</strong>
-                <small>{{ player.elo ? `${player.elo} ${player.divisao ?? ''}` : 'Elo nao informado' }}</small>
+                <small>{{ player.elo ? `${player.elo} ${player.divisao ?? ''}` : t('common.eloNotInformed') }}</small>
               </span>
             </button>
           </div>
@@ -117,25 +119,25 @@ function submit() {
 
         <label class="checkbox-line">
           <input v-model="form.sortearCapitaes" type="checkbox" />
-          Sortear capitaes automaticamente
+          {{ t('drafts.visualSetup.drawCaptainsAutomatically') }}
         </label>
 
         <section v-if="!form.sortearCapitaes" class="draft-player-picker player-form__field--wide">
           <div class="draft-player-picker__header">
-            <h3>{{ form.capitaesIds.length }} / {{ quantidadeTimes }} capitaes</h3>
+            <h3>{{ t('drafts.visualSetup.captainsCount', { selected: form.capitaesIds.length, total: quantidadeTimes }) }}</h3>
           </div>
           <div class="draft-player-picker__grid">
             <button v-for="player in selectedCaptains" :key="player.id" type="button" class="draft-player-option" :class="{ 'is-selected': form.capitaesIds.includes(player.id) }" @click="toggleCaptain(player.id)">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
-              <span><strong>{{ player.nomeExibicao }}</strong><small>Capitao</small></span>
+              <span><strong>{{ player.nomeExibicao }}</strong><small>{{ t('drafts.roles.captain') }}</small></span>
             </button>
-            <p v-if="selectedPlayers.length && !selectedCaptains.length">Nenhum jogador selecionado possui role Capitão.</p>
+            <p v-if="selectedPlayers.length && !selectedCaptains.length">{{ t('drafts.visualSetup.noCaptainRole') }}</p>
           </div>
         </section>
 
         <footer class="player-modal__actions">
-          <button type="button" class="button-secondary" @click="emit('close')">Cancelar</button>
-          <button type="submit" :disabled="saving || !canSubmit">{{ saving ? 'Criando...' : 'Criar draft' }}</button>
+          <button type="button" class="button-secondary" @click="emit('close')">{{ t('common.cancel') }}</button>
+          <button type="submit" :disabled="saving || !canSubmit">{{ saving ? t('drafts.createModal.creating') : t('drafts.createModal.submit') }}</button>
         </footer>
       </form>
     </section>

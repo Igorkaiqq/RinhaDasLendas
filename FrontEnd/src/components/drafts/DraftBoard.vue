@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { LeagueRole, type LeagueRoleValue } from '@/constants/leagueRoles'
 import type { Player } from '@/services/players'
 import type { Draft, DraftPlayer } from '@/types/draft'
 
 const props = defineProps<{ draft: Draft | null; players: Player[]; picking: boolean }>()
+const { t } = useI18n()
 
 defineEmits<{
   pick: [player: DraftPlayer]
@@ -82,7 +84,21 @@ function teamSlots(team: 'TimeA' | 'TimeB') {
 }
 
 function teamName(team: 'TimeA' | 'TimeB') {
-  return team === 'TimeA' ? 'Time Azul' : 'Time Vermelho'
+  return team === 'TimeA' ? t('drafts.teams.blue') : t('drafts.teams.red')
+}
+
+function pickRoleLabel(captain: boolean) {
+  return captain ? t('drafts.roles.captain') : t('drafts.roles.player')
+}
+
+function nextPickLabel() {
+  if (props.draft?.proximoTime === 'TimeA') {
+    return t('drafts.teams.blue')
+  }
+  if (props.draft?.proximoTime === 'TimeB') {
+    return t('drafts.teams.red')
+  }
+  return t('drafts.status.finished')
 }
 
 function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
@@ -93,11 +109,11 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
 </script>
 
 <template>
-  <section v-if="draft" class="draft-board" aria-label="Tabuleiro do draft">
+  <section v-if="draft" class="draft-board" :aria-label="t('drafts.board.label')">
     <article class="draft-team draft-team--blue">
       <header class="draft-team__header">
         <h2>{{ teamName('TimeA') }}</h2>
-        <span>Capitao: {{ draft.capitaoTimeA.nomeExibicao }}</span>
+        <span>{{ t('drafts.board.captain', { name: draft.capitaoTimeA.nomeExibicao }) }}</span>
       </header>
 
       <ul class="draft-slots">
@@ -111,13 +127,13 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
             <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
             <span class="draft-slot__copy">
               <strong>{{ player.nomeExibicao }}</strong>
-              <small>{{ player.capitao ? 'CAPITAO' : 'JOGADOR' }}</small>
+              <small>{{ pickRoleLabel(player.capitao) }}</small>
             </span>
             <span v-if="player.capitao" class="draft-slot__captain">C</span>
           </template>
           <template v-else>
-            <span>{{ isActivePick('TimeA', index) ? 'Selecionar Jogador' : 'Slot vazio' }}</span>
-            <small v-if="isActivePick('TimeA', index)">ESCOLHENDO</small>
+            <span>{{ isActivePick('TimeA', index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
+            <small v-if="isActivePick('TimeA', index)">{{ t('drafts.board.choosing') }}</small>
           </template>
         </li>
       </ul>
@@ -128,9 +144,9 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
       <header class="draft-available__filters">
         <label class="draft-search-field">
           <span aria-hidden="true">S</span>
-          <input v-model="playerSearch" type="search" placeholder="Buscar jogadores por nome ou rota..." />
+          <input v-model="playerSearch" type="search" :placeholder="t('drafts.board.searchPlaceholder')" />
         </label>
-        <div class="draft-route-filters" aria-label="Filtros de rota">
+        <div class="draft-route-filters" :aria-label="t('drafts.board.routeFilters')">
           <button
             v-for="route in routeFilters"
             :key="route"
@@ -145,18 +161,18 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
 
       <div class="draft-available__status">
         <div>
-          <span class="eyebrow">Proximo pick</span>
-          <h2>{{ draft.proximoTime === 'TimeA' ? 'Time Azul' : draft.proximoTime === 'TimeB' ? 'Time Vermelho' : 'Finalizado' }}</h2>
+          <span class="eyebrow">{{ t('drafts.board.nextPick') }}</span>
+          <h2>{{ nextPickLabel() }}</h2>
         </div>
-        <p>Capitaes: {{ draft.criterioCapitaes }} · Primeiro pick: {{ draft.criterioPrimeiroPick }}</p>
+        <p>{{ t('drafts.board.criteria', { captains: draft.criterioCapitaes, firstPick: draft.criterioPrimeiroPick }) }}</p>
       </div>
 
-      <div class="draft-player-grid" role="list" aria-label="Jogadores disponiveis">
+      <div class="draft-player-grid" role="list" :aria-label="t('drafts.board.availablePlayers')">
         <div class="draft-player-row draft-player-row--head" role="row">
-          <span>Jogador</span>
-          <span>Rota</span>
-          <span>Elo</span>
-          <span>Ação</span>
+          <span>{{ t('drafts.board.player') }}</span>
+          <span>{{ t('drafts.board.route') }}</span>
+          <span>{{ t('common.elo') }}</span>
+          <span>{{ t('drafts.board.action') }}</span>
         </div>
         <button
           v-for="player in availablePlayers"
@@ -172,16 +188,16 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
           </span>
           <span class="draft-route-badge">{{ preferredRoute(player) }}</span>
           <span>{{ playerElo(player) }}</span>
-          <span class="draft-pick-action">Pick</span>
+          <span class="draft-pick-action">{{ t('drafts.board.pick') }}</span>
         </button>
       </div>
-      <p v-if="!availablePlayers.length" class="empty-copy">Sem jogadores disponiveis.</p>
+      <p v-if="!availablePlayers.length" class="empty-copy">{{ t('drafts.board.noAvailablePlayers') }}</p>
     </article>
 
     <article class="draft-team draft-team--red">
       <header class="draft-team__header">
         <h2>{{ teamName('TimeB') }}</h2>
-        <span>Capitao: {{ draft.capitaoTimeB.nomeExibicao }}</span>
+        <span>{{ t('drafts.board.captain', { name: draft.capitaoTimeB.nomeExibicao }) }}</span>
       </header>
 
       <ul class="draft-slots">
@@ -195,20 +211,20 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
             <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
             <span class="draft-slot__copy">
               <strong>{{ player.nomeExibicao }}</strong>
-              <small>{{ player.capitao ? 'CAPITAO' : 'JOGADOR' }}</small>
+              <small>{{ pickRoleLabel(player.capitao) }}</small>
             </span>
             <span v-if="player.capitao" class="draft-slot__captain">C</span>
           </template>
           <template v-else>
-            <span>{{ isActivePick('TimeB', index) ? 'Selecionar Jogador' : 'Slot vazio' }}</span>
-            <small v-if="isActivePick('TimeB', index)">ESCOLHENDO</small>
+            <span>{{ isActivePick('TimeB', index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
+            <small v-if="isActivePick('TimeB', index)">{{ t('drafts.board.choosing') }}</small>
           </template>
         </li>
       </ul>
     </article>
   </section>
   <section v-else class="draft-empty-card">
-    <h2>Nenhum draft selecionado</h2>
-    <p>Crie ou selecione um draft para visualizar capitães, picks e jogadores disponiveis.</p>
+    <h2>{{ t('drafts.noSelectionTitle') }}</h2>
+    <p>{{ t('drafts.board.noSelectionDescription') }}</p>
   </section>
 </template>

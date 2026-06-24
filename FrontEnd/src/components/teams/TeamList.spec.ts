@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import { i18n } from '@/i18n'
 import TeamList from './TeamList.vue'
 
 const team = {
@@ -19,7 +20,7 @@ const team = {
 
 describe('TeamList', () => {
   it('emits create from empty state', async () => {
-    const wrapper = mount(TeamList, { props: { teams: [], loading: false, errors: [] } })
+    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [], loading: false, errors: [] } })
 
     await wrapper.find('button').trigger('click')
 
@@ -28,7 +29,7 @@ describe('TeamList', () => {
   })
 
   it('renders team cards and forwards edit events', async () => {
-    const wrapper = mount(TeamList, { props: { teams: [team], loading: false, errors: [] } })
+    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [team], loading: false, errors: [] } })
 
     await wrapper.find('button').trigger('click')
 

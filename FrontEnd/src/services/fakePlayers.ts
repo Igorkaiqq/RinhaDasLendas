@@ -1,7 +1,9 @@
 import { LeagueRole } from '@/constants/leagueRoles'
+import { MessageCode } from '@/constants/messageCode'
 import { PlayerStatus } from '@/constants/playerStatus'
 
 import type { Divisao, Elo, Player, PlayerPayload, PlayerUpdatePayload, RoutePreference } from './players'
+import { getMessage } from './messageService'
 
 const defaultPreferences = (primary: RoutePreference['rota']): RoutePreference[] => {
   const order: RoutePreference['rota'][] = [primary, LeagueRole.Jungle, LeagueRole.Mid, LeagueRole.Adc, LeagueRole.Support, LeagueRole.Top]
@@ -152,7 +154,7 @@ function getFakePlayer(id: string): Player {
   const player = fakePlayers.find((current) => current.id === id)
 
   if (!player) {
-    throw new Error('Jogador nao encontrado nos dados temporarios.')
+    throw new Error(getMessage(MessageCode.PlayerNotFound))
   }
 
   return player
@@ -162,17 +164,17 @@ function validateFakePlayer(nomeExibicao: string, discord: string | null | undef
   const errors: string[] = []
 
   if (!nomeExibicao.trim()) {
-    errors.push('Nome e obrigatorio.')
+    errors.push(getMessage(MessageCode.PlayerNameRequired))
   }
 
   if (!discord?.trim()) {
-    errors.push('Informe o Discord do jogador.')
+    errors.push(getMessage(MessageCode.FieldRequired))
   }
 
   errors.push(...validatePreferences(preferencias, false))
 
   if (errors.length > 0) {
-    throw new Error(errors[0] ?? 'Dados invalidos.')
+    throw new Error(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
 }
 
@@ -181,19 +183,19 @@ function validatePreferences(preferencias: RoutePreference[], shouldThrow = true
   const priorities = preferencias.map((preference) => preference.prioridade)
 
   if (preferencias.length !== 5) {
-    errors.push('Informe as cinco rotas.')
+    errors.push(getMessage(MessageCode.IncompleteRoutePreferences))
   }
 
   if (new Set(priorities).size !== 5) {
-    errors.push('Cada prioridade deve ser unica.')
+    errors.push(getMessage(MessageCode.RoutePrioritiesMustBeUnique))
   }
 
   if (preferencias.filter((preference) => preference.naoJogoNemLascando).length > 1) {
-    errors.push('Marque no maximo uma rota bloqueada.')
+    errors.push(getMessage(MessageCode.OnlyOneNeverPlayRole))
   }
 
   if (errors.length > 0 && shouldThrow) {
-    throw new Error(errors[0] ?? 'Dados invalidos.')
+    throw new Error(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
 
   return errors

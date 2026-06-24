@@ -4,6 +4,7 @@ using RinhaDasLendas.Application.Commands.Jogadores;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Handlers.Jogadores;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Jogadores;
 
@@ -46,7 +47,7 @@ public sealed class UpdatePreferenciasTests
         var result = await validator.ValidateAsync(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Cada prioridade deve ser unica.");
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.RoutePrioritiesMustBeUnique);
     }
 
     [Fact]
@@ -64,6 +65,6 @@ public sealed class UpdatePreferenciasTests
         var result = await validator.ValidateAsync(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("Apenas uma rota"));
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.OnlyOneNeverPlayRole);
     }
 }
