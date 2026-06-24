@@ -5,6 +5,7 @@ import { Permissions } from '@/constants/permissions'
 import HomeView from '@/views/HomeView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 import PlayersView from '@/views/PlayersView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 import TeamsView from '@/views/TeamsView.vue'
 import DraftsView from '@/views/DraftsView.vue'
 import LoginView from '@/views/LoginView.vue'
@@ -58,7 +59,7 @@ const router = createRouter({
     {
       path: AppRoutes.Settings,
       name: AppRouteNames.Settings,
-      component: PlaceholderView,
+      component: SettingsView,
       meta: { titleKey: 'routes.settings.title', requiresAuth: true },
     },
     {

@@ -86,6 +86,7 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
     <CompletePlayerProfileCard
       v-else
       :jogador="jogador"
+      :initial-discord="user?.discord?.username"
       :saving="savingJogador"
       :errors="jogadorErrors"
       @submit="saveJogador"

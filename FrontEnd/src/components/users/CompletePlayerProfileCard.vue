@@ -11,6 +11,7 @@ const props = defineProps<{
   jogador: MeuJogadorProfile | null
   saving: boolean
   errors: string[]
+  initialDiscord?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -96,7 +97,7 @@ watch(
   (jogador) => {
     form.submitted = false
     form.nomeExibicao = jogador?.nomeExibicao ?? ''
-    form.discord = jogador?.discord ?? ''
+    form.discord = jogador?.discord ?? props.initialDiscord ?? ''
     form.riotId = jogador?.riotId ?? ''
     form.opGgUrl = jogador?.opGgUrl ?? ''
     form.deepLolUrl = jogador?.deepLolUrl ?? ''
@@ -105,6 +106,15 @@ watch(
     form.preferencias = jogador ? jogador.preferencias.map((preference) => ({ ...preference })) : defaultPreferences()
   },
   { immediate: true },
+)
+
+watch(
+  () => props.initialDiscord,
+  (initialDiscord) => {
+    if (!props.jogador && !form.discord.trim()) {
+      form.discord = initialDiscord ?? ''
+    }
+  },
 )
 
 function submit() {

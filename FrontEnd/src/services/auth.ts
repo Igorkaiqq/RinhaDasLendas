@@ -11,6 +11,7 @@ import type {
   AuthenticatedUser,
   DiscordLinkStatus,
 } from '@/types/auth'
+import { i18n } from '@/i18n'
 
 import { api } from './api'
 import { clearSession, getAccessToken, setPermissions, setSession } from './authState'
@@ -24,8 +25,12 @@ const rawApi = axios.create({ baseURL, withCredentials: true })
 
 export class AuthServiceError extends Error {
   constructor(public readonly errors: string[]) {
-    super(errors[0] ?? 'Não foi possível autenticar')
+    super(errors[0] ?? i18n.global.t('auth.errors.fallback'))
   }
+}
+
+export function getDiscordLoginUrl(): string {
+  return `${baseURL}/api/v1/auth/discord/login`
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthenticatedUser> {
@@ -98,11 +103,20 @@ export async function loadDiscordStatus(): Promise<DiscordLinkStatus> {
   return response.data
 }
 
+export async function startDiscordLink(): Promise<{ authorizationUrl: string }> {
+  const response = await api.post<{ authorizationUrl: string }>('/api/v1/auth/me/discord/link')
+  return response.data
+}
+
+export async function unlinkDiscord(): Promise<void> {
+  await api.delete('/api/v1/auth/me/discord')
+}
+
 function toAuthError(error: unknown): AuthServiceError {
   if (error instanceof AxiosError) {
     const data = error.response?.data as { message?: string; errors?: string[] } | undefined
-    return new AuthServiceError(data?.errors?.length ? data.errors : [data?.message ?? 'Não foi possível autenticar'])
+    return new AuthServiceError(data?.errors?.length ? data.errors : [data?.message ?? i18n.global.t('auth.errors.fallback')])
   }
 
-  return new AuthServiceError(['Não foi possível autenticar'])
+  return new AuthServiceError([i18n.global.t('auth.errors.fallback')])
 }

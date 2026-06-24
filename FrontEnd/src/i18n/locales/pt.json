@@ -142,16 +142,25 @@
       "description": "Acesse sua conta para organizar jogadores, drafts e partidas da comunidade.",
       "submit": "Entrar",
       "submitting": "Entrando...",
+      "discord": "Entrar com Discord",
       "forgotPassword": "Esqueci minha senha",
       "createAccount": "Criar conta",
+      "discordErrors": {
+        "notLinked": "Nenhuma conta vinculada a este Discord. Entre utilizando usuário e senha e vincule sua conta nas configurações.",
+        "emailRequired": "O Discord precisa retornar um e-mail verificado para criar sua conta.",
+        "emailAlreadyRegistered": "Já existe uma conta com o e-mail deste Discord. Entre com usuário e senha e vincule o Discord nas configurações.",
+        "fallback": "Não foi possível autenticar com Discord."
+      },
       "errors": { "fallback": "Não foi possível autenticar" }
     },
+    "errors": { "fallback": "Não foi possível autenticar" },
     "register": {
       "eyebrow": "Conta de jogador",
       "title": "Entrar para a comunidade",
       "description": "Todo novo cadastro começa como jogador e pode evoluir com permissões da organização.",
       "submit": "Criar conta",
       "submitting": "Criando...",
+      "discord": "Criar conta com Discord",
       "haveAccount": "Já tenho conta",
       "errors": { "fallback": "Não foi possível cadastrar" }
     },
@@ -173,6 +182,38 @@
   "forbidden": {
     "title": "Acesso negado",
     "description": "Você não possui permissão para acessar esta área da organização."
+  },
+  "settings": {
+    "eyebrow": "Central da conta",
+    "title": "Configurações",
+    "description": "Gerencie integrações e preferências que conectam sua conta aos serviços da comunidade.",
+    "integrations": {
+      "eyebrow": "Integrações",
+      "title": "Contas conectadas",
+      "description": "Vincule serviços externos sem alterar seu login tradicional da plataforma.",
+      "discord": {
+        "mark": "DC",
+        "title": "Discord",
+        "description": "Use sua conta Discord como login opcional e prepare a conta para futuras integrações sociais.",
+        "loading": "Carregando status do Discord...",
+        "linkedAs": "Vinculado como {username}",
+        "notLinkedDescription": "Nenhuma conta Discord vinculada.",
+        "link": "Vincular Discord",
+        "linking": "Redirecionando...",
+        "unlink": "Desvincular Discord",
+        "unlinking": "Desvinculando...",
+        "messages": {
+          "success": "Operação com Discord concluída.",
+          "error": "Não foi possível concluir a operação com Discord.",
+          "unlinked": "Discord desvinculado."
+        },
+        "errors": {
+          "load": "Não foi possível carregar o status do Discord.",
+          "link": "Não foi possível iniciar o vínculo com Discord.",
+          "unlink": "Não foi possível desvincular o Discord."
+        }
+      }
+    }
   },
   "players": {
     "kicker": "Base competitiva",

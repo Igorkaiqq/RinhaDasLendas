@@ -24,6 +24,8 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<DraftMontagemEscolha> DraftMontagemEscolhas => Set<DraftMontagemEscolha>();
     public DbSet<DraftMontagemSubstituicao> DraftMontagemSubstituicoes => Set<DraftMontagemSubstituicao>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<ExternalAccount> ExternalAccounts => Set<ExternalAccount>();
+    public DbSet<ExternalAuthState> ExternalAuthStates => Set<ExternalAuthState>();
     public DbSet<VinculoDiscord> VinculosDiscord => Set<VinculoDiscord>();
     public DbSet<AuditoriaUsuario> AuditoriaUsuarios => Set<AuditoriaUsuario>();
 
@@ -527,6 +529,54 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(token => token.TokenHash).IsUnique();
             entity.HasIndex(token => token.UsuarioId);
             entity.HasIndex(token => token.FamiliaId);
+        });
+
+        modelBuilder.Entity<ExternalAccount>(entity =>
+        {
+            entity.ToTable("external_accounts");
+            entity.HasKey(account => account.Id);
+            entity.Property(account => account.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(account => account.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(account => account.Provider).HasColumnName("provider").HasMaxLength(40).IsRequired();
+            entity.Property(account => account.ProviderUserId).HasColumnName("provider_user_id").HasMaxLength(120).IsRequired();
+            entity.Property(account => account.Username).HasColumnName("username").HasMaxLength(120);
+            entity.Property(account => account.DisplayName).HasColumnName("display_name").HasMaxLength(120);
+            entity.Property(account => account.Email).HasColumnName("email").HasMaxLength(256);
+            entity.Property(account => account.AvatarUrl).HasColumnName("avatar_url").HasMaxLength(500);
+            entity.Property(account => account.LinkedAt).HasColumnName("linked_at").IsRequired();
+            entity.Property(account => account.LastSyncAt).HasColumnName("last_sync_at");
+            entity.Property(account => account.UnlinkedAt).HasColumnName("unlinked_at");
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(account => account.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(account => account.UsuarioId);
+            entity.HasIndex(account => new { account.Provider, account.ProviderUserId })
+                .IsUnique()
+                .HasFilter("unlinked_at IS NULL");
+            entity.HasIndex(account => new { account.UsuarioId, account.Provider })
+                .IsUnique()
+                .HasFilter("unlinked_at IS NULL");
+        });
+
+        modelBuilder.Entity<ExternalAuthState>(entity =>
+        {
+            entity.ToTable("external_auth_states");
+            entity.HasKey(state => state.Id);
+            entity.Property(state => state.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(state => state.StateHash).HasColumnName("state_hash").HasMaxLength(128).IsRequired();
+            entity.Property(state => state.Flow).HasColumnName("flow").HasMaxLength(20).IsRequired();
+            entity.Property(state => state.UsuarioId).HasColumnName("usuario_id");
+            entity.Property(state => state.ReturnUrl).HasColumnName("return_url").HasMaxLength(500);
+            entity.Property(state => state.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(state => state.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            entity.Property(state => state.ConsumedAt).HasColumnName("consumed_at");
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(state => state.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(state => state.StateHash).IsUnique();
+            entity.HasIndex(state => state.ExpiresAt);
         });
 
         modelBuilder.Entity<VinculoDiscord>(entity =>

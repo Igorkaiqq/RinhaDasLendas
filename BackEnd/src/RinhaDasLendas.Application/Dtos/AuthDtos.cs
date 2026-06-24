@@ -34,3 +34,7 @@ public sealed record UserPermissionsDto(IReadOnlyCollection<string> Roles, IRead
 public sealed record DiscordLinkStatusDto(bool Vinculado, string? Username, DateTimeOffset? VinculadoEm = null);
 
 public sealed record ForgotPasswordResponseDto(string Message);
+
+public sealed record ExternalAuthStartDto(string AuthorizationUrl);
+
+public sealed record DiscordCallbackResultDto(string RedirectUrl, AuthResponseDto? AuthResponse = null);

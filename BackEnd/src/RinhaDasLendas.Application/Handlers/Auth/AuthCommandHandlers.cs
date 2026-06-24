@@ -52,3 +52,27 @@ public sealed class UpdateOwnProfileCommandHandler(IAuthService authService) : I
     public Task<AuthenticatedUserDto?> Handle(UpdateOwnProfileCommand request, CancellationToken cancellationToken)
         => authService.UpdateOwnProfileAsync(request.UserId, request.Request, cancellationToken);
 }
+
+public sealed class StartDiscordLoginCommandHandler(IAuthService authService) : IRequestHandler<StartDiscordLoginCommand, ExternalAuthStartDto>
+{
+    public Task<ExternalAuthStartDto> Handle(StartDiscordLoginCommand request, CancellationToken cancellationToken)
+        => authService.StartDiscordLoginAsync(cancellationToken);
+}
+
+public sealed class StartDiscordLinkCommandHandler(IAuthService authService) : IRequestHandler<StartDiscordLinkCommand, ExternalAuthStartDto>
+{
+    public Task<ExternalAuthStartDto> Handle(StartDiscordLinkCommand request, CancellationToken cancellationToken)
+        => authService.StartDiscordLinkAsync(request.UserId, cancellationToken);
+}
+
+public sealed class HandleDiscordCallbackCommandHandler(IAuthService authService) : IRequestHandler<HandleDiscordCallbackCommand, DiscordCallbackResultDto>
+{
+    public Task<DiscordCallbackResultDto> Handle(HandleDiscordCallbackCommand request, CancellationToken cancellationToken)
+        => authService.HandleDiscordCallbackAsync(request.Code, request.State, request.IpAddress, request.UserAgent, cancellationToken);
+}
+
+public sealed class UnlinkDiscordCommandHandler(IAuthService authService) : IRequestHandler<UnlinkDiscordCommand>
+{
+    public Task Handle(UnlinkDiscordCommand request, CancellationToken cancellationToken)
+        => authService.UnlinkDiscordAsync(request.UserId, cancellationToken);
+}

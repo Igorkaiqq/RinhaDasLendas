@@ -142,16 +142,25 @@
       "description": "Access your account to organize players, drafts, and community matches.",
       "submit": "Log in",
       "submitting": "Logging in...",
+      "discord": "Log in with Discord",
       "forgotPassword": "Forgot password",
       "createAccount": "Create account",
+      "discordErrors": {
+        "notLinked": "No account is linked to this Discord. Sign in with username and password and link your account in settings.",
+        "emailRequired": "Discord must return a verified email to create your account.",
+        "emailAlreadyRegistered": "An account already exists with this Discord email. Sign in with username and password and link Discord in settings.",
+        "fallback": "Could not authenticate with Discord."
+      },
       "errors": { "fallback": "Could not authenticate" }
     },
+    "errors": { "fallback": "Could not authenticate" },
     "register": {
       "eyebrow": "Player account",
       "title": "Join the community",
       "description": "Every new account starts as a player and can evolve with organization permissions.",
       "submit": "Create account",
       "submitting": "Creating...",
+      "discord": "Create account with Discord",
       "haveAccount": "I already have an account",
       "errors": { "fallback": "Could not register" }
     },
@@ -173,6 +182,38 @@
   "forbidden": {
     "title": "Access denied",
     "description": "You do not have permission to access this organization area."
+  },
+  "settings": {
+    "eyebrow": "Account hub",
+    "title": "Settings",
+    "description": "Manage integrations and preferences that connect your account to community services.",
+    "integrations": {
+      "eyebrow": "Integrations",
+      "title": "Connected accounts",
+      "description": "Link external services without changing your traditional platform login.",
+      "discord": {
+        "mark": "DC",
+        "title": "Discord",
+        "description": "Use your Discord account as an optional login and prepare the account for future social integrations.",
+        "loading": "Loading Discord status...",
+        "linkedAs": "Linked as {username}",
+        "notLinkedDescription": "No Discord account linked.",
+        "link": "Link Discord",
+        "linking": "Redirecting...",
+        "unlink": "Unlink Discord",
+        "unlinking": "Unlinking...",
+        "messages": {
+          "success": "Discord operation completed.",
+          "error": "Could not complete the Discord operation.",
+          "unlinked": "Discord unlinked."
+        },
+        "errors": {
+          "load": "Could not load Discord status.",
+          "link": "Could not start Discord linking.",
+          "unlink": "Could not unlink Discord."
+        }
+      }
+    }
   },
   "players": {
     "kicker": "Competitive base",

@@ -1,7 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -20,10 +23,16 @@ public sealed class AuthService(
     RoleManager<ApplicationRole> roleManager,
     RinhaDasLendasDbContext dbContext,
     IOptions<AuthOptions> authOptions,
+    IOptions<DiscordOAuthOptions> discordOptions,
+    HttpClient httpClient,
     IUsuarioAuditoriaService auditoriaService,
     RoleHierarchyService roleHierarchyService,
     IMessageProvider messages) : IAuthService
 {
+    private const string DiscordProvider = "Discord";
+    private const string LoginFlow = "Login";
+    private const string LinkFlow = "Link";
+
     public async Task<AuthenticatedUserDto> RegisterAsync(RegisterRequestDto request, CancellationToken cancellationToken)
     {
         var existing = await userManager.FindByEmailAsync(request.Email);
@@ -217,13 +226,351 @@ public sealed class AuthService(
 
     public async Task<DiscordLinkStatusDto> GetDiscordStatusAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var link = await dbContext.VinculosDiscord
+        var account = await dbContext.ExternalAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(link => link.UsuarioId == userId && link.Provider == DiscordProvider && link.UnlinkedAt == null, cancellationToken);
+
+        if (account is not null)
+        {
+            return new DiscordLinkStatusDto(true, account.Username ?? account.DisplayName, account.LinkedAt);
+        }
+
+        var legacyLink = await dbContext.VinculosDiscord
             .AsNoTracking()
             .FirstOrDefaultAsync(vinculo => vinculo.UsuarioId == userId && vinculo.DesvinculadoEm == null, cancellationToken);
 
-        return link is null
+        return legacyLink is null
             ? new DiscordLinkStatusDto(false, null)
-            : new DiscordLinkStatusDto(true, link.DiscordUsername ?? link.DiscordGlobalName, link.VinculadoEm);
+            : new DiscordLinkStatusDto(true, legacyLink.DiscordUsername ?? legacyLink.DiscordGlobalName, legacyLink.VinculadoEm);
+    }
+
+    public async Task<ExternalAuthStartDto> StartDiscordLoginAsync(CancellationToken cancellationToken)
+    {
+        EnsureDiscordConfigured();
+        var state = await CreateExternalStateAsync(LoginFlow, null, cancellationToken);
+        return new ExternalAuthStartDto(BuildDiscordAuthorizationUrl(state));
+    }
+
+    public async Task<ExternalAuthStartDto> StartDiscordLinkAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        EnsureDiscordConfigured();
+        _ = await FindUserOrThrowAsync(userId);
+        var state = await CreateExternalStateAsync(LinkFlow, userId, cancellationToken);
+        return new ExternalAuthStartDto(BuildDiscordAuthorizationUrl(state));
+    }
+
+    public async Task<DiscordCallbackResultDto> HandleDiscordCallbackAsync(string? code, string? state, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
+    {
+        EnsureDiscordConfigured();
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state))
+        {
+            return RedirectError(MessageCodes.DiscordOAuthFailed, LoginFlow);
+        }
+
+        var storedState = await ConsumeExternalStateAsync(state, cancellationToken);
+        if (storedState is null)
+        {
+            return RedirectError(MessageCodes.DiscordOAuthStateInvalid, LoginFlow);
+        }
+
+        var token = await ExchangeDiscordCodeAsync(code, cancellationToken);
+        if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return RedirectError(MessageCodes.DiscordOAuthFailed, storedState.Flow);
+        }
+
+        var discordUser = await GetDiscordUserAsync(token.AccessToken, cancellationToken);
+        if (discordUser is null || string.IsNullOrWhiteSpace(discordUser.Id))
+        {
+            await RevokeDiscordTokenAsync(token.AccessToken, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return RedirectError(MessageCodes.DiscordOAuthFailed, storedState.Flow);
+        }
+
+        var result = storedState.Flow == LinkFlow
+            ? await HandleDiscordLinkCallbackAsync(storedState, discordUser, cancellationToken)
+            : await HandleDiscordLoginCallbackAsync(discordUser, ipAddress, userAgent, cancellationToken);
+
+        await RevokeDiscordTokenAsync(token.AccessToken, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return result;
+    }
+
+    public async Task UnlinkDiscordAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await FindUserOrThrowAsync(userId);
+        if (string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            throw new DomainException(MessageCodes.TraditionalLoginRequired);
+        }
+
+        var account = await dbContext.ExternalAccounts
+            .FirstOrDefaultAsync(link => link.UsuarioId == userId && link.Provider == DiscordProvider && link.UnlinkedAt == null, cancellationToken);
+
+        if (account is null)
+        {
+            throw new DomainException(MessageCodes.DiscordAccountNotLinked);
+        }
+
+        account.UnlinkedAt = DateTimeOffset.UtcNow;
+        await auditoriaService.RegistrarAsync("DiscordUnlinked", user.Id, user.Id, MessageCodes.DiscordUnlinked, null, null, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<DiscordCallbackResultDto> HandleDiscordLoginCallbackAsync(DiscordUserResponse discordUser, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
+    {
+        var account = await dbContext.ExternalAccounts
+            .FirstOrDefaultAsync(link => link.Provider == DiscordProvider && link.ProviderUserId == discordUser.Id && link.UnlinkedAt == null, cancellationToken);
+
+        if (account is null)
+        {
+            return await CreateDiscordUserAndLoginAsync(discordUser, ipAddress, userAgent, cancellationToken);
+        }
+
+        var user = await userManager.FindByIdAsync(account.UsuarioId.ToString());
+        if (user is null || !user.Ativo)
+        {
+            return RedirectError(MessageCodes.UserDeactivated, LoginFlow);
+        }
+
+        SyncExternalAccount(account, discordUser);
+        user.UltimoLoginEm = DateTimeOffset.UtcNow;
+        user.DataAtualizacao = user.UltimoLoginEm.Value;
+        var token = await CreateTokenAsync(user, null, ipAddress, userAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("DiscordLoginSucceeded", user.Id, user.Id, MessageCodes.LoginSuccess, ipAddress, userAgent, cancellationToken);
+
+        return new DiscordCallbackResultDto(discordOptions.Value.FrontendSuccessUrl, new AuthResponseDto(token.AccessToken, token.ExpiresIn, await BuildUserDtoAsync(user, cancellationToken)) { RefreshToken = token.RefreshToken });
+    }
+
+    private async Task<DiscordCallbackResultDto> CreateDiscordUserAndLoginAsync(DiscordUserResponse discordUser, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(discordUser.Email) || discordUser.Verified != true)
+        {
+            return RedirectError(MessageCodes.DiscordVerifiedEmailRequired, LoginFlow);
+        }
+
+        var email = discordUser.Email.Trim();
+        var existingUser = await userManager.FindByEmailAsync(email);
+        if (existingUser is not null)
+        {
+            return RedirectError(MessageCodes.DiscordEmailAlreadyRegistered, LoginFlow);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            Nome = (discordUser.GlobalName ?? discordUser.Username ?? email).Trim(),
+            UserName = email,
+            Email = email,
+            Ativo = true,
+            EmailConfirmed = true,
+            UltimoLoginEm = now,
+            DataCadastro = now,
+            DataAtualizacao = now,
+        };
+
+        EnsureIdentitySuccess(await userManager.CreateAsync(user));
+        await EnsureRoleAsync(AuthRoles.Jogador);
+        EnsureIdentitySuccess(await userManager.AddToRoleAsync(user, AuthRoles.Jogador));
+
+        var account = new ExternalAccount
+        {
+            UsuarioId = user.Id,
+            Provider = DiscordProvider,
+            ProviderUserId = discordUser.Id,
+            LinkedAt = now,
+        };
+        SyncExternalAccount(account, discordUser);
+        await dbContext.ExternalAccounts.AddAsync(account, cancellationToken);
+
+        var token = await CreateTokenAsync(user, null, ipAddress, userAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("DiscordUserCreated", user.Id, user.Id, MessageCodes.UserCreated, ipAddress, userAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("DiscordLinked", user.Id, user.Id, MessageCodes.DiscordLinked, ipAddress, userAgent, cancellationToken);
+
+        return new DiscordCallbackResultDto(discordOptions.Value.FrontendSuccessUrl, new AuthResponseDto(token.AccessToken, token.ExpiresIn, await BuildUserDtoAsync(user, cancellationToken)) { RefreshToken = token.RefreshToken });
+    }
+
+    private async Task<DiscordCallbackResultDto> HandleDiscordLinkCallbackAsync(ExternalAuthState state, DiscordUserResponse discordUser, CancellationToken cancellationToken)
+    {
+        if (state.UsuarioId is null)
+        {
+            return RedirectError(MessageCodes.DiscordOAuthStateInvalid, LinkFlow);
+        }
+
+        var user = await userManager.FindByIdAsync(state.UsuarioId.Value.ToString());
+        if (user is null || !user.Ativo)
+        {
+            return RedirectError(MessageCodes.UserDeactivated, LinkFlow);
+        }
+
+        var linkedDiscord = await dbContext.ExternalAccounts
+            .FirstOrDefaultAsync(link => link.Provider == DiscordProvider && link.ProviderUserId == discordUser.Id && link.UnlinkedAt == null, cancellationToken);
+        if (linkedDiscord is not null && linkedDiscord.UsuarioId != user.Id)
+        {
+            return RedirectError(MessageCodes.DiscordAccountAlreadyLinked, LinkFlow);
+        }
+
+        var userDiscord = await dbContext.ExternalAccounts
+            .FirstOrDefaultAsync(link => link.UsuarioId == user.Id && link.Provider == DiscordProvider && link.UnlinkedAt == null, cancellationToken);
+        if (userDiscord is not null && userDiscord.ProviderUserId != discordUser.Id)
+        {
+            return RedirectError(MessageCodes.UserAlreadyHasDiscordLinked, LinkFlow);
+        }
+
+        var account = linkedDiscord ?? userDiscord ?? new ExternalAccount
+        {
+            UsuarioId = user.Id,
+            Provider = DiscordProvider,
+            ProviderUserId = discordUser.Id,
+            LinkedAt = DateTimeOffset.UtcNow,
+        };
+
+        SyncExternalAccount(account, discordUser);
+        if (linkedDiscord is null && userDiscord is null)
+        {
+            await dbContext.ExternalAccounts.AddAsync(account, cancellationToken);
+        }
+
+        await auditoriaService.RegistrarAsync("DiscordLinked", user.Id, user.Id, MessageCodes.DiscordLinked, null, null, cancellationToken);
+        return new DiscordCallbackResultDto(discordOptions.Value.FrontendSuccessUrl);
+    }
+
+    private async Task<string> CreateExternalStateAsync(string flow, Guid? userId, CancellationToken cancellationToken)
+    {
+        var rawState = GenerateUrlToken(32);
+        var now = DateTimeOffset.UtcNow;
+        await dbContext.ExternalAuthStates.AddAsync(new ExternalAuthState
+        {
+            StateHash = Hash(rawState),
+            Flow = flow,
+            UsuarioId = userId,
+            CreatedAt = now,
+            ExpiresAt = now.AddMinutes(discordOptions.Value.StateExpirationMinutes),
+        }, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return rawState;
+    }
+
+    private async Task<ExternalAuthState?> ConsumeExternalStateAsync(string state, CancellationToken cancellationToken)
+    {
+        var stateHash = Hash(state);
+        var storedState = await dbContext.ExternalAuthStates.FirstOrDefaultAsync(item => item.StateHash == stateHash, cancellationToken);
+        if (storedState is null || !storedState.IsActive(DateTimeOffset.UtcNow))
+        {
+            return null;
+        }
+
+        storedState.ConsumedAt = DateTimeOffset.UtcNow;
+        return storedState;
+    }
+
+    private string BuildDiscordAuthorizationUrl(string state)
+    {
+        var options = discordOptions.Value;
+        var query = new Dictionary<string, string>
+        {
+            ["client_id"] = options.ClientId,
+            ["redirect_uri"] = options.RedirectUri,
+            ["response_type"] = "code",
+            ["scope"] = options.Scopes,
+            ["state"] = state,
+        };
+
+        return options.AuthorizationUrl + "?" + string.Join("&", query.Select(item => $"{Uri.EscapeDataString(item.Key)}={Uri.EscapeDataString(item.Value)}"));
+    }
+
+    private async Task<DiscordTokenResponse?> ExchangeDiscordCodeAsync(string code, CancellationToken cancellationToken)
+    {
+        var options = discordOptions.Value;
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = options.ClientId,
+            ["client_secret"] = options.ClientSecret,
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["redirect_uri"] = options.RedirectUri,
+        });
+
+        using var response = await httpClient.PostAsync(options.TokenUrl, content, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonSerializer.DeserializeAsync<DiscordTokenResponse>(stream, cancellationToken: cancellationToken);
+    }
+
+    private async Task<DiscordUserResponse?> GetDiscordUserAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, discordOptions.Value.UserInfoUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonSerializer.DeserializeAsync<DiscordUserResponse>(stream, cancellationToken: cancellationToken);
+    }
+
+    private async Task RevokeDiscordTokenAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        var options = discordOptions.Value;
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = options.ClientId,
+            ["client_secret"] = options.ClientSecret,
+            ["token"] = accessToken,
+            ["token_type_hint"] = "access_token",
+        });
+
+        try
+        {
+            _ = await httpClient.PostAsync(options.RevocationUrl, content, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            // Revocation failure must not block local login/link completion.
+        }
+    }
+
+    private void EnsureDiscordConfigured()
+    {
+        var options = discordOptions.Value;
+        if (string.IsNullOrWhiteSpace(options.ClientId) || string.IsNullOrWhiteSpace(options.ClientSecret) || string.IsNullOrWhiteSpace(options.RedirectUri))
+        {
+            throw new DomainException(MessageCodes.DiscordOAuthConfigurationMissing);
+        }
+    }
+
+    private DiscordCallbackResultDto RedirectError(string messageCode, string flow)
+    {
+        var errorUrl = flow == LoginFlow ? discordOptions.Value.FrontendLoginErrorUrl : discordOptions.Value.FrontendErrorUrl;
+        var separator = errorUrl.Contains('?') ? "&" : "?";
+        return new DiscordCallbackResultDto($"{errorUrl}{separator}code={Uri.EscapeDataString(messageCode)}");
+    }
+
+    private static void SyncExternalAccount(ExternalAccount account, DiscordUserResponse user)
+    {
+        account.Username = user.Username;
+        account.DisplayName = user.GlobalName;
+        account.Email = user.Email;
+        account.AvatarUrl = string.IsNullOrWhiteSpace(user.Avatar)
+            ? null
+            : $"https://cdn.discordapp.com/avatars/{user.Id}/{user.Avatar}.png";
+        account.LastSyncAt = DateTimeOffset.UtcNow;
+    }
+
+    private static string GenerateUrlToken(int bytes)
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(bytes))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
     }
 
     private async Task<TokenResult> CreateTokenAsync(ApplicationUser user, Guid? familyId, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
@@ -363,4 +710,19 @@ public sealed class AuthService(
             throw new DomainException(MessageCodes.RequestProcessingFailed);
         }
     }
+
+    private sealed record DiscordTokenResponse(
+        [property: JsonPropertyName("access_token")] string AccessToken,
+        [property: JsonPropertyName("token_type")] string TokenType,
+        [property: JsonPropertyName("expires_in")] int ExpiresIn,
+        [property: JsonPropertyName("refresh_token")] string? RefreshToken,
+        [property: JsonPropertyName("scope")] string? Scope);
+
+    private sealed record DiscordUserResponse(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("username")] string? Username,
+        [property: JsonPropertyName("global_name")] string? GlobalName,
+        [property: JsonPropertyName("email")] string? Email,
+        [property: JsonPropertyName("avatar")] string? Avatar,
+        [property: JsonPropertyName("verified")] bool? Verified);
 }
