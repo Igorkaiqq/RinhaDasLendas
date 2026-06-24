@@ -231,7 +231,10 @@ public sealed class UsuarioService(
     {
         var roles = await userManager.GetRolesAsync(user);
         var jogadorId = await GetJogadorIdAsync(user.Id, cancellationToken);
-        var discord = await dbContext.VinculosDiscord.AsNoTracking().FirstOrDefaultAsync(link => link.UsuarioId == user.Id && link.DesvinculadoEm == null, cancellationToken);
+        var discord = await dbContext.ExternalAccounts.AsNoTracking().FirstOrDefaultAsync(link => link.UsuarioId == user.Id && link.Provider == "Discord" && link.UnlinkedAt == null, cancellationToken);
+        var legacyDiscord = discord is null
+            ? await dbContext.VinculosDiscord.AsNoTracking().FirstOrDefaultAsync(link => link.UsuarioId == user.Id && link.DesvinculadoEm == null, cancellationToken)
+            : null;
         return new UsuarioResponseDto(
             user.Id,
             user.Nome,
@@ -239,7 +242,9 @@ public sealed class UsuarioService(
             roles.ToArray(),
             user.Ativo,
             jogadorId,
-            discord is null ? new DiscordLinkStatusDto(false, null) : new DiscordLinkStatusDto(true, discord.DiscordUsername ?? discord.DiscordGlobalName, discord.VinculadoEm),
+            discord is not null
+                ? new DiscordLinkStatusDto(true, discord.Username ?? discord.DisplayName, discord.LinkedAt)
+                : legacyDiscord is null ? new DiscordLinkStatusDto(false, null) : new DiscordLinkStatusDto(true, legacyDiscord.DiscordUsername ?? legacyDiscord.DiscordGlobalName, legacyDiscord.VinculadoEm),
             user.DataCadastro,
             user.DataAtualizacao,
             user.UltimoLoginEm,
@@ -263,7 +268,7 @@ public sealed class UsuarioService(
 
     private Task<bool> HasDiscordAsync(Guid userId, CancellationToken cancellationToken)
     {
-        return dbContext.VinculosDiscord.AsNoTracking().AnyAsync(link => link.UsuarioId == userId && link.DesvinculadoEm == null, cancellationToken);
+        return dbContext.ExternalAccounts.AsNoTracking().AnyAsync(link => link.UsuarioId == userId && link.Provider == "Discord" && link.UnlinkedAt == null, cancellationToken);
     }
 
     private async Task EnsureAtLeastOneSuperAdminAsync(ApplicationUser user, IEnumerable<string> currentRoles, IEnumerable<string> requestedRoles, CancellationToken cancellationToken, bool deactivating = false)

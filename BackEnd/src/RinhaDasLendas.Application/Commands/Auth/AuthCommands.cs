@@ -18,3 +18,11 @@ public sealed record ResetPasswordCommand(ResetPasswordRequestDto Request) : IRe
 public sealed record ChangePasswordCommand(Guid UserId, ChangePasswordRequestDto Request) : IRequest;
 
 public sealed record UpdateOwnProfileCommand(Guid UserId, UpdateOwnProfileRequestDto Request) : IRequest<AuthenticatedUserDto?>;
+
+public sealed record StartDiscordLoginCommand : IRequest<ExternalAuthStartDto>;
+
+public sealed record StartDiscordLinkCommand(Guid UserId) : IRequest<ExternalAuthStartDto>;
+
+public sealed record HandleDiscordCallbackCommand(string? Code, string? State, string? IpAddress, string? UserAgent) : IRequest<DiscordCallbackResultDto>;
+
+public sealed record UnlinkDiscordCommand(Guid UserId) : IRequest;

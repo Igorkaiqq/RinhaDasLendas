@@ -61,7 +61,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     {
         var refreshToken = Request.Cookies[options.Value.Cookie.RefreshTokenName];
         await sender.Send(new LogoutCommand(refreshToken, CurrentUserIdOrNull(), IpAddress(), UserAgent()), cancellationToken);
-        Response.Cookies.Delete(options.Value.Cookie.RefreshTokenName);
+        Response.Cookies.Delete(options.Value.Cookie.RefreshTokenName, new Microsoft.AspNetCore.Http.CookieOptions { Path = "/api/v1/auth" });
         return NoContent();
     }
 
@@ -159,9 +159,41 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
         return Ok(await sender.Send(new GetDiscordLinkStatusQuery(CurrentUserId()), cancellationToken));
     }
 
+    [HttpGet("discord/login")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    public async Task<IActionResult> StartDiscordLogin(CancellationToken cancellationToken)
+    {
+        var response = await sender.Send(new StartDiscordLoginCommand(), cancellationToken);
+        return Redirect(response.AuthorizationUrl);
+    }
+
+    [HttpGet("discord/callback")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    public async Task<IActionResult> DiscordCallback([FromQuery] string? code, [FromQuery] string? state, CancellationToken cancellationToken)
+    {
+        var response = await sender.Send(new HandleDiscordCallbackCommand(code, state, IpAddress(), UserAgent()), cancellationToken);
+        SetRefreshCookie(response.AuthResponse?.RefreshToken);
+        return Redirect(response.RedirectUrl);
+    }
+
     [HttpPost("me/discord/link")]
     [Authorize]
-    public IActionResult StartDiscordLink() => StatusCode(StatusCodes.Status501NotImplemented, new ApiErrorResponse(messages.GetMessage(MessageCodes.DiscordOAuthNotImplemented), []));
+    [ProducesResponseType(typeof(ExternalAuthStartDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartDiscordLink(CancellationToken cancellationToken)
+    {
+        return Ok(await sender.Send(new StartDiscordLinkCommand(CurrentUserId()), cancellationToken));
+    }
+
+    [HttpDelete("me/discord")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnlinkDiscord(CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkDiscordCommand(CurrentUserId()), cancellationToken);
+        return NoContent();
+    }
 
     private void SetRefreshCookie(string? refreshToken)
     {
@@ -173,6 +205,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
         Response.Cookies.Append(options.Value.Cookie.RefreshTokenName, refreshToken, new Microsoft.AspNetCore.Http.CookieOptions
         {
             HttpOnly = true,
+            Path = "/api/v1/auth",
             Secure = Request.IsHttps,
             SameSite = SameSiteMode.Lax,
             Expires = DateTimeOffset.UtcNow.AddDays(options.Value.Jwt.RefreshTokenDays),

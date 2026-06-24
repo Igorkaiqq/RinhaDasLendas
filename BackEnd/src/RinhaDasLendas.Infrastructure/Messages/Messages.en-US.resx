@@ -29,6 +29,8 @@
   <data name="MSIS014" xml:space="preserve"><value>Draft created successfully</value></data>
   <data name="MSIS015" xml:space="preserve"><value>Pick registered successfully</value></data>
   <data name="MSIS016" xml:space="preserve"><value>Draft canceled successfully</value></data>
+  <data name="MSIS023" xml:space="preserve"><value>Discord linked successfully</value></data>
+  <data name="MSIS024" xml:space="preserve"><value>Discord unlinked successfully</value></data>
   <data name="ME001" xml:space="preserve"><value>An unexpected error occurred</value></data>
   <data name="ME002" xml:space="preserve"><value>Failed to connect to server</value></data>
   <data name="ME003" xml:space="preserve"><value>Player not found</value></data>
@@ -145,4 +147,13 @@
   <data name="MV060" xml:space="preserve"><value>Provide a valid reserve for substitution</value></data>
   <data name="MV061" xml:space="preserve"><value>The selected player is not in the selected team</value></data>
   <data name="MV062" xml:space="preserve"><value>The substitution reason must be at most 500 characters</value></data>
+  <data name="MV063" xml:space="preserve"><value>No account is linked to this Discord. Sign in with username and password and link your account in settings.</value></data>
+  <data name="MV064" xml:space="preserve"><value>The Discord authentication session expired or is invalid</value></data>
+  <data name="MV065" xml:space="preserve"><value>Could not authenticate with Discord</value></data>
+  <data name="MV066" xml:space="preserve"><value>Discord OAuth is not configured</value></data>
+  <data name="MV067" xml:space="preserve"><value>This Discord account is already linked to another user</value></data>
+  <data name="MV068" xml:space="preserve"><value>This user already has a linked Discord account</value></data>
+  <data name="MV069" xml:space="preserve"><value>Discord cannot be unlinked without keeping traditional login active</value></data>
+  <data name="MV070" xml:space="preserve"><value>Discord must return a verified email to create the account</value></data>
+  <data name="MV071" xml:space="preserve"><value>An account already exists with this Discord email. Sign in with username and password and link Discord in settings.</value></data>
 </root>

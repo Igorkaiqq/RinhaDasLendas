@@ -24,6 +24,17 @@ public static class DependencyInjection
 
         services.AddDbContext<RinhaDasLendasDbContext>(options => options.UseNpgsql(connectionString));
         services.Configure<AuthOptions>(configuration.GetSection("Authentication"));
+        services.Configure<DiscordOAuthOptions>(options =>
+        {
+            options.ClientId = configuration["DISCORD_CLIENT_ID"] ?? configuration["Discord:ClientId"] ?? string.Empty;
+            options.ClientSecret = configuration["DISCORD_CLIENT_SECRET"] ?? configuration["Discord:ClientSecret"] ?? string.Empty;
+            options.RedirectUri = configuration["DISCORD_REDIRECT_URI"] ?? configuration["Discord:RedirectUri"] ?? string.Empty;
+            options.Scopes = configuration["DISCORD_SCOPES"] ?? configuration["Discord:Scopes"] ?? options.Scopes;
+            options.FrontendSuccessUrl = configuration["FRONTEND_AUTH_SUCCESS_URL"] ?? configuration["Discord:FrontendSuccessUrl"] ?? options.FrontendSuccessUrl;
+            options.FrontendErrorUrl = configuration["FRONTEND_AUTH_ERROR_URL"] ?? configuration["Discord:FrontendErrorUrl"] ?? options.FrontendErrorUrl;
+            options.FrontendLoginErrorUrl = configuration["FRONTEND_AUTH_LOGIN_ERROR_URL"] ?? configuration["Discord:FrontendLoginErrorUrl"] ?? options.FrontendLoginErrorUrl;
+        });
+        services.AddSingleton<HttpClient>();
 
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {

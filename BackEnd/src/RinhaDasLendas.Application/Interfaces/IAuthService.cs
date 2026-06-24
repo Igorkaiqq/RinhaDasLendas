@@ -15,4 +15,8 @@ public interface IAuthService
     Task<AuthenticatedUserDto?> UpdateOwnProfileAsync(Guid userId, UpdateOwnProfileRequestDto request, CancellationToken cancellationToken);
     Task<UserPermissionsDto> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken);
     Task<DiscordLinkStatusDto> GetDiscordStatusAsync(Guid userId, CancellationToken cancellationToken);
+    Task<ExternalAuthStartDto> StartDiscordLoginAsync(CancellationToken cancellationToken);
+    Task<ExternalAuthStartDto> StartDiscordLinkAsync(Guid userId, CancellationToken cancellationToken);
+    Task<DiscordCallbackResultDto> HandleDiscordCallbackAsync(string? code, string? state, string? ipAddress, string? userAgent, CancellationToken cancellationToken);
+    Task UnlinkDiscordAsync(Guid userId, CancellationToken cancellationToken);
 }

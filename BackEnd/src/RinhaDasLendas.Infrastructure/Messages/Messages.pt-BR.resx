@@ -29,6 +29,8 @@
   <data name="MSIS014" xml:space="preserve"><value>Draft criado com sucesso</value></data>
   <data name="MSIS015" xml:space="preserve"><value>Pick registrado com sucesso</value></data>
   <data name="MSIS016" xml:space="preserve"><value>Draft cancelado com sucesso</value></data>
+  <data name="MSIS023" xml:space="preserve"><value>Discord vinculado com sucesso</value></data>
+  <data name="MSIS024" xml:space="preserve"><value>Discord desvinculado com sucesso</value></data>
   <data name="ME001" xml:space="preserve"><value>Ocorreu um erro inesperado</value></data>
   <data name="ME002" xml:space="preserve"><value>Falha ao conectar ao servidor</value></data>
   <data name="ME003" xml:space="preserve"><value>Jogador não encontrado</value></data>
@@ -145,4 +147,13 @@
   <data name="MV060" xml:space="preserve"><value>Informe um reserva válido para substituição</value></data>
   <data name="MV061" xml:space="preserve"><value>O jogador informado não está no time selecionado</value></data>
   <data name="MV062" xml:space="preserve"><value>O motivo da substituição deve ter no máximo 500 caracteres</value></data>
+  <data name="MV063" xml:space="preserve"><value>Nenhuma conta vinculada a este Discord. Entre utilizando usuário e senha e vincule sua conta nas configurações.</value></data>
+  <data name="MV064" xml:space="preserve"><value>A sessão de autenticação do Discord expirou ou é inválida</value></data>
+  <data name="MV065" xml:space="preserve"><value>Não foi possível autenticar com Discord</value></data>
+  <data name="MV066" xml:space="preserve"><value>OAuth do Discord não configurado</value></data>
+  <data name="MV067" xml:space="preserve"><value>Esta conta Discord já está vinculada a outro usuário</value></data>
+  <data name="MV068" xml:space="preserve"><value>Este usuário já possui uma conta Discord vinculada</value></data>
+  <data name="MV069" xml:space="preserve"><value>Não é possível desvincular o Discord sem manter login tradicional ativo</value></data>
+  <data name="MV070" xml:space="preserve"><value>O Discord precisa retornar um e-mail verificado para criar a conta</value></data>
+  <data name="MV071" xml:space="preserve"><value>Já existe uma conta com o e-mail deste Discord. Entre com usuário e senha e vincule o Discord nas configurações.</value></data>
 </root>

@@ -52,6 +52,19 @@
   <data name="ME021" xml:space="preserve"><value>Time não encontrado</value></data>
   <data name="ME022" xml:space="preserve"><value>Não foi possível salvar o time</value></data>
   <data name="ME023" xml:space="preserve"><value>Não foi possível salvar o draft</value></data>
+  <data name="ME024" xml:space="preserve"><value>Credenciais inválidas</value></data>
+  <data name="ME025" xml:space="preserve"><value>Sessão expirada</value></data>
+  <data name="ME026" xml:space="preserve"><value>Refresh token inválido</value></data>
+  <data name="ME027" xml:space="preserve"><value>Usuário desativado</value></data>
+  <data name="ME028" xml:space="preserve"><value>Acesso negado</value></data>
+  <data name="ME029" xml:space="preserve"><value>Falha na autenticação</value></data>
+  <data name="ME030" xml:space="preserve"><value>Não foi possível atualizar o usuário</value></data>
+  <data name="ME031" xml:space="preserve"><value>Erro de validação</value></data>
+  <data name="ME032" xml:space="preserve"><value>Usuário não encontrado</value></data>
+  <data name="ME033" xml:space="preserve"><value>Perfil de jogador não encontrado</value></data>
+  <data name="ME034" xml:space="preserve"><value>OAuth do Discord ainda não implementado</value></data>
+  <data name="ME035" xml:space="preserve"><value>Montagem de draft não encontrada</value></data>
+  <data name="ME036" xml:space="preserve"><value>Token de redefinição inválido</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -82,6 +95,29 @@
   <data name="MV028" xml:space="preserve"><value>Jogador já foi escolhido neste draft</value></data>
   <data name="MV029" xml:space="preserve"><value>Draft não está aberto para escolhas</value></data>
   <data name="MV030" xml:space="preserve"><value>Jogador inválido para este draft</value></data>
+  <data name="MV031" xml:space="preserve"><value>Senha deve conter ao menos um número</value></data>
+  <data name="MV032" xml:space="preserve"><value>Confirmação de senha não confere</value></data>
+  <data name="MV033" xml:space="preserve"><value>E-mail já cadastrado</value></data>
+  <data name="MV034" xml:space="preserve"><value>Role inválida</value></data>
+  <data name="MV035" xml:space="preserve"><value>Operação negada pela hierarquia de roles</value></data>
+  <data name="MV036" xml:space="preserve"><value>Tamanho máximo excedido</value></data>
+  <data name="MV037" xml:space="preserve"><value>Informe os jogadores do time</value></data>
+  <data name="MV038" xml:space="preserve"><value>Informe os jogadores do draft</value></data>
+  <data name="MV039" xml:space="preserve"><value>Informe os jogadores da montagem</value></data>
+  <data name="MV040" xml:space="preserve"><value>Informe apenas rotas válidas</value></data>
+  <data name="MV041" xml:space="preserve"><value>Informe as preferências de rota</value></data>
+  <data name="MV042" xml:space="preserve"><value>Cada rota deve aparecer uma única vez</value></data>
+  <data name="MV043" xml:space="preserve"><value>Não informe divisão para este elo</value></data>
+  <data name="MV044" xml:space="preserve"><value>Tamanho do time deve estar entre 1 e 5</value></data>
+  <data name="MV045" xml:space="preserve"><value>Informe dois capitães distintos para o draft</value></data>
+  <data name="MV046" xml:space="preserve"><value>Informe o primeiro time ou habilite o sorteio</value></data>
+  <data name="MV047" xml:space="preserve"><value>Jogadores insuficientes para formar um time completo</value></data>
+  <data name="MV048" xml:space="preserve"><value>Informe um capitão para cada time gerado ou habilite o sorteio</value></data>
+  <data name="MV049" xml:space="preserve"><value>Capitães devem ser distintos</value></data>
+  <data name="MV050" xml:space="preserve"><value>Capitães devem fazer parte dos jogadores selecionados</value></data>
+  <data name="MV051" xml:space="preserve"><value>Motivo do cancelamento deve ter no máximo 500 caracteres</value></data>
+  <data name="MV052" xml:space="preserve"><value>Usuário não pode alterar as próprias roles</value></data>
+  <data name="MV053" xml:space="preserve"><value>O sistema deve manter ao menos um SuperAdmin ativo</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>
   <data name="MC002" xml:space="preserve"><value>Deseja inativar este jogador?</value></data>
   <data name="MC003" xml:space="preserve"><value>Deseja remover o jogador da fila?</value></data>
@@ -100,13 +136,24 @@
   <data name="MA007" xml:space="preserve"><value>Estatísticas podem estar desatualizadas</value></data>
   <data name="MA008" xml:space="preserve"><value>Ação disponível apenas para administradores</value></data>
   <data name="MA009" xml:space="preserve"><value>Revise os dados antes de continuar</value></data>
-  <data name="MV054" xml:space="preserve"><value>Manual layout is locked during realtime draft</value></data>
-  <data name="MV055" xml:space="preserve"><value>The draft setup is already in realtime draft mode</value></data>
-  <data name="MV056" xml:space="preserve"><value>Realtime draft has not started yet</value></data>
-  <data name="MV057" xml:space="preserve"><value>Only the current turn captain can pick</value></data>
-  <data name="MV058" xml:space="preserve"><value>Reserve players cannot be picked in the draft</value></data>
-  <data name="MV059" xml:space="preserve"><value>The turn time has expired</value></data>
-  <data name="MV060" xml:space="preserve"><value>Provide a valid reserve for substitution</value></data>
-  <data name="MV061" xml:space="preserve"><value>The selected player is not in the selected team</value></data>
-  <data name="MV062" xml:space="preserve"><value>The substitution reason must be at most 500 characters</value></data>
+  <data name="MV054" xml:space="preserve"><value>O layout manual fica bloqueado durante o draft em tempo real</value></data>
+  <data name="MV055" xml:space="preserve"><value>A montagem já está em modo de draft em tempo real</value></data>
+  <data name="MV056" xml:space="preserve"><value>O draft em tempo real ainda não foi iniciado</value></data>
+  <data name="MV057" xml:space="preserve"><value>A escolha só pode ser feita pelo capitão da vez</value></data>
+  <data name="MV058" xml:space="preserve"><value>Reservas não podem ser escolhidos no draft</value></data>
+  <data name="MV059" xml:space="preserve"><value>O tempo do turno expirou</value></data>
+  <data name="MV060" xml:space="preserve"><value>Informe um reserva válido para substituição</value></data>
+  <data name="MV061" xml:space="preserve"><value>O jogador informado não está no time selecionado</value></data>
+  <data name="MV062" xml:space="preserve"><value>O motivo da substituição deve ter no máximo 500 caracteres</value></data>
+  <data name="MSIS023" xml:space="preserve"><value>Discord vinculado com sucesso</value></data>
+  <data name="MSIS024" xml:space="preserve"><value>Discord desvinculado com sucesso</value></data>
+  <data name="MV063" xml:space="preserve"><value>Nenhuma conta vinculada a este Discord. Entre utilizando usuário e senha e vincule sua conta nas configurações.</value></data>
+  <data name="MV064" xml:space="preserve"><value>A sessão de autenticação do Discord expirou ou é inválida</value></data>
+  <data name="MV065" xml:space="preserve"><value>Não foi possível autenticar com Discord</value></data>
+  <data name="MV066" xml:space="preserve"><value>OAuth do Discord não configurado</value></data>
+  <data name="MV067" xml:space="preserve"><value>Esta conta Discord já está vinculada a outro usuário</value></data>
+  <data name="MV068" xml:space="preserve"><value>Este usuário já possui uma conta Discord vinculada</value></data>
+  <data name="MV069" xml:space="preserve"><value>Não é possível desvincular o Discord sem manter login tradicional ativo</value></data>
+  <data name="MV070" xml:space="preserve"><value>O Discord precisa retornar um e-mail verificado para criar a conta</value></data>
+  <data name="MV071" xml:space="preserve"><value>Já existe uma conta com o e-mail deste Discord. Entre com usuário e senha e vincule o Discord nas configurações.</value></data>
 </root>

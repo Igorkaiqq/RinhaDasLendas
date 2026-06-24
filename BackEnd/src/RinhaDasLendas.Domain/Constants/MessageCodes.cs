@@ -134,6 +134,17 @@ public static class MessageCodes
     public const string DraftMontagemReserveRequired = "MV060";
     public const string DraftMontagemPlayerNotInTeam = "MV061";
     public const string DraftMontagemSubstitutionReasonMaxLength = "MV062";
+    public const string DiscordAccountNotLinked = "MV063";
+    public const string DiscordOAuthStateInvalid = "MV064";
+    public const string DiscordOAuthFailed = "MV065";
+    public const string DiscordOAuthConfigurationMissing = "MV066";
+    public const string DiscordAccountAlreadyLinked = "MV067";
+    public const string UserAlreadyHasDiscordLinked = "MV068";
+    public const string TraditionalLoginRequired = "MV069";
+    public const string DiscordVerifiedEmailRequired = "MV070";
+    public const string DiscordEmailAlreadyRegistered = "MV071";
+    public const string DiscordLinked = "MSIS023";
+    public const string DiscordUnlinked = "MSIS024";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";
