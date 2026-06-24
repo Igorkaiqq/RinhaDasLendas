@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -24,7 +25,7 @@ public sealed class TimeTests
     {
         var act = () => new Time(" ", "OSB", null, [Guid.NewGuid()], null);
 
-        act.Should().Throw<DomainException>().WithMessage("Nome do time e obrigatorio.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.TeamNameRequired);
     }
 
     [Fact]
@@ -34,7 +35,7 @@ public sealed class TimeTests
 
         var act = () => new Time("Os Sem Baron", "OSB", null, jogadoresIds, null);
 
-        act.Should().Throw<DomainException>().WithMessage("Um time pode ter no maximo cinco jogadores.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.TeamPlayerLimitReached);
     }
 
     [Fact]
@@ -44,7 +45,7 @@ public sealed class TimeTests
 
         var act = () => new Time("Os Sem Baron", "OSB", null, [jogadorId, jogadorId], null);
 
-        act.Should().Throw<DomainException>().WithMessage("O mesmo jogador nao pode ser adicionado mais de uma vez.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PlayerAlreadyInTeam);
     }
 
     [Fact]
@@ -52,6 +53,6 @@ public sealed class TimeTests
     {
         var act = () => new Time("Os Sem Baron", "OSB", null, [Guid.NewGuid()], Guid.NewGuid());
 
-        act.Should().Throw<DomainException>().WithMessage("Capitao deve fazer parte do time.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.TeamCaptainMustBeMember);
     }
 }

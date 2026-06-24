@@ -20,7 +20,7 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
-var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationException("Authentication:Jwt:Key nao configurado.");
+var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationException("Authentication:Jwt:Key não configurado.");
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddAuthentication(TestingAuthHandler.SchemeName)

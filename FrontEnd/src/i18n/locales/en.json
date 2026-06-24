@@ -1,0 +1,594 @@
+{
+  "app": {
+    "name": "RinhaDasLendas",
+    "league": "Elite League"
+  },
+  "navigation": {
+    "main": "Main navigation",
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "teams": "Teams",
+    "draft": "Draft",
+    "matches": "Matches",
+    "stats": "Statistics",
+    "users": "Users",
+    "settings": "Settings",
+    "support": "Support",
+    "logout": "Log out",
+    "joinTournament": "Join Tournament",
+    "arena": "Arena",
+    "soon": "Soon",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu"
+  },
+  "topbar": {
+    "globalSearch": "Global search",
+    "searchPlaceholder": "Search players, matches...",
+    "discord": "Discord",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "common": {
+    "all": "All",
+    "status": "Status",
+    "clearFilters": "Clear filters",
+    "closeNotification": "Close notification",
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirmation": "Confirmation",
+    "save": "Save",
+    "saving": "Saving...",
+    "edit": "Edit",
+    "back": "Back",
+    "optional": "Optional",
+    "select": "Select",
+    "notInformed": "Not informed",
+    "eloNotInformed": "Elo not informed",
+    "elo": "Elo",
+    "discord": "Discord",
+    "riotId": "Riot ID",
+    "opgg": "OP.GG",
+    "deepLol": "DeepLoL"
+  },
+  "home": {
+    "notifications": { "underConstruction": "Screen under development." },
+    "platformStatusLabel": "Platform status",
+    "systemSummaryLabel": "System summary",
+    "hero": {
+      "eyebrow": "Internal competitive platform",
+      "title": "Organize the next rinha with tournament pace.",
+      "description": "Centralize players, teams, drafts, and community history in an experience prepared for Discord, Riot, and match nights."
+    },
+    "signal": {
+      "label": "Live ops",
+      "status": "Drafts and players ready"
+    },
+    "cards": {
+      "discord": { "title": "Group Discord", "description": "Centralize players, calls, and rinha organization with consistent group data." },
+      "players": { "title": "Players", "description": "Register participants, elos, and route preferences." },
+      "draft": { "title": "Draft", "description": "Structure prepared for captains, pick order, and balanced teams." },
+      "matches": { "title": "Matches", "description": "Visual base ready to register games, scores, and history." }
+    }
+  },
+  "placeholder": {
+    "defaultTitle": "Screen under construction",
+    "badge": "Coming soon",
+    "description": "This area already uses the main layout and is ready for the next rinha step."
+  },
+  "profile": {
+    "trigger": "Profile",
+    "displayName": "Profile",
+    "subtitle": "Organizer",
+    "myProfile": "My profile",
+    "preferences": "Preferences",
+    "language": "Language",
+    "ptBR": "Portuguese",
+    "enUS": "English",
+    "messages": { "updated": "Profile updated." },
+    "account": {
+      "eyebrow": "Competitor profile",
+      "title": "My account",
+      "description": "Manage your access data, password, and player link to enter community drafts and lists.",
+      "sectionEyebrow": "Account",
+      "accessData": "Access data",
+      "accessDescription": "This data identifies your account on the platform.",
+      "roles": "Roles",
+      "save": "Save profile"
+    },
+    "completion": {
+      "eyebrow": "Incomplete profile",
+      "title": "Complete your player profile",
+      "description": "You can already browse the platform, but you only enter the player list and drafts after filling in Riot ID, elo, links, and routes.",
+      "notNow": "Not now",
+      "complete": "Complete profile"
+    },
+    "player": {
+      "loading": "Loading player profile...",
+      "messages": { "saved": "Player profile saved." },
+      "errors": { "saveFallback": "Could not save player profile." }
+    }
+  },
+  "routes": {
+    "home": { "title": "Dashboard" },
+    "players": { "title": "Players" },
+    "teams": { "title": "Teams" },
+    "draft": { "title": "Draft" },
+    "matches": { "title": "Matches" },
+    "stats": { "title": "Statistics" },
+    "settings": { "title": "Settings" },
+    "login": { "title": "Log in" },
+    "register": { "title": "Register" },
+    "forgotPassword": { "title": "Forgot password" },
+    "resetPassword": { "title": "Reset password" },
+    "profile": { "title": "Profile" },
+    "usersAdmin": { "title": "Users" },
+    "forbidden": { "title": "Access denied" }
+  },
+  "auth": {
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "newPassword": "New password",
+      "token": "Token"
+    },
+    "login": {
+      "eyebrow": "Internal arena",
+      "title": "Enter the Rinha",
+      "description": "Access your account to organize players, drafts, and community matches.",
+      "submit": "Log in",
+      "submitting": "Logging in...",
+      "forgotPassword": "Forgot password",
+      "createAccount": "Create account",
+      "errors": { "fallback": "Could not authenticate" }
+    },
+    "register": {
+      "eyebrow": "Player account",
+      "title": "Join the community",
+      "description": "Every new account starts as a player and can evolve with organization permissions.",
+      "submit": "Create account",
+      "submitting": "Creating...",
+      "haveAccount": "I already have an account",
+      "errors": { "fallback": "Could not register" }
+    },
+    "forgotPassword": {
+      "eyebrow": "Recovery",
+      "title": "Recover password",
+      "description": "Enter the account email to receive instructions for returning to the arena.",
+      "submit": "Send instructions",
+      "success": "If the email is registered, we will send recovery instructions."
+    },
+    "resetPassword": {
+      "eyebrow": "New credential",
+      "title": "Reset password",
+      "description": "Use the received token to define a new secure password.",
+      "submit": "Reset",
+      "errors": { "fallback": "Could not reset password" }
+    }
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "description": "You do not have permission to access this organization area."
+  },
+  "players": {
+    "kicker": "Competitive base",
+    "kicker": "Players",
+    "title": "Player Database",
+    "subtitle": "Explore, filter, and recruit the best talent for your team.",
+    "create": "Create Player",
+    "closeNotification": "Close notification",
+    "filtersLabel": "Player filters",
+    "searchName": "Search Name",
+    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "rank": "Rank / Elo",
+    "allRanks": "All Ranks",
+    "primaryRoute": "Primary Role",
+    "anyRoute": "Any Role",
+    "onlyActive": "LFA (Looking for Team)",
+    "clearFilters": "Clear filters",
+    "listLabel": "Player list",
+    "paginationLabel": "Player pagination",
+    "paginationSummary": "Showing {start}-{end} of {total} players",
+    "metrics": { "visible": "{visible} / {total} players" },
+    "updated": "Player {name} updated.",
+    "created": "Player {name} created.",
+    "removed": "Player {name} removed.",
+    "saveError": "Could not save player.",
+    "actionError": "Could not complete the action."
+  },
+  "teams": {
+    "kicker": "Compositions",
+    "title": "Teams",
+    "subtitle": "Create reusable rosters for matches, drafts, and future lookups.",
+    "create": "Create Team",
+    "createWithIcon": "+ Create Team",
+    "updated": "Team {name} updated.",
+    "created": "Team {name} created.",
+    "inactivated": "Team {name} deactivated.",
+    "reactivated": "Team {name} reactivated.",
+    "filtersLabel": "Team filters",
+    "searchLabel": "Search team",
+    "searchPlaceholder": "Name, tag, or player",
+    "paginationLabel": "Team pagination",
+    "paginationSummary": "Showing {start}-{end} of {total} teams",
+    "listLabel": "Team list",
+    "metrics": { "visible": "{visible} / {total} teams" },
+    "errors": {
+      "save": "Could not save team.",
+      "action": "Could not complete the action."
+    },
+    "emptyTitle": "No teams found",
+    "emptyDescription": "Create the first team or adjust filters to view the roster.",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "states": {
+      "loading": "Loading teams",
+      "errorTitle": "Could not load teams"
+    },
+    "actions": {
+      "inactivate": "Deactivate",
+      "reactivate": "Reactivate"
+    },
+    "card": {
+      "noNotes": "No notes",
+      "captain": "Captain",
+      "notDefined": "Not defined",
+      "players": "Players",
+      "members": "Team members"
+    },
+    "delete": {
+      "title": "Deactivate {name}?",
+      "description": "The team will remain available for lookup, but will no longer appear as an active option for new flows."
+    },
+    "form": {
+      "createTitle": "Create team",
+      "editTitle": "Edit team",
+      "close": "Close form",
+      "name": "Name",
+      "namePlaceholder": "The No Barons",
+      "tag": "Tag",
+      "tagPlaceholder": "TNB",
+      "notes": "Notes",
+      "notesPlaceholder": "Internal team notes",
+      "captain": "Captain",
+      "noCaptain": "No captain",
+      "activePlayers": "Active players",
+      "errors": {
+        "nameRequired": "Team name is required.",
+        "tagRequired": "Team tag is required.",
+        "playerRequired": "Select at least one player.",
+        "maxPlayers": "Select at most five players.",
+        "captainMustBeMember": "Captain must be part of the team."
+      }
+    }
+  },
+  "drafts": {
+    "kicker": "Strategy room",
+    "title": "Player Draft",
+    "subtitle": "Build teams with captains, pick order, and transparent history.",
+    "visualSubtitle": "Build teams visually with captains, reserves, routes, and persisted layout.",
+    "create": "Create Draft",
+    "createWithIcon": "+ Create Draft",
+    "created": "Draft {name} created.",
+    "canceled": "Draft {name} canceled.",
+    "picked": "{name} picked.",
+    "filtersLabel": "Draft filters",
+    "searchLabel": "Search draft",
+    "searchPlaceholder": "Draft name",
+    "listLabel": "Draft list",
+    "emptyTitle": "No drafts found",
+    "emptyDescription": "Create the first draft or adjust filters.",
+    "noSelectionTitle": "No draft selected",
+    "noSelectionDescription": "Create or select a draft to build the teams.",
+    "cardSummary": "{teams} teams · {reserves} reserves",
+    "cancelReason": "Draft canceled",
+    "metrics": { "visible": "{total} drafts" },
+    "messages": {
+      "layoutSaved": "Draft layout saved.",
+      "captainsDrawn": "Captains drawn.",
+      "finished": "Draft finished."
+    },
+    "errors": {
+      "create": "Could not create draft.",
+      "action": "Could not complete the action."
+    },
+    "teams": {
+      "teamA": "Team A",
+      "teamB": "Team B",
+      "blue": "Blue Team",
+      "red": "Red Team"
+    },
+    "roles": {
+      "captain": "CAPTAIN",
+      "player": "PLAYER"
+    },
+    "status": {
+      "Aberto": "Open",
+      "Concluido": "Completed",
+      "Cancelado": "Canceled",
+      "finished": "Finished"
+    },
+    "createModal": {
+      "eyebrow": "New draft",
+      "title": "Create Draft",
+      "name": "Name",
+      "namePlaceholder": "Friday rinha",
+      "teamSize": "Team size",
+      "notes": "Notes",
+      "eligiblePlayers": "Eligible players",
+      "selectedCount": "{count} selected",
+      "minimum": "Minimum: {count}",
+      "drawCaptains": "Draw captains",
+      "captainTeamA": "Team A Captain",
+      "captainTeamB": "Team B Captain",
+      "drawFirstPick": "Draw first pick",
+      "firstPick": "First pick",
+      "creating": "Creating...",
+      "submit": "Create draft"
+    },
+    "cancelDialog": {
+      "title": "Cancel draft?",
+      "description": "Draft {name} will be closed and will not be able to receive new picks.",
+      "reason": "Reason",
+      "confirm": "Cancel draft"
+    },
+    "board": {
+      "label": "Draft board",
+      "captain": "Captain: {name}",
+      "selectPlayer": "Select player",
+      "emptySlot": "Empty slot",
+      "choosing": "CHOOSING",
+      "searchPlaceholder": "Search players by name or route...",
+      "routeFilters": "Route filters",
+      "nextPick": "Next pick",
+      "criteria": "Captains: {captains} · First pick: {firstPick}",
+      "availablePlayers": "Available players",
+      "player": "Player",
+      "route": "Route",
+      "action": "Action",
+      "pick": "Pick",
+      "noAvailablePlayers": "No available players.",
+      "noSelectionDescription": "Create or select a draft to view captains, picks, and available players."
+    },
+    "pickHistory": {
+      "title": "Pick order",
+      "empty": "No picks registered yet."
+    },
+    "visualSetup": {
+      "eyebrow": "Draft",
+      "title": "New draft",
+      "namePlaceholder": "Multi-team rinha",
+      "teamSize": "Team size",
+      "players": "Players",
+      "summary": "{teams} teams · {captains} captains · {reserves} reserves",
+      "searchPlayer": "Search player",
+      "drawCaptainsAutomatically": "Draw captains automatically",
+      "captainsCount": "{selected} / {total} captains",
+      "noCaptainRole": "No selected player has the Captain role."
+    },
+    "visualBoard": {
+      "summary": "{teams} teams · {reserves} reserves.",
+      "drawCaptains": "Draw captains",
+      "saveLayout": "Save layout",
+      "exportImage": "Export image",
+      "finalize": "Finalize",
+      "oddTeams": "Odd teams",
+      "evenTeams": "Even teams",
+      "pending": "pending",
+      "searchPlaceholder": "Search players by name, elo, or route...",
+      "displayedRoutes": "Displayed routes",
+      "available": "Available",
+      "availablePlayers": "Available Players",
+      "reservesHint": "Reserves are marked here",
+      "reserve": "Reserve",
+      "noPlayersForFilter": "No available players for the current filter."
+    },
+    "playerDetails": {
+      "dialogLabel": "Details for {name}",
+      "noRoute": "No route",
+      "competitiveSummary": "Competitive summary",
+      "draftRoute": "Draft route",
+      "state": "State",
+      "order": "Order",
+      "identity": "Identity",
+      "routePreferences": "Route preferences",
+      "doesNotPlay": "Does not play",
+      "priority": "Priority",
+      "preference": "Preference",
+      "linksAndAudit": "Links and audit",
+      "openOpGg": "Open OP.GG",
+      "openDeepLol": "Open DeepLoL",
+      "createdAt": "Created",
+      "updatedAt": "Updated"
+    }
+  },
+  "usersAdmin": {
+    "header": {
+      "eyebrow": "Arena administration",
+      "title": "Users",
+      "description": "Manage accounts, permissions, status, and player links without leaving the operational flow."
+    },
+    "loading": "Loading users...",
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "statusOptions": {
+      "Ativo": "Active",
+      "Desativado": "Disabled"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Name or email",
+      "role": "Role",
+      "allRoles": "All",
+      "submit": "Filter"
+    },
+    "list": {
+      "empty": "No users found.",
+      "playerComplete": "Player complete",
+      "playerPending": "Player pending"
+    },
+    "roles": {
+      "eyebrow": "Permissions",
+      "title": "User roles",
+      "save": "Save roles",
+      "assignableLabel": "Assignable roles"
+    },
+    "details": {
+      "eyebrow": "Administration",
+      "title": "Edit user",
+      "loading": "Loading user...",
+      "displayName": "Display name",
+      "namePlaceholder": "User name",
+      "saveData": "Save data",
+      "infoLabel": "User information",
+      "notLinked": "Not linked",
+      "playerProfile": "Player profile",
+      "complete": "Complete",
+      "pending": "Pending",
+      "createdAt": "Created at",
+      "lastLogin": "Last login",
+      "never": "Never",
+      "deactivateUser": "Deactivate user",
+      "activateUser": "Activate user",
+      "resetPassword": "Reset password"
+    },
+    "statusDialog": {
+      "deactivateTitle": "Deactivate user?",
+      "activateTitle": "Activate user?",
+      "description": "This action changes the user's system access."
+    },
+    "resetPassword": {
+      "title": "Reset password",
+      "submit": "Reset"
+    },
+    "pendingProfile": {
+      "eyebrow": "Pending player profile",
+      "title": "Complete your profile to join drafts",
+      "description": "You can already browse the platform, but you only appear as a player after entering Riot ID, links, elo, and roles.",
+      "action": "Complete profile"
+    },
+    "discord": {
+      "linkedAs": "Linked as {username}",
+      "notLinkedDescription": "Discord is not linked yet. Login and linking via Discord will be enabled in a future step.",
+      "linkSoon": "Link Discord soon"
+    },
+    "playerProfile": {
+      "eyebrow": "Player",
+      "myTitle": "My player profile",
+      "completeTitle": "Complete your player profile",
+      "description": "Fill in all data to appear in the player list and become available for drafts.",
+      "displayNamePlaceholder": "Tournament name",
+      "discordPlaceholder": "user#1234",
+      "riotIdPlaceholder": "Name#NA1",
+      "opgg": "OP.GG",
+      "opggPlaceholder": "https://www.op.gg/...",
+      "deepLol": "DeepLOL",
+      "deepLolPlaceholder": "https://www.deeplol.gg/...",
+      "save": "Save player profile",
+      "complete": "Complete player profile",
+      "errors": {
+        "displayNameRequired": "Enter the display name.",
+        "discordRequired": "Enter Discord.",
+        "riotIdRequired": "Enter Riot ID.",
+        "opggRequired": "Enter the OP.GG link.",
+        "deepLolRequired": "Enter the DeepLOL link.",
+        "eloRequired": "Select an elo.",
+        "divisionRequired": "Select a division.",
+        "opggHttps": "OP.GG must start with https://",
+        "deepLolHttps": "DeepLOL must start with https://",
+        "uniquePriorities": "Each role priority must be unique.",
+        "singleBlockedRoute": "Mark at most one role as never playing."
+      }
+    },
+    "changePassword": {
+      "eyebrow": "Security",
+      "title": "Change password",
+      "description": "Update your local access password for the platform.",
+      "currentPassword": "Current password",
+      "submit": "Change password",
+      "success": "Password changed successfully.",
+      "error": "Could not change password"
+    }
+  },
+  "playerForm": {
+    "createTitle": "Create player",
+    "editTitle": "Edit player",
+    "close": "Close form",
+    "displayName": "Display name",
+    "discord": "Discord",
+    "riotId": "Riot ID",
+    "elo": "Elo",
+    "division": "Division",
+    "opgg": "OP.GG",
+    "deeplol": "Deeplol",
+    "select": "Select",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "placeholders": {
+      "displayName": "Hide on bush",
+      "discord": "user#1234",
+      "riotId": "Name#BR1",
+      "opggUrl": "https://www.op.gg/...",
+      "deeplolUrl": "https://www.deeplol.gg/..."
+    },
+    "errors": {
+      "nameRequired": "Name is required.",
+      "discordRequired": "Enter the player's Discord.",
+      "eloRequired": "Select an Elo.",
+      "divisionRequired": "Select a division.",
+      "uniquePriorities": "Each priority must be unique.",
+      "singleBlockedRoute": "Mark at most one blocked role.",
+      "opggHttps": "Enter an OP.GG link starting with https://."
+    }
+  },
+  "routePreferences": {
+    "title": "Route preferences",
+    "hint": "Order your choices from 1 to 5 and mark at most one route to avoid.",
+    "priority": "Priority",
+    "avoid": "Avoid",
+    "blocked": "Blocked"
+  },
+  "playerStatus": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "playerCard": {
+    "noElo": "No elo",
+    "discordMissing": "Discord not provided",
+    "primaryRoute": "Primary route",
+    "opggMissing": "OP.GG missing",
+    "riotIdMissing": "Riot ID missing",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "playerDelete": {
+    "kicker": "Destructive action",
+    "title": "Delete {name}?",
+    "description": "This action removes the player from temporary data. With the backend active, the action uses safe deactivation.",
+    "confirm": "Confirm"
+  },
+  "messages": {
+    "MI001": "Loading information",
+    "MSIS001": "Operation completed successfully",
+    "MV001": "Required field",
+    "ME001": "An unexpected error occurred"
+  },
+  "playerStates": {
+    "loading": "Loading players",
+    "errorKicker": "Error",
+    "emptyKicker": "Empty list",
+    "errorTitle": "Could not load players",
+    "emptyTitle": "No players found",
+    "tryAgain": "Try again shortly.",
+    "emptyDescription": "Create the first participant or adjust filters to view the roster."
+  }
+}

@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -54,28 +55,28 @@ public sealed class DraftSessao
     {
         if (Status != DraftStatus.Aberto)
         {
-            throw new DomainException("Draft nao esta aberto para escolhas.");
+            throw new DomainException(MessageCodes.DraftClosed);
         }
 
         if (ProximoTime is null)
         {
-            throw new DomainException("Draft nao possui proximo time definido.");
+            throw new DomainException(MessageCodes.DraftClosed);
         }
 
         var participante = _participantes.FirstOrDefault(item => item.JogadorId == jogadorId);
         if (participante is null)
         {
-            throw new DomainException("Jogador nao participa deste draft.");
+            throw new DomainException(MessageCodes.DraftInvalidPlayer);
         }
 
         if (!participante.Disponivel)
         {
-            throw new DomainException("Jogador ja foi escolhido neste draft.");
+            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
         }
 
         if (QuantidadeNoTime(ProximoTime.Value) >= TamanhoTime)
         {
-            throw new DomainException("Time atual ja atingiu o limite de jogadores.");
+            throw new DomainException(MessageCodes.TeamPlayerLimitReached);
         }
 
         var timeEscolha = ProximoTime.Value;
@@ -89,7 +90,7 @@ public sealed class DraftSessao
     {
         if (Status != DraftStatus.Aberto)
         {
-            throw new DomainException("Apenas drafts abertos podem ser cancelados.");
+            throw new DomainException(MessageCodes.DraftClosed);
         }
 
         Status = DraftStatus.Cancelado;
@@ -102,17 +103,17 @@ public sealed class DraftSessao
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
-            throw new DomainException("Nome do draft e obrigatorio.");
+            throw new DomainException(MessageCodes.DraftNameRequired);
         }
 
         if (nome.Trim().Length > 120)
         {
-            throw new DomainException("Nome do draft deve ter no maximo 120 caracteres.");
+            throw new DomainException(MessageCodes.MaxLengthExceeded);
         }
 
         if (tamanhoTime is < MinimoTamanhoTime or > MaximoTamanhoTime)
         {
-            throw new DomainException("Tamanho do time deve estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.TeamSizeRange);
         }
 
         Nome = nome.Trim();
@@ -132,22 +133,22 @@ public sealed class DraftSessao
         var jogadores = jogadoresIds.Where(id => id != Guid.Empty).ToList();
         if (jogadores.Distinct().Count() != jogadores.Count)
         {
-            throw new DomainException("O mesmo jogador nao pode aparecer mais de uma vez no draft.");
+            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
         }
 
         if (capitaoTimeAId == Guid.Empty || capitaoTimeBId == Guid.Empty || capitaoTimeAId == capitaoTimeBId)
         {
-            throw new DomainException("Informe dois capitaes distintos para o draft.");
+            throw new DomainException(MessageCodes.DraftCaptainDistinct);
         }
 
         if (!jogadores.Contains(capitaoTimeAId) || !jogadores.Contains(capitaoTimeBId))
         {
-            throw new DomainException("Capitaes devem fazer parte dos jogadores do draft.");
+            throw new DomainException(MessageCodes.DraftCaptainRequired);
         }
 
         if (jogadores.Count < 2)
         {
-            throw new DomainException("Informe pelo menos dois jogadores para o draft.");
+            throw new DomainException(MessageCodes.DraftPlayersRequired);
         }
 
         CapitaoTimeAId = capitaoTimeAId;

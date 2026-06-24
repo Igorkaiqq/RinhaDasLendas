@@ -2,12 +2,12 @@ import { createI18n } from 'vue-i18n'
 
 import { DEFAULT_LOCALE, type LocaleCode } from '@/types/i18n'
 
-import enUS from './locales/en-US.json'
-import ptBR from './locales/pt-BR.json'
+import en from './locales/en.json'
+import pt from './locales/pt.json'
 
 export const messages = {
-  'pt-BR': ptBR,
-  'en-US': enUS,
+  pt,
+  en,
 } as const
 
 export const i18n = createI18n({

@@ -1,8 +1,10 @@
 import { AxiosError } from 'axios'
 
+import { MessageCode } from '@/constants/messageCode'
 import type { Draft, DraftPayload, DraftStatusValue } from '@/types/draft'
 
 import { api } from './api'
+import { getMessage } from './messageService'
 
 interface PaginatedDrafts {
   page: number
@@ -24,7 +26,7 @@ interface DraftFilters {
 
 export class DraftServiceError extends Error {
   constructor(public readonly errors: string[]) {
-    super(errors[0] ?? 'Nao foi possivel processar o draft.')
+    super(errors[0] ?? getMessage(MessageCode.DraftSaveFailed))
   }
 }
 
@@ -106,7 +108,7 @@ function createFakeDraft(payload: DraftPayload): Draft {
   const now = new Date().toISOString()
 
   if (!capitaoA || !capitaoB) {
-    throw new DraftServiceError(['Selecione jogadores suficientes para criar o draft.'])
+    throw new DraftServiceError([getMessage(MessageCode.DraftPlayersRequired)])
   }
 
   return {
@@ -133,7 +135,7 @@ function pickFakeDraft(id: string, jogadorId: string): Draft {
   const draft = requireFakeDraft(id)
   const player = draft.disponiveis.find((available) => available.id === jogadorId)
   if (!player || draft.status !== 'Aberto' || !draft.proximoTime) {
-    throw new DraftServiceError(['Jogador indisponivel para este draft.'])
+    throw new DraftServiceError([getMessage(MessageCode.DraftInvalidPlayer)])
   }
 
   const participant = { jogadorId: player.id, nomeExibicao: player.nomeExibicao, capitao: false }
@@ -165,7 +167,7 @@ function pickFakeDraft(id: string, jogadorId: string): Draft {
 function requireFakeDraft(id: string): Draft {
   const draft = fakeDrafts.find((current) => current.id === id)
   if (!draft) {
-    throw new DraftServiceError(['Draft nao encontrado.'])
+    throw new DraftServiceError([getMessage(MessageCode.DraftNotFound)])
   }
 
   return draft
@@ -187,7 +189,7 @@ function toDraftServiceError(error: unknown): DraftServiceError {
     }
   }
 
-  return new DraftServiceError(['Falha ao conectar ao servidor.'])
+  return new DraftServiceError([getMessage(MessageCode.ServerConnectionFailed)])
 }
 
 function isConnectionFailure(error: unknown): boolean {

@@ -77,7 +77,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
     ? [
         {
           id: 'users',
-          label: 'Usuários',
+          label: t('navigation.users'),
           icon: 'AD',
           routeName: AppRouteNames.UsersAdmin,
           path: AppRoutes.UsersAdmin,
@@ -164,7 +164,7 @@ function dismissPlayerProfileModal() {
 
 <template>
   <div class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
-    <SidebarNav :items="navigationItems" :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" />
+    <SidebarNav :items="navigationItems" :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" @menu-action="handleMenuAction" />
     <section class="app-shell__workspace">
       <Topbar :user="user" :page-title="pageTitle" @menu-action="handleMenuAction" />
       <main class="app-shell__content">
@@ -173,14 +173,14 @@ function dismissPlayerProfileModal() {
     </section>
     <div v-if="showPlayerProfileModal" class="dialog-backdrop profile-completion-modal-backdrop" role="presentation" @click.self="dismissPlayerProfileModal">
       <section class="dialog-card profile-completion-modal" role="dialog" aria-modal="true" aria-labelledby="profile-completion-title">
-        <span class="eyebrow">Perfil incompleto</span>
-        <h2 id="profile-completion-title">Complete seu perfil de jogador</h2>
+        <span class="eyebrow">{{ t('profile.completion.eyebrow') }}</span>
+        <h2 id="profile-completion-title">{{ t('profile.completion.title') }}</h2>
         <p>
-          Você já consegue navegar pela plataforma, mas só entra na lista de jogadores e nos drafts depois de preencher Riot ID, elo, links e rotas.
+          {{ t('profile.completion.description') }}
         </p>
         <div class="profile-completion-modal__actions">
-          <button class="button" type="button" @click="dismissPlayerProfileModal">Agora não</button>
-          <button class="button button--primary" type="button" @click="goToProfileCompletion">Completar perfil</button>
+          <button class="button" type="button" @click="dismissPlayerProfileModal">{{ t('profile.completion.notNow') }}</button>
+          <button class="button button--primary" type="button" @click="goToProfileCompletion">{{ t('profile.completion.complete') }}</button>
         </div>
       </section>
     </div>

@@ -1,4 +1,5 @@
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -11,12 +12,12 @@ internal static class DraftMontagemHandlerHelpers
     {
         if (jogadores.Count != jogadoresIds.Count)
         {
-            throw new DomainException("Todos os jogadores selecionados devem existir.");
+            throw new DomainException(MessageCodes.PlayerNotFound);
         }
 
         if (jogadores.Any(jogador => jogador.Status != JogadorStatus.Ativo))
         {
-            throw new DomainException("Todos os jogadores selecionados devem estar ativos.");
+            throw new DomainException(MessageCodes.InactivePlayerCannotJoinQueue);
         }
     }
 

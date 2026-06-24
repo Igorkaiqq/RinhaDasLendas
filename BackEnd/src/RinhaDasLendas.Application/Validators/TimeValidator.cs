@@ -1,6 +1,7 @@
 using FluentValidation;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Application.Validators;
 
@@ -26,29 +27,29 @@ internal sealed class TimeRequestValidator<T> : AbstractValidator<T> where T : c
     {
         RuleFor(request => GetNome(request))
             .NotEmpty()
-            .WithMessage("Nome do time e obrigatorio.")
+            .WithMessage(MessageCodes.TeamNameRequired)
             .MaximumLength(100)
-            .WithMessage("Nome do time deve ter no maximo 100 caracteres.");
+            .WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => GetTag(request))
             .NotEmpty()
-            .WithMessage("Tag do time e obrigatoria.")
+            .WithMessage(MessageCodes.TeamTagRequired)
             .MaximumLength(10)
-            .WithMessage("Tag do time deve ter no maximo 10 caracteres.");
+            .WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => GetJogadoresIds(request))
             .NotNull()
-            .WithMessage("Informe os jogadores do time.")
+            .WithMessage(MessageCodes.TeamPlayersRequired)
             .Must(ids => ids.Count > 0)
-            .WithMessage("Informe pelo menos um jogador para o time.")
+            .WithMessage(MessageCodes.TeamPlayersRequired)
             .Must(ids => ids.Count <= Time.MaximoJogadoresPrincipais)
-            .WithMessage("Um time pode ter no maximo cinco jogadores.")
+            .WithMessage(MessageCodes.TeamPlayerLimitReached)
             .Must(ids => ids.Distinct().Count() == ids.Count)
-            .WithMessage("O mesmo jogador nao pode ser adicionado mais de uma vez.");
+            .WithMessage(MessageCodes.PlayerAlreadyInTeam);
 
         RuleFor(request => request)
             .Must(request => GetCapitaoId(request) is null || GetJogadoresIds(request).Contains(GetCapitaoId(request)!.Value))
-            .WithMessage("Capitao deve fazer parte do time.");
+            .WithMessage(MessageCodes.TeamCaptainMustBeMember);
     }
 
     private static string GetNome(T request)

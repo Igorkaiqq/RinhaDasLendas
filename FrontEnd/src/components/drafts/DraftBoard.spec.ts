@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import { i18n } from '@/i18n'
 import type { Draft } from '@/types/draft'
 
 import DraftBoard from './DraftBoard.vue'
@@ -27,7 +28,7 @@ const draft: Draft = {
 
 describe('DraftBoard', () => {
   it('renders captains and emits pick', async () => {
-    const wrapper = mount(DraftBoard, { props: { draft, players: [], picking: false } })
+    const wrapper = mount(DraftBoard, { global: { plugins: [i18n] }, props: { draft, players: [], picking: false } })
 
     await wrapper.find('.draft-player-grid button').trigger('click')
 

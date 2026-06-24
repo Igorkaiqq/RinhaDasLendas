@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import PlayerStatusBadge from '@/components/PlayerStatusBadge.vue'
 import RoutePreferencesPanel from '@/components/RoutePreferencesPanel.vue'
 import type { Player } from '@/services/players'
@@ -8,6 +10,8 @@ const props = defineProps<{
   canManage: boolean
 }>()
 
+const { t } = useI18n()
+
 defineEmits<{
   edit: [player: Player]
   delete: [player: Player]
@@ -15,7 +19,7 @@ defineEmits<{
 
 function formatPlayerElo(player: Player) {
   if (!player.elo) {
-    return 'Sem elo'
+    return t('playerCard.noElo')
   }
 
   return player.divisao ? `${player.elo} ${player.divisao}` : player.elo
@@ -46,25 +50,25 @@ const primaryRoute = props.player.preferencias.find((preference) => preference.p
 
     <div class="player-card__identity">
       <h2>{{ player.nomeExibicao }}</h2>
-      <p>{{ player.discord || 'Discord nao informado' }}</p>
+      <p>{{ player.discord || t('playerCard.discordMissing') }}</p>
     </div>
 
     <div class="player-card__meta">
-      <span>Rota principal</span>
+      <span>{{ t('playerCard.primaryRoute') }}</span>
       <strong>{{ primaryRoute }}</strong>
     </div>
 
     <RoutePreferencesPanel :preferences="player.preferencias" />
 
     <div class="player-card__links">
-      <a v-if="player.opGgUrl" :href="player.opGgUrl" target="_blank" rel="noreferrer">OP.GG</a>
-      <span v-else>OP.GG ausente</span>
-      <span>{{ player.riotId || 'Riot ID ausente' }}</span>
+      <a v-if="player.opGgUrl" :href="player.opGgUrl" target="_blank" rel="noreferrer">{{ t('playerForm.opgg') }}</a>
+      <span v-else>{{ t('playerCard.opggMissing') }}</span>
+      <span>{{ player.riotId || t('playerCard.riotIdMissing') }}</span>
     </div>
 
     <div v-if="canManage" class="player-card__actions">
-      <button type="button" class="button-secondary" @click="$emit('edit', player)">Editar</button>
-      <button type="button" class="button-danger" @click="$emit('delete', player)">Excluir</button>
+      <button type="button" class="button-secondary" @click="$emit('edit', player)">{{ t('playerCard.edit') }}</button>
+      <button type="button" class="button-danger" @click="$emit('delete', player)">{{ t('playerCard.delete') }}</button>
     </div>
   </article>
 </template>

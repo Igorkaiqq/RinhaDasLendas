@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import { i18n } from '@/i18n'
 import { Elo, type Player } from '@/services/players'
 
 import DraftCreateModal from './DraftCreateModal.vue'
@@ -29,7 +30,7 @@ const players: Player[] = [
 
 describe('DraftCreateModal', () => {
   it('renders players in draft form', () => {
-    const wrapper = mount(DraftCreateModal, { props: { open: true, players, saving: false, serviceErrors: [] } })
+    const wrapper = mount(DraftCreateModal, { global: { plugins: [i18n] }, props: { open: true, players, saving: false, serviceErrors: [] } })
 
     expect(wrapper.text()).toContain('Criar Draft')
     expect(wrapper.text()).toContain('Capitao A')

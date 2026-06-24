@@ -1,5 +1,6 @@
 using FluentValidation;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 
@@ -10,31 +11,31 @@ public sealed class CreateDraftMontagemValidator : AbstractValidator<CreateDraft
     public CreateDraftMontagemValidator()
     {
         RuleFor(request => request.Nome)
-            .NotEmpty().WithMessage("Nome da montagem e obrigatorio.")
-            .MaximumLength(120).WithMessage("Nome da montagem deve ter no maximo 120 caracteres.");
+            .NotEmpty().WithMessage(MessageCodes.DraftNameRequired)
+            .MaximumLength(120).WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => request.Observacoes)
-            .MaximumLength(500).WithMessage("Observacoes devem ter no maximo 500 caracteres.");
+            .MaximumLength(500).WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => request.TamanhoEquipe)
             .InclusiveBetween(DraftMontagem.MinimoTamanhoEquipe, DraftMontagem.MaximoTamanhoEquipe)
-            .WithMessage("Tamanho da equipe deve estar entre 1 e 5.");
+            .WithMessage(MessageCodes.TeamSizeRange);
 
         RuleFor(request => request.JogadoresIds)
             .Cascade(CascadeMode.Stop)
-            .NotNull().WithMessage("Informe os jogadores da montagem.")
-            .Must(ids => ids.Count > 0).WithMessage("Informe ao menos um jogador.")
-            .Must(ids => ids.Distinct().Count() == ids.Count).WithMessage("O mesmo jogador nao pode aparecer mais de uma vez na montagem.");
+            .NotNull().WithMessage(MessageCodes.DraftMontagemPlayersRequired)
+            .Must(ids => ids.Count > 0).WithMessage(MessageCodes.DraftMontagemPlayersRequired)
+            .Must(ids => ids.Distinct().Count() == ids.Count).WithMessage(MessageCodes.DraftPlayerAlreadyPicked);
 
         RuleFor(request => request)
             .Must(request => request.JogadoresIds is not null && request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.JogadoresIds.Count / request.TamanhoEquipe >= 1)
-            .WithMessage("Jogadores insuficientes para formar um time completo.")
+            .WithMessage(MessageCodes.DraftMontagemInsufficientPlayers)
             .Must(request => request.SortearCapitaes || (request.JogadoresIds is not null && request.CapitaesIds is not null && request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.CapitaesIds.Count == request.JogadoresIds.Count / request.TamanhoEquipe))
-            .WithMessage("Informe um capitao para cada time gerado ou habilite o sorteio.")
+            .WithMessage(MessageCodes.DraftMontagemCaptainsRequired)
             .Must(request => request.SortearCapitaes || (request.CapitaesIds is not null && request.CapitaesIds.Distinct().Count() == request.CapitaesIds.Count))
-            .WithMessage("Capitaes devem ser distintos.")
+            .WithMessage(MessageCodes.DraftMontagemCaptainsDistinct)
             .Must(request => request.SortearCapitaes || (request.JogadoresIds is not null && request.CapitaesIds is not null && request.CapitaesIds.All(id => request.JogadoresIds.Contains(id))))
-            .WithMessage("Capitaes devem fazer parte dos jogadores selecionados.");
+            .WithMessage(MessageCodes.DraftMontagemCaptainsMustBePlayers);
     }
 }
 
@@ -42,16 +43,16 @@ public sealed class SalvarLayoutDraftMontagemValidator : AbstractValidator<Salva
 {
     public SalvarLayoutDraftMontagemValidator()
     {
-        RuleFor(request => request.Times).NotNull().WithMessage("Informe os times da montagem.");
-        RuleFor(request => request.Livres).NotNull().WithMessage("Informe os jogadores livres.");
-        RuleFor(request => request.Reservas).NotNull().WithMessage("Informe os reservas.");
+        RuleFor(request => request.Times).NotNull().WithMessage(MessageCodes.FieldRequired);
+        RuleFor(request => request.Livres).NotNull().WithMessage(MessageCodes.FieldRequired);
+        RuleFor(request => request.Reservas).NotNull().WithMessage(MessageCodes.FieldRequired);
         RuleForEach(request => request.Times).ChildRules(time =>
         {
-            time.RuleFor(item => item.TimeId).NotEmpty().WithMessage("Time da montagem e obrigatorio.");
-            time.RuleFor(item => item.Nome).NotEmpty().WithMessage("Nome do time e obrigatorio.");
-            time.RuleFor(item => item.Jogadores).NotNull().WithMessage("Informe jogadores do time.");
+            time.RuleFor(item => item.TimeId).NotEmpty().WithMessage(MessageCodes.FieldRequired);
+            time.RuleFor(item => item.Nome).NotEmpty().WithMessage(MessageCodes.TeamNameRequired);
+            time.RuleFor(item => item.Jogadores).NotNull().WithMessage(MessageCodes.TeamPlayersRequired);
         });
-        RuleFor(request => request).Must(AllRoutesValid).WithMessage("Informe apenas rotas validas.");
+        RuleFor(request => request).Must(AllRoutesValid).WithMessage(MessageCodes.InvalidRoute);
     }
 
     private static bool AllRoutesValid(SalvarLayoutDraftMontagemRequestDto request)
@@ -67,6 +68,6 @@ public sealed class CancelarDraftMontagemValidator : AbstractValidator<CancelarD
     {
         RuleFor(request => request.Motivo)
             .MaximumLength(500)
-            .WithMessage("Motivo do cancelamento deve ter no maximo 500 caracteres.");
+            .WithMessage(MessageCodes.CancellationReasonMaxLength);
     }
 }

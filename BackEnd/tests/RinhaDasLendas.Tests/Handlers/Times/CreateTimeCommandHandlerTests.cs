@@ -2,6 +2,7 @@ using FluentAssertions;
 using RinhaDasLendas.Application.Commands.Times;
 using RinhaDasLendas.Application.Handlers.Times;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Exceptions;
 
 namespace RinhaDasLendas.Tests.Handlers.Times;
@@ -34,6 +35,6 @@ public sealed class CreateTimeCommandHandlerTests
 
         var act = () => handler.Handle(new CreateTimeCommand(TimeHandlerTestData.CreateRequest(jogador.Id, nome: "os sem baron", tag: "outro")), CancellationToken.None);
 
-        await act.Should().ThrowAsync<DomainException>().WithMessage("Ja existe um time ativo com este nome.");
+        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.TeamAlreadyExists);
     }
 }

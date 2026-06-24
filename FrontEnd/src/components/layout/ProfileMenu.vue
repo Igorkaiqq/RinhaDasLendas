@@ -19,7 +19,7 @@ const { locale, t } = useI18n()
 const localeOptions = computed(() =>
   SUPPORTED_LOCALES.map((option) => ({
     code: option,
-    label: option === 'pt-BR' ? t('profile.ptBR') : t('profile.enUS'),
+    label: option === 'pt' ? t('profile.ptBR') : t('profile.enUS'),
   })),
 )
 

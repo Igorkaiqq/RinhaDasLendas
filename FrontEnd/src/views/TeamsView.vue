@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import TeamDeleteDialog from '@/components/teams/TeamDeleteDialog.vue'
 import TeamFormModal from '@/components/teams/TeamFormModal.vue'
@@ -17,6 +18,7 @@ import {
 import type { Team, TeamFormMode, TeamFormPayload, TeamStatusValue } from '@/types/team'
 
 const teams = ref<Team[]>([])
+const { t } = useI18n()
 const players = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -96,15 +98,15 @@ async function saveTeam(payload: TeamFormPayload) {
     if (formMode.value === 'edit' && payload.id) {
       const updated = await updateTeam(payload.id, payload)
       teams.value = teams.value.map((team) => (team.id === updated.id ? updated : team))
-      notification.value = `Time ${updated.nome} atualizado.`
+      notification.value = t('teams.updated', { name: updated.nome })
     } else {
       const created = await createTeam(payload)
       teams.value = [created, ...teams.value]
-      notification.value = `Time ${created.nome} cadastrado.`
+      notification.value = t('teams.created', { name: created.nome })
     }
     closeModal()
   } catch (error) {
-    serviceErrors.value = error instanceof TeamServiceError ? error.errors : ['Nao foi possivel salvar o time.']
+    serviceErrors.value = error instanceof TeamServiceError ? error.errors : [t('teams.errors.save')]
   } finally {
     saving.value = false
   }
@@ -118,7 +120,7 @@ async function confirmInactivate() {
   try {
     const updated = await inactivateTeam(inactivatingTeam.value.id)
     teams.value = teams.value.map((team) => (team.id === updated.id ? updated : team))
-    notification.value = `Time ${updated.nome} inativado.`
+    notification.value = t('teams.inactivated', { name: updated.nome })
     inactivatingTeam.value = null
   } catch (error) {
     captureError(error)
@@ -129,7 +131,7 @@ async function reactivate(team: Team) {
   try {
     const updated = await reactivateTeam(team.id)
     teams.value = teams.value.map((current) => (current.id === updated.id ? updated : current))
-    notification.value = `Time ${updated.nome} reativado.`
+    notification.value = t('teams.reactivated', { name: updated.nome })
   } catch (error) {
     captureError(error)
   }
@@ -141,7 +143,7 @@ function resetFilters() {
 }
 
 function captureError(error: unknown) {
-  errors.value = error instanceof TeamServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
+  errors.value = error instanceof TeamServiceError ? error.errors : [t('teams.errors.action')]
 }
 </script>
 
@@ -150,37 +152,37 @@ function captureError(error: unknown) {
     <div v-if="notification" class="app-toast app-toast--success" role="status" aria-live="polite">
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification }}</p>
-      <button type="button" aria-label="Fechar notificacao" @click="notification = null">x</button>
+      <button type="button" :aria-label="t('common.closeNotification')" @click="notification = null">x</button>
     </div>
 
     <header class="players-hero">
       <div>
-        <p class="page-kicker">Composições</p>
-        <h1>Times</h1>
-        <p>Cadastre composições reutilizáveis para partidas, drafts e consultas futuras.</p>
+        <p class="page-kicker">{{ t('teams.kicker') }}</p>
+        <h1>{{ t('teams.title') }}</h1>
+        <p>{{ t('teams.subtitle') }}</p>
       </div>
       <div class="page-hero__actions">
-        <span class="page-hero__metric">{{ filteredTeams.length }} / {{ teams.length }} times</span>
-        <button type="button" @click="openCreateModal">+ Cadastrar Time</button>
+        <span class="page-hero__metric">{{ t('teams.metrics.visible', { visible: filteredTeams.length, total: teams.length }) }}</span>
+        <button type="button" @click="openCreateModal">{{ t('teams.createWithIcon') }}</button>
       </div>
     </header>
 
-    <section class="filter-bar" aria-label="Filtros de times">
+    <section class="filter-bar" :aria-label="t('teams.filtersLabel')">
       <label class="filter-field filter-field--wide">
-        Buscar time
+        {{ t('teams.searchLabel') }}
         <span>
           <span aria-hidden="true">SR</span>
-          <input v-model="searchTerm" type="search" placeholder="Nome, tag ou jogador" />
+          <input v-model="searchTerm" type="search" :placeholder="t('teams.searchPlaceholder')" />
         </span>
       </label>
       <label class="filter-field">
-        Status
+        {{ t('common.status') }}
         <select v-model="selectedStatus">
-          <option value="">Todos</option>
+          <option value="">{{ t('common.all') }}</option>
           <option v-for="status in TEAM_STATUS_OPTIONS" :key="status" :value="status">{{ status }}</option>
         </select>
       </label>
-      <button class="filter-reset" type="button" aria-label="Limpar filtros" @click="resetFilters">=</button>
+      <button class="filter-reset" type="button" :aria-label="t('common.clearFilters')" @click="resetFilters">=</button>
     </section>
 
     <TeamList
@@ -193,8 +195,8 @@ function captureError(error: unknown) {
       @reactivate="reactivate"
     />
 
-    <footer class="players-pagination" aria-label="Paginacao de times">
-      <span>Mostrando {{ filteredTeams.length ? 1 : 0 }}-{{ filteredTeams.length }} de {{ teams.length }} times</span>
+    <footer class="players-pagination" :aria-label="t('teams.paginationLabel')">
+      <span>{{ t('teams.paginationSummary', { start: filteredTeams.length ? 1 : 0, end: filteredTeams.length, total: teams.length }) }}</span>
     </footer>
 
     <TeamFormModal

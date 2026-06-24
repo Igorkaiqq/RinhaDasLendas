@@ -65,6 +65,12 @@ public static class MessageCodes
     public const string AccessDenied = "ME028";
     public const string AuthenticationFailed = "ME029";
     public const string UserUpdateFailed = "ME030";
+    public const string ValidationError = "ME031";
+    public const string UserNotFound = "ME032";
+    public const string PlayerProfileNotFound = "ME033";
+    public const string DiscordOAuthNotImplemented = "ME034";
+    public const string DraftMontagemNotFound = "ME035";
+    public const string InvalidPasswordResetToken = "ME036";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -101,6 +107,24 @@ public static class MessageCodes
     public const string EmailAlreadyRegistered = "MV033";
     public const string InvalidRole = "MV034";
     public const string RoleHierarchyOperationDenied = "MV035";
+    public const string MaxLengthExceeded = "MV036";
+    public const string TeamPlayersRequired = "MV037";
+    public const string DraftPlayersRequired = "MV038";
+    public const string DraftMontagemPlayersRequired = "MV039";
+    public const string InvalidRoute = "MV040";
+    public const string RoutesRequired = "MV041";
+    public const string DuplicateRoute = "MV042";
+    public const string DivisionNotAllowedForElo = "MV043";
+    public const string TeamSizeRange = "MV044";
+    public const string DraftCaptainDistinct = "MV045";
+    public const string DraftFirstPickRequired = "MV046";
+    public const string DraftMontagemInsufficientPlayers = "MV047";
+    public const string DraftMontagemCaptainsRequired = "MV048";
+    public const string DraftMontagemCaptainsDistinct = "MV049";
+    public const string DraftMontagemCaptainsMustBePlayers = "MV050";
+    public const string CancellationReasonMaxLength = "MV051";
+    public const string UserCannotChangeOwnRoles = "MV052";
+    public const string MustKeepActiveSuperAdmin = "MV053";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

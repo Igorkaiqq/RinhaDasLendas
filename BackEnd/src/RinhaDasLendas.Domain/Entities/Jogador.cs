@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -64,27 +65,27 @@ public sealed class Jogador
     {
         if (string.IsNullOrWhiteSpace(nomeExibicao))
         {
-            throw new DomainException("Nome de exibicao e obrigatorio.");
+            throw new DomainException(MessageCodes.PlayerNameRequired);
         }
 
         if (nomeExibicao.Trim().Length > 100)
         {
-            throw new DomainException("Nome de exibicao deve ter no maximo 100 caracteres.");
+            throw new DomainException(MessageCodes.MaxLengthExceeded);
         }
 
         if (string.IsNullOrWhiteSpace(discord))
         {
-            throw new DomainException("Informe o Discord do jogador.");
+            throw new DomainException(MessageCodes.FieldRequired);
         }
 
         if (elo.ExigeDivisao() && divisao is null)
         {
-            throw new DomainException("Selecione uma Divisao.");
+            throw new DomainException(MessageCodes.FieldRequired);
         }
 
         if (!elo.ExigeDivisao() && divisao is not null)
         {
-            throw new DomainException("Nao informe Divisao para este Elo.");
+            throw new DomainException(MessageCodes.DivisionNotAllowedForElo);
         }
 
         NomeExibicao = nomeExibicao.Trim();
@@ -138,27 +139,27 @@ public sealed class Jogador
     {
         if (preferencias.Count != 5)
         {
-            throw new DomainException("Informe exatamente cinco preferencias de rota.");
+            throw new DomainException(MessageCodes.RoutesRequired);
         }
 
         if (preferencias.Select(preferencia => preferencia.Rota).Distinct().Count() != 5)
         {
-            throw new DomainException("Cada rota deve aparecer uma unica vez.");
+            throw new DomainException(MessageCodes.DuplicateRoute);
         }
 
         if (preferencias.Select(preferencia => preferencia.Prioridade).Distinct().Count() != 5)
         {
-            throw new DomainException("Cada prioridade de rota deve ser unica.");
+            throw new DomainException(MessageCodes.RoutePrioritiesMustBeUnique);
         }
 
         if (preferencias.Any(preferencia => preferencia.Prioridade is < 1 or > 5))
         {
-            throw new DomainException("As prioridades devem estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.RoutePrioritiesRange);
         }
 
         if (preferencias.Count(preferencia => preferencia.NaoJogoNemLascando) > 1)
         {
-            throw new DomainException("Apenas uma rota pode ser marcada como nao jogo nem lascando.");
+            throw new DomainException(MessageCodes.OnlyOneNeverPlayRole);
         }
     }
 

@@ -20,7 +20,7 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("RinhaDasLendas")
             ?? configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string RinhaDasLendas ou DefaultConnection nao configurada.");
+            ?? throw new InvalidOperationException("Connection string RinhaDasLendas ou DefaultConnection não configurada.");
 
         services.AddDbContext<RinhaDasLendasDbContext>(options => options.UseNpgsql(connectionString));
         services.Configure<AuthOptions>(configuration.GetSection("Authentication"));

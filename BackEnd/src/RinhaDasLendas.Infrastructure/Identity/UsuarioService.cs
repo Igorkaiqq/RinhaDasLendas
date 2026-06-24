@@ -80,7 +80,7 @@ public sealed class UsuarioService(
         }
 
         var roles = await userManager.GetRolesAsync(user);
-        return CanView(user, roles) ? await BuildResponseAsync(user, cancellationToken) : throw new UnauthorizedAccessException("Permissao insuficiente.");
+        return CanView(user, roles) ? await BuildResponseAsync(user, cancellationToken) : throw new UnauthorizedAccessException(MessageCodes.InsufficientPermission);
     }
 
     public async Task<UsuarioResponseDto?> UpdateAsync(Guid id, UpdateUsuarioRequestDto request, CancellationToken cancellationToken)
@@ -95,7 +95,7 @@ public sealed class UsuarioService(
         user.Nome = request.Nome.Trim();
         user.DataAtualizacao = DateTimeOffset.UtcNow;
         EnsureIdentitySuccess(await userManager.UpdateAsync(user));
-        await auditoriaService.RegistrarAsync("UsuarioAtualizado", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("UserUpdated", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return await BuildResponseAsync(user, cancellationToken);
     }
@@ -110,14 +110,14 @@ public sealed class UsuarioService(
 
         if (currentUser.UserId == id)
         {
-            throw new DomainException("Usuario nao pode alterar as proprias roles.");
+            throw new DomainException(MessageCodes.UserCannotChangeOwnRoles);
         }
 
         var currentRoles = await userManager.GetRolesAsync(user);
         var requested = request.Roles.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (!roleHierarchyService.CanAssignRoles(currentUser.Roles, currentRoles, requested))
         {
-            throw new UnauthorizedAccessException("Operacao negada pela hierarquia de roles.");
+            throw new UnauthorizedAccessException(MessageCodes.RoleHierarchyOperationDenied);
         }
 
         await EnsureAtLeastOneSuperAdminAsync(user, currentRoles, requested, cancellationToken);
@@ -126,7 +126,7 @@ public sealed class UsuarioService(
         EnsureIdentitySuccess(await userManager.AddToRolesAsync(user, requested));
         user.DataAtualizacao = DateTimeOffset.UtcNow;
         EnsureIdentitySuccess(await userManager.UpdateAsync(user));
-        await auditoriaService.RegistrarAsync("RolesAlteradas", user.Id, currentUser.UserId, string.Join(",", requested), currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("RolesUpdated", user.Id, currentUser.UserId, string.Join(",", requested), currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return new UsuarioRolesResponseDto(user.Id, requested, user.DataAtualizacao);
     }
@@ -143,7 +143,7 @@ public sealed class UsuarioService(
         user.Ativo = true;
         user.DataAtualizacao = DateTimeOffset.UtcNow;
         EnsureIdentitySuccess(await userManager.UpdateAsync(user));
-        await auditoriaService.RegistrarAsync("UsuarioAtivado", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("UserActivated", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return await BuildResponseAsync(user, cancellationToken);
     }
@@ -163,21 +163,21 @@ public sealed class UsuarioService(
         user.Ativo = false;
         user.DataAtualizacao = DateTimeOffset.UtcNow;
         EnsureIdentitySuccess(await userManager.UpdateAsync(user));
-        await RevokeUserSessionsAsync(user.Id, "Usuario desativado", cancellationToken);
-        await auditoriaService.RegistrarAsync("UsuarioDesativado", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
+        await RevokeUserSessionsAsync(user.Id, "UserDeactivated", cancellationToken);
+        await auditoriaService.RegistrarAsync("UserDeactivated", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return await BuildResponseAsync(user, cancellationToken);
     }
 
     public async Task ResetPasswordAsync(Guid id, ResetUsuarioPasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(id.ToString()) ?? throw new DomainException("Usuario nao encontrado.");
+        var user = await userManager.FindByIdAsync(id.ToString()) ?? throw new DomainException(MessageCodes.UserNotFound);
         await EnsureCanManageAsync(user);
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         EnsureIdentitySuccess(await userManager.ResetPasswordAsync(user, token, request.NovaSenha));
-        await RevokeUserSessionsAsync(user.Id, "Senha redefinida por administrador", cancellationToken);
-        await auditoriaService.RegistrarAsync("SenhaRedefinidaPorAdmin", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
+        await RevokeUserSessionsAsync(user.Id, "AdminPasswordReset", cancellationToken);
+        await auditoriaService.RegistrarAsync("AdminPasswordReset", user.Id, currentUser.UserId, null, currentUser.IpAddress, currentUser.UserAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -215,7 +215,7 @@ public sealed class UsuarioService(
         var targetRoles = await userManager.GetRolesAsync(target);
         if (!roleHierarchyService.CanAdminister(currentUser.Roles, targetRoles))
         {
-            throw new UnauthorizedAccessException("Permissao insuficiente.");
+            throw new UnauthorizedAccessException(MessageCodes.InsufficientPermission);
         }
     }
 
@@ -253,7 +253,7 @@ public sealed class UsuarioService(
             return Array.Empty<string>();
         }
 
-        return new[] { "Editar", "AlterarRoles", target.Ativo ? "Desativar" : "Ativar", "ResetarSenha" };
+        return new[] { "edit", "updateRoles", target.Ativo ? "deactivate" : "activate", "resetPassword" };
     }
 
     private Task<Guid?> GetJogadorIdAsync(Guid userId, CancellationToken cancellationToken)
@@ -281,7 +281,7 @@ public sealed class UsuarioService(
 
         if (activeSuperAdmins == 0)
         {
-            throw new DomainException("O sistema deve manter ao menos um SuperAdmin ativo.");
+            throw new DomainException(MessageCodes.MustKeepActiveSuperAdmin);
         }
     }
 
@@ -299,7 +299,7 @@ public sealed class UsuarioService(
     {
         if (!result.Succeeded)
         {
-            throw new DomainException(string.Join("; ", result.Errors.Select(error => error.Description)));
+            throw new DomainException(MessageCodes.RequestProcessingFailed);
         }
     }
 }

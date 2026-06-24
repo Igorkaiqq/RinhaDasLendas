@@ -1,19 +1,20 @@
 using FluentValidation;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Application.Validators;
 
 public sealed class UpdateUsuarioRequestDtoValidator : AbstractValidator<UpdateUsuarioRequestDto>
 {
-    public UpdateUsuarioRequestDtoValidator() => RuleFor(request => request.Nome).NotEmpty().MaximumLength(120);
+    public UpdateUsuarioRequestDtoValidator() => RuleFor(request => request.Nome).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(120).WithMessage(MessageCodes.MaxLengthExceeded);
 }
 
 public sealed class UpdateUsuarioRolesRequestDtoValidator : AbstractValidator<UpdateUsuarioRolesRequestDto>
 {
     public UpdateUsuarioRolesRequestDtoValidator()
     {
-        RuleFor(request => request.Roles).NotEmpty();
-        RuleForEach(request => request.Roles).NotEmpty();
+        RuleFor(request => request.Roles).NotEmpty().WithMessage(MessageCodes.FieldRequired);
+        RuleForEach(request => request.Roles).NotEmpty().WithMessage(MessageCodes.FieldRequired);
     }
 }
 
@@ -21,7 +22,7 @@ public sealed class ResetUsuarioPasswordRequestDtoValidator : AbstractValidator<
 {
     public ResetUsuarioPasswordRequestDtoValidator()
     {
-        RuleFor(request => request.NovaSenha).NotEmpty().MinimumLength(8).Matches("[0-9]").WithMessage("Senha deve conter ao menos um numero.");
-        RuleFor(request => request.ConfirmacaoSenha).Equal(request => request.NovaSenha).WithMessage("Confirmacao de senha nao confere.");
+        RuleFor(request => request.NovaSenha).NotEmpty().WithMessage(MessageCodes.FieldRequired).MinimumLength(8).WithMessage(MessageCodes.WeakPassword).Matches("[0-9]").WithMessage(MessageCodes.WeakPassword);
+        RuleFor(request => request.ConfirmacaoSenha).Equal(request => request.NovaSenha).WithMessage(MessageCodes.PasswordConfirmationMismatch);
     }
 }

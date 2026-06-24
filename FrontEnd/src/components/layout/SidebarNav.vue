@@ -12,6 +12,7 @@ const props = defineProps<{
 
 defineEmits<{
   toggle: []
+  menuAction: [action: 'logout']
 }>()
 
 const route = useRoute()
@@ -40,7 +41,7 @@ const { t } = useI18n()
     </div>
 
     <nav class="sidebar__nav">
-      <span class="sidebar__section-label">Arena</span>
+      <span class="sidebar__section-label">{{ t('navigation.arena') }}</span>
       <RouterLink
         v-for="item in props.items"
         :key="item.id"
@@ -51,7 +52,7 @@ const { t } = useI18n()
       >
         <span class="sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
         <span class="sidebar__label">{{ item.label }}</span>
-        <span v-if="item.status === 'placeholder'" class="sidebar__status">Soon</span>
+        <span v-if="item.status === 'placeholder'" class="sidebar__status">{{ t('navigation.soon') }}</span>
       </RouterLink>
     </nav>
 
@@ -61,7 +62,7 @@ const { t } = useI18n()
         <span class="sidebar__icon" aria-hidden="true">HP</span>
         <span class="sidebar__label">{{ t('navigation.support') }}</span>
       </RouterLink>
-      <button type="button" class="sidebar__item" :title="t('navigation.logout')">
+      <button type="button" class="sidebar__item" :title="t('navigation.logout')" @click="$emit('menuAction', 'logout')">
         <span class="sidebar__icon" aria-hidden="true">EX</span>
         <span class="sidebar__label">{{ t('navigation.logout') }}</span>
       </button>

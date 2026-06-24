@@ -52,6 +52,19 @@
   <data name="ME021" xml:space="preserve"><value>Time não encontrado</value></data>
   <data name="ME022" xml:space="preserve"><value>Não foi possível salvar o time</value></data>
   <data name="ME023" xml:space="preserve"><value>Não foi possível salvar o draft</value></data>
+  <data name="ME024" xml:space="preserve"><value>Credenciais inválidas</value></data>
+  <data name="ME025" xml:space="preserve"><value>Sessão expirada</value></data>
+  <data name="ME026" xml:space="preserve"><value>Refresh token inválido</value></data>
+  <data name="ME027" xml:space="preserve"><value>Usuário desativado</value></data>
+  <data name="ME028" xml:space="preserve"><value>Acesso negado</value></data>
+  <data name="ME029" xml:space="preserve"><value>Falha na autenticação</value></data>
+  <data name="ME030" xml:space="preserve"><value>Não foi possível atualizar o usuário</value></data>
+  <data name="ME031" xml:space="preserve"><value>Erro de validação</value></data>
+  <data name="ME032" xml:space="preserve"><value>Usuário não encontrado</value></data>
+  <data name="ME033" xml:space="preserve"><value>Perfil de jogador não encontrado</value></data>
+  <data name="ME034" xml:space="preserve"><value>OAuth do Discord ainda não implementado</value></data>
+  <data name="ME035" xml:space="preserve"><value>Montagem de draft não encontrada</value></data>
+  <data name="ME036" xml:space="preserve"><value>Token de redefinição inválido</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -82,6 +95,29 @@
   <data name="MV028" xml:space="preserve"><value>Jogador já foi escolhido neste draft</value></data>
   <data name="MV029" xml:space="preserve"><value>Draft não está aberto para escolhas</value></data>
   <data name="MV030" xml:space="preserve"><value>Jogador inválido para este draft</value></data>
+  <data name="MV031" xml:space="preserve"><value>Senha deve conter ao menos um número</value></data>
+  <data name="MV032" xml:space="preserve"><value>Confirmação de senha não confere</value></data>
+  <data name="MV033" xml:space="preserve"><value>E-mail já cadastrado</value></data>
+  <data name="MV034" xml:space="preserve"><value>Role inválida</value></data>
+  <data name="MV035" xml:space="preserve"><value>Operação negada pela hierarquia de roles</value></data>
+  <data name="MV036" xml:space="preserve"><value>Tamanho máximo excedido</value></data>
+  <data name="MV037" xml:space="preserve"><value>Informe os jogadores do time</value></data>
+  <data name="MV038" xml:space="preserve"><value>Informe os jogadores do draft</value></data>
+  <data name="MV039" xml:space="preserve"><value>Informe os jogadores da montagem</value></data>
+  <data name="MV040" xml:space="preserve"><value>Informe apenas rotas válidas</value></data>
+  <data name="MV041" xml:space="preserve"><value>Informe as preferências de rota</value></data>
+  <data name="MV042" xml:space="preserve"><value>Cada rota deve aparecer uma única vez</value></data>
+  <data name="MV043" xml:space="preserve"><value>Não informe divisão para este elo</value></data>
+  <data name="MV044" xml:space="preserve"><value>Tamanho do time deve estar entre 1 e 5</value></data>
+  <data name="MV045" xml:space="preserve"><value>Informe dois capitães distintos para o draft</value></data>
+  <data name="MV046" xml:space="preserve"><value>Informe o primeiro time ou habilite o sorteio</value></data>
+  <data name="MV047" xml:space="preserve"><value>Jogadores insuficientes para formar um time completo</value></data>
+  <data name="MV048" xml:space="preserve"><value>Informe um capitão para cada time gerado ou habilite o sorteio</value></data>
+  <data name="MV049" xml:space="preserve"><value>Capitães devem ser distintos</value></data>
+  <data name="MV050" xml:space="preserve"><value>Capitães devem fazer parte dos jogadores selecionados</value></data>
+  <data name="MV051" xml:space="preserve"><value>Motivo do cancelamento deve ter no máximo 500 caracteres</value></data>
+  <data name="MV052" xml:space="preserve"><value>Usuário não pode alterar as próprias roles</value></data>
+  <data name="MV053" xml:space="preserve"><value>O sistema deve manter ao menos um SuperAdmin ativo</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>
   <data name="MC002" xml:space="preserve"><value>Deseja inativar este jogador?</value></data>
   <data name="MC003" xml:space="preserve"><value>Deseja remover o jogador da fila?</value></data>

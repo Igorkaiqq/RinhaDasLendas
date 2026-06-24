@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Jogadores;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Jogadores;
 using RinhaDasLendas.Domain.Constants;
 
@@ -13,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 [Authorize]
 [Route("api/v1/jogadores")]
 [Produces("application/json")]
-public sealed class JogadoresController(ISender sender) : ControllerBase
+public sealed class JogadoresController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpPost]
     [Authorize(Policy = AuthPermissions.CanManageUsers)]
@@ -51,7 +52,7 @@ public sealed class JogadoresController(ISender sender) : ControllerBase
     {
         var jogador = await sender.Send(new GetJogadorByIdQuery(id), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse("Jogador nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
             : Ok(jogador);
     }
 
@@ -64,7 +65,7 @@ public sealed class JogadoresController(ISender sender) : ControllerBase
     {
         var jogador = await sender.Send(new UpdateJogadorCommand(id, request), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse("Jogador nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
             : Ok(jogador);
     }
 
@@ -76,7 +77,7 @@ public sealed class JogadoresController(ISender sender) : ControllerBase
     {
         var jogador = await sender.Send(new UpdatePreferenciasCommand(id, request), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse("Jogador nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
             : Ok(jogador);
     }
 
@@ -89,6 +90,6 @@ public sealed class JogadoresController(ISender sender) : ControllerBase
         var inativado = await sender.Send(new InativarJogadorCommand(id), cancellationToken);
         return inativado
             ? NoContent()
-            : NotFound(new ApiErrorResponse("Jogador nao encontrado", []));
+            : NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []));
     }
 }

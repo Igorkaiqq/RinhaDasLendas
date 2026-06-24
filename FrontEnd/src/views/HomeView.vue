@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { AppRoutes } from '@/constants/appRoutes'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const notification = ref<string | null>(null)
+const { t } = useI18n()
 let notificationTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
 function showUnderConstruction() {
-  notification.value = 'Tela em desenvolvimento.'
+  notification.value = t('home.notifications.underConstruction')
 
   if (notificationTimer) {
     globalThis.clearTimeout(notificationTimer)
@@ -24,53 +26,53 @@ function showUnderConstruction() {
     <div v-if="notification" class="app-toast app-toast--info" role="status" aria-live="polite">
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification }}</p>
-      <button type="button" aria-label="Fechar notificacao" @click="notification = null">x</button>
+      <button type="button" :aria-label="t('common.closeNotification')" @click="notification = null">x</button>
     </div>
 
     <header class="home-page__header">
       <div>
-        <p class="home-page__eyebrow">Plataforma competitiva interna</p>
-        <h1>Organize a próxima rinha com ritmo de campeonato.</h1>
+        <p class="home-page__eyebrow">{{ t('home.hero.eyebrow') }}</p>
+        <h1>{{ t('home.hero.title') }}</h1>
         <p>
-          Centralize jogadores, times, drafts e histórico da comunidade em uma experiência preparada para Discord, Riot e noites de confronto.
+          {{ t('home.hero.description') }}
         </p>
       </div>
-      <div class="home-page__signal" aria-label="Status da plataforma">
-        <span>Live ops</span>
-        <strong>Drafts e jogadores prontos</strong>
+      <div class="home-page__signal" :aria-label="t('home.platformStatusLabel')">
+        <span>{{ t('home.signal.label') }}</span>
+        <strong>{{ t('home.signal.status') }}</strong>
       </div>
     </header>
 
-    <section class="home-page__grid" aria-label="Resumo do sistema">
+    <section class="home-page__grid" :aria-label="t('home.systemSummaryLabel')">
       <article class="home-card home-card--highlight">
         <span class="home-card__icon" aria-hidden="true">DC</span>
         <div>
-          <h2>Discord do grupo</h2>
-          <p>Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo.</p>
+          <h2>{{ t('home.cards.discord.title') }}</h2>
+          <p>{{ t('home.cards.discord.description') }}</p>
         </div>
       </article>
 
       <RouterLink class="home-card home-card--link" :to="AppRoutes.Players">
         <span class="home-card__icon" aria-hidden="true">JG</span>
         <div>
-          <h2>Jogadores</h2>
-          <p>Cadastre participantes, elos e preferências de rota.</p>
+          <h2>{{ t('home.cards.players.title') }}</h2>
+          <p>{{ t('home.cards.players.description') }}</p>
         </div>
       </RouterLink>
 
       <button class="home-card home-card--link" type="button" @click="showUnderConstruction">
         <span class="home-card__icon" aria-hidden="true">DR</span>
         <div>
-          <h2>Draft</h2>
-          <p>Estrutura preparada para capitães, ordem de picks e times balanceados.</p>
+          <h2>{{ t('home.cards.draft.title') }}</h2>
+          <p>{{ t('home.cards.draft.description') }}</p>
         </div>
       </button>
 
       <button class="home-card home-card--link" type="button" @click="showUnderConstruction">
         <span class="home-card__icon" aria-hidden="true">MD</span>
         <div>
-          <h2>Partidas</h2>
-          <p>Base visual pronta para registrar jogos, placares e histórico.</p>
+          <h2>{{ t('home.cards.matches.title') }}</h2>
+          <p>{{ t('home.cards.matches.description') }}</p>
         </div>
       </button>
     </section>

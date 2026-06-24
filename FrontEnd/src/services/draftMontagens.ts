@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios'
 
+import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
@@ -9,6 +10,7 @@ import type {
 } from '@/types/draftMontagem'
 
 import { api } from './api'
+import { getMessage } from './messageService'
 
 interface PaginatedDraftMontagens {
   page: number
@@ -25,7 +27,7 @@ interface ApiErrorResponse {
 
 export class DraftMontagemServiceError extends Error {
   constructor(public readonly errors: string[]) {
-    super(errors[0] ?? 'Nao foi possivel processar a montagem.')
+    super(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
 }
 
@@ -109,5 +111,5 @@ function toDraftMontagemServiceError(error: unknown): DraftMontagemServiceError 
     }
   }
 
-  return new DraftMontagemServiceError(['Falha ao conectar ao servidor.'])
+  return new DraftMontagemServiceError([getMessage(MessageCode.ServerConnectionFailed)])
 }

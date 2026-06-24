@@ -21,16 +21,15 @@ public sealed class AuthService(
     RinhaDasLendasDbContext dbContext,
     IOptions<AuthOptions> authOptions,
     IUsuarioAuditoriaService auditoriaService,
-    RoleHierarchyService roleHierarchyService) : IAuthService
+    RoleHierarchyService roleHierarchyService,
+    IMessageProvider messages) : IAuthService
 {
-    private const string GenericRecoveryMessage = "Se o e-mail estiver cadastrado, enviaremos instrucoes de recuperacao.";
-
     public async Task<AuthenticatedUserDto> RegisterAsync(RegisterRequestDto request, CancellationToken cancellationToken)
     {
         var existing = await userManager.FindByEmailAsync(request.Email);
         if (existing is not null)
         {
-            throw new DomainException("E-mail ja cadastrado.");
+            throw new DomainException(MessageCodes.EmailAlreadyRegistered);
         }
 
         var user = new ApplicationUser
@@ -52,7 +51,7 @@ public sealed class AuthService(
         var roleResult = await userManager.AddToRoleAsync(user, AuthRoles.Jogador);
         EnsureIdentitySuccess(roleResult);
 
-        await auditoriaService.RegistrarAsync("UsuarioCriado", user.Id, user.Id, "Cadastro publico", null, null, cancellationToken);
+        await auditoriaService.RegistrarAsync("UserCreated", user.Id, user.Id, MessageCodes.UserCreated, null, null, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildUserDtoAsync(user, cancellationToken);
@@ -63,18 +62,18 @@ public sealed class AuthService(
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null || !user.Ativo)
         {
-            await auditoriaService.RegistrarAsync("LoginFalha", user?.Id, null, "Credenciais invalidas ou usuario desativado", ipAddress, userAgent, cancellationToken);
+            await auditoriaService.RegistrarAsync("LoginFailed", user?.Id, null, MessageCodes.InvalidCredentials, ipAddress, userAgent, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
-            throw new UnauthorizedAccessException("Credenciais invalidas.");
+            throw new UnauthorizedAccessException(MessageCodes.InvalidCredentials);
         }
 
         var validPassword = await userManager.CheckPasswordAsync(user, request.Senha);
         if (!validPassword)
         {
             await userManager.AccessFailedAsync(user);
-            await auditoriaService.RegistrarAsync("LoginFalha", user.Id, null, "Credenciais invalidas", ipAddress, userAgent, cancellationToken);
+            await auditoriaService.RegistrarAsync("LoginFailed", user.Id, null, MessageCodes.InvalidCredentials, ipAddress, userAgent, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
-            throw new UnauthorizedAccessException("Credenciais invalidas.");
+            throw new UnauthorizedAccessException(MessageCodes.InvalidCredentials);
         }
 
         await userManager.ResetAccessFailedCountAsync(user);
@@ -82,7 +81,7 @@ public sealed class AuthService(
         user.DataAtualizacao = user.UltimoLoginEm.Value;
 
         var token = await CreateTokenAsync(user, null, ipAddress, userAgent, cancellationToken);
-        await auditoriaService.RegistrarAsync("LoginSucesso", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("LoginSucceeded", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new AuthResponseDto(token.AccessToken, token.ExpiresIn, await BuildUserDtoAsync(user, cancellationToken)) { RefreshToken = token.RefreshToken };
@@ -94,35 +93,35 @@ public sealed class AuthService(
         var storedToken = await dbContext.RefreshTokens.FirstOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
         if (storedToken is null)
         {
-            throw new UnauthorizedAccessException("Refresh token invalido.");
+            throw new UnauthorizedAccessException(MessageCodes.InvalidRefreshToken);
         }
 
         var user = await userManager.FindByIdAsync(storedToken.UsuarioId.ToString());
         if (user is null || !user.Ativo)
         {
-            throw new UnauthorizedAccessException("Usuario indisponivel.");
+            throw new UnauthorizedAccessException(MessageCodes.UserDeactivated);
         }
 
         if (!storedToken.EstaAtivo(DateTimeOffset.UtcNow))
         {
             if (storedToken.RevogadoEm is not null && storedToken.SubstituidoPorTokenId is not null)
             {
-                await RevokeFamilyAsync(storedToken.FamiliaId, "Reutilizacao detectada", ipAddress, cancellationToken);
-                await auditoriaService.RegistrarAsync("RefreshTokenReutilizado", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
+                await RevokeFamilyAsync(storedToken.FamiliaId, "RefreshTokenReuseDetected", ipAddress, cancellationToken);
+                await auditoriaService.RegistrarAsync("RefreshTokenReused", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            throw new UnauthorizedAccessException("Refresh token invalido.");
+            throw new UnauthorizedAccessException(MessageCodes.InvalidRefreshToken);
         }
 
         storedToken.RevogadoEm = DateTimeOffset.UtcNow;
         storedToken.IpRevogacao = ipAddress;
-        storedToken.MotivoRevogacao = "Rotacao";
+        storedToken.MotivoRevogacao = "Rotation";
 
         var newToken = await CreateTokenAsync(user, storedToken.FamiliaId, ipAddress, userAgent, cancellationToken);
         storedToken.SubstituidoPorTokenId = newToken.RefreshTokenId;
 
-        await auditoriaService.RegistrarAsync("RefreshTokenRotacionado", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
+        await auditoriaService.RegistrarAsync("RefreshTokenRotated", user.Id, user.Id, null, ipAddress, userAgent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new AuthResponseDto(newToken.AccessToken, newToken.ExpiresIn, await BuildUserDtoAsync(user, cancellationToken)) { RefreshToken = newToken.RefreshToken };
@@ -153,11 +152,11 @@ public sealed class AuthService(
         if (user is not null)
         {
             _ = await userManager.GeneratePasswordResetTokenAsync(user);
-            await auditoriaService.RegistrarAsync("SenhaRedefinida", user.Id, user.Id, "Token de recuperacao gerado", null, null, cancellationToken);
+            await auditoriaService.RegistrarAsync("PasswordResetRequested", user.Id, user.Id, MessageCodes.PasswordRecoveryRequested, null, null, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return new ForgotPasswordResponseDto(GenericRecoveryMessage);
+        return new ForgotPasswordResponseDto(messages.GetMessage(MessageCodes.PasswordRecoveryRequested));
     }
 
     public async Task ResetPasswordAsync(ResetPasswordRequestDto request, CancellationToken cancellationToken)
@@ -165,14 +164,14 @@ public sealed class AuthService(
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            throw new DomainException("Token de redefinicao invalido.");
+            throw new DomainException(MessageCodes.InvalidPasswordResetToken);
         }
 
         var result = await userManager.ResetPasswordAsync(user, request.Token, request.NovaSenha);
         EnsureIdentitySuccess(result);
 
-        await RevokeUserSessionsAsync(user.Id, "Senha redefinida", cancellationToken);
-        await auditoriaService.RegistrarAsync("SenhaRedefinida", user.Id, user.Id, null, null, null, cancellationToken);
+        await RevokeUserSessionsAsync(user.Id, "PasswordReset", cancellationToken);
+        await auditoriaService.RegistrarAsync("PasswordReset", user.Id, user.Id, null, null, null, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -182,8 +181,8 @@ public sealed class AuthService(
         var result = await userManager.ChangePasswordAsync(user, request.SenhaAtual, request.NovaSenha);
         EnsureIdentitySuccess(result);
 
-        await RevokeUserSessionsAsync(user.Id, "Senha alterada", cancellationToken);
-        await auditoriaService.RegistrarAsync("SenhaAlterada", user.Id, user.Id, null, null, null, cancellationToken);
+        await RevokeUserSessionsAsync(user.Id, "PasswordChanged", cancellationToken);
+        await auditoriaService.RegistrarAsync("PasswordChanged", user.Id, user.Id, null, null, null, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -316,7 +315,7 @@ public sealed class AuthService(
 
     private async Task<ApplicationUser> FindUserOrThrowAsync(Guid userId)
     {
-        return await userManager.FindByIdAsync(userId.ToString()) ?? throw new UnauthorizedAccessException("Usuario nao encontrado.");
+        return await userManager.FindByIdAsync(userId.ToString()) ?? throw new UnauthorizedAccessException(MessageCodes.UserNotFound);
     }
 
     private async Task EnsureRoleAsync(string role)
@@ -361,7 +360,7 @@ public sealed class AuthService(
     {
         if (!result.Succeeded)
         {
-            throw new DomainException(string.Join("; ", result.Errors.Select(error => error.Description)));
+            throw new DomainException(MessageCodes.RequestProcessingFailed);
         }
     }
 }

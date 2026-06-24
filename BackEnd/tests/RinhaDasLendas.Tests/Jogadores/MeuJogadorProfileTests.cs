@@ -4,6 +4,7 @@ using RinhaDasLendas.Application.Commands.Auth;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Handlers.Auth;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Jogadores;
 
@@ -50,9 +51,9 @@ public sealed class MeuJogadorProfileTests
         var result = await validator.ValidateAsync(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Informe o Riot ID.");
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Informe o link de OP.GG.");
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Informe o link de Deeplol.");
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.LeagueNicknameRequired);
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.InvalidOpGgLink);
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.InvalidDeeplolLink);
     }
 
     [Fact]

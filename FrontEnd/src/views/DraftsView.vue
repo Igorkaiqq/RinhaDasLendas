@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
@@ -20,6 +21,7 @@ import {
 import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
+const { t } = useI18n()
 const auth = useAuthState()
 const captains = ref<Player[]>([])
 const loading = ref(true)
@@ -98,10 +100,10 @@ async function saveMontagem(payload: DraftMontagemPayload) {
   try {
     selectedMontagem.value = await createDraftMontagem(payload)
     await loadVisualMontagens()
-    notification.value = `Draft ${selectedMontagem.value.nome} criado.`
+    notification.value = t('drafts.created', { name: selectedMontagem.value.nome })
     visualSetupOpen.value = false
   } catch (error) {
-    serviceErrors.value = error instanceof DraftMontagemServiceError ? error.errors : ['Nao foi possivel criar o draft.']
+    serviceErrors.value = error instanceof DraftMontagemServiceError ? error.errors : [t('drafts.errors.create')]
   } finally {
     saving.value = false
   }
@@ -116,7 +118,7 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   try {
     selectedMontagem.value = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
     await loadVisualMontagens()
-    notification.value = 'Layout do draft salvo.'
+    notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
     captureError(error)
   } finally {
@@ -131,7 +133,7 @@ async function drawMontagemCaptains() {
   saving.value = true
   try {
     selectedMontagem.value = await drawDraftMontagemCaptains(selectedMontagem.value.id)
-    notification.value = 'Capitaes sorteados.'
+    notification.value = t('drafts.messages.captainsDrawn')
   } catch (error) {
     captureError(error)
   } finally {
@@ -147,7 +149,7 @@ async function finalizeMontagem() {
   try {
     selectedMontagem.value = await finalizeDraftMontagem(selectedMontagem.value.id)
     await loadVisualMontagens()
-    notification.value = 'Draft finalizado.'
+    notification.value = t('drafts.messages.finished')
   } catch (error) {
     captureError(error)
   } finally {
@@ -162,9 +164,9 @@ async function cancelMontagem() {
 
   saving.value = true
   try {
-    selectedMontagem.value = await cancelDraftMontagem(selectedMontagem.value.id, 'Draft cancelado')
+    selectedMontagem.value = await cancelDraftMontagem(selectedMontagem.value.id, t('drafts.cancelReason'))
     await loadVisualMontagens()
-    notification.value = 'Draft cancelado.'
+    notification.value = t('drafts.canceled', { name: selectedMontagem.value.nome })
   } catch (error) {
     captureError(error)
   } finally {
@@ -178,7 +180,7 @@ function resetFilters() {
 }
 
 function captureError(error: unknown) {
-  errors.value = error instanceof DraftMontagemServiceError ? error.errors : ['Nao foi possivel concluir a acao.']
+  errors.value = error instanceof DraftMontagemServiceError ? error.errors : [t('drafts.errors.action')]
 }
 </script>
 
@@ -187,39 +189,39 @@ function captureError(error: unknown) {
     <div v-if="notification" class="app-toast app-toast--success" role="status" aria-live="polite">
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification }}</p>
-      <button type="button" aria-label="Fechar notificacao" @click="notification = null">x</button>
+      <button type="button" :aria-label="t('common.closeNotification')" @click="notification = null">x</button>
     </div>
 
     <header class="players-hero drafts-hero">
       <div>
-        <p class="page-kicker">Sala de estratégia</p>
-        <h1>Draft de Jogadores</h1>
-        <p>Monte os times visualmente com capitães, reservas, rotas e layout persistente.</p>
+        <p class="page-kicker">{{ t('drafts.kicker') }}</p>
+        <h1>{{ t('drafts.title') }}</h1>
+        <p>{{ t('drafts.visualSubtitle') }}</p>
       </div>
       <div class="draft-hero-actions">
-        <span class="page-hero__metric">{{ filteredDrafts.length }} drafts</span>
-        <button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
+        <span class="page-hero__metric">{{ t('drafts.metrics.visible', { total: filteredDrafts.length }) }}</span>
+        <button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">{{ t('drafts.createWithIcon') }}</button>
       </div>
     </header>
 
     <PendingPlayerProfileNotice v-if="!hasPlayerProfile" />
 
-    <section class="filter-bar" aria-label="Filtros de drafts">
+    <section class="filter-bar" :aria-label="t('drafts.filtersLabel')">
       <label class="filter-field filter-field--wide">
-        Buscar draft
+        {{ t('drafts.searchLabel') }}
         <span>
           <span aria-hidden="true">SR</span>
-          <input v-model="searchTerm" type="search" placeholder="Nome do draft" />
+          <input v-model="searchTerm" type="search" :placeholder="t('drafts.searchPlaceholder')" />
         </span>
       </label>
       <label class="filter-field">
-        Status
+        {{ t('common.status') }}
         <select v-model="selectedStatus">
-          <option value="">Todos</option>
+          <option value="">{{ t('common.all') }}</option>
           <option v-for="status in statusOptions" :key="status" :value="status">{{ status }}</option>
         </select>
       </label>
-      <button class="filter-reset" type="button" aria-label="Limpar filtros" @click="resetFilters">=</button>
+      <button class="filter-reset" type="button" :aria-label="t('common.clearFilters')" @click="resetFilters">=</button>
     </section>
 
     <div v-if="errors.length" class="form-errors" role="alert">
@@ -227,7 +229,7 @@ function captureError(error: unknown) {
     </div>
 
     <section class="draft-layout">
-      <aside class="draft-list" aria-label="Lista de drafts">
+      <aside class="draft-list" :aria-label="t('drafts.listLabel')">
         <button
           v-for="draft in filteredDrafts"
           :key="draft.id"
@@ -237,11 +239,11 @@ function captureError(error: unknown) {
         >
           <strong>{{ draft.nome }}</strong>
           <span class="team-status" :class="`team-status--${draft.status.toLowerCase()}`">{{ draft.status }}</span>
-          <span>{{ draft.quantidadeTimes }} times · {{ draft.quantidadeReservas }} reservas</span>
+          <span>{{ t('drafts.cardSummary', { teams: draft.quantidadeTimes, reserves: draft.quantidadeReservas }) }}</span>
         </button>
         <div v-if="!loading && !filteredDrafts.length" class="draft-empty-card">
-          <h2>Nenhum draft encontrado</h2>
-          <p>Crie o primeiro draft ou ajuste os filtros.</p>
+          <h2>{{ t('drafts.emptyTitle') }}</h2>
+          <p>{{ t('drafts.emptyDescription') }}</p>
         </div>
       </aside>
 
@@ -257,8 +259,8 @@ function captureError(error: unknown) {
           @cancel="cancelMontagem"
         />
         <section v-else class="draft-empty-card">
-          <h2>Nenhum draft selecionado</h2>
-          <p>Crie ou selecione um draft para montar os times.</p>
+          <h2>{{ t('drafts.noSelectionTitle') }}</h2>
+          <p>{{ t('drafts.noSelectionDescription') }}</p>
         </section>
       </main>
     </section>

@@ -1,5 +1,6 @@
 using FluentValidation;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 
 namespace RinhaDasLendas.Application.Validators;
@@ -40,17 +41,17 @@ public sealed class MeuJogadorProfileRequestDtoValidator : AbstractValidator<Meu
 
         RuleFor(request => request.RiotId)
             .NotEmpty()
-            .WithMessage("Informe o Riot ID.")
+            .WithMessage(MessageCodes.LeagueNicknameRequired)
             .MaximumLength(120)
-            .WithMessage("Riot ID deve ter no maximo 120 caracteres.");
+            .WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => request.OpGgUrl)
             .NotEmpty()
-            .WithMessage("Informe o link de OP.GG.");
+            .WithMessage(MessageCodes.InvalidOpGgLink);
 
         RuleFor(request => request.DeepLolUrl)
             .NotEmpty()
-            .WithMessage("Informe o link de Deeplol.");
+            .WithMessage(MessageCodes.InvalidDeeplolLink);
 
         RuleFor(request => request.Preferencias)
             .SetValidator(new PreferenciasRotasValidator());
@@ -63,38 +64,38 @@ internal sealed class JogadorDadosBasicosValidator : AbstractValidator<IJogadorD
     {
         RuleFor(request => request.NomeExibicao)
             .NotEmpty()
-            .WithMessage("Nome e obrigatorio.")
+            .WithMessage(MessageCodes.PlayerNameRequired)
             .MaximumLength(100)
-            .WithMessage("Nome deve ter no maximo 100 caracteres.");
+            .WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => request.Discord)
             .Must(value => !string.IsNullOrWhiteSpace(value))
-            .WithMessage("Informe o Discord do jogador.")
+            .WithMessage(MessageCodes.FieldRequired)
             .MaximumLength(120)
-            .WithMessage("Discord deve ter no maximo 120 caracteres.");
+            .WithMessage(MessageCodes.MaxLengthExceeded);
 
         RuleFor(request => request.Elo)
             .Must(EloValido)
-            .WithMessage("Selecione um Elo.");
+            .WithMessage(MessageCodes.FieldRequired);
 
         RuleFor(request => request.Divisao)
             .Must(DivisaoValida)
-            .WithMessage("Selecione uma Divisao.")
+            .WithMessage(MessageCodes.FieldRequired)
             .When(request => EloExigeDivisao(request.Elo));
 
         RuleFor(request => request.Divisao)
             .Must(value => string.IsNullOrWhiteSpace(value))
-            .WithMessage("Nao informe Divisao para este Elo.")
+            .WithMessage(MessageCodes.DivisionNotAllowedForElo)
             .When(request => EloNaoExigeDivisao(request.Elo));
 
         RuleFor(request => request.OpGgUrl)
             .Must(url => UrlDeDominioValido(url, "op.gg"))
-            .WithMessage("Link de OP.GG deve ser uma URL valida do dominio op.gg.")
+            .WithMessage(MessageCodes.InvalidOpGgLink)
             .When(request => !string.IsNullOrWhiteSpace(request.OpGgUrl));
 
         RuleFor(request => request.DeepLolUrl)
             .Must(url => UrlDeDominioValido(url, "deeplol.gg"))
-            .WithMessage("Link de Deeplol deve ser uma URL valida do dominio deeplol.gg.")
+            .WithMessage(MessageCodes.InvalidDeeplolLink)
             .When(request => !string.IsNullOrWhiteSpace(request.DeepLolUrl));
     }
 
@@ -132,19 +133,19 @@ internal sealed class PreferenciasRotasValidator : AbstractValidator<IReadOnlyCo
     {
         RuleFor(preferencias => preferencias)
             .NotNull()
-            .WithMessage("Informe as preferencias de rota.")
+            .WithMessage(MessageCodes.RoutesRequired)
             .Must(preferencias => preferencias.Count == 5)
-            .WithMessage("Informe exatamente cinco preferencias de rota.")
+            .WithMessage(MessageCodes.RoutesRequired)
             .Must(TodasRotasValidas)
-            .WithMessage("Informe apenas rotas validas: Top, Jungle, Mid, Adc e Support.")
+            .WithMessage(MessageCodes.InvalidRoute)
             .Must(preferencias => preferencias.Select(preferencia => preferencia.Rota).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 5)
-            .WithMessage("Cada rota deve aparecer uma unica vez.")
+            .WithMessage(MessageCodes.DuplicateRoute)
             .Must(preferencias => preferencias.Select(preferencia => preferencia.Prioridade).Distinct().Count() == 5)
-            .WithMessage("Cada prioridade deve ser unica.")
+            .WithMessage(MessageCodes.RoutePrioritiesMustBeUnique)
             .Must(preferencias => preferencias.All(preferencia => preferencia.Prioridade is >= 1 and <= 5))
-            .WithMessage("Prioridades devem estar entre 1 e 5.")
+            .WithMessage(MessageCodes.RoutePrioritiesRange)
             .Must(preferencias => preferencias.Count(preferencia => preferencia.NaoJogoNemLascando) <= 1)
-            .WithMessage("Apenas uma rota pode ser marcada como nao jogo nem lascando.");
+            .WithMessage(MessageCodes.OnlyOneNeverPlayRole);
     }
 
     private static bool TodasRotasValidas(IReadOnlyCollection<PreferenciaRotaDto> preferencias)

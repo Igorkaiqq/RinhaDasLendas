@@ -1,3 +1,4 @@
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 
@@ -50,7 +51,7 @@ public sealed class DraftMontagem
     {
         if (tamanhoEquipe is < MinimoTamanhoEquipe or > MaximoTamanhoEquipe)
         {
-            throw new DomainException("Tamanho da equipe deve estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.TeamSizeRange);
         }
 
         return (totalJogadores / tamanhoEquipe, totalJogadores % tamanhoEquipe);
@@ -61,21 +62,21 @@ public sealed class DraftMontagem
         EnsureAberta();
         if (times.Count != QuantidadeTimes)
         {
-            throw new DomainException("Quantidade de times invalida para a montagem.");
+            throw new DomainException(MessageCodes.InconsistentDataFound);
         }
 
         var atribuicoes = new HashSet<Guid>();
         foreach (var timeLayout in times)
         {
-            var time = _times.FirstOrDefault(item => item.Id == timeLayout.TimeId) ?? throw new DomainException("Time da montagem nao encontrado.");
+            var time = _times.FirstOrDefault(item => item.Id == timeLayout.TimeId) ?? throw new DomainException(MessageCodes.TeamNotFound);
             if (timeLayout.Jogadores.Count > TamanhoEquipe)
             {
-                throw new DomainException("Time excede o tamanho configurado.");
+                throw new DomainException(MessageCodes.TeamPlayerLimitReached);
             }
 
             if (timeLayout.CapitaoId is null || !timeLayout.Jogadores.Any(item => item.JogadorId == timeLayout.CapitaoId))
             {
-                throw new DomainException("Cada time deve possuir um capitao dentro do proprio time.");
+                throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
             }
 
             time.Atualizar(timeLayout.Nome, timeLayout.CapitaoId);
@@ -97,7 +98,7 @@ public sealed class DraftMontagem
 
         if (atribuicoes.Count != _participantes.Count)
         {
-            throw new DomainException("Todos os participantes devem aparecer exatamente uma vez na montagem.");
+            throw new DomainException(MessageCodes.InconsistentDataFound);
         }
 
         Touch();
@@ -116,7 +117,7 @@ public sealed class DraftMontagem
             var candidatos = _participantes.Where(participante => participante.TimeId == time.Id).OrderBy(_ => Guid.NewGuid()).ToList();
             if (candidatos.Count == 0)
             {
-                throw new DomainException("Todos os times devem possuir jogadores para sortear capitaes.");
+                throw new DomainException(MessageCodes.TeamPlayersRequired);
             }
 
             var capitao = candidatos[0];
@@ -136,12 +137,12 @@ public sealed class DraftMontagem
             var membros = _participantes.Where(participante => participante.TimeId == time.Id).ToList();
             if (membros.Count > TamanhoEquipe)
             {
-                throw new DomainException("Time excede o tamanho configurado.");
+                throw new DomainException(MessageCodes.TeamPlayerLimitReached);
             }
 
             if (time.CapitaoId is null || membros.Count(participante => participante.Capitao) != 1 || membros.All(participante => participante.JogadorId != time.CapitaoId))
             {
-                throw new DomainException("Todos os times devem possuir exatamente um capitao.");
+                throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
             }
         }
 
@@ -161,12 +162,12 @@ public sealed class DraftMontagem
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
-            throw new DomainException("Nome da montagem e obrigatorio.");
+            throw new DomainException(MessageCodes.DraftNameRequired);
         }
 
         if (tamanhoEquipe is < MinimoTamanhoEquipe or > MaximoTamanhoEquipe)
         {
-            throw new DomainException("Tamanho da equipe deve estar entre 1 e 5.");
+            throw new DomainException(MessageCodes.TeamSizeRange);
         }
 
         Nome = nome.Trim();
@@ -180,18 +181,18 @@ public sealed class DraftMontagem
         var jogadores = jogadoresIds.Where(id => id != Guid.Empty).Distinct().ToList();
         if (jogadores.Count != jogadoresIds.Count)
         {
-            throw new DomainException("O mesmo jogador nao pode aparecer mais de uma vez na montagem.");
+            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
         }
 
         var (quantidadeTimes, quantidadeReservas) = CalcularEstrutura(jogadores.Count, TamanhoEquipe);
         if (quantidadeTimes < 1)
         {
-            throw new DomainException("Jogadores insuficientes para formar um time completo.");
+            throw new DomainException(MessageCodes.DraftMontagemInsufficientPlayers);
         }
 
         if (capitaesIds.Count != quantidadeTimes || capitaesIds.Distinct().Count() != capitaesIds.Count || capitaesIds.Any(id => !jogadores.Contains(id)))
         {
-            throw new DomainException("Informe um capitao valido e distinto para cada time.");
+            throw new DomainException(MessageCodes.DraftMontagemCaptainsRequired);
         }
 
         QuantidadeTimes = quantidadeTimes;
@@ -224,10 +225,10 @@ public sealed class DraftMontagem
     {
         if (!atribuicoes.Add(item.JogadorId))
         {
-            throw new DomainException("Jogador duplicado na montagem.");
+            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
         }
 
-        var participante = _participantes.FirstOrDefault(current => current.JogadorId == item.JogadorId) ?? throw new DomainException("Participante da montagem nao encontrado.");
+        var participante = _participantes.FirstOrDefault(current => current.JogadorId == item.JogadorId) ?? throw new DomainException(MessageCodes.PlayerNotFound);
         atribuir(participante);
     }
 
@@ -235,7 +236,7 @@ public sealed class DraftMontagem
     {
         if (Status != DraftMontagemStatus.Aberta)
         {
-            throw new DomainException("A montagem nao esta aberta para alteracoes.");
+            throw new DomainException(MessageCodes.DraftClosed);
         }
     }
 

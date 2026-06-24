@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -48,7 +49,7 @@ public sealed class DraftMontagemTests
             jogadores.Skip(1).Select((jogador, index) => new DraftMontagemLayoutParticipante(jogador, index + 1, null)).ToList(),
             []);
 
-        act.Should().Throw<DomainException>().WithMessage("Jogador duplicado na montagem.");
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftPlayerAlreadyPicked);
     }
 
     [Fact]

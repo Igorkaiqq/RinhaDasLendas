@@ -4,13 +4,13 @@ import { i18n, setLocale } from './index'
 
 describe('i18n', () => {
   it('loads Portuguese translations by default', () => {
-    setLocale('pt-BR')
+    setLocale('pt')
 
     expect(i18n.global.t('navigation.players')).toBe('Jogadores')
   })
 
   it('loads English translations when locale changes', () => {
-    setLocale('en-US')
+    setLocale('en')
 
     expect(i18n.global.t('navigation.players')).toBe('Players')
   })

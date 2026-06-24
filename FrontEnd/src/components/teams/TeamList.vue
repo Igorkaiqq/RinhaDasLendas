@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import TeamCard from '@/components/teams/TeamCard.vue'
 import type { Team } from '@/types/team'
+
+const { t } = useI18n()
 
 defineProps<{
   teams: Team[]
@@ -17,22 +21,22 @@ defineEmits<{
 </script>
 
 <template>
-  <section v-if="loading" class="player-grid player-grid--skeleton" aria-label="Carregando times">
+  <section v-if="loading" class="player-grid player-grid--skeleton" :aria-label="t('teams.states.loading')">
     <span v-for="index in 4" :key="index" />
   </section>
   <section v-else-if="errors.length" class="players-empty">
-    <p class="page-kicker">Erro</p>
-    <h2>Nao foi possivel carregar times</h2>
+    <p class="page-kicker">{{ t('playerStates.errorKicker') }}</p>
+    <h2>{{ t('teams.states.errorTitle') }}</h2>
     <p v-for="error in errors" :key="error">{{ error }}</p>
   </section>
   <section v-else-if="teams.length === 0" class="players-empty">
-    <p class="page-kicker">Lista vazia</p>
-    <h2>Nenhum time encontrado</h2>
-    <p>Cadastre o primeiro time ou ajuste os filtros para visualizar a base da rinha.</p>
-    <button type="button" @click="$emit('create')">Cadastrar Time</button>
+    <p class="page-kicker">{{ t('playerStates.emptyKicker') }}</p>
+    <h2>{{ t('teams.emptyTitle') }}</h2>
+    <p>{{ t('teams.emptyDescription') }}</p>
+    <button type="button" @click="$emit('create')">{{ t('teams.create') }}</button>
   </section>
 
-  <section v-else class="player-grid" aria-label="Lista de times">
+  <section v-else class="player-grid" :aria-label="t('teams.listLabel')">
     <TeamCard
       v-for="team in teams"
       :key="team.id"

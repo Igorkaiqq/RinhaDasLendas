@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Drafts;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Drafts;
 using RinhaDasLendas.Domain.Constants;
 
@@ -13,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 [Authorize]
 [Route("api/v1/drafts")]
 [Produces("application/json")]
-public sealed class DraftsController(ISender sender) : ControllerBase
+public sealed class DraftsController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResponseDto<DraftResponseDto>), StatusCodes.Status200OK)]
@@ -35,7 +36,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     {
         var draft = await sender.Send(new GetDraftByIdQuery(id), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse("Draft nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
             : Ok(draft);
     }
 
@@ -58,7 +59,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     {
         var draft = await sender.Send(new RegistrarPickDraftCommand(id, request), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse("Draft nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
             : Ok(draft);
     }
 
@@ -71,7 +72,7 @@ public sealed class DraftsController(ISender sender) : ControllerBase
     {
         var draft = await sender.Send(new CancelarDraftCommand(id, request), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse("Draft nao encontrado", []))
+            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
             : Ok(draft);
     }
 }

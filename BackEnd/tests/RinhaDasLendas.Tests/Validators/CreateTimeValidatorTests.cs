@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Validators;
 
@@ -27,6 +28,6 @@ public sealed class CreateTimeValidatorTests
 
         var result = _validator.Validate(request);
 
-        result.Errors.Should().Contain(error => error.ErrorMessage == "O mesmo jogador nao pode ser adicionado mais de uma vez.");
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.PlayerAlreadyInTeam);
     }
 }

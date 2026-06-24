@@ -27,7 +27,7 @@ vi.mock('vue-router', () => ({
 
 describe('SidebarNav', () => {
   beforeEach(() => {
-    setLocale('pt-BR')
+    setLocale('pt')
   })
 
   it('renders translated navigation labels from i18n keys', () => {

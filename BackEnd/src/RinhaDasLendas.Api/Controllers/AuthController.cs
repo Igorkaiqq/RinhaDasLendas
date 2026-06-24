@@ -6,7 +6,9 @@ using Microsoft.Extensions.Options;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Commands.Auth;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Auth;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure.Identity;
 
 namespace RinhaDasLendas.Api.Controllers;
@@ -14,7 +16,7 @@ namespace RinhaDasLendas.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public sealed class AuthController(ISender sender, IOptions<AuthOptions> options) : ControllerBase
+public sealed class AuthController(ISender sender, IOptions<AuthOptions> options, IMessageProvider messages) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -44,7 +46,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
         var refreshToken = Request.Cookies[options.Value.Cookie.RefreshTokenName];
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            return Unauthorized(new ApiErrorResponse("Sessao expirada", []));
+            return Unauthorized(new ApiErrorResponse(messages.GetMessage(MessageCodes.SessionExpired), []));
         }
 
         var response = await sender.Send(new RefreshSessionCommand(refreshToken, IpAddress(), UserAgent()), cancellationToken);
@@ -95,7 +97,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
         var user = await sender.Send(new GetCurrentUserQuery(CurrentUserId()), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpPut("me/profile")]
@@ -104,7 +106,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateOwnProfileRequestDto request, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new UpdateOwnProfileCommand(CurrentUserId(), request), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse("Usuario nao encontrado", [])) : Ok(user);
+        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
     }
 
     [HttpGet("me/jogador")]
@@ -114,7 +116,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> MeuJogador(CancellationToken cancellationToken)
     {
         var jogador = await sender.Send(new GetMeuJogadorProfileQuery(CurrentUserId()), cancellationToken);
-        return jogador is null ? NotFound(new ApiErrorResponse("Perfil de jogador nao encontrado", [])) : Ok(jogador);
+        return jogador is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerProfileNotFound), [])) : Ok(jogador);
     }
 
     [HttpPost("me/jogador")]
@@ -126,7 +128,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     {
         var jogador = await sender.Send(new CompleteMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
         return jogador is null
-            ? Conflict(new ApiErrorResponse("Usuario ja possui perfil de jogador vinculado", []))
+            ? Conflict(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerAlreadyExists), []))
             : CreatedAtAction(nameof(MeuJogador), jogador);
     }
 
@@ -138,7 +140,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> UpdateMeuJogador([FromBody] MeuJogadorProfileRequestDto request, CancellationToken cancellationToken)
     {
         var jogador = await sender.Send(new UpdateMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
-        return jogador is null ? NotFound(new ApiErrorResponse("Perfil de jogador nao encontrado", [])) : Ok(jogador);
+        return jogador is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerProfileNotFound), [])) : Ok(jogador);
     }
 
     [HttpGet("me/permissions")]
@@ -159,7 +161,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
 
     [HttpPost("me/discord/link")]
     [Authorize]
-    public IActionResult StartDiscordLink() => StatusCode(StatusCodes.Status501NotImplemented, new ApiErrorResponse("Discord OAuth ainda nao implementado", []));
+    public IActionResult StartDiscordLink() => StatusCode(StatusCodes.Status501NotImplemented, new ApiErrorResponse(messages.GetMessage(MessageCodes.DiscordOAuthNotImplemented), []));
 
     private void SetRefreshCookie(string? refreshToken)
     {
@@ -179,7 +181,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
 
     private Guid CurrentUserId()
     {
-        return CurrentUserIdOrNull() ?? throw new UnauthorizedAccessException("Usuario nao autenticado.");
+        return CurrentUserIdOrNull() ?? throw new UnauthorizedAccessException(MessageCodes.UnauthorizedAccess);
     }
 
     private Guid? CurrentUserIdOrNull()

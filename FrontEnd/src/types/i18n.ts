@@ -1,4 +1,4 @@
-export type LocaleCode = 'pt-BR' | 'en-US'
+export type LocaleCode = 'pt' | 'en'
 
-export const DEFAULT_LOCALE: LocaleCode = 'pt-BR'
-export const SUPPORTED_LOCALES = ['pt-BR', 'en-US'] as const satisfies readonly LocaleCode[]
+export const DEFAULT_LOCALE: LocaleCode = 'pt'
+export const SUPPORTED_LOCALES = ['pt', 'en'] as const satisfies readonly LocaleCode[]

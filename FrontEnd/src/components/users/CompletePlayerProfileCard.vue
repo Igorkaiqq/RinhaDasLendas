@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import RoutePreferenceEditor from '@/components/RoutePreferenceEditor.vue'
 import { LeagueRole } from '@/constants/leagueRoles'
@@ -15,6 +16,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   submit: [payload: MeuJogadorProfilePayload]
 }>()
+
+const { t } = useI18n()
 
 const defaultPreferences = (): RoutePreference[] => [
   { rota: LeagueRole.Top, prioridade: 1, naoJogoNemLascando: false },
@@ -40,17 +43,17 @@ const form = reactive({
   submitted: false,
 })
 
-const title = computed(() => (props.jogador ? 'Meu perfil de jogador' : 'Complete seu perfil de jogador'))
+const title = computed(() => (props.jogador ? t('usersAdmin.playerProfile.myTitle') : t('usersAdmin.playerProfile.completeTitle')))
 const selectedEloRequiresDivision = computed(() => form.elo !== '' && elosComDivisao.has(form.elo))
 
 const validationErrors = computed(() => {
   const messages: string[] = []
   const requiredFields: Array<[string, string]> = [
-    [form.nomeExibicao, 'Informe o nome de exibição.'],
-    [form.discord, 'Informe o Discord.'],
-    [form.riotId, 'Informe o Riot ID.'],
-    [form.opGgUrl, 'Informe o link de OP.GG.'],
-    [form.deepLolUrl, 'Informe o link de DeepLOL.'],
+    [form.nomeExibicao, t('usersAdmin.playerProfile.errors.displayNameRequired')],
+    [form.discord, t('usersAdmin.playerProfile.errors.discordRequired')],
+    [form.riotId, t('usersAdmin.playerProfile.errors.riotIdRequired')],
+    [form.opGgUrl, t('usersAdmin.playerProfile.errors.opggRequired')],
+    [form.deepLolUrl, t('usersAdmin.playerProfile.errors.deepLolRequired')],
   ]
 
   requiredFields.forEach(([value, message]) => {
@@ -60,27 +63,27 @@ const validationErrors = computed(() => {
   })
 
   if (!form.elo) {
-    messages.push('Selecione um elo.')
+    messages.push(t('usersAdmin.playerProfile.errors.eloRequired'))
   }
 
   if (selectedEloRequiresDivision.value && !form.divisao) {
-    messages.push('Selecione uma divisão.')
+    messages.push(t('usersAdmin.playerProfile.errors.divisionRequired'))
   }
 
   if (form.opGgUrl && !form.opGgUrl.startsWith('https://')) {
-    messages.push('OP.GG deve iniciar com https://')
+    messages.push(t('usersAdmin.playerProfile.errors.opggHttps'))
   }
 
   if (form.deepLolUrl && !form.deepLolUrl.startsWith('https://')) {
-    messages.push('DeepLOL deve iniciar com https://')
+    messages.push(t('usersAdmin.playerProfile.errors.deepLolHttps'))
   }
 
   if (new Set(form.preferencias.map((preference) => preference.prioridade)).size !== 5) {
-    messages.push('Cada prioridade de rota deve ser única.')
+    messages.push(t('usersAdmin.playerProfile.errors.uniquePriorities'))
   }
 
   if (form.preferencias.filter((preference) => preference.naoJogoNemLascando).length > 1) {
-    messages.push('Marque no máximo uma rota como não jogo nem lascando.')
+    messages.push(t('usersAdmin.playerProfile.errors.singleBlockedRoute'))
   }
 
   return messages
@@ -126,46 +129,46 @@ function submit() {
 <template>
   <form class="panel-card complete-player-card" @submit.prevent="submit">
     <header>
-      <span class="eyebrow">Jogador</span>
+      <span class="eyebrow">{{ t('usersAdmin.playerProfile.eyebrow') }}</span>
       <h2>{{ title }}</h2>
       <p>
-        Preencha todos os dados para aparecer na lista de jogadores e ficar disponível para drafts.
+        {{ t('usersAdmin.playerProfile.description') }}
       </p>
     </header>
 
     <label>
-      Nome de exibição
-      <input v-model="form.nomeExibicao" required maxlength="100" placeholder="Nome no campeonato" />
+      {{ t('usersAdmin.details.displayName') }}
+      <input v-model="form.nomeExibicao" required maxlength="100" :placeholder="t('usersAdmin.playerProfile.displayNamePlaceholder')" />
     </label>
     <label>
-      Discord
-      <input v-model="form.discord" required maxlength="120" placeholder="usuario#1234" />
+      {{ t('playerForm.discord') }}
+      <input v-model="form.discord" required maxlength="120" :placeholder="t('usersAdmin.playerProfile.discordPlaceholder')" />
     </label>
     <label>
-      Riot ID
-      <input v-model="form.riotId" required maxlength="120" placeholder="Nome#BR1" />
+      {{ t('playerForm.riotId') }}
+      <input v-model="form.riotId" required maxlength="120" :placeholder="t('usersAdmin.playerProfile.riotIdPlaceholder')" />
     </label>
     <label>
-      Elo
+      {{ t('playerForm.elo') }}
       <select v-model="form.elo" required @change="form.divisao = ''">
-        <option value="" disabled>Selecione</option>
+        <option value="" disabled>{{ t('playerForm.select') }}</option>
         <option v-for="elo in eloOptions" :key="elo" :value="elo">{{ elo }}</option>
       </select>
     </label>
     <label v-if="selectedEloRequiresDivision">
-      Divisão
+      {{ t('playerForm.division') }}
       <select v-model="form.divisao" required>
-        <option value="" disabled>Selecione</option>
+        <option value="" disabled>{{ t('playerForm.select') }}</option>
         <option v-for="division in divisionOptions" :key="division" :value="division">{{ division }}</option>
       </select>
     </label>
     <label>
-      OP.GG
-      <input v-model="form.opGgUrl" required placeholder="https://www.op.gg/..." />
+      {{ t('usersAdmin.playerProfile.opgg') }}
+      <input v-model="form.opGgUrl" required :placeholder="t('usersAdmin.playerProfile.opggPlaceholder')" />
     </label>
     <label>
-      DeepLOL
-      <input v-model="form.deepLolUrl" required placeholder="https://www.deeplol.gg/..." />
+      {{ t('usersAdmin.playerProfile.deepLol') }}
+      <input v-model="form.deepLolUrl" required :placeholder="t('usersAdmin.playerProfile.deepLolPlaceholder')" />
     </label>
 
     <RoutePreferenceEditor v-model="form.preferencias" />
@@ -175,7 +178,7 @@ function submit() {
     </div>
 
     <button class="button button--primary" type="submit" :disabled="saving">
-      {{ saving ? 'Salvando...' : jogador ? 'Salvar perfil de jogador' : 'Completar perfil de jogador' }}
+      {{ saving ? t('common.saving') : jogador ? t('usersAdmin.playerProfile.save') : t('usersAdmin.playerProfile.complete') }}
     </button>
   </form>
 </template>

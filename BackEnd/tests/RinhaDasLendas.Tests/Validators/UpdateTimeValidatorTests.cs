@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Validators;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Validators;
 
@@ -15,6 +16,6 @@ public sealed class UpdateTimeValidatorTests
 
         var result = _validator.Validate(request);
 
-        result.Errors.Should().Contain(error => error.ErrorMessage == "Capitao deve fazer parte do time.");
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.TeamCaptainMustBeMember);
     }
 }

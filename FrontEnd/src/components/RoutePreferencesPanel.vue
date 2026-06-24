@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import type { RoutePreference } from '@/services/players'
 
 const props = defineProps<{
   preferences: RoutePreference[]
 }>()
+
+const { t } = useI18n()
 
 function orderedPreferences() {
   return [...props.preferences].sort((first, second) => first.prioridade - second.prioridade)
@@ -11,7 +15,7 @@ function orderedPreferences() {
 </script>
 
 <template>
-  <div class="route-panel" aria-label="Preferencias de rotas">
+  <div class="route-panel" :aria-label="t('routePreferences.title')">
     <span
       v-for="preference in orderedPreferences()"
       :key="preference.rota"
@@ -19,7 +23,7 @@ function orderedPreferences() {
       :class="`route-panel__badge--${preference.rota.toLowerCase()}`"
     >
       {{ preference.prioridade }}. {{ preference.rota }}
-      <strong v-if="preference.naoJogoNemLascando">Bloqueada</strong>
+      <strong v-if="preference.naoJogoNemLascando">{{ t('routePreferences.blocked') }}</strong>
     </span>
   </div>
 </template>
