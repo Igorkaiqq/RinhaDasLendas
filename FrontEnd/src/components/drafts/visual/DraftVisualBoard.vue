@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* global document, window, HTMLElement, HTMLCanvasElement */
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type {
@@ -12,10 +12,13 @@ import type {
 
 import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
-const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean }>()
+const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null }>()
 const { t } = useI18n()
 const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
+  startRealtime: []
+  pick: [jogadorId: string]
+  substituteReserve: [payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }]
   drawCaptains: []
   finalize: []
   cancel: []
@@ -27,6 +30,11 @@ const detailsPlayer = ref<DraftMontagemParticipante | null>(null)
 const dirty = ref(false)
 const playerSearch = ref('')
 const selectedRoute = ref('TODAS AS ROTAS')
+const now = ref(Date.now())
+const soundEnabled = ref(false)
+let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
+let audioContext: AudioContext | null = null
+let lastTickSecond: number | null = null
 const routeFilters = ['TODAS AS ROTAS', 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPORTE']
 const routeByFilter: Record<string, DraftMontagemRota | null> = {
   'TODAS AS ROTAS': null,
@@ -37,7 +45,27 @@ const routeByFilter: Record<string, DraftMontagemRota | null> = {
   SUPORTE: 'Support',
 }
 
-const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== 'Aberta')
+const isRealtime = computed(() => localMontagem.value.modo === 'TempoReal')
+const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== 'Aberta' || isRealtime.value)
+const isOpen = computed(() => localMontagem.value.status === 'Aberta')
+const hasActiveTurn = computed(() => isRealtime.value && isOpen.value && Boolean(localMontagem.value.turnoAtualTimeId && localMontagem.value.turnoAtualCapitaoId && localMontagem.value.turnoExpiraEm))
+const canPick = computed(() => isRealtime.value && localMontagem.value.status === 'Aberta' && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)
+const currentTurnTeam = computed(() => localMontagem.value.times.find((time) => time.id === localMontagem.value.turnoAtualTimeId) ?? null)
+const currentTurnCaptain = computed(() => allPlayers().find((player) => player.jogadorId === localMontagem.value.turnoAtualCapitaoId) ?? null)
+const remainingSeconds = computed(() => {
+  if (!localMontagem.value.turnoExpiraEm) {
+    return 0
+  }
+
+  return Math.max(0, Math.ceil((new Date(localMontagem.value.turnoExpiraEm).getTime() - now.value) / 1000))
+})
+const turnProgress = computed(() => {
+  if (!hasActiveTurn.value || !localMontagem.value.turnoExpiraEm) {
+    return 0
+  }
+
+  return Math.max(0, Math.min(100, (remainingSeconds.value / localMontagem.value.duracaoTurnoSegundos) * 100))
+})
 const availablePlayers = computed(() => [...localMontagem.value.livres, ...localMontagem.value.reservas])
 const filteredAvailablePlayers = computed(() => {
   const search = playerSearch.value.trim().toLowerCase()
@@ -65,6 +93,35 @@ watch(
     dirty.value = false
   },
 )
+
+watch(
+  () => localMontagem.value.turnoSequencia,
+  () => {
+    lastTickSecond = null
+  },
+)
+
+watch(remainingSeconds, (seconds) => {
+  if (!hasActiveTurn.value || seconds <= 0 || seconds === lastTickSecond) {
+    return
+  }
+
+  lastTickSecond = seconds
+  playTimerSound(seconds)
+})
+
+onMounted(() => {
+  timerInterval = globalThis.setInterval(() => {
+    now.value = Date.now()
+  }, 500)
+})
+
+onUnmounted(() => {
+  if (timerInterval) {
+    globalThis.clearInterval(timerInterval)
+  }
+  void audioContext?.close()
+})
 
 function cloneMontagem(montagem: DraftMontagem): DraftMontagem {
   return JSON.parse(JSON.stringify(montagem)) as DraftMontagem
@@ -119,6 +176,87 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
     time.jogadores.push(moved)
   }
   dirty.value = true
+}
+
+function canPickPlayer(player: DraftMontagemParticipante) {
+  return canPick.value && player.estado === 'Livre' && !props.saving
+}
+
+async function toggleTimerSound() {
+  if (soundEnabled.value) {
+    soundEnabled.value = false
+    return
+  }
+
+  audioContext = getAudioContext()
+  if (!audioContext) {
+    return
+  }
+
+  await audioContext.resume()
+  soundEnabled.value = true
+  playBeep(760, 0.08, 0.04)
+}
+
+function getAudioContext() {
+  if (audioContext) {
+    return audioContext
+  }
+
+  const AudioContextConstructor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  return AudioContextConstructor ? new AudioContextConstructor() : null
+}
+
+function playTimerSound(seconds: number) {
+  if (!soundEnabled.value) {
+    return
+  }
+
+  if (seconds <= 5) {
+    playBeep(1040, 0.09, 0.07)
+    playBeep(1320, 0.07, 0.045, 0.1)
+    return
+  }
+
+  if (seconds <= 10) {
+    playBeep(880, 0.08, 0.055)
+    return
+  }
+
+  playBeep(520, 0.045, 0.035)
+}
+
+function playBeep(frequency: number, duration: number, volume: number, delay = 0) {
+  const context = getAudioContext()
+  if (!context) {
+    return
+  }
+
+  const oscillator = context.createOscillator()
+  const gain = context.createGain()
+  const start = context.currentTime + delay
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(frequency, start)
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  oscillator.connect(gain)
+  gain.connect(context.destination)
+  oscillator.start(start)
+  oscillator.stop(start + duration + 0.02)
+}
+
+function isTurnTeam(timeId: string) {
+  return hasActiveTurn.value && localMontagem.value.turnoAtualTimeId === timeId
+}
+
+function substituteWithFirstReserve(timeId: string, jogadorSaiuId: string) {
+  const reserve = localMontagem.value.reservas[0]
+  if (!reserve) {
+    return
+  }
+
+  emit('substituteReserve', { timeId, jogadorSaiuId, reservaEntrouId: reserve.jogadorId, motivo: null })
 }
 
 function teamColorClass(cor: string) {
@@ -198,23 +336,43 @@ async function exportImage() {
         <p>{{ t('drafts.visualBoard.summary', { teams: localMontagem.quantidadeTimes, reserves: localMontagem.quantidadeReservas }) }}</p>
       </div>
       <div class="draft-visual-actions">
-        <button v-if="canManage" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
-        <button v-if="canManage" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
+        <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
+        <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
+        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
         <button type="button" class="button-secondary" @click="exportImage">{{ t('drafts.visualBoard.exportImage') }}</button>
-        <button v-if="canManage" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
-        <button v-if="canManage" type="button" :disabled="isReadOnly || dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
+        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+        <button v-if="canManage && isOpen && !isRealtime" type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
       </div>
     </header>
 
+    <section v-if="hasActiveTurn" class="draft-turn-clock" :aria-label="t('drafts.realtime.turnClock')">
+      <div class="draft-turn-clock__pulse" aria-hidden="true" />
+      <div class="draft-turn-clock__copy">
+        <span class="eyebrow">{{ t('drafts.realtime.onTheClock') }}</span>
+        <strong>{{ currentTurnCaptain?.nomeExibicao ?? t('drafts.visualBoard.pending') }}</strong>
+        <small>{{ currentTurnTeam?.nome ?? t('drafts.visualBoard.pending') }}</small>
+      </div>
+      <div class="draft-turn-clock__timer">
+        <strong>{{ remainingSeconds }}</strong>
+        <span>{{ t('drafts.realtime.seconds') }}</span>
+        <button type="button" class="draft-turn-clock__sound" :class="{ 'is-active': soundEnabled }" @click="toggleTimerSound">
+          {{ soundEnabled ? t('drafts.realtime.soundOn') : t('drafts.realtime.soundOff') }}
+        </button>
+      </div>
+      <div class="draft-turn-clock__bar" aria-hidden="true">
+        <span :style="{ width: `${turnProgress}%` }" />
+      </div>
+    </section>
+
     <div id="draft-visual-capture" class="draft-visual-board draft-board">
       <aside class="draft-visual-team-column" :aria-label="t('drafts.visualBoard.oddTeams')">
-        <article v-for="time in leftTeams" :key="time.id" class="draft-team draft-visual-team" :class="teamColorClass(time.cor)" @dragover.prevent @drop="movePlayer(time.id)">
+        <article v-for="time in leftTeams" :key="time.id" class="draft-team draft-visual-team" :class="[teamColorClass(time.cor), { 'draft-visual-team--turn': isTurnTeam(time.id) }]" @dragover.prevent @drop="movePlayer(time.id)">
           <header class="draft-team__header">
             <input v-model="time.nome" :disabled="isReadOnly" @input="dirty = true" />
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br />{{ t('drafts.board.captain', { name: captainName(time) }) }}</span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" draggable="true" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>{{ player.nomeExibicao }}</strong>
@@ -226,6 +384,7 @@ async function exportImage() {
                 </span>
               </span>
               <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">C</span>
+              <button v-else-if="canManage && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)">{{ t('drafts.realtime.substitute') }}</button>
             </li>
             <li v-for="index in Math.max(localMontagem.tamanhoEquipe - time.jogadores.length, 0)" :key="`${time.id}-empty-${index}`" class="draft-slot draft-slot--empty">
               <span>{{ t('drafts.board.emptySlot') }}</span>
@@ -258,7 +417,7 @@ async function exportImage() {
           <div class="draft-player-row draft-player-row--head" role="row">
             <span>{{ t('drafts.board.player') }}</span>
           </div>
-          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" draggable="true" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
+          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :draggable="!isReadOnly && player.estado === 'Livre'" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
             <span class="draft-player-row__identity">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
@@ -273,19 +432,21 @@ async function exportImage() {
                 </span>
               </span>
             </span>
+            <button v-if="canPickPlayer(player)" type="button" class="draft-pick-action" @click.stop="emit('pick', player.jogadorId)">{{ t('drafts.realtime.pick') }}</button>
+            <span v-else-if="isRealtime && player.estado === 'Reserva'" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
           </article>
         </div>
         <p v-if="!filteredAvailablePlayers.length" class="empty-copy">{{ t('drafts.visualBoard.noPlayersForFilter') }}</p>
       </article>
 
       <aside class="draft-visual-team-column" :aria-label="t('drafts.visualBoard.evenTeams')">
-        <article v-for="time in rightTeams" :key="time.id" class="draft-team draft-visual-team" :class="teamColorClass(time.cor)" @dragover.prevent @drop="movePlayer(time.id)">
+        <article v-for="time in rightTeams" :key="time.id" class="draft-team draft-visual-team" :class="[teamColorClass(time.cor), { 'draft-visual-team--turn': isTurnTeam(time.id) }]" @dragover.prevent @drop="movePlayer(time.id)">
           <header class="draft-team__header">
             <input v-model="time.nome" :disabled="isReadOnly" @input="dirty = true" />
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br />{{ t('drafts.board.captain', { name: captainName(time) }) }}</span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" draggable="true" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>{{ player.nomeExibicao }}</strong>
@@ -297,6 +458,7 @@ async function exportImage() {
                 </span>
               </span>
               <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">C</span>
+              <button v-else-if="canManage && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)">{{ t('drafts.realtime.substitute') }}</button>
             </li>
             <li v-for="index in Math.max(localMontagem.tamanhoEquipe - time.jogadores.length, 0)" :key="`${time.id}-empty-${index}`" class="draft-slot draft-slot--empty">
               <span>{{ t('drafts.board.emptySlot') }}</span>

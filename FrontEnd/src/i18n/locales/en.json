@@ -294,6 +294,20 @@
       "captainsDrawn": "Captains drawn.",
       "finished": "Draft finished."
     },
+    "realtime": {
+      "start": "Start realtime",
+      "started": "Realtime draft started.",
+      "pick": "Pick",
+      "turnSummary": "Turn: {captain} ({team}) · {seconds}s",
+      "turnClock": "Current turn clock",
+      "onTheClock": "On the clock",
+      "seconds": "seconds",
+      "soundOff": "Enable sound",
+      "soundOn": "Sound on",
+      "emergencyReserve": "Emergency reserve",
+      "substitute": "Substitute",
+      "reserveSubstituted": "Reserve substituted into the team."
+    },
     "errors": {
       "create": "Could not create draft.",
       "action": "Could not complete the action."

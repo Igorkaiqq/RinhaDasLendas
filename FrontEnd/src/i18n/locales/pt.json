@@ -294,6 +294,20 @@
       "captainsDrawn": "Capitães sorteados.",
       "finished": "Draft finalizado."
     },
+    "realtime": {
+      "start": "Iniciar tempo real",
+      "started": "Draft em tempo real iniciado.",
+      "pick": "Escolher",
+      "turnSummary": "Vez de {captain} ({team}) · {seconds}s",
+      "turnClock": "Relógio do turno atual",
+      "onTheClock": "Na vez agora",
+      "seconds": "segundos",
+      "soundOff": "Ativar som",
+      "soundOn": "Som ligado",
+      "emergencyReserve": "Reserva emergencial",
+      "substitute": "Substituir",
+      "reserveSubstituted": "Reserva substituída no time."
+    },
     "errors": {
       "create": "Não foi possível criar o draft.",
       "action": "Não foi possível concluir a ação."

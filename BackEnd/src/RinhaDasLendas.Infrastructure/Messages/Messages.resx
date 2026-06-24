@@ -100,4 +100,13 @@
   <data name="MA007" xml:space="preserve"><value>Estatísticas podem estar desatualizadas</value></data>
   <data name="MA008" xml:space="preserve"><value>Ação disponível apenas para administradores</value></data>
   <data name="MA009" xml:space="preserve"><value>Revise os dados antes de continuar</value></data>
+  <data name="MV054" xml:space="preserve"><value>Manual layout is locked during realtime draft</value></data>
+  <data name="MV055" xml:space="preserve"><value>The draft setup is already in realtime draft mode</value></data>
+  <data name="MV056" xml:space="preserve"><value>Realtime draft has not started yet</value></data>
+  <data name="MV057" xml:space="preserve"><value>Only the current turn captain can pick</value></data>
+  <data name="MV058" xml:space="preserve"><value>Reserve players cannot be picked in the draft</value></data>
+  <data name="MV059" xml:space="preserve"><value>The turn time has expired</value></data>
+  <data name="MV060" xml:space="preserve"><value>Provide a valid reserve for substitution</value></data>
+  <data name="MV061" xml:space="preserve"><value>The selected player is not in the selected team</value></data>
+  <data name="MV062" xml:space="preserve"><value>The substitution reason must be at most 500 characters</value></data>
 </root>

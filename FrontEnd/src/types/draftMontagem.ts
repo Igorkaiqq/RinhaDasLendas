@@ -3,6 +3,8 @@ import type { RoutePreference } from '@/services/players'
 export type DraftMontagemStatus = 'Aberta' | 'Finalizada' | 'Cancelada'
 export type DraftMontagemEstado = 'Livre' | 'Reserva' | 'Time'
 export type DraftMontagemRota = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
+export type DraftMontagemModo = 'Manual' | 'TempoReal'
+export type DraftMontagemEscolhaTipo = 'Escolha' | 'Timeout'
 
 export interface DraftMontagemParticipante {
   jogadorId: string
@@ -37,13 +39,22 @@ export interface DraftMontagem {
   nome: string
   observacoes?: string | null
   status: DraftMontagemStatus
+  modo: DraftMontagemModo
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
   criterioCapitaes: 'Manual' | 'Sorteio'
+  turnoAtualTimeId?: string | null
+  turnoAtualCapitaoId?: string | null
+  turnoSequencia?: number | null
+  turnoIniciadoEm?: string | null
+  turnoExpiraEm?: string | null
+  duracaoTurnoSegundos: number
   times: DraftMontagemTime[]
   livres: DraftMontagemParticipante[]
   reservas: DraftMontagemParticipante[]
+  escolhas: DraftMontagemEscolha[]
+  substituicoes: DraftMontagemSubstituicao[]
   motivoCancelamento?: string | null
   dataCadastro: string
   dataAtualizacao: string
@@ -53,11 +64,39 @@ export interface DraftMontagemResumo {
   id: string
   nome: string
   status: DraftMontagemStatus
+  modo: DraftMontagemModo
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
   dataCadastro: string
   dataAtualizacao: string
+}
+
+export interface DraftMontagemEscolha {
+  sequencia: number
+  timeId: string
+  capitaoId: string
+  jogadorId?: string | null
+  tipo: DraftMontagemEscolhaTipo
+  jogadorNome?: string | null
+  registradoEm: string
+}
+
+export interface DraftMontagemSubstituicao {
+  timeId: string
+  jogadorSaiuId: string
+  reservaEntrouId: string
+  jogadorSaiuNome?: string | null
+  reservaEntrouNome?: string | null
+  motivo?: string | null
+  responsavelUsuarioId: string
+  registradoEm: string
+}
+
+export interface DraftMontagemRealtimeState {
+  montagem: DraftMontagem
+  serverNow: string
+  canCurrentUserPick: boolean
 }
 
 export interface DraftMontagemPayload {

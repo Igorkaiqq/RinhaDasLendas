@@ -473,6 +473,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/010-integracao-usuario-jogador/plan.md
+Implementation Plan: specs/012-draft-montagem-tempo-real/plan.md
 
 <!-- SPECKIT END -->

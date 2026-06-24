@@ -33,6 +33,15 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
         return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
     }
 
+    [HttpGet("{id:guid}/realtime-state")]
+    [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRealtimeState([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var state = await sender.Send(new GetDraftMontagemRealtimeStateQuery(id), cancellationToken);
+        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+    }
+
     [HttpPost]
     [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status201Created)]
@@ -41,6 +50,38 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     {
         var montagem = await sender.Send(new CreateDraftMontagemCommand(request), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = montagem.Id }, montagem);
+    }
+
+    [HttpPost("{id:guid}/iniciar-tempo-real")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> StartRealtime([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var state = await sender.Send(new IniciarDraftMontagemTempoRealCommand(id), cancellationToken);
+        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+    }
+
+    [HttpPost("{id:guid}/picks")]
+    [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Pick([FromRoute] Guid id, [FromBody] RegistrarPickDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var state = await sender.Send(new RegistrarPickDraftMontagemCommand(id, request), cancellationToken);
+        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+    }
+
+    [HttpPost("{id:guid}/reservas/substituir")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SubstituteReserve([FromRoute] Guid id, [FromBody] SubstituirReservaDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var state = await sender.Send(new SubstituirReservaDraftMontagemCommand(id, request), cancellationToken);
+        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
     }
 
     [HttpPut("{id:guid}/layout")]

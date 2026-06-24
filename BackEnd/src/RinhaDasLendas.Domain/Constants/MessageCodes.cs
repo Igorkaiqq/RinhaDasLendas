@@ -125,6 +125,15 @@ public static class MessageCodes
     public const string CancellationReasonMaxLength = "MV051";
     public const string UserCannotChangeOwnRoles = "MV052";
     public const string MustKeepActiveSuperAdmin = "MV053";
+    public const string DraftMontagemRealtimeLayoutLocked = "MV054";
+    public const string DraftMontagemAlreadyRealtime = "MV055";
+    public const string DraftMontagemRealtimeNotStarted = "MV056";
+    public const string DraftMontagemNotCaptainTurn = "MV057";
+    public const string DraftMontagemReserveCannotBePicked = "MV058";
+    public const string DraftMontagemTurnExpired = "MV059";
+    public const string DraftMontagemReserveRequired = "MV060";
+    public const string DraftMontagemPlayerNotInTeam = "MV061";
+    public const string DraftMontagemSubstitutionReasonMaxLength = "MV062";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

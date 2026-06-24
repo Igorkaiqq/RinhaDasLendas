@@ -136,4 +136,13 @@
   <data name="MA007" xml:space="preserve"><value>Estatísticas podem estar desatualizadas</value></data>
   <data name="MA008" xml:space="preserve"><value>Ação disponível apenas para administradores</value></data>
   <data name="MA009" xml:space="preserve"><value>Revise os dados antes de continuar</value></data>
+  <data name="MV054" xml:space="preserve"><value>O layout manual fica bloqueado durante o draft em tempo real</value></data>
+  <data name="MV055" xml:space="preserve"><value>A montagem já está em modo de draft em tempo real</value></data>
+  <data name="MV056" xml:space="preserve"><value>O draft em tempo real ainda não foi iniciado</value></data>
+  <data name="MV057" xml:space="preserve"><value>A escolha só pode ser feita pelo capitão da vez</value></data>
+  <data name="MV058" xml:space="preserve"><value>Reservas não podem ser escolhidos no draft</value></data>
+  <data name="MV059" xml:space="preserve"><value>O tempo do turno expirou</value></data>
+  <data name="MV060" xml:space="preserve"><value>Informe um reserva válido para substituição</value></data>
+  <data name="MV061" xml:space="preserve"><value>O jogador informado não está no time selecionado</value></data>
+  <data name="MV062" xml:space="preserve"><value>O motivo da substituição deve ter no máximo 500 caracteres</value></data>
 </root>
