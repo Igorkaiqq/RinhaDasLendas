@@ -62,9 +62,9 @@ async function saveJogador(payload: MeuJogadorProfilePayload) {
 <template>
   <section class="page-stack">
     <header class="page-header-card">
-      <span>Perfil</span>
+      <span>Perfil do competidor</span>
       <h1>Minha conta</h1>
-      <p>Gerencie seus dados de acesso e vínculo com jogador.</p>
+      <p>Gerencie seus dados de acesso, senha e vínculo com jogador para entrar em drafts e listas da comunidade.</p>
     </header>
     <form class="panel-card profile-account-card" @submit.prevent="save">
       <header>

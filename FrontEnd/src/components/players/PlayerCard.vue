@@ -63,7 +63,7 @@ const primaryRoute = props.player.preferencias.find((preference) => preference.p
     </div>
 
     <div v-if="canManage" class="player-card__actions">
-      <button type="button" @click="$emit('edit', player)">Editar</button>
+      <button type="button" class="button-secondary" @click="$emit('edit', player)">Editar</button>
       <button type="button" class="button-danger" @click="$emit('delete', player)">Excluir</button>
     </div>
   </article>

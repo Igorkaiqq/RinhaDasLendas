@@ -29,9 +29,9 @@ async function submit() {
 <template>
   <main class="auth-page">
     <form class="auth-card" @submit.prevent="submit">
-      <span class="auth-card__eyebrow">RinhaDasLendas</span>
-      <h1>Entrar</h1>
-      <p>Acesse sua conta para participar das rinhas, drafts e partidas.</p>
+      <span class="auth-card__eyebrow">Arena interna</span>
+      <h1>Entre na Rinha</h1>
+      <p>Acesse sua conta para organizar jogadores, drafts e partidas da comunidade.</p>
       <label>
         E-mail
         <input v-model="email" type="email" autocomplete="email" required />
@@ -42,8 +42,10 @@ async function submit() {
       </label>
       <p v-if="error" class="form-error">{{ error }}</p>
       <button class="button button--primary" type="submit" :disabled="loading">{{ loading ? 'Entrando...' : 'Entrar' }}</button>
-      <RouterLink :to="AppRoutes.ForgotPassword">Esqueci minha senha</RouterLink>
-      <RouterLink :to="AppRoutes.Register">Criar conta</RouterLink>
+      <div class="auth-card__links">
+        <RouterLink :to="AppRoutes.ForgotPassword">Esqueci minha senha</RouterLink>
+        <RouterLink :to="AppRoutes.Register">Criar conta</RouterLink>
+      </div>
     </form>
   </main>
 </template>

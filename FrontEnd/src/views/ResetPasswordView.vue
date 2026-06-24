@@ -26,7 +26,9 @@ async function submit() {
 <template>
   <main class="auth-page">
     <form class="auth-card" @submit.prevent="submit">
+      <span class="auth-card__eyebrow">Nova credencial</span>
       <h1>Redefinir senha</h1>
+      <p>Use o token recebido para definir uma nova senha segura.</p>
       <label>E-mail <input v-model="email" type="email" required /></label>
       <label>Token <input v-model="token" required /></label>
       <label>Nova senha <input v-model="novaSenha" type="password" required minlength="8" /></label>

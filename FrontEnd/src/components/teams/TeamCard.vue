@@ -53,11 +53,11 @@ function initials(name: string) {
     </div>
 
     <div class="player-card__actions">
-      <button type="button" @click="$emit('edit', team)">Editar</button>
+      <button type="button" class="button-secondary" @click="$emit('edit', team)">Editar</button>
       <button v-if="team.status === TeamStatus.Active" type="button" class="button-danger" @click="$emit('inactivate', team)">
         Inativar
       </button>
-      <button v-else type="button" @click="$emit('reactivate', team)">Reativar</button>
+      <button v-else type="button" class="button-secondary" @click="$emit('reactivate', team)">Reativar</button>
     </div>
   </article>
 </template>

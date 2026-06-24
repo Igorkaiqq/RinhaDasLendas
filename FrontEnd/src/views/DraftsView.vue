@@ -192,10 +192,12 @@ function captureError(error: unknown) {
 
     <header class="players-hero drafts-hero">
       <div>
+        <p class="page-kicker">Sala de estratégia</p>
         <h1>Draft de Jogadores</h1>
-        <p>Monte os times visualmente com capitaes, reservas, rotas e layout persistente.</p>
+        <p>Monte os times visualmente com capitães, reservas, rotas e layout persistente.</p>
       </div>
       <div class="draft-hero-actions">
+        <span class="page-hero__metric">{{ filteredDrafts.length }} drafts</span>
         <button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">+ Criar Draft</button>
       </div>
     </header>
@@ -206,7 +208,7 @@ function captureError(error: unknown) {
       <label class="filter-field filter-field--wide">
         Buscar draft
         <span>
-          <span aria-hidden="true">S</span>
+          <span aria-hidden="true">SR</span>
           <input v-model="searchTerm" type="search" placeholder="Nome do draft" />
         </span>
       </label>
@@ -234,7 +236,7 @@ function captureError(error: unknown) {
           @click="openMontagem(draft.id)"
         >
           <strong>{{ draft.nome }}</strong>
-          <span>{{ draft.status }}</span>
+          <span class="team-status" :class="`team-status--${draft.status.toLowerCase()}`">{{ draft.status }}</span>
           <span>{{ draft.quantidadeTimes }} times · {{ draft.quantidadeReservas }} reservas</span>
         </button>
         <div v-if="!loading && !filteredDrafts.length" class="draft-empty-card">

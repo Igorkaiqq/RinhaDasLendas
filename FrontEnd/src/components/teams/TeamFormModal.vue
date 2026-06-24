@@ -172,7 +172,7 @@ function submit() {
             </div>
 
             <div class="player-modal__actions">
-              <button type="button" @click="$emit('close')">Cancelar</button>
+              <button type="button" class="button-secondary" @click="$emit('close')">Cancelar</button>
               <button type="submit" :disabled="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
             </div>
           </form>

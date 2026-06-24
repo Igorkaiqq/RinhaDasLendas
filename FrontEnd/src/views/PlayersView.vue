@@ -213,10 +213,14 @@ function captureError(error: unknown) {
 
     <header class="players-hero">
       <div>
+        <p class="page-kicker">Base competitiva</p>
         <h1>{{ t('players.title') }}</h1>
         <p>{{ t('players.subtitle') }}</p>
       </div>
-      <button v-if="canManagePlayers" type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
+      <div class="page-hero__actions">
+        <span class="page-hero__metric">{{ filteredPlayers.length }} / {{ players.length }} jogadores</span>
+        <button v-if="canManagePlayers" type="button" @click="openCreateModal">+ {{ t('players.create') }}</button>
+      </div>
     </header>
 
     <PendingPlayerProfileNotice v-if="!hasPlayerProfile" />

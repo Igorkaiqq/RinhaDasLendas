@@ -155,17 +155,21 @@ function captureError(error: unknown) {
 
     <header class="players-hero">
       <div>
+        <p class="page-kicker">Composições</p>
         <h1>Times</h1>
-        <p>Cadastre composicoes reutilizaveis para partidas, drafts e consultas futuras.</p>
+        <p>Cadastre composições reutilizáveis para partidas, drafts e consultas futuras.</p>
       </div>
-      <button type="button" @click="openCreateModal">+ Cadastrar Time</button>
+      <div class="page-hero__actions">
+        <span class="page-hero__metric">{{ filteredTeams.length }} / {{ teams.length }} times</span>
+        <button type="button" @click="openCreateModal">+ Cadastrar Time</button>
+      </div>
     </header>
 
     <section class="filter-bar" aria-label="Filtros de times">
       <label class="filter-field filter-field--wide">
         Buscar time
         <span>
-          <span aria-hidden="true">S</span>
+          <span aria-hidden="true">SR</span>
           <input v-model="searchTerm" type="search" placeholder="Nome, tag ou jogador" />
         </span>
       </label>

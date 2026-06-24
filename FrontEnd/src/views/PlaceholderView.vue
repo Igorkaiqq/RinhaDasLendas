@@ -8,8 +8,10 @@ const title = computed(() => String(route.meta.title ?? 'Tela em construcao'))
 
 <template>
   <section class="placeholder-page">
-    <p class="page-kicker">Em breve</p>
-    <h1>{{ title }}</h1>
-    <p>Esta area ja usa o layout principal e esta pronta para receber a proxima etapa da rinha.</p>
+    <div class="page-header-card placeholder-card">
+      <span>Em breve</span>
+      <h1>{{ title }}</h1>
+      <p>Esta área já usa o layout principal e está pronta para receber a próxima etapa da rinha.</p>
+    </div>
   </section>
 </template>

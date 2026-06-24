@@ -20,7 +20,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'dashboard',
     label: t('navigation.dashboard'),
-    icon: '#',
+    icon: 'NX',
     routeName: AppRouteNames.Home,
     path: AppRoutes.Home,
     status: 'available',
@@ -28,7 +28,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'players',
     label: t('navigation.players'),
-    icon: 'J',
+    icon: 'JG',
     routeName: AppRouteNames.Players,
     path: AppRoutes.Players,
     status: 'available',
@@ -36,7 +36,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'teams',
     label: t('navigation.teams'),
-    icon: 'T',
+    icon: 'TM',
     routeName: AppRouteNames.Teams,
     path: AppRoutes.Teams,
     status: 'available',
@@ -44,7 +44,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'draft',
     label: t('navigation.draft'),
-    icon: 'D',
+    icon: 'DR',
     routeName: AppRouteNames.Draft,
     path: AppRoutes.Draft,
     status: 'available',
@@ -52,7 +52,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'matches',
     label: t('navigation.matches'),
-    icon: 'P',
+    icon: 'MD',
     routeName: AppRouteNames.Matches,
     path: AppRoutes.Matches,
     status: 'placeholder',
@@ -60,7 +60,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'stats',
     label: t('navigation.stats'),
-    icon: 'E',
+    icon: 'WR',
     routeName: AppRouteNames.Stats,
     path: AppRoutes.Stats,
     status: 'placeholder',
@@ -68,7 +68,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
     id: 'settings',
     label: t('navigation.settings'),
-    icon: '*',
+    icon: 'CF',
     routeName: AppRouteNames.Settings,
     path: AppRoutes.Settings,
     status: 'placeholder',
@@ -78,7 +78,7 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
         {
           id: 'users',
           label: 'Usuários',
-          icon: 'U',
+          icon: 'AD',
           routeName: AppRouteNames.UsersAdmin,
           path: AppRoutes.UsersAdmin,
           status: 'available' as const,
@@ -102,6 +102,8 @@ const user = computed<TopbarUserSummary>(() => ({
     { id: 'logout', label: t('navigation.logout'), action: 'logout' },
   ],
 }))
+
+const pageTitle = computed(() => String(route.meta.title ?? t('navigation.dashboard')))
 
 const sidebarCollapsed = ref(false)
 const showPlayerProfileModal = ref(false)
@@ -164,7 +166,7 @@ function dismissPlayerProfileModal() {
   <div class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
     <SidebarNav :items="navigationItems" :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" />
     <section class="app-shell__workspace">
-      <Topbar :user="user" @menu-action="handleMenuAction" />
+      <Topbar :user="user" :page-title="pageTitle" @menu-action="handleMenuAction" />
       <main class="app-shell__content">
         <slot />
       </main>

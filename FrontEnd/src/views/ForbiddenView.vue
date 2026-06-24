@@ -3,7 +3,7 @@
     <div class="page-header-card">
       <span>403</span>
       <h1>Acesso negado</h1>
-      <p>Você não possui permissão para acessar esta área.</p>
+      <p>Você não possui permissão para acessar esta área da organização.</p>
     </div>
   </section>
 </template>

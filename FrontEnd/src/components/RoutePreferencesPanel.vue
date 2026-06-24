@@ -39,14 +39,18 @@ function orderedPreferences() {
   padding: 4px 10px;
   border: 1px solid currentcolor;
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 4%);
-  font-size: 0.75rem;
+  background: var(--color-canvas-raised);
+  font-size: 12px;
   font-weight: 700;
+  transition:
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard);
 }
 
 .route-panel__badge strong {
   color: var(--color-danger);
-  font-size: 0.68rem;
+  font-size: 11px;
 }
 
 .route-panel__badge--top { color: var(--role-top); }

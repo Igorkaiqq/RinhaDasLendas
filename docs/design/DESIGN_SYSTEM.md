@@ -22,6 +22,23 @@ Referências:
 * OP.GG
 * Notion
 
+## Direção Visual Atual
+
+A aplicação deve combinar clareza de SaaS moderno com energia competitiva de eSports.
+
+O visual aprovado para evolução usa:
+
+* base escura profunda;
+* superfícies em camadas;
+* acentos roxo e azul para ação e tecnologia;
+* verde, amarelo e vermelho apenas para estados semânticos;
+* detalhes sutis de arena competitiva, sem exagero visual;
+* tipografia limpa, com uso pontual de fonte mono para dados, rotas, status e elementos de sistema.
+
+A interface não deve parecer ERP, CRM ou dashboard administrativo genérico.
+
+A assinatura visual do produto é uma "arena de draft": superfícies escuras, acentos energéticos controlados, estados claros e foco em jogadores, times e escolhas.
+
 ---
 
 # Filosofia Visual
@@ -75,6 +92,8 @@ O sistema utiliza:
 * Vermelho (erro)
 
 Nada além disso.
+
+Variações translúcidas dessas cores podem ser usadas para hover, focus, badges e estados, desde que derivadas dos tokens oficiais.
 
 ---
 

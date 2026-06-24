@@ -27,12 +27,12 @@ onMounted(() => load())
 <template>
   <section class="page-stack">
     <header class="page-header-card">
-      <span>Administração</span>
+      <span>Administração da arena</span>
       <h1>Usuários</h1>
-      <p>Gerencie contas, roles, status e vínculo com jogador.</p>
+      <p>Gerencie contas, permissões, status e vínculo com jogador sem sair do fluxo operacional.</p>
     </header>
     <UserFilters @filter="load" />
-    <p v-if="loading">Carregando usuários...</p>
+    <p v-if="loading" class="panel-card user-loading-card">Carregando usuários...</p>
     <UserList :users="users" @select="selectedId = $event" />
     <UserDetailsModal v-if="selectedId" :id="selectedId" @close="selectedId = null" @updated="load" />
   </section>

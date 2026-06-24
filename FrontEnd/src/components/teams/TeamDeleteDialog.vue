@@ -19,7 +19,7 @@ defineEmits<{
       <h2 id="inactivate-team-title">Inativar {{ team.nome }}?</h2>
       <p>O time continuara consultavel, mas deixara de aparecer como opcao ativa para novos fluxos.</p>
       <div class="confirm-dialog__actions">
-        <button type="button" @click="$emit('cancel')">Cancelar</button>
+        <button type="button" class="button-secondary" @click="$emit('cancel')">Cancelar</button>
         <button type="button" class="button-danger" @click="$emit('confirm')">Confirmar</button>
       </div>
     </section>
