@@ -18,6 +18,15 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
+    {
+        return await IncludeMontagem(dbContext.DraftMontagens)
+            .Where(montagem => montagem.Status == DraftMontagemStatus.Aberta && montagem.Modo == DraftMontagemModo.TempoReal && montagem.TurnoExpiraEm != null && montagem.TurnoExpiraEm <= now)
+            .OrderBy(montagem => montagem.TurnoExpiraEm)
+            .Take(Math.Clamp(limit, 1, 100))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
@@ -39,6 +48,13 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return await dbContext.Jogadores.Where(jogador => jogadoresIds.Contains(jogador.Id)).ToListAsync(cancellationToken);
     }
 
+    public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken)
+    {
+        return dbContext.Jogadores
+            .Include(jogador => jogador.Preferencias)
+            .FirstOrDefaultAsync(jogador => jogador.UsuarioId == usuarioId, cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
@@ -51,7 +67,13 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .Include(montagem => montagem.Times)
             .Include(montagem => montagem.Participantes)
             .ThenInclude(participante => participante.Jogador!)
-            .ThenInclude(jogador => jogador.Preferencias);
+            .ThenInclude(jogador => jogador.Preferencias)
+            .Include(montagem => montagem.Escolhas)
+            .ThenInclude(escolha => escolha.Jogador)
+            .Include(montagem => montagem.Substituicoes)
+            .ThenInclude(substituicao => substituicao.JogadorSaiu)
+            .Include(montagem => montagem.Substituicoes)
+            .ThenInclude(substituicao => substituicao.ReservaEntrou);
     }
 
     private static IQueryable<DraftMontagem> ApplyFilters(IQueryable<DraftMontagem> query, string? search, DraftMontagemStatus? status)

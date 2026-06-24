@@ -71,3 +71,35 @@ public sealed class CancelarDraftMontagemValidator : AbstractValidator<CancelarD
             .WithMessage(MessageCodes.CancellationReasonMaxLength);
     }
 }
+
+public sealed class RegistrarPickDraftMontagemValidator : AbstractValidator<RegistrarPickDraftMontagemRequestDto>
+{
+    public RegistrarPickDraftMontagemValidator()
+    {
+        RuleFor(request => request.JogadorId)
+            .NotEmpty()
+            .WithMessage(MessageCodes.DraftInvalidPlayer);
+    }
+}
+
+public sealed class SubstituirReservaDraftMontagemValidator : AbstractValidator<SubstituirReservaDraftMontagemRequestDto>
+{
+    public SubstituirReservaDraftMontagemValidator()
+    {
+        RuleFor(request => request.TimeId)
+            .NotEmpty()
+            .WithMessage(MessageCodes.TeamNotFound);
+
+        RuleFor(request => request.JogadorSaiuId)
+            .NotEmpty()
+            .WithMessage(MessageCodes.DraftMontagemPlayerNotInTeam);
+
+        RuleFor(request => request.ReservaEntrouId)
+            .NotEmpty()
+            .WithMessage(MessageCodes.DraftMontagemReserveRequired);
+
+        RuleFor(request => request.Motivo)
+            .MaximumLength(500)
+            .WithMessage(MessageCodes.DraftMontagemSubstitutionReasonMaxLength);
+    }
+}

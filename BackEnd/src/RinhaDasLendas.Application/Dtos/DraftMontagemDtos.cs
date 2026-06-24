@@ -26,6 +26,7 @@ public sealed record DraftMontagemResumoDto(
     Guid Id,
     string Nome,
     string Status,
+    string Modo,
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,
@@ -37,13 +38,22 @@ public sealed record DraftMontagemResponseDto(
     string Nome,
     string? Observacoes,
     string Status,
+    string Modo,
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,
     string CriterioCapitaes,
+    Guid? TurnoAtualTimeId,
+    Guid? TurnoAtualCapitaoId,
+    int? TurnoSequencia,
+    DateTimeOffset? TurnoIniciadoEm,
+    DateTimeOffset? TurnoExpiraEm,
+    int DuracaoTurnoSegundos,
     IReadOnlyCollection<DraftMontagemTimeResponseDto> Times,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Livres,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Reservas,
+    IReadOnlyCollection<DraftMontagemEscolhaResponseDto> Escolhas,
+    IReadOnlyCollection<DraftMontagemSubstituicaoResponseDto> Substituicoes,
     string? MotivoCancelamento,
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao)
@@ -56,16 +66,80 @@ public sealed record DraftMontagemResponseDto(
             montagem.Nome,
             montagem.Observacoes,
             montagem.Status.ToString(),
+            montagem.Modo.ToString(),
             montagem.TamanhoEquipe,
             montagem.QuantidadeTimes,
             montagem.QuantidadeReservas,
             montagem.CriterioCapitaes.ToString(),
+            montagem.TurnoAtualTimeId,
+            montagem.TurnoAtualCapitaoId,
+            montagem.TurnoSequencia,
+            montagem.TurnoIniciadoEm,
+            montagem.TurnoExpiraEm,
+            montagem.DuracaoTurnoSegundos,
             montagem.Times.OrderBy(time => time.Ordem).Select(time => DraftMontagemTimeResponseDto.FromEntity(time, participantes)).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
+            montagem.Escolhas.OrderBy(escolha => escolha.Sequencia).Select(DraftMontagemEscolhaResponseDto.FromEntity).ToList(),
+            montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoResponseDto.FromEntity).ToList(),
             montagem.MotivoCancelamento,
             montagem.DataCadastro,
             montagem.DataAtualizacao);
+    }
+}
+
+public sealed record RegistrarPickDraftMontagemRequestDto(Guid JogadorId);
+
+public sealed record SubstituirReservaDraftMontagemRequestDto(Guid TimeId, Guid JogadorSaiuId, Guid ReservaEntrouId, string? Motivo);
+
+public sealed record DraftMontagemRealtimeStateDto(
+    DraftMontagemResponseDto Montagem,
+    DateTimeOffset ServerNow,
+    bool CanCurrentUserPick);
+
+public sealed record DraftMontagemEscolhaResponseDto(
+    int Sequencia,
+    Guid TimeId,
+    Guid CapitaoId,
+    Guid? JogadorId,
+    string Tipo,
+    string? JogadorNome,
+    DateTimeOffset RegistradoEm)
+{
+    public static DraftMontagemEscolhaResponseDto FromEntity(DraftMontagemEscolha escolha)
+    {
+        return new DraftMontagemEscolhaResponseDto(
+            escolha.Sequencia,
+            escolha.TimeId,
+            escolha.CapitaoId,
+            escolha.JogadorId,
+            escolha.Tipo.ToString(),
+            escolha.Jogador?.NomeExibicao,
+            escolha.RegistradoEm);
+    }
+}
+
+public sealed record DraftMontagemSubstituicaoResponseDto(
+    Guid TimeId,
+    Guid JogadorSaiuId,
+    Guid ReservaEntrouId,
+    string? JogadorSaiuNome,
+    string? ReservaEntrouNome,
+    string? Motivo,
+    Guid ResponsavelUsuarioId,
+    DateTimeOffset RegistradoEm)
+{
+    public static DraftMontagemSubstituicaoResponseDto FromEntity(DraftMontagemSubstituicao substituicao)
+    {
+        return new DraftMontagemSubstituicaoResponseDto(
+            substituicao.TimeId,
+            substituicao.JogadorSaiuId,
+            substituicao.ReservaEntrouId,
+            substituicao.JogadorSaiu?.NomeExibicao,
+            substituicao.ReservaEntrou?.NomeExibicao,
+            substituicao.Motivo,
+            substituicao.ResponsavelUsuarioId,
+            substituicao.RegistradoEm);
     }
 }
 

@@ -23,6 +23,7 @@ public sealed class GetDraftMontagensQueryHandler(IDraftMontagemRepository repos
                 montagem.Id,
                 montagem.Nome,
                 montagem.Status.ToString(),
+                montagem.Modo.ToString(),
                 montagem.TamanhoEquipe,
                 montagem.QuantidadeTimes,
                 montagem.QuantidadeReservas,

@@ -5,6 +5,7 @@ import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
   DraftMontagemPayload,
+  DraftMontagemRealtimeState,
   DraftMontagemResumo,
   DraftMontagemStatus,
 } from '@/types/draftMontagem'
@@ -51,6 +52,15 @@ export async function getDraftMontagemById(id: string): Promise<DraftMontagem> {
   }
 }
 
+export async function getDraftMontagemRealtimeState(id: string): Promise<DraftMontagemRealtimeState> {
+  try {
+    const response = await api.get<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/realtime-state`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
 export async function createDraftMontagem(payload: DraftMontagemPayload): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>('/api/v1/draft-montagens', normalizePayload(payload))
@@ -63,6 +73,36 @@ export async function createDraftMontagem(payload: DraftMontagemPayload): Promis
 export async function saveDraftMontagemLayout(id: string, payload: DraftMontagemLayoutPayload): Promise<DraftMontagem> {
   try {
     const response = await api.put<DraftMontagem>(`/api/v1/draft-montagens/${id}/layout`, payload)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function startDraftMontagemRealtime(id: string): Promise<DraftMontagemRealtimeState> {
+  try {
+    const response = await api.post<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/iniciar-tempo-real`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function registerDraftMontagemPick(id: string, jogadorId: string): Promise<DraftMontagemRealtimeState> {
+  try {
+    const response = await api.post<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/picks`, { jogadorId })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function substituteDraftMontagemReserve(
+  id: string,
+  payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null },
+): Promise<DraftMontagemRealtimeState> {
+  try {
+    const response = await api.post<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/reservas/substituir`, normalizePayload(payload))
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)

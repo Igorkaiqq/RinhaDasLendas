@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
@@ -15,9 +15,14 @@ import {
   drawDraftMontagemCaptains,
   finalizeDraftMontagem,
   getDraftMontagemById,
+  getDraftMontagemRealtimeState,
   listDraftMontagens,
+  registerDraftMontagemPick,
   saveDraftMontagemLayout,
+  startDraftMontagemRealtime,
+  substituteDraftMontagemReserve,
 } from '@/services/draftMontagens'
+import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
@@ -34,10 +39,12 @@ const searchTerm = ref('')
 const selectedStatus = ref<DraftMontagemStatus | ''>('')
 const selectedMontagem = ref<DraftMontagem | null>(null)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
+const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 
 const statusOptions: DraftMontagemStatus[] = ['Aberta', 'Finalizada', 'Cancelada']
 const canManageDrafts = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
 const hasPlayerProfile = computed(() => Boolean(auth.user.value?.jogadorId))
+const currentPlayerId = computed(() => auth.user.value?.jogadorId ?? null)
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -50,6 +57,10 @@ const filteredDrafts = computed(() => {
 
 onMounted(async () => {
   await Promise.all([loadPlayers(), loadCaptains(), loadVisualMontagens()])
+})
+
+onUnmounted(async () => {
+  await disconnectRealtime()
 })
 
 async function loadPlayers() {
@@ -83,11 +94,52 @@ async function openMontagem(id: string) {
   errors.value = []
   try {
     selectedMontagem.value = await getDraftMontagemById(id)
+    await connectRealtime(id)
   } catch (error) {
     captureError(error)
   } finally {
     saving.value = false
   }
+}
+
+async function connectRealtime(id: string) {
+  await disconnectRealtime()
+  try {
+    const state = await getDraftMontagemRealtimeState(id)
+    applyRealtimeState(state.montagem)
+  } catch {
+    // The regular detail endpoint already loaded the board; realtime state errors are shown by later actions.
+  }
+
+  realtimeConnection.value = new DraftMontagemRealtimeConnection(id)
+  await realtimeConnection.value.connect((state) => {
+    applyRealtimeState(state.montagem)
+  })
+}
+
+function applyRealtimeState(montagem: DraftMontagem) {
+  selectedMontagem.value = montagem
+  visualMontagens.value = visualMontagens.value.map((item) =>
+    item.id === montagem.id
+      ? {
+          ...item,
+          status: montagem.status,
+          modo: montagem.modo,
+          quantidadeTimes: montagem.quantidadeTimes,
+          quantidadeReservas: montagem.quantidadeReservas,
+          dataAtualizacao: montagem.dataAtualizacao,
+        }
+      : item,
+  )
+}
+
+async function disconnectRealtime() {
+  if (!realtimeConnection.value) {
+    return
+  }
+
+  await realtimeConnection.value.disconnect()
+  realtimeConnection.value = null
 }
 
 async function saveMontagem(payload: DraftMontagemPayload) {
@@ -119,6 +171,59 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
     selectedMontagem.value = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function startRealtime() {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
+    return
+  }
+
+  saving.value = true
+  errors.value = []
+  try {
+    const state = await startDraftMontagemRealtime(selectedMontagem.value.id)
+    applyRealtimeState(state.montagem)
+    notification.value = t('drafts.realtime.started')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function pickRealtime(jogadorId: string) {
+  if (!selectedMontagem.value) {
+    return
+  }
+
+  saving.value = true
+  errors.value = []
+  try {
+    const state = await registerDraftMontagemPick(selectedMontagem.value.id, jogadorId)
+    applyRealtimeState(state.montagem)
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function substituteReserve(payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }) {
+  if (!selectedMontagem.value || !canManageDrafts.value) {
+    return
+  }
+
+  saving.value = true
+  errors.value = []
+  try {
+    const state = await substituteDraftMontagemReserve(selectedMontagem.value.id, payload)
+    applyRealtimeState(state.montagem)
+    notification.value = t('drafts.realtime.reserveSubstituted')
   } catch (error) {
     captureError(error)
   } finally {
@@ -253,7 +358,11 @@ function captureError(error: unknown) {
           :montagem="selectedMontagem"
           :saving="saving"
           :can-manage="canManageDrafts"
+          :current-player-id="currentPlayerId"
           @save="saveMontagemLayout"
+          @start-realtime="startRealtime"
+          @pick="pickRealtime"
+          @substitute-reserve="substituteReserve"
           @draw-captains="drawMontagemCaptains"
           @finalize="finalizeMontagem"
           @cancel="cancelMontagem"

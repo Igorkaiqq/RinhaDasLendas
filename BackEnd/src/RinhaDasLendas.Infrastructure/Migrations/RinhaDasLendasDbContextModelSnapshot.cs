@@ -210,6 +210,16 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_cadastro");
 
+                    b.Property<int>("DuracaoTurnoSegundos")
+                        .HasColumnType("integer")
+                        .HasColumnName("duracao_turno_segundos");
+
+                    b.Property<string>("Modo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("modo");
+
                     b.Property<string>("MotivoCancelamento")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -244,13 +254,90 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("tamanho_equipe");
 
+                    b.Property<Guid?>("TurnoAtualCapitaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("turno_atual_capitao_id");
+
+                    b.Property<Guid?>("TurnoAtualTimeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("turno_atual_time_id");
+
+                    b.Property<DateTimeOffset?>("TurnoExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("turno_expira_em");
+
+                    b.Property<DateTimeOffset?>("TurnoIniciadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("turno_iniciado_em");
+
+                    b.Property<int?>("TurnoSequencia")
+                        .HasColumnType("integer")
+                        .HasColumnName("turno_sequencia");
+
+                    b.Property<long>("VersaoEstado")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao_estado");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DataCadastro");
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("Status", "Modo", "TurnoExpiraEm");
+
                     b.ToTable("draft_montagens", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemEscolha", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CapitaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("capitao_id");
+
+                    b.Property<Guid>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<Guid?>("JogadorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_id");
+
+                    b.Property<DateTimeOffset>("RegistradoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registrado_em");
+
+                    b.Property<int>("Sequencia")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequencia");
+
+                    b.Property<Guid>("TimeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("time_id");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CapitaoId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("TimeId");
+
+                    b.HasIndex("DraftMontagemId", "Sequencia")
+                        .IsUnique();
+
+                    b.ToTable("draft_montagem_escolhas", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemParticipante", b =>
@@ -350,6 +437,56 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("draft_montagem_times", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemSubstituicao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<Guid>("JogadorSaiuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_saiu_id");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo");
+
+                    b.Property<DateTimeOffset>("RegistradoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registrado_em");
+
+                    b.Property<Guid>("ReservaEntrouId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reserva_entrou_id");
+
+                    b.Property<Guid>("ResponsavelUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsavel_usuario_id");
+
+                    b.Property<Guid>("TimeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("time_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DraftMontagemId");
+
+                    b.HasIndex("JogadorSaiuId");
+
+                    b.HasIndex("ReservaEntrouId");
+
+                    b.HasIndex("ResponsavelUsuarioId");
+
+                    b.HasIndex("TimeId");
+
+                    b.ToTable("draft_montagem_substituicoes", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
@@ -1122,6 +1259,36 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Jogador");
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemEscolha", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Capitao")
+                        .WithMany()
+                        .HasForeignKey("CapitaoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany("Escolhas")
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagemTime", null)
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Capitao");
+
+                    b.Navigation("Jogador");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemParticipante", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
@@ -1156,6 +1323,43 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasForeignKey("DraftMontagemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemSubstituicao", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany("Substituicoes")
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "JogadorSaiu")
+                        .WithMany()
+                        .HasForeignKey("JogadorSaiuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "ReservaEntrou")
+                        .WithMany()
+                        .HasForeignKey("ReservaEntrouId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsavelUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagemTime", null)
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("JogadorSaiu");
+
+                    b.Navigation("ReservaEntrou");
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
@@ -1234,7 +1438,11 @@ namespace RinhaDasLendas.Infrastructure.Migrations
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagem", b =>
                 {
+                    b.Navigation("Escolhas");
+
                     b.Navigation("Participantes");
+
+                    b.Navigation("Substituicoes");
 
                     b.Navigation("Times");
                 });

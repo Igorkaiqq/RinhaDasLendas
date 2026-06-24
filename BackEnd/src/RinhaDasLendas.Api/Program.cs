@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Api.Filters;
+using RinhaDasLendas.Api.Hubs;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application;
 using RinhaDasLendas.Application.Interfaces;
@@ -17,6 +18,9 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
+builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
+builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
@@ -46,6 +50,20 @@ else
                 ValidAudience = jwtSection.GetValue<string>("Audience"),
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                 ClockSkew = TimeSpan.FromSeconds(30),
+            };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/draft-montagens"))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                },
             };
         });
 }
@@ -137,6 +155,7 @@ if (app.Environment.IsEnvironment("Testing"))
 }
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<DraftMontagensHub>("/hubs/draft-montagens");
 
 app.Run();
 
