@@ -31,15 +31,17 @@ async function submit() {
   <main class="auth-page">
     <form class="auth-card" @submit.prevent="submit">
       <span class="auth-card__eyebrow">Conta de jogador</span>
-      <h1>Criar conta</h1>
-      <p>Todo novo cadastro começa como Jogador.</p>
+      <h1>Entrar para a comunidade</h1>
+      <p>Todo novo cadastro começa como jogador e pode evoluir com permissões da organização.</p>
       <label>Nome <input v-model="nome" required maxlength="120" /></label>
       <label>E-mail <input v-model="email" type="email" required /></label>
       <label>Senha <input v-model="senha" type="password" required minlength="8" /></label>
       <label>Confirmar senha <input v-model="confirmacaoSenha" type="password" required minlength="8" /></label>
       <p v-if="error" class="form-error">{{ error }}</p>
       <button class="button button--primary" type="submit" :disabled="loading">{{ loading ? 'Criando...' : 'Criar conta' }}</button>
-      <RouterLink :to="AppRoutes.Login">Já tenho conta</RouterLink>
+      <div class="auth-card__links">
+        <RouterLink :to="AppRoutes.Login">Já tenho conta</RouterLink>
+      </div>
     </form>
   </main>
 </template>

@@ -288,7 +288,7 @@ function submit() {
             </div>
 
             <div class="player-modal__actions">
-              <button type="button" @click="close">{{ t('playerForm.cancel') }}</button>
+              <button type="button" class="button-secondary" @click="close">{{ t('playerForm.cancel') }}</button>
               <button type="submit" :disabled="saving">{{ saving ? t('playerForm.saving') : t('playerForm.save') }}</button>
             </div>
           </form>

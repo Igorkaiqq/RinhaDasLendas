@@ -19,7 +19,7 @@ defineEmits<{
       <h2 id="delete-player-title">Excluir {{ player.nomeExibicao }}?</h2>
       <p>Esta acao remove o jogador dos dados temporarios. Com backend ativo, a acao usa a inativacao segura.</p>
       <div class="confirm-dialog__actions">
-        <button type="button" @click="$emit('cancel')">Cancelar</button>
+        <button type="button" class="button-secondary" @click="$emit('cancel')">Cancelar</button>
         <button type="button" class="button-danger" @click="$emit('confirm')">Confirmar</button>
       </div>
     </section>

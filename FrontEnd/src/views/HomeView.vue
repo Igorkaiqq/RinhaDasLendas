@@ -28,17 +28,22 @@ function showUnderConstruction() {
     </div>
 
     <header class="home-page__header">
-      <p class="home-page__eyebrow">Plataforma interna</p>
-      <h1>Rinha das Lendas</h1>
-      <p>
-        Organize jogadores, partidas, drafts e estatísticas da comunidade em um fluxo único, preparado para as próximas
-        integrações com Discord e Riot.
-      </p>
+      <div>
+        <p class="home-page__eyebrow">Plataforma competitiva interna</p>
+        <h1>Organize a próxima rinha com ritmo de campeonato.</h1>
+        <p>
+          Centralize jogadores, times, drafts e histórico da comunidade em uma experiência preparada para Discord, Riot e noites de confronto.
+        </p>
+      </div>
+      <div class="home-page__signal" aria-label="Status da plataforma">
+        <span>Live ops</span>
+        <strong>Drafts e jogadores prontos</strong>
+      </div>
     </header>
 
     <section class="home-page__grid" aria-label="Resumo do sistema">
       <article class="home-card home-card--highlight">
-        <span class="home-card__icon" aria-hidden="true">D</span>
+        <span class="home-card__icon" aria-hidden="true">DC</span>
         <div>
           <h2>Discord do grupo</h2>
           <p>Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo.</p>
@@ -46,7 +51,7 @@ function showUnderConstruction() {
       </article>
 
       <RouterLink class="home-card home-card--link" :to="AppRoutes.Players">
-        <span class="home-card__icon" aria-hidden="true">J</span>
+        <span class="home-card__icon" aria-hidden="true">JG</span>
         <div>
           <h2>Jogadores</h2>
           <p>Cadastre participantes, elos e preferências de rota.</p>
@@ -54,7 +59,7 @@ function showUnderConstruction() {
       </RouterLink>
 
       <button class="home-card home-card--link" type="button" @click="showUnderConstruction">
-        <span class="home-card__icon" aria-hidden="true">D</span>
+        <span class="home-card__icon" aria-hidden="true">DR</span>
         <div>
           <h2>Draft</h2>
           <p>Estrutura preparada para capitães, ordem de picks e times balanceados.</p>
@@ -62,7 +67,7 @@ function showUnderConstruction() {
       </button>
 
       <button class="home-card home-card--link" type="button" @click="showUnderConstruction">
-        <span class="home-card__icon" aria-hidden="true">P</span>
+        <span class="home-card__icon" aria-hidden="true">MD</span>
         <div>
           <h2>Partidas</h2>
           <p>Base visual pronta para registrar jogos, placares e histórico.</p>

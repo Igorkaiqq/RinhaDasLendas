@@ -8,19 +8,23 @@
 primary: "#7C3AED"
 primary-hover: "#8B5CF6"
 primary-focus: "#6D28D9"
+primary-soft: "rgba(124, 58, 237, 0.16)"
 
 secondary: "#2563EB"
 secondary-hover: "#3B82F6"
+secondary-soft: "rgba(37, 99, 235, 0.16)"
 ```
 
 ### Background
 
 ```yaml
 canvas: "#09090B"
+canvas-raised: "#0D0D12"
 surface-1: "#111113"
 surface-2: "#18181B"
 surface-3: "#27272A"
 surface-4: "#323238"
+sidebar: "#07070A"
 ```
 
 ### Borders
@@ -28,6 +32,7 @@ surface-4: "#323238"
 ```yaml
 hairline: "#2A2A30"
 hairline-strong: "#3A3A42"
+hairline-soft: "rgba(58, 58, 66, 0.42)"
 ```
 
 ### Text
@@ -46,6 +51,15 @@ success: "#22C55E"
 warning: "#F59E0B"
 danger: "#EF4444"
 info: "#3B82F6"
+```
+
+### Effects
+
+```yaml
+focus-ring: "rgba(139, 92, 246, 0.42)"
+glow-primary: "rgba(124, 58, 237, 0.28)"
+glow-secondary: "rgba(37, 99, 235, 0.22)"
+overlay: "rgba(5, 5, 8, 0.72)"
 ```
 
 ---
@@ -83,6 +97,8 @@ display-md:
   weight: 600
 ```
 
+Display deve ser usado com moderação em páginas de entrada, headers e momentos de destaque. Telas operacionais devem priorizar legibilidade.
+
 ---
 
 ## Headings
@@ -104,6 +120,8 @@ body: 16px
 body-sm: 14px
 caption: 12px
 ```
+
+Fontes mono devem ser usadas apenas para dados curtos: status, rotas, tags, contadores, ids visuais e navegação compacta.
 
 ---
 
@@ -134,6 +152,16 @@ xxl: 48px
 section: 96px
 ```
 
+Escala operacional recomendada:
+
+```yaml
+control-height-sm: 36px
+control-height-md: 42px
+control-height-lg: 48px
+container-padding-mobile: 16px
+container-padding-desktop: 32px
+```
+
 ---
 
 # Elevation
@@ -157,6 +185,38 @@ border: hairline-strong
 ```yaml
 background: surface-3
 border: hairline-strong
+```
+
+Sombras devem ser sutis e raras. Preferir camadas, bordas e contraste de superfície.
+
+```yaml
+shadow-sm: "0 8px 24px rgba(0, 0, 0, 0.22)"
+shadow-md: "0 18px 48px rgba(0, 0, 0, 0.32)"
+shadow-lg: "0 28px 90px rgba(0, 0, 0, 0.48)"
+```
+
+---
+
+# Motion
+
+```yaml
+duration-fast: 140ms
+duration-base: 180ms
+duration-slow: 240ms
+ease-standard: "cubic-bezier(0.2, 0, 0, 1)"
+```
+
+Microinterações devem comunicar estado e affordance. Evitar animações decorativas repetitivas.
+
+---
+
+# Focus
+
+Todo elemento interativo deve ter foco visível.
+
+```yaml
+focus-outline: "2px solid focus-ring"
+focus-offset: 2px
 ```
 
 ---
