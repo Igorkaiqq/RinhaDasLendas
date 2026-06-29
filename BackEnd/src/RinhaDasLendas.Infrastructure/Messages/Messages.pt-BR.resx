@@ -156,4 +156,16 @@
   <data name="MV069" xml:space="preserve"><value>Não é possível desvincular o Discord sem manter login tradicional ativo</value></data>
   <data name="MV070" xml:space="preserve"><value>O Discord precisa retornar um e-mail verificado para criar a conta</value></data>
   <data name="MV071" xml:space="preserve"><value>Já existe uma conta com o e-mail deste Discord. Entre com usuário e senha e vincule o Discord nas configurações.</value></data>
+  <data name="MV072" xml:space="preserve"><value>A lista de presença já foi encerrada</value></data>
+  <data name="MV073" xml:space="preserve"><value>Presença não encontrada</value></data>
+  <data name="MV074" xml:space="preserve"><value>Menos de 10 jogadores confirmados exige decisão manual</value></data>
+  <data name="MV075" xml:space="preserve"><value>A presença precisa estar encerrada para definir capitães</value></data>
+  <data name="MV076" xml:space="preserve"><value>Ordem de escolha inválida</value></data>
+  <data name="MV077" xml:space="preserve"><value>Configuração do Discord não encontrada</value></data>
+  <data name="MV078" xml:space="preserve"><value>Canal Discord inválido</value></data>
+  <data name="MV079" xml:space="preserve"><value>Token interno do bot inválido</value></data>
+  <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
+  <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
+  <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>
+  <data name="MSIS028" xml:space="preserve"><value>Configuração do Discord atualizada</value></data>
 </root>

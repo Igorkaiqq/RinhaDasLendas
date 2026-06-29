@@ -70,6 +70,51 @@ export async function createDraftMontagem(payload: DraftMontagemPayload): Promis
   }
 }
 
+export async function confirmDraftMontagemPresence(id: string): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/confirmar`, { origem: 'Web' })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function cancelDraftMontagemPresence(id: string): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/cancelar`, {})
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function closeDraftMontagemPresence(id: string, continuarComMenosDez = false, tamanhoEquipe = 5): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/encerrar-presenca`, { continuarComMenosDez, tamanhoEquipe })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function defineDraftMontagemCaptains(id: string, capitaesIds: string[]): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/capitaes`, { capitaesIds })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function defineDraftMontagemPickOrder(id: string, modo: 'Manual' | 'Sorteado', capitaesIds: string[] = []): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/ordem-escolha`, { modo, capitaesIds })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
 export async function saveDraftMontagemLayout(id: string, payload: DraftMontagemLayoutPayload): Promise<DraftMontagem> {
   try {
     const response = await api.put<DraftMontagem>(`/api/v1/draft-montagens/${id}/layout`, payload)

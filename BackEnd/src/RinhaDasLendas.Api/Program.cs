@@ -20,11 +20,25 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
+builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
 var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationException("Authentication:Jwt:Key não configurado.");
+builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.SchemeName, options =>
+{
+    options.Token = builder.Configuration["RINHA_API_INTERNAL_TOKEN"] ?? builder.Configuration["DiscordBot:InternalToken"] ?? string.Empty;
+    options.ValidTokens = new[]
+        {
+            builder.Configuration["RINHA_API_INTERNAL_TOKEN"],
+            builder.Configuration["DiscordBot:InternalToken"]
+        }
+        .Where(token => !string.IsNullOrWhiteSpace(token))
+        .Select(token => token!)
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+});
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddAuthentication(TestingAuthHandler.SchemeName)
@@ -38,6 +52,7 @@ else
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         })
+        .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { })
         .AddJwtBearer(options =>
         {
             options.TokenValidationParameters = new TokenValidationParameters
@@ -80,6 +95,8 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
     }
     else
     {
@@ -91,6 +108,16 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireRole(AuthRoles.SuperAdmin));
+        options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy
+            .AddAuthenticationSchemes(BotInternalAuthOptions.SchemeName)
+            .RequireClaim("scope", AuthPermissions.CanUseDiscordBotApi));
+        options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, BotInternalAuthOptions.SchemeName)
+            .RequireAssertion(context =>
+                context.User.IsInRole(AuthRoles.SuperAdmin)
+                || context.User.IsInRole(AuthRoles.Admin)
+                || context.User.IsInRole(AuthRoles.Moderador)
+                || context.User.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi)));
     }
 });
 builder.Services.AddHealthChecks();

@@ -21,8 +21,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<DraftMontagem> DraftMontagens => Set<DraftMontagem>();
     public DbSet<DraftMontagemTime> DraftMontagemTimes => Set<DraftMontagemTime>();
     public DbSet<DraftMontagemParticipante> DraftMontagemParticipantes => Set<DraftMontagemParticipante>();
+    public DbSet<DraftMontagemPresenca> DraftMontagemPresencas => Set<DraftMontagemPresenca>();
     public DbSet<DraftMontagemEscolha> DraftMontagemEscolhas => Set<DraftMontagemEscolha>();
     public DbSet<DraftMontagemSubstituicao> DraftMontagemSubstituicoes => Set<DraftMontagemSubstituicao>();
+    public DbSet<DiscordServerConfiguration> DiscordServerConfigurations => Set<DiscordServerConfiguration>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalAccount> ExternalAccounts => Set<ExternalAccount>();
     public DbSet<ExternalAuthState> ExternalAuthStates => Set<ExternalAuthState>();
@@ -264,6 +266,11 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(montagem => montagem.TurnoExpiraEm).HasColumnName("turno_expira_em");
             entity.Property(montagem => montagem.DuracaoTurnoSegundos).HasColumnName("duracao_turno_segundos").IsRequired();
             entity.Property(montagem => montagem.VersaoEstado).HasColumnName("versao_estado").IsConcurrencyToken().IsRequired();
+            entity.Property(montagem => montagem.HorarioEncerramentoPresenca).HasColumnName("horario_encerramento_presenca");
+            entity.Property(montagem => montagem.DiscordGuildId).HasColumnName("discord_guild_id").HasMaxLength(40);
+            entity.Property(montagem => montagem.DiscordPresenceMessageId).HasColumnName("discord_presence_message_id").HasMaxLength(40);
+            entity.Property(montagem => montagem.OrdemEscolhaModo).HasColumnName("ordem_escolha_modo").HasConversion<string>().HasMaxLength(20);
+            entity.Property(montagem => montagem.PresencaContinuadaManualmente).HasColumnName("presenca_continuada_manualmente").HasDefaultValue(false).IsRequired();
             entity.Property(montagem => montagem.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
             entity.Property(montagem => montagem.DataCadastro).HasColumnName("data_cadastro").IsRequired();
             entity.Property(montagem => montagem.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
@@ -278,6 +285,11 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
                 .HasForeignKey(participante => participante.DraftMontagemId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasMany(montagem => montagem.Presencas)
+                .WithOne()
+                .HasForeignKey(presenca => presenca.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasMany(montagem => montagem.Escolhas)
                 .WithOne()
                 .HasForeignKey(escolha => escolha.DraftMontagemId)
@@ -289,12 +301,54 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(montagem => montagem.Status);
+            entity.HasIndex(montagem => new { montagem.Status, montagem.HorarioEncerramentoPresenca });
             entity.HasIndex(montagem => new { montagem.Status, montagem.Modo, montagem.TurnoExpiraEm });
             entity.HasIndex(montagem => montagem.DataCadastro);
             entity.Navigation(montagem => montagem.Times).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Participantes).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(montagem => montagem.Presencas).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Escolhas).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Substituicoes).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<DraftMontagemPresenca>(entity =>
+        {
+            entity.ToTable("draft_montagem_presencas");
+            entity.HasKey(presenca => presenca.Id);
+            entity.Property(presenca => presenca.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(presenca => presenca.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
+            entity.Property(presenca => presenca.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(presenca => presenca.JogadorId).HasColumnName("jogador_id").IsRequired();
+            entity.Property(presenca => presenca.DiscordUserId).HasColumnName("discord_user_id").HasMaxLength(40);
+            entity.Property(presenca => presenca.OrigemConfirmacao).HasColumnName("origem_confirmacao").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(presenca => presenca.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(presenca => presenca.ConfirmadoEm).HasColumnName("confirmado_em").IsRequired();
+            entity.Property(presenca => presenca.CanceladoEm).HasColumnName("cancelado_em");
+            entity.Property(presenca => presenca.OrdemConfirmacao).HasColumnName("ordem_confirmacao").IsRequired();
+            entity.Property(presenca => presenca.OrdemManual).HasColumnName("ordem_manual");
+            entity.Property(presenca => presenca.OrdemFinal).HasColumnName("ordem_final");
+            entity.Property(presenca => presenca.DataCadastro).HasColumnName("data_cadastro").IsRequired();
+            entity.Property(presenca => presenca.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+
+            entity.HasOne(presenca => presenca.Jogador)
+                .WithMany()
+                .HasForeignKey(presenca => presenca.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(presenca => presenca.UsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(presenca => presenca.DraftMontagemId);
+            entity.HasIndex(presenca => presenca.UsuarioId);
+            entity.HasIndex(presenca => presenca.JogadorId);
+            entity.HasIndex(presenca => new { presenca.DraftMontagemId, presenca.UsuarioId })
+                .IsUnique()
+                .HasFilter("status = 'Confirmada'");
+            entity.HasIndex(presenca => new { presenca.DraftMontagemId, presenca.JogadorId })
+                .IsUnique()
+                .HasFilter("status = 'Confirmada'");
         });
 
         modelBuilder.Entity<DraftMontagemTime>(entity =>
@@ -594,6 +648,23 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(link => link.Escopos).HasColumnName("escopos").HasMaxLength(500);
             entity.HasIndex(link => link.UsuarioId).IsUnique().HasFilter("desvinculado_em IS NULL");
             entity.HasIndex(link => link.DiscordUserId).IsUnique().HasFilter("desvinculado_em IS NULL");
+        });
+
+        modelBuilder.Entity<DiscordServerConfiguration>(entity =>
+        {
+            entity.ToTable("discord_server_configurations");
+            entity.HasKey(configuration => configuration.Id);
+            entity.Property(configuration => configuration.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(configuration => configuration.GuildId).HasColumnName("guild_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.PresenceChannelId).HasColumnName("presence_channel_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.NewsChannelId).HasColumnName("news_channel_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.AdminChannelId).HasColumnName("admin_channel_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.DraftChannelId).HasColumnName("draft_channel_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.MatchResultChannelId).HasColumnName("match_result_channel_id").HasMaxLength(40).IsRequired();
+            entity.Property(configuration => configuration.BotEnabled).HasColumnName("bot_enabled").IsRequired();
+            entity.Property(configuration => configuration.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(configuration => configuration.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            entity.HasIndex(configuration => configuration.GuildId).IsUnique();
         });
 
         modelBuilder.Entity<AuditoriaUsuario>(entity =>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rinha das lendas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Reset e Fontes */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        :root {
+            --bg-main: #0f172a;       /* Fundo principal escuro */
+            --bg-card: #1e293b;       /* Fundo dos cards e painéis */
+            --bg-hover: #334155;      /* Fundo para hover/drag */
+            --text-main: #f8fafc;     /* Texto claro */
+            --text-muted: #94a3b8;    /* Texto secundário/apagado */
+            --border-color: #334155;  /* Bordas escuras */
+            
+            /* Cores Flat dos Times */
+            --team-blue: #3b82f6;
+            --team-red: #ef4444;
+            --team-yellow: #eab308;
+            --team-green: #22c55e;
+            
+            /* Cor de destaque para botões e rotas ativas */
+            --accent: #38bdf8;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        /* Área de Input */
+        .input-section {
+            background-color: var(--bg-card);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 12px;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            resize: vertical;
+            font-size: 15px;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            background-color: var(--bg-hover);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background-color: #475569; }
+
+        .btn-primary { background-color: var(--team-blue); border-color: var(--team-blue); color: #fff; }
+        .btn-primary:hover { background-color: #2563eb; }
+
+        .btn-export { background-color: var(--team-green); border-color: var(--team-green); color: #fff; }
+        .btn-export:hover { background-color: #16a34a; }
+
+        /* Layout de 3 Colunas Equilibrado */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 20px;
+            align-items: start;
+            padding: 20px; 
+            background-color: var(--bg-main);
+            border-radius: 8px;
+        }
+
+        .side-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .center-column {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        /* Customização dos Containers de Times */
+        .team-box {
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        /* Cores Flat Identificadoras */
+        #t1-box { border-top: 6px solid var(--team-blue); }
+        #t2-box { border-top: 6px solid var(--team-red); }
+        #t3-box { border-top: 6px solid var(--team-yellow); }
+        #t4-box { border-top: 6px solid var(--team-green); }
+
+        .team-header {
+            padding: 12px;
+            background-color: #0f172a; /* Mais escuro que o card para contrastar */
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .team-name-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            outline: none;
+            padding: 4px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .team-name-input:focus {
+            background-color: var(--bg-hover);
+        }
+
+        .pool-header {
+            padding: 16px;
+            font-weight: 700;
+            text-align: center;
+            background-color: #0f172a;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        /* Zonas de Drop */
+        .drop-zone {
+            padding: 15px;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .drop-zone.drag-over {
+            background-color: var(--bg-hover);
+        }
+
+        /* Cards dos Jogadores */
+        .player-card {
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 6px;
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+
+        .player-card:hover { border-color: var(--text-muted); }
+        .player-card:active { cursor: grabbing; transform: scale(0.98); }
+        .player-card.dragging { opacity: 0.5; }
+
+        .player-name {
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 15px;
+            pointer-events: none; /* Para não bugar o drag and drop */
+        }
+
+        /* Seletor de Rotas dentro do card */
+        .roles-container {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .role-btn {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .role-btn:hover {
+            border-color: var(--text-muted);
+        }
+
+        .role-btn.active {
+            background-color: var(--accent);
+            color: #0f172a; /* Texto escuro na tag acesa */
+            border-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <h1>Formação de Times</h1>
+
+        <div class="input-section" data-html2canvas-ignore="true">
+            <textarea id="nameInput" placeholder="Digite os nomes aqui (um por linha)..."></textarea>
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="generatePlayers()">Adicionar Jogadores</button>
+                <button class="btn btn-export" onclick="exportToImage()">📸 Exportar Imagem</button>
+            </div>
+        </div>
+
+        <div class="workspace" id="capture-area">
+            
+            <div class="side-column">
+                <div class="team-box" id="t1-box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" id="name-team1" value="Time Azul">
+                    </div>
+                    <div class="drop-zone" id="team1"></div>
+                </div>
+                <div class="team-box" id="t2-box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" id="name-team2" value="Time Vermelho">
+                    </div>
+                    <div class="drop-zone" id="team2"></div>
+                </div>
+            </div>
+
+            <div class="center-column">
+                <div class="pool-header">Jogadores Livres</div>
+                <div class="drop-zone" id="playerPool"></div>
+            </div>
+
+            <div class="side-column">
+                <div class="team-box" id="t3-box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" id="name-team3" value="Time Amarelo">
+                    </div>
+                    <div class="drop-zone" id="team3"></div>
+                </div>
+                <div class="team-box" id="t4-box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" id="name-team4" value="Time Verde">
+                    </div>
+                    <div class="drop-zone" id="team4"></div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        let playerIdCounter = 0;
+
+        // Função para ler o textarea e criar os elementos arrastáveis
+        function generatePlayers() {
+            const input = document.getElementById('nameInput');
+            const names = input.value.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+            const pool = document.getElementById('playerPool');
+
+            names.forEach(name => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.draggable = true;
+                card.id = 'player-' + (++playerIdCounter);
+                
+                // Nome do Jogador
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'player-name';
+                nameDiv.textContent = name;
+
+                // Container das Rotas
+                const rolesContainer = document.createElement('div');
+                rolesContainer.className = 'roles-container';
+
+                const roles = ['TOP', 'JG', 'MID', 'ADC', 'SUP'];
+                
+                roles.forEach(role => {
+                    const roleBtn = document.createElement('div');
+                    roleBtn.className = 'role-btn';
+                    roleBtn.textContent = role;
+                    
+                    // Toggle para acender/apagar a rota
+                    roleBtn.addEventListener('click', (e) => {
+                        e.target.classList.toggle('active');
+                    });
+                    
+                    rolesContainer.appendChild(roleBtn);
+                });
+                
+                card.appendChild(nameDiv);
+                card.appendChild(rolesContainer);
+
+                // Eventos de arrastar do item
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                
+                pool.appendChild(card);
+            });
+
+            // Limpa a área de texto após gerar
+            input.value = '';
+        }
+
+        // Funções de Drag and Drop
+        function handleDragStart(e) {
+            // Se o clique inicial for em um botão de rota, não arrasta
+            if(e.target.classList && e.target.classList.contains('role-btn')) {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.setData('text/plain', e.target.id);
+            setTimeout(() => e.target.classList.add('dragging'), 0);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        // Configura as zonas onde os itens podem ser soltos
+        const dropZones = document.querySelectorAll('.drop-zone');
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', e => {
+                e.preventDefault(); 
+                zone.classList.add('drag-over');
+            });
+            
+            zone.addEventListener('dragleave', e => {
+                zone.classList.remove('drag-over');
+            });
+            
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                
+                const id = e.dataTransfer.getData('text/plain');
+                if(!id) return;
+
+                const draggableElement = document.getElementById(id);
+                
+                if (draggableElement) {
+                    zone.appendChild(draggableElement);
+                }
+            });
+        });
+
+        // Função para exportar a área dos times em imagem
+        function exportToImage() {
+            const captureArea = document.getElementById('capture-area');
+            
+            // html2canvas renderiza a div como um canvas
+            html2canvas(captureArea, {
+                backgroundColor: '#0f172a', // Cor de fundo do Dark Mode
+                scale: 2 // Alta resolução
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'times-formados.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

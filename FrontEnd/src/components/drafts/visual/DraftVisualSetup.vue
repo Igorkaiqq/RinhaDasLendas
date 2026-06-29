@@ -15,6 +15,7 @@ const form = reactive({
   nome: '',
   observacoes: '',
   tamanhoEquipe: 5,
+  horarioEncerramentoPresenca: '',
   sortearCapitaes: true,
   jogadoresIds: [] as string[],
   capitaesIds: [] as string[],
@@ -27,7 +28,7 @@ const filteredPlayers = computed(() => {
 
 const quantidadeTimes = computed(() => Math.floor(form.jogadoresIds.length / Math.max(form.tamanhoEquipe, 1)))
 const quantidadeReservas = computed(() => form.jogadoresIds.length % Math.max(form.tamanhoEquipe, 1))
-const canSubmit = computed(() => Boolean(form.nome.trim()) && quantidadeTimes.value >= 1 && (form.sortearCapitaes || form.capitaesIds.length === quantidadeTimes.value))
+const canSubmit = computed(() => Boolean(form.nome.trim()))
 const selectedPlayers = computed(() => props.players.filter((player) => form.jogadoresIds.includes(player.id)))
 const selectedCaptains = computed(() => props.captains.filter((player) => form.jogadoresIds.includes(player.id)))
 
@@ -59,6 +60,7 @@ function submit() {
     nome: form.nome,
     observacoes: form.observacoes || null,
     tamanhoEquipe: form.tamanhoEquipe,
+    horarioEncerramentoPresenca: form.horarioEncerramentoPresenca || null,
     sortearCapitaes: form.sortearCapitaes,
     capitaesIds: form.sortearCapitaes ? [] : form.capitaesIds,
     jogadoresIds: form.jogadoresIds,
@@ -88,6 +90,10 @@ function submit() {
         <label class="player-form__field">
           {{ t('drafts.visualSetup.teamSize') }}
           <input v-model.number="form.tamanhoEquipe" type="number" min="1" max="5" />
+        </label>
+        <label class="player-form__field">
+          {{ t('drafts.presence.closeAt') }}
+          <input v-model="form.horarioEncerramentoPresenca" type="datetime-local" />
         </label>
         <label class="player-form__field player-form__field--wide">
           {{ t('drafts.createModal.notes') }}

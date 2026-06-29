@@ -11,6 +11,7 @@ using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Repositories;
+using RinhaDasLendas.Infrastructure.Discord;
 
 namespace RinhaDasLendas.Infrastructure;
 
@@ -52,6 +53,8 @@ public static class DependencyInjection
 
         services.AddScoped<RoleHierarchyService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IDiscordIdentityLookupService, DiscordIdentityLookupService>();
+        services.AddScoped<IDiscordConfigurationService, DiscordConfigurationService>();
         services.AddScoped<IUsuarioService, UsuarioService>();
         services.AddScoped<IUsuarioAuditoriaService, UsuarioAuditoriaService>();
         services.AddScoped<IJogadorRepository, JogadorRepository>();

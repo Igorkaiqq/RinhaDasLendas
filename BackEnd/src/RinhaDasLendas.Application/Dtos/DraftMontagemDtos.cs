@@ -8,6 +8,8 @@ public sealed record CreateDraftMontagemRequestDto(
     string? Observacoes,
     int TamanhoEquipe,
     bool SortearCapitaes,
+    DateTimeOffset? HorarioEncerramentoPresenca,
+    string? DiscordGuildId,
     IReadOnlyCollection<Guid> CapitaesIds,
     IReadOnlyCollection<Guid> JogadoresIds);
 
@@ -30,6 +32,11 @@ public sealed record DraftMontagemResumoDto(
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,
+    DateTimeOffset? HorarioEncerramentoPresenca,
+    string? DiscordGuildId,
+    string? DiscordPresenceMessageId,
+    string? OrdemEscolhaModo,
+    bool PresencaContinuadaManualmente,
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao);
 
@@ -49,6 +56,12 @@ public sealed record DraftMontagemResponseDto(
     DateTimeOffset? TurnoIniciadoEm,
     DateTimeOffset? TurnoExpiraEm,
     int DuracaoTurnoSegundos,
+    DateTimeOffset? HorarioEncerramentoPresenca,
+    string? DiscordGuildId,
+    string? DiscordPresenceMessageId,
+    string? OrdemEscolhaModo,
+    bool PresencaContinuadaManualmente,
+    IReadOnlyCollection<DraftMontagemPresencaResponseDto> Presencas,
     IReadOnlyCollection<DraftMontagemTimeResponseDto> Times,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Livres,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Reservas,
@@ -77,6 +90,12 @@ public sealed record DraftMontagemResponseDto(
             montagem.TurnoIniciadoEm,
             montagem.TurnoExpiraEm,
             montagem.DuracaoTurnoSegundos,
+            montagem.HorarioEncerramentoPresenca,
+            montagem.DiscordGuildId,
+            montagem.DiscordPresenceMessageId,
+            montagem.OrdemEscolhaModo?.ToString(),
+            montagem.PresencaContinuadaManualmente,
+            montagem.Presencas.OrderBy(presenca => presenca.OrdemFinal ?? presenca.OrdemManual ?? presenca.OrdemConfirmacao).Select(DraftMontagemPresencaResponseDto.FromEntity).ToList(),
             montagem.Times.OrderBy(time => time.Ordem).Select(time => DraftMontagemTimeResponseDto.FromEntity(time, participantes)).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
@@ -90,7 +109,55 @@ public sealed record DraftMontagemResponseDto(
 
 public sealed record RegistrarPickDraftMontagemRequestDto(Guid JogadorId);
 
+public sealed record ConfirmarPresencaDraftMontagemRequestDto(Guid? UsuarioId, string? DiscordUserId, string Origem);
+
+public sealed record CancelarPresencaDraftMontagemRequestDto(Guid? UsuarioId, string? DiscordUserId);
+
+public sealed record EncerrarPresencaDraftMontagemRequestDto(bool ContinuarComMenosDez, int TamanhoEquipe);
+
+public sealed record DefinirCapitaesDraftMontagemRequestDto(IReadOnlyCollection<Guid> CapitaesIds);
+
+public sealed record DefinirOrdemEscolhaDraftMontagemRequestDto(string Modo, IReadOnlyCollection<Guid> CapitaesIds);
+
+public sealed record RegistrarPublicacaoDiscordDraftMontagemRequestDto(string? DiscordGuildId, string DiscordPresenceMessageId);
+
+public sealed record DraftMontagemPresencaResponseDto(
+    Guid Id,
+    Guid UsuarioId,
+    Guid JogadorId,
+    string NomeExibicao,
+    string? DiscordUserId,
+    string OrigemConfirmacao,
+    string Status,
+    DateTimeOffset ConfirmadoEm,
+    DateTimeOffset? CanceladoEm,
+    int OrdemConfirmacao,
+    int? OrdemManual,
+    int? OrdemFinal)
+{
+    public static DraftMontagemPresencaResponseDto FromEntity(DraftMontagemPresenca presenca)
+    {
+        return new DraftMontagemPresencaResponseDto(
+            presenca.Id,
+            presenca.UsuarioId,
+            presenca.JogadorId,
+            presenca.Jogador?.NomeExibicao ?? string.Empty,
+            presenca.DiscordUserId,
+            presenca.OrigemConfirmacao.ToString(),
+            presenca.Status.ToString(),
+            presenca.ConfirmadoEm,
+            presenca.CanceladoEm,
+            presenca.OrdemConfirmacao,
+            presenca.OrdemManual,
+            presenca.OrdemFinal);
+    }
+}
+
 public sealed record SubstituirReservaDraftMontagemRequestDto(Guid TimeId, Guid JogadorSaiuId, Guid ReservaEntrouId, string? Motivo);
+
+public sealed record DiscordConfigurationDto(Guid? Id, string GuildId, string PresenceChannelId, string NewsChannelId, string AdminChannelId, string DraftChannelId, string MatchResultChannelId, bool BotEnabled);
+
+public sealed record DiscordUserLinkDto(bool Vinculado, Guid? UsuarioId, Guid? JogadorId, string? NomeExibicao, IReadOnlyCollection<string> Roles);
 
 public sealed record DraftMontagemRealtimeStateDto(
     DraftMontagemResponseDto Montagem,

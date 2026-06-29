@@ -27,6 +27,24 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
+    {
+        return await IncludeMontagem(dbContext.DraftMontagens)
+            .Where(montagem => montagem.Status == DraftMontagemStatus.PresencaAberta && montagem.HorarioEncerramentoPresenca != null && montagem.HorarioEncerramentoPresenca <= now)
+            .OrderBy(montagem => montagem.HorarioEncerramentoPresenca)
+            .Take(Math.Clamp(limit, 1, 100))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)
+    {
+        return await IncludeMontagem(dbContext.DraftMontagens.AsNoTracking())
+            .Where(montagem => montagem.Status != DraftMontagemStatus.Finalizada || montagem.DiscordGuildId != null)
+            .OrderByDescending(montagem => montagem.DataAtualizacao)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
@@ -67,6 +85,9 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .Include(montagem => montagem.Times)
             .Include(montagem => montagem.Participantes)
             .ThenInclude(participante => participante.Jogador!)
+            .ThenInclude(jogador => jogador.Preferencias)
+            .Include(montagem => montagem.Presencas)
+            .ThenInclude(presenca => presenca.Jogador!)
             .ThenInclude(jogador => jogador.Preferencias)
             .Include(montagem => montagem.Escolhas)
             .ThenInclude(escolha => escolha.Jogador)

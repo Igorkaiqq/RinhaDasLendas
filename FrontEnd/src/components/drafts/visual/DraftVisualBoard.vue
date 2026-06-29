@@ -340,7 +340,7 @@ async function exportImage() {
         <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
         <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
         <button type="button" class="button-secondary" @click="exportImage">{{ t('drafts.visualBoard.exportImage') }}</button>
-        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
         <button v-if="canManage && isOpen && !isRealtime" type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
       </div>
     </header>

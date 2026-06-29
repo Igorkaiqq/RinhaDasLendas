@@ -26,4 +26,9 @@ public sealed class DraftMontagemTime
         Nome = string.IsNullOrWhiteSpace(nome) ? Nome : nome.Trim();
         CapitaoId = capitaoId;
     }
+
+    public void AtualizarOrdem(int ordem)
+    {
+        Ordem = ordem;
+    }
 }

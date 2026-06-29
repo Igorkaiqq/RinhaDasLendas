@@ -28,6 +28,8 @@ const montagem: DraftMontagem = {
   turnoIniciadoEm: null,
   turnoExpiraEm: null,
   duracaoTurnoSegundos: 30,
+  presencaContinuadaManualmente: false,
+  presencas: [],
   times: [],
   livres: [],
   reservas: [],

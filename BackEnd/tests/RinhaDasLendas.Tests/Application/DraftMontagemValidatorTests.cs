@@ -16,6 +16,8 @@ public sealed class DraftMontagemValidatorTests
             null,
             0,
             true,
+            null,
+            null,
             [],
             Enumerable.Range(1, 5).Select(_ => Guid.NewGuid()).ToList());
 

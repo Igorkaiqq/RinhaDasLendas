@@ -292,6 +292,8 @@ public sealed class EndpointCoverageIntegrationTests
             "Montagem criada pelo teste de integracao",
             3,
             false,
+            null,
+            null,
             [jogadores[0].Id, jogadores[1].Id],
             jogadores.Select(jogador => jogador.Id).ToList());
 

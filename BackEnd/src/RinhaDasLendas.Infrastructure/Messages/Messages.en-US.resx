@@ -156,4 +156,16 @@
   <data name="MV069" xml:space="preserve"><value>Discord cannot be unlinked without keeping traditional login active</value></data>
   <data name="MV070" xml:space="preserve"><value>Discord must return a verified email to create the account</value></data>
   <data name="MV071" xml:space="preserve"><value>An account already exists with this Discord email. Sign in with username and password and link Discord in settings.</value></data>
+  <data name="MV072" xml:space="preserve"><value>The presence list is already closed</value></data>
+  <data name="MV073" xml:space="preserve"><value>Presence not found</value></data>
+  <data name="MV074" xml:space="preserve"><value>Fewer than 10 confirmed players requires a manual decision</value></data>
+  <data name="MV075" xml:space="preserve"><value>Presence must be closed before defining captains</value></data>
+  <data name="MV076" xml:space="preserve"><value>Invalid pick order</value></data>
+  <data name="MV077" xml:space="preserve"><value>Discord configuration not found</value></data>
+  <data name="MV078" xml:space="preserve"><value>Invalid Discord channel</value></data>
+  <data name="MV079" xml:space="preserve"><value>Invalid internal bot token</value></data>
+  <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
+  <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
+  <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>
+  <data name="MSIS028" xml:space="preserve"><value>Discord configuration updated</value></data>
 </root>
