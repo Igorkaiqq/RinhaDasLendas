@@ -12,4 +12,6 @@ public static class AuthPermissions
     public const string CanConfirmPresence = nameof(CanConfirmPresence);
     public const string CanEditOwnProfile = nameof(CanEditOwnProfile);
     public const string CanViewAdminLogs = nameof(CanViewAdminLogs);
+    public const string CanUseDiscordBotApi = nameof(CanUseDiscordBotApi);
+    public const string CanManageDraftsOrUseDiscordBotApi = nameof(CanManageDraftsOrUseDiscordBotApi);
 }

@@ -27,6 +27,8 @@ public sealed class CreateDraftMontagemCommandHandler(
             command.Request.SortearCapitaes ? DraftMontagemCriterioCapitaes.Sorteio : DraftMontagemCriterioCapitaes.Manual,
             jogadoresIds,
             capitaes);
+        montagem.ConfigurarEncerramentoPresenca(command.Request.HorarioEncerramentoPresenca);
+        montagem.ConfigurarPublicacaoDiscord(command.Request.DiscordGuildId, null);
 
         await repository.AddAsync(montagem, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);

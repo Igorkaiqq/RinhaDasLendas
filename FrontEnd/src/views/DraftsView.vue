@@ -10,7 +10,12 @@ import { useAuthState } from '@/services/authState'
 import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
 import {
   cancelDraftMontagem,
+  cancelDraftMontagemPresence,
+  closeDraftMontagemPresence,
+  confirmDraftMontagemPresence,
   createDraftMontagem,
+  defineDraftMontagemCaptains,
+  defineDraftMontagemPickOrder,
   DraftMontagemServiceError,
   drawDraftMontagemCaptains,
   finalizeDraftMontagem,
@@ -41,10 +46,20 @@ const selectedMontagem = ref<DraftMontagem | null>(null)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
 const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 
-const statusOptions: DraftMontagemStatus[] = ['Aberta', 'Finalizada', 'Cancelada']
+const captainSelection = ref<string[]>([])
+const statusOptions: DraftMontagemStatus[] = ['PresencaAberta', 'PresencaEncerrada', 'CapitaesDefinidos', 'Aberta', 'Finalizada', 'Cancelada']
 const canManageDrafts = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
-const hasPlayerProfile = computed(() => Boolean(auth.user.value?.jogadorId))
-const currentPlayerId = computed(() => auth.user.value?.jogadorId ?? null)
+const currentUserId = computed(() => auth.user.value?.id ?? null)
+const currentAuthPlayerId = computed(() => auth.user.value?.jogadorId ?? null)
+const myPresence = computed(
+  () =>
+    selectedMontagem.value?.presencas.find(
+      (presence) => presence.status === 'Confirmada' && (presence.usuarioId === currentUserId.value || presence.jogadorId === currentAuthPlayerId.value),
+    ) ?? null,
+)
+const currentPlayerId = computed(() => currentAuthPlayerId.value ?? myPresence.value?.jogadorId ?? null)
+const hasPlayerProfile = computed(() => Boolean(currentPlayerId.value))
+const confirmedPresences = computed(() => selectedMontagem.value?.presencas.filter((presence) => presence.status === 'Confirmada') ?? [])
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -94,7 +109,82 @@ async function openMontagem(id: string) {
   errors.value = []
   try {
     selectedMontagem.value = await getDraftMontagemById(id)
+    captainSelection.value = []
     await connectRealtime(id)
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function confirmPresence() {
+  if (!selectedMontagem.value) return
+  saving.value = true
+  try {
+    selectedMontagem.value = await confirmDraftMontagemPresence(selectedMontagem.value.id)
+    notification.value = t('drafts.presence.confirmed')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function cancelPresence() {
+  if (!selectedMontagem.value) return
+  saving.value = true
+  try {
+    selectedMontagem.value = await cancelDraftMontagemPresence(selectedMontagem.value.id)
+    notification.value = t('drafts.presence.cancelled')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function closePresence(continueWithLess = false) {
+  if (!selectedMontagem.value || !canManageDrafts.value) return
+  saving.value = true
+  try {
+    selectedMontagem.value = await closeDraftMontagemPresence(selectedMontagem.value.id, continueWithLess, selectedMontagem.value.tamanhoEquipe)
+    notification.value = t('drafts.presence.closed')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+function toggleCaptainSelection(jogadorId: string) {
+  if (captainSelection.value.includes(jogadorId)) {
+    captainSelection.value = captainSelection.value.filter((id) => id !== jogadorId)
+    return
+  }
+  if (!selectedMontagem.value || captainSelection.value.length >= selectedMontagem.value.quantidadeTimes) return
+  captainSelection.value = [...captainSelection.value, jogadorId]
+}
+
+async function defineCaptains() {
+  if (!selectedMontagem.value || !canManageDrafts.value) return
+  saving.value = true
+  try {
+    selectedMontagem.value = await defineDraftMontagemCaptains(selectedMontagem.value.id, captainSelection.value)
+    notification.value = t('drafts.presence.captainsDefined')
+  } catch (error) {
+    captureError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function drawPickOrder() {
+  if (!selectedMontagem.value || !canManageDrafts.value) return
+  saving.value = true
+  try {
+    selectedMontagem.value = await defineDraftMontagemPickOrder(selectedMontagem.value.id, 'Sorteado')
+    notification.value = t('drafts.presence.orderDefined')
   } catch (error) {
     captureError(error)
   } finally {
@@ -353,8 +443,35 @@ function captureError(error: unknown) {
       </aside>
 
       <main class="draft-main">
+        <section v-if="selectedMontagem" class="panel-card presence-panel">
+          <div>
+            <span class="eyebrow">{{ t('drafts.presence.eyebrow') }}</span>
+            <h2>{{ t('drafts.presence.title') }}</h2>
+            <p>{{ t('drafts.presence.summary', { count: confirmedPresences.length, teams: selectedMontagem.quantidadeTimes, reserves: selectedMontagem.quantidadeReservas }) }}</p>
+          </div>
+          <div class="draft-hero-actions">
+            <button v-if="selectedMontagem.status === 'PresencaAberta' && !myPresence" type="button" :disabled="saving" @click="confirmPresence">{{ t('drafts.presence.confirm') }}</button>
+            <button v-if="selectedMontagem.status === 'PresencaAberta' && myPresence" type="button" class="button-secondary" :disabled="saving" @click="cancelPresence">{{ t('drafts.presence.cancel') }}</button>
+            <button v-if="canManageDrafts && selectedMontagem.status === 'PresencaAberta'" type="button" class="button-secondary" :disabled="saving" @click="closePresence(false)">{{ t('drafts.presence.close') }}</button>
+            <button v-if="canManageDrafts && selectedMontagem.status === 'PresencaAberta' && confirmedPresences.length < 10" type="button" class="button-secondary" :disabled="saving" @click="closePresence(true)">{{ t('drafts.presence.continueManual') }}</button>
+            <button v-if="canManageDrafts && selectedMontagem.status !== 'Finalizada' && selectedMontagem.status !== 'Cancelada'" type="button" class="button-secondary" :disabled="saving" @click="cancelMontagem">{{ t('common.cancel') }}</button>
+          </div>
+          <p v-if="selectedMontagem.status === 'PresencaAberta' && confirmedPresences.length < 10" class="profile-inline-message">{{ t('drafts.presence.lessThanTen') }}</p>
+          <div class="draft-player-picker__grid">
+            <button v-for="presence in confirmedPresences" :key="presence.id" type="button" class="draft-player-option" :class="{ 'is-selected': captainSelection.includes(presence.jogadorId) }" :disabled="selectedMontagem.status !== 'PresencaEncerrada' || !canManageDrafts" @click="toggleCaptainSelection(presence.jogadorId)">
+              <span class="draft-slot__avatar">{{ presence.nomeExibicao.charAt(0) }}</span>
+              <span><strong>{{ presence.nomeExibicao }}</strong><small>{{ presence.origemConfirmacao }}</small></span>
+            </button>
+          </div>
+          <div v-if="canManageDrafts && selectedMontagem.status === 'PresencaEncerrada'" class="draft-hero-actions">
+            <button type="button" :disabled="saving || captainSelection.length !== selectedMontagem.quantidadeTimes" @click="defineCaptains">{{ t('drafts.presence.defineCaptains') }}</button>
+          </div>
+          <div v-if="canManageDrafts && selectedMontagem.status === 'CapitaesDefinidos'" class="draft-hero-actions">
+            <button type="button" :disabled="saving" @click="drawPickOrder">{{ t('drafts.presence.drawOrder') }}</button>
+          </div>
+        </section>
         <DraftVisualBoard
-          v-if="selectedMontagem"
+          v-if="selectedMontagem && selectedMontagem.status !== 'PresencaAberta' && selectedMontagem.status !== 'PresencaEncerrada' && selectedMontagem.status !== 'CapitaesDefinidos'"
           :montagem="selectedMontagem"
           :saving="saving"
           :can-manage="canManageDrafts"
@@ -367,7 +484,7 @@ function captureError(error: unknown) {
           @finalize="finalizeMontagem"
           @cancel="cancelMontagem"
         />
-        <section v-else class="draft-empty-card">
+        <section v-else-if="!selectedMontagem" class="draft-empty-card">
           <h2>{{ t('drafts.noSelectionTitle') }}</h2>
           <p>{{ t('drafts.noSelectionDescription') }}</p>
         </section>

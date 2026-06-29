@@ -1,6 +1,6 @@
 import type { RoutePreference } from '@/services/players'
 
-export type DraftMontagemStatus = 'Aberta' | 'Finalizada' | 'Cancelada'
+export type DraftMontagemStatus = 'PresencaAberta' | 'PresencaEncerrada' | 'CapitaesDefinidos' | 'OrdemDefinida' | 'Aberta' | 'Finalizada' | 'Cancelada'
 export type DraftMontagemEstado = 'Livre' | 'Reserva' | 'Time'
 export type DraftMontagemRota = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
 export type DraftMontagemModo = 'Manual' | 'TempoReal'
@@ -50,6 +50,12 @@ export interface DraftMontagem {
   turnoIniciadoEm?: string | null
   turnoExpiraEm?: string | null
   duracaoTurnoSegundos: number
+  horarioEncerramentoPresenca?: string | null
+  discordGuildId?: string | null
+  discordPresenceMessageId?: string | null
+  ordemEscolhaModo?: 'Manual' | 'Sorteado' | null
+  presencaContinuadaManualmente: boolean
+  presencas: DraftMontagemPresenca[]
   times: DraftMontagemTime[]
   livres: DraftMontagemParticipante[]
   reservas: DraftMontagemParticipante[]
@@ -68,8 +74,28 @@ export interface DraftMontagemResumo {
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
+  horarioEncerramentoPresenca?: string | null
+  discordGuildId?: string | null
+  discordPresenceMessageId?: string | null
+  ordemEscolhaModo?: 'Manual' | 'Sorteado' | null
+  presencaContinuadaManualmente: boolean
   dataCadastro: string
   dataAtualizacao: string
+}
+
+export interface DraftMontagemPresenca {
+  id: string
+  usuarioId: string
+  jogadorId: string
+  nomeExibicao: string
+  discordUserId?: string | null
+  origemConfirmacao: 'Web' | 'Discord'
+  status: 'Confirmada' | 'Cancelada'
+  confirmadoEm: string
+  canceladoEm?: string | null
+  ordemConfirmacao: number
+  ordemManual?: number | null
+  ordemFinal?: number | null
 }
 
 export interface DraftMontagemEscolha {
@@ -104,6 +130,8 @@ export interface DraftMontagemPayload {
   observacoes?: string | null
   tamanhoEquipe: number
   sortearCapitaes: boolean
+  horarioEncerramentoPresenca?: string | null
+  discordGuildId?: string | null
   capitaesIds: string[]
   jogadoresIds: string[]
 }

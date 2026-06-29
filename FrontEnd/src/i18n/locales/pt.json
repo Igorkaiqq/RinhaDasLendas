@@ -213,6 +213,25 @@
           "unlink": "Não foi possível desvincular o Discord."
         }
       }
+    },
+    "discordAdmin": {
+      "mark": "BOT",
+      "title": "Configurações do Discord",
+      "description": "Defina os canais usados pelo bot para listas de presença, novidades, administração, drafts e resultados.",
+      "loading": "Carregando configuração do Discord...",
+      "fields": {
+        "guildId": "Servidor Discord",
+        "presenceChannelId": "Canal Lista de Presença",
+        "newsChannelId": "Canal Novidades",
+        "adminChannelId": "Canal Administrativo",
+        "draftChannelId": "Canal Drafts/Times Definidos",
+        "matchResultChannelId": "Canal Resultado das Partidas",
+        "botEnabled": "Bot habilitado"
+      },
+      "messages": {
+        "saved": "Configuração do Discord salva.",
+        "error": "Não foi possível salvar a configuração do Discord."
+      }
     }
   },
   "players": {
@@ -352,6 +371,24 @@
     "errors": {
       "create": "Não foi possível criar o draft.",
       "action": "Não foi possível concluir a ação."
+    },
+    "presence": {
+      "eyebrow": "Lista de presença",
+      "title": "Presença do draft",
+      "summary": "{count} confirmados · {teams} times · {reserves} reservas",
+      "closeAt": "Encerramento da presença",
+      "confirm": "Confirmar presença",
+      "cancel": "Cancelar presença",
+      "close": "Encerrar presença",
+      "continueManual": "Continuar manualmente",
+      "lessThanTen": "Menos de 10 jogadores confirmados exige decisão manual de Moderador ou Admin.",
+      "defineCaptains": "Definir capitães",
+      "drawOrder": "Sortear ordem de escolha",
+      "confirmed": "Presença confirmada.",
+      "cancelled": "Presença cancelada.",
+      "closed": "Lista de presença encerrada.",
+      "captainsDefined": "Capitães definidos.",
+      "orderDefined": "Ordem de escolha definida."
     },
     "teams": {
       "teamA": "Time A",

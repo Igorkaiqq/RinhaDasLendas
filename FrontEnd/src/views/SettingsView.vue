@@ -4,9 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import DiscordLinkSection from '@/components/users/DiscordLinkSection.vue'
+import DiscordAdminConfigurationSection from '@/components/users/DiscordAdminConfigurationSection.vue'
+import { Permissions } from '@/constants/permissions'
+import { useAuthState } from '@/services/authState'
 
 const { t } = useI18n()
 const route = useRoute()
+const auth = useAuthState()
 
 const discordMessage = computed(() => {
   if (route.query.discord === 'success') {
@@ -36,6 +40,7 @@ const discordMessage = computed(() => {
         <p>{{ t('settings.integrations.description') }}</p>
       </header>
       <DiscordLinkSection />
+      <DiscordAdminConfigurationSection v-if="auth.hasPermission(Permissions.CanManageUsers)" />
     </section>
   </section>
 </template>

@@ -24,18 +24,74 @@ public sealed class CreateDraftMontagemValidator : AbstractValidator<CreateDraft
         RuleFor(request => request.JogadoresIds)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage(MessageCodes.DraftMontagemPlayersRequired)
-            .Must(ids => ids.Count > 0).WithMessage(MessageCodes.DraftMontagemPlayersRequired)
             .Must(ids => ids.Distinct().Count() == ids.Count).WithMessage(MessageCodes.DraftPlayerAlreadyPicked);
 
         RuleFor(request => request)
-            .Must(request => request.JogadoresIds is not null && request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.JogadoresIds.Count / request.TamanhoEquipe >= 1)
+            .Must(request => request.JogadoresIds is not null && (request.JogadoresIds.Count == 0 || (request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.JogadoresIds.Count / request.TamanhoEquipe >= 1)))
             .WithMessage(MessageCodes.DraftMontagemInsufficientPlayers)
-            .Must(request => request.SortearCapitaes || (request.JogadoresIds is not null && request.CapitaesIds is not null && request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.CapitaesIds.Count == request.JogadoresIds.Count / request.TamanhoEquipe))
+            .Must(request => request.JogadoresIds is not null && request.CapitaesIds is not null && (request.JogadoresIds.Count == 0 || request.SortearCapitaes || (request.TamanhoEquipe >= DraftMontagem.MinimoTamanhoEquipe && request.CapitaesIds.Count == request.JogadoresIds.Count / request.TamanhoEquipe)))
             .WithMessage(MessageCodes.DraftMontagemCaptainsRequired)
             .Must(request => request.SortearCapitaes || (request.CapitaesIds is not null && request.CapitaesIds.Distinct().Count() == request.CapitaesIds.Count))
             .WithMessage(MessageCodes.DraftMontagemCaptainsDistinct)
             .Must(request => request.SortearCapitaes || (request.JogadoresIds is not null && request.CapitaesIds is not null && request.CapitaesIds.All(id => request.JogadoresIds.Contains(id))))
             .WithMessage(MessageCodes.DraftMontagemCaptainsMustBePlayers);
+
+        RuleFor(request => request.DiscordGuildId)
+            .MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+    }
+}
+
+public sealed class ConfirmarPresencaDraftMontagemValidator : AbstractValidator<ConfirmarPresencaDraftMontagemRequestDto>
+{
+    public ConfirmarPresencaDraftMontagemValidator()
+    {
+        RuleFor(request => request.Origem)
+            .NotEmpty().WithMessage(MessageCodes.FieldRequired)
+            .Must(value => Enum.TryParse<DraftMontagemPresencaOrigem>(value, true, out _)).WithMessage(MessageCodes.FieldRequired);
+    }
+}
+
+public sealed class EncerrarPresencaDraftMontagemValidator : AbstractValidator<EncerrarPresencaDraftMontagemRequestDto>
+{
+    public EncerrarPresencaDraftMontagemValidator()
+    {
+        RuleFor(request => request.TamanhoEquipe)
+            .InclusiveBetween(DraftMontagem.MinimoTamanhoEquipe, DraftMontagem.MaximoTamanhoEquipe)
+            .WithMessage(MessageCodes.TeamSizeRange);
+    }
+}
+
+public sealed class DefinirCapitaesDraftMontagemValidator : AbstractValidator<DefinirCapitaesDraftMontagemRequestDto>
+{
+    public DefinirCapitaesDraftMontagemValidator()
+    {
+        RuleFor(request => request.CapitaesIds)
+            .NotNull().WithMessage(MessageCodes.DraftMontagemCaptainsRequired)
+            .Must(ids => ids.Count > 0).WithMessage(MessageCodes.DraftMontagemCaptainsRequired)
+            .Must(ids => ids.Distinct().Count() == ids.Count).WithMessage(MessageCodes.DraftMontagemCaptainsDistinct);
+    }
+}
+
+public sealed class DefinirOrdemEscolhaDraftMontagemValidator : AbstractValidator<DefinirOrdemEscolhaDraftMontagemRequestDto>
+{
+    public DefinirOrdemEscolhaDraftMontagemValidator()
+    {
+        RuleFor(request => request.Modo)
+            .NotEmpty().WithMessage(MessageCodes.FieldRequired)
+            .Must(value => Enum.TryParse<DraftMontagemOrdemEscolhaModo>(value, true, out _)).WithMessage(MessageCodes.DraftMontagemPickOrderInvalid);
+    }
+}
+
+public sealed class DiscordConfigurationValidator : AbstractValidator<DiscordConfigurationDto>
+{
+    public DiscordConfigurationValidator()
+    {
+        RuleFor(request => request.GuildId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+        RuleFor(request => request.PresenceChannelId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+        RuleFor(request => request.NewsChannelId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+        RuleFor(request => request.AdminChannelId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+        RuleFor(request => request.DraftChannelId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
+        RuleFor(request => request.MatchResultChannelId).NotEmpty().WithMessage(MessageCodes.FieldRequired).MaximumLength(40).WithMessage(MessageCodes.MaxLengthExceeded);
     }
 }
 

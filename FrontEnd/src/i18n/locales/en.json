@@ -213,6 +213,25 @@
           "unlink": "Could not unlink Discord."
         }
       }
+    },
+    "discordAdmin": {
+      "mark": "BOT",
+      "title": "Discord Settings",
+      "description": "Define the channels used by the bot for presence lists, news, administration, drafts and results.",
+      "loading": "Loading Discord settings...",
+      "fields": {
+        "guildId": "Discord Server",
+        "presenceChannelId": "Presence List Channel",
+        "newsChannelId": "News Channel",
+        "adminChannelId": "Administrative Channel",
+        "draftChannelId": "Drafts/Defined Teams Channel",
+        "matchResultChannelId": "Match Results Channel",
+        "botEnabled": "Bot enabled"
+      },
+      "messages": {
+        "saved": "Discord settings saved.",
+        "error": "Could not save Discord settings."
+      }
     }
   },
   "players": {
@@ -352,6 +371,24 @@
     "errors": {
       "create": "Could not create draft.",
       "action": "Could not complete the action."
+    },
+    "presence": {
+      "eyebrow": "Presence list",
+      "title": "Draft presence",
+      "summary": "{count} confirmed · {teams} teams · {reserves} reserves",
+      "closeAt": "Presence closing time",
+      "confirm": "Confirm presence",
+      "cancel": "Cancel presence",
+      "close": "Close presence",
+      "continueManual": "Continue manually",
+      "lessThanTen": "Fewer than 10 confirmed players requires a manual Moderator or Admin decision.",
+      "defineCaptains": "Define captains",
+      "drawOrder": "Draw pick order",
+      "confirmed": "Presence confirmed.",
+      "cancelled": "Presence cancelled.",
+      "closed": "Presence list closed.",
+      "captainsDefined": "Captains defined.",
+      "orderDefined": "Pick order defined."
     },
     "teams": {
       "teamA": "Team A",

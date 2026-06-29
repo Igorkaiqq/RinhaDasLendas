@@ -78,4 +78,52 @@ public sealed class DraftMontagemTests
         }
     }
 
+    [Fact]
+    public void Deve_cancelar_presenca_aberta_expirada()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+
+        montagem.CancelarPresencaExpirada();
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Cancelada);
+    }
+
+    [Fact]
+    public void Deve_impedir_cancelar_presenca_expirada_quando_presenca_ja_foi_encerrada()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        foreach (var _ in Enumerable.Range(1, 10))
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), Guid.NewGuid(), null, DraftMontagemPresencaOrigem.Web);
+        }
+        montagem.EncerrarPresenca(false, 5);
+
+        var act = () => montagem.CancelarPresencaExpirada();
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceAlreadyClosed);
+    }
+
+    [Fact]
+    public void Deve_cancelar_montagem_com_presenca_aberta()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+
+        montagem.Cancelar("sem jogadores");
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Cancelada);
+        montagem.MotivoCancelamento.Should().Be("sem jogadores");
+    }
+
+    [Fact]
+    public void Deve_impedir_cancelar_montagem_finalizada()
+    {
+        var jogadores = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, jogadores, jogadores.Take(2).ToList());
+        montagem.Finalizar();
+
+        var act = () => montagem.Cancelar("encerrar");
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+    }
+
 }

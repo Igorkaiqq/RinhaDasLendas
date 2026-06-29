@@ -143,8 +143,20 @@ public static class MessageCodes
     public const string TraditionalLoginRequired = "MV069";
     public const string DiscordVerifiedEmailRequired = "MV070";
     public const string DiscordEmailAlreadyRegistered = "MV071";
+    public const string PresenceAlreadyClosed = "MV072";
+    public const string PresenceNotFound = "MV073";
+    public const string DraftMontagemInsufficientPresencePlayers = "MV074";
+    public const string DraftMontagemPresenceMustBeClosed = "MV075";
+    public const string DraftMontagemPickOrderInvalid = "MV076";
+    public const string DiscordConfigurationNotFound = "MV077";
+    public const string DiscordChannelInvalid = "MV078";
+    public const string BotInternalTokenInvalid = "MV079";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
+    public const string PresenceConfirmed = "MSIS025";
+    public const string PresenceCancelled = "MSIS026";
+    public const string PresenceClosed = "MSIS027";
+    public const string DiscordConfigurationUpdated = "MSIS028";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

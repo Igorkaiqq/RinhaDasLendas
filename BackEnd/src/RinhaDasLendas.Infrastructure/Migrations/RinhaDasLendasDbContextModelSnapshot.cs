@@ -214,6 +214,20 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duracao_turno_segundos");
 
+                    b.Property<string>("DiscordGuildId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("discord_guild_id");
+
+                    b.Property<string>("DiscordPresenceMessageId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("discord_presence_message_id");
+
+                    b.Property<DateTimeOffset?>("HorarioEncerramentoPresenca")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("horario_encerramento_presenca");
+
                     b.Property<string>("Modo")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -235,6 +249,17 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("observacoes");
+
+                    b.Property<string>("OrdemEscolhaModo")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("ordem_escolha_modo");
+
+                    b.Property<bool>("PresencaContinuadaManualmente")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("presenca_continuada_manualmente");
 
                     b.Property<int>("QuantidadeReservas")
                         .HasColumnType("integer")
@@ -284,6 +309,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("DataCadastro");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("Status", "HorarioEncerramentoPresenca");
 
                     b.HasIndex("Status", "Modo", "TurnoExpiraEm");
 
@@ -397,6 +424,88 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("draft_montagem_participantes", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemPresenca", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CanceladoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelado_em");
+
+                    b.Property<DateTimeOffset>("ConfirmadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmado_em");
+
+                    b.Property<DateTimeOffset>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTimeOffset>("DataCadastro")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_cadastro");
+
+                    b.Property<string>("DiscordUserId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("discord_user_id");
+
+                    b.Property<Guid>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<Guid>("JogadorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_id");
+
+                    b.Property<int>("OrdemConfirmacao")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem_confirmacao");
+
+                    b.Property<int?>("OrdemFinal")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem_final");
+
+                    b.Property<int?>("OrdemManual")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem_manual");
+
+                    b.Property<string>("OrigemConfirmacao")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origem_confirmacao");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DraftMontagemId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("DraftMontagemId", "JogadorId")
+                        .IsUnique()
+                        .HasFilter("status = 'Confirmada'");
+
+                    b.HasIndex("DraftMontagemId", "UsuarioId")
+                        .IsUnique()
+                        .HasFilter("status = 'Confirmada'");
+
+                    b.ToTable("draft_montagem_presencas", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
@@ -604,6 +713,68 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("drafts", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DiscordServerConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AdminChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("admin_channel_id");
+
+                    b.Property<bool>("BotEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("bot_enabled");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DraftChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("draft_channel_id");
+
+                    b.Property<string>("GuildId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("guild_id");
+
+                    b.Property<string>("MatchResultChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("match_result_channel_id");
+
+                    b.Property<string>("NewsChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("news_channel_id");
+
+                    b.Property<string>("PresenceChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("presence_channel_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId")
+                        .IsUnique();
+
+                    b.ToTable("discord_server_configurations", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Jogador", b =>
@@ -1448,6 +1619,29 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Jogador");
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemPresenca", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany("Presencas")
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
@@ -1578,6 +1772,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Escolhas");
 
                     b.Navigation("Participantes");
+
+                    b.Navigation("Presencas");
 
                     b.Navigation("Substituicoes");
 

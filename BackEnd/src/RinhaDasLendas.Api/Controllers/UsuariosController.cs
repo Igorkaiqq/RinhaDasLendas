@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
+using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Commands.Usuarios;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
@@ -11,11 +13,19 @@ using RinhaDasLendas.Domain.Constants;
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
 [Route("api/v1/usuarios")]
 [Produces("application/json")]
-public sealed class UsuariosController(ISender sender, IMessageProvider messages) : ControllerBase
+public sealed class UsuariosController(ISender sender, IMessageProvider messages, IDiscordIdentityLookupService discordIdentityLookup) : ControllerBase
 {
+    [HttpGet("discord/{discordUserId}/vinculo")]
+    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [ProducesResponseType(typeof(DiscordUserLinkDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDiscordLink([FromRoute] string discordUserId, CancellationToken cancellationToken)
+    {
+        return Ok(await discordIdentityLookup.GetByDiscordUserIdAsync(discordUserId, cancellationToken));
+    }
+
     [HttpGet]
     [Authorize(Policy = AuthPermissions.CanViewUsers)]
     [ProducesResponseType(typeof(PaginatedResponseDto<UsuarioResumoDto>), StatusCodes.Status200OK)]
