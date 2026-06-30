@@ -19,25 +19,24 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(new ApiErrorResponse(
                 messages.GetMessage(MessageCodes.ValidationError),
-                exception.Errors.Select(error => messages.GetMessage(error.ErrorMessage)).Distinct().ToArray()));
+                exception.Errors.Select(error => messages.GetMessage(error.ErrorMessage)).Distinct().ToArray(),
+                MessageCodes.ValidationError));
         }
         catch (DomainException exception)
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(MessageCodes.ValidationError), [messages.GetMessage(exception.Message)]));
+            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(MessageCodes.ValidationError), [messages.GetMessage(exception.Message)], MessageCodes.ValidationError));
         }
         catch (UnauthorizedAccessException exception)
         {
             context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(exception.Message), []));
+            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(exception.Message), [], exception.Message));
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Erro inesperado ao processar requisicao.");
+            logger.LogError(exception, "Unhandled request exception.");
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(MessageCodes.UnexpectedError), []));
+            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(MessageCodes.UnexpectedError), [], MessageCodes.UnexpectedError));
         }
     }
 }
-
-public sealed record ApiErrorResponse(string Message, IReadOnlyCollection<string> Errors);

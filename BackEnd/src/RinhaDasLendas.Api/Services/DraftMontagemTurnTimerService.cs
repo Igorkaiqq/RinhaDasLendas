@@ -1,4 +1,5 @@
 using MediatR;
+using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Entities;
@@ -35,12 +36,14 @@ public sealed class DraftMontagemTurnTimerService(IServiceScopeFactory scopeFact
         using var scope = scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
         var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+        var metrics = scope.ServiceProvider.GetRequiredService<ApiMetrics>();
         var now = DateTimeOffset.UtcNow;
         var expired = await repository.ListExpiredRealtimeAsync(now, 25, cancellationToken);
         foreach (var montagem in expired)
         {
             if (RealtimeDurationExpired(montagem, now))
             {
+                metrics.RecordStuckDraft(montagem.Id);
                 await sender.Send(new CancelarDraftMontagemCommand(montagem.Id, new CancelarDraftMontagemRequestDto(null)), cancellationToken);
                 continue;
             }

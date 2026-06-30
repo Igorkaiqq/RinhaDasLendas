@@ -1,24 +1,44 @@
 import { SlashCommandBuilder } from 'discord.js'
+import { DraftCommandNames, DraftOptionNames, DraftPickOrderMode } from '../../shared/constants/draftConstants/index.js'
+import { t } from '../../shared/messages/index.js'
 
 export const draftCommands = [
   new SlashCommandBuilder()
-    .setName('draft-criar')
-    .setDescription('Cria um draft com lista de presença')
-    .addStringOption((option) => option.setName('nome').setDescription('Nome do draft').setRequired(true))
-    .addStringOption((option) => option.setName('dia').setDescription('Dia do encerramento. Ex: 29/06 ou 29/06/2026').setRequired(true))
-    .addStringOption((option) => option.setName('horario').setDescription('Horário de Brasília. Ex: 21:30').setRequired(true))
-    .addStringOption((option) => option.setName('observacao').setDescription('Observação opcional').setRequired(false)),
-  new SlashCommandBuilder().setName('draft-status').setDescription('Mostra o status dos drafts ativos'),
-  new SlashCommandBuilder().setName('draft-encerrar-presenca').setDescription('Encerra a presença de um draft').addStringOption((option) => option.setName('draft_id').setDescription('ID do draft').setRequired(true)),
+    .setName(DraftCommandNames.Create)
+    .setDescription(t.commands.createDescription)
+    .addStringOption((option) => option.setName(DraftOptionNames.Name).setDescription(t.commands.nameOption).setRequired(true))
+    .addStringOption((option) => option.setName(DraftOptionNames.Day).setDescription(t.commands.dayOption).setRequired(true))
+    .addStringOption((option) => option.setName(DraftOptionNames.Time).setDescription(t.commands.timeOption).setRequired(true))
+    .addStringOption((option) => option.setName(DraftOptionNames.Note).setDescription(t.commands.noteOption).setRequired(false)),
+  new SlashCommandBuilder().setName(DraftCommandNames.Status).setDescription(t.commands.statusDescription),
+  new SlashCommandBuilder().setName(DraftCommandNames.List).setDescription(t.commands.listDescription),
   new SlashCommandBuilder()
-    .setName('draft-definir-capitaes')
-    .setDescription('Define capitães por IDs de jogadores separados por vírgula')
-    .addStringOption((option) => option.setName('draft_id').setDescription('ID do draft').setRequired(true))
-    .addStringOption((option) => option.setName('capitaes_ids').setDescription('IDs dos jogadores capitães').setRequired(true)),
+    .setName(DraftCommandNames.Cancel)
+    .setDescription(t.commands.cancelDescription)
+    .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true))
+    .addStringOption((option) => option.setName(DraftOptionNames.Reason).setDescription(t.commands.reasonOption).setRequired(false)),
   new SlashCommandBuilder()
-    .setName('draft-definir-ordem-escolha')
-    .setDescription('Define ordem de escolha')
-    .addStringOption((option) => option.setName('draft_id').setDescription('ID do draft').setRequired(true))
-    .addStringOption((option) => option.setName('modo').setDescription('Manual ou Sorteado').setRequired(true).addChoices({ name: 'Sorteado', value: 'Sorteado' }, { name: 'Manual', value: 'Manual' }))
-    .addStringOption((option) => option.setName('capitaes_ids').setDescription('IDs dos capitães em ordem manual').setRequired(false)),
+    .setName(DraftCommandNames.ClosePresence)
+    .setDescription(t.commands.closePresenceDescription)
+    .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true)),
+  new SlashCommandBuilder()
+    .setName(DraftCommandNames.DefineCaptains)
+    .setDescription(t.commands.defineCaptainsDescription)
+    .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true))
+    .addStringOption((option) => option.setName(DraftOptionNames.CaptainIds).setDescription(t.commands.captainIdsOption).setRequired(true)),
+  new SlashCommandBuilder()
+    .setName(DraftCommandNames.DefinePickOrder)
+    .setDescription(t.commands.definePickOrderDescription)
+    .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true))
+    .addStringOption((option) =>
+      option
+        .setName(DraftOptionNames.Mode)
+        .setDescription(t.commands.modeOption)
+        .setRequired(true)
+        .addChoices(
+          { name: t.commands.modeDrawn, value: DraftPickOrderMode.Drawn },
+          { name: t.commands.modeManual, value: DraftPickOrderMode.Manual },
+        ),
+    )
+    .addStringOption((option) => option.setName(DraftOptionNames.CaptainIds).setDescription(t.commands.manualCaptainIdsOption).setRequired(false)),
 ].map((command) => command.toJSON())

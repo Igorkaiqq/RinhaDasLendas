@@ -2,6 +2,7 @@
 import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { DraftTeamValues } from '@/constants/draft'
 import type { Player } from '@/services/players'
 import type { DraftPayload, DraftTeamValue } from '@/types/draft'
 
@@ -21,7 +22,7 @@ const form = reactive({
   capitaoTimeAId: '',
   capitaoTimeBId: '',
   sortearPrimeiroPick: false,
-  primeiroTime: 'TimeA' as DraftTeamValue,
+  primeiroTime: DraftTeamValues.TimeA as DraftTeamValue,
   jogadoresIds: [] as string[],
 })
 
@@ -50,7 +51,7 @@ watch(
       form.capitaoTimeAId = ''
       form.capitaoTimeBId = ''
       form.sortearPrimeiroPick = false
-      form.primeiroTime = 'TimeA'
+      form.primeiroTime = DraftTeamValues.TimeA
       form.jogadoresIds = []
     }
   },
@@ -98,7 +99,7 @@ function togglePlayer(playerId: string) {
           <span class="eyebrow">{{ t('drafts.createModal.eyebrow') }}</span>
           <h2 id="draft-create-title">{{ t('drafts.createModal.title') }}</h2>
         </div>
-        <button type="button" :aria-label="t('common.close')" @click="emit('close')">x</button>
+        <button type="button" :aria-label="t('common.close')" @click="emit('close')">×</button>
       </header>
 
       <form class="player-form draft-create-form" @submit.prevent="submit">

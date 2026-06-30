@@ -2,26 +2,35 @@ import { MessageFlags, PermissionsBitField } from 'discord.js'
 import type { ButtonInteraction, ChatInputCommandInteraction, Client, User } from 'discord.js'
 import type { DraftMontagem } from '../../shared/api/types.js'
 import { rinhaApi } from '../../shared/api/rinhaApi.js'
+import { logger } from '../../shared/logger.js'
 import { t } from '../../shared/messages/index.js'
-import { finalTeamsEmbed, presenceButtons, presenceEmbed } from '../../discord/embeds/draftEmbeds.js'
+import { finalTeamsEmbed, formatDraftStatus, presenceButtons, presenceEmbed } from '../../discord/embeds/draftEmbeds.js'
+import {
+  DraftCommandNames,
+  DraftMontagemStatus,
+  DraftOptionNames,
+  DraftPickOrderMode,
+  DraftPresenceStatus,
+  PresenceButtonAction,
+} from '../../shared/constants/draftConstants/index.js'
 
 export async function handleDraftCommand(interaction: ChatInputCommandInteraction) {
-  if (interaction.commandName === 'draft-criar') {
+  if (interaction.commandName === DraftCommandNames.Create) {
     const configuration = await rinhaApi.getDiscordConfiguration()
-    const channel = await getSendableChannel(interaction.client, configuration.presenceChannelId, 'Canal Lista de Presença')
+    const channel = await getSendableChannel(interaction.client, configuration.presenceChannelId, t.channels.presence)
     const presenceClosingTime = parsePresenceClosingTime(
-      interaction.options.getString('dia', true),
-      interaction.options.getString('horario', true),
+      interaction.options.getString(DraftOptionNames.Day, true),
+      interaction.options.getString(DraftOptionNames.Time, true),
     )
     if (!presenceClosingTime) {
-      await interaction.reply({ content: 'Informe o encerramento como dia 29/06 e horário 21:30.', flags: MessageFlags.Ephemeral })
+      await interaction.reply({ content: t.invalidClosingTime, flags: MessageFlags.Ephemeral })
       return
     }
 
     const draft = await rinhaApi.createDraft({
-      nome: interaction.options.getString('nome', true),
+      nome: interaction.options.getString(DraftOptionNames.Name, true),
       horarioEncerramentoPresenca: presenceClosingTime,
-      observacoes: interaction.options.getString('observacao'),
+      observacoes: interaction.options.getString(DraftOptionNames.Note),
       discordGuildId: interaction.guildId,
     })
     const message = await channel.send({ embeds: [presenceEmbed(draft)], components: [presenceButtons(draft.id)] })
@@ -30,29 +39,42 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
     return
   }
 
-  if (interaction.commandName === 'draft-status') {
+  if (interaction.commandName === DraftCommandNames.Status || interaction.commandName === DraftCommandNames.List) {
     const drafts = await rinhaApi.listActiveDrafts()
-    await interaction.reply({ content: drafts.map((draft) => `${draft.nome}: ${draft.status} (${draft.presencas.filter((presence) => presence.status === 'Confirmada').length} confirmados)`).join('\n') || 'Nenhum draft ativo.', flags: MessageFlags.Ephemeral })
+    await interaction.reply({ content: formatDraftList(drafts), flags: MessageFlags.Ephemeral })
     return
   }
 
-  if (interaction.commandName === 'draft-encerrar-presenca') {
-    await rinhaApi.closePresence(interaction.options.getString('draft_id', true))
+  if (interaction.commandName === DraftCommandNames.Cancel) {
+    await rinhaApi.cancelDraft(
+      interaction.options.getString(DraftOptionNames.DraftId, true),
+      interaction.options.getString(DraftOptionNames.Reason),
+    )
+    await interaction.reply({ content: t.draftCancelled, flags: MessageFlags.Ephemeral })
+    return
+  }
+
+  if (interaction.commandName === DraftCommandNames.ClosePresence) {
+    await rinhaApi.closePresence(interaction.options.getString(DraftOptionNames.DraftId, true))
     await interaction.reply({ content: t.presenceClosed, flags: MessageFlags.Ephemeral })
     return
   }
 
-  if (interaction.commandName === 'draft-definir-capitaes') {
-    const ids = interaction.options.getString('capitaes_ids', true).split(',').map((item) => item.trim()).filter(Boolean)
-    await rinhaApi.defineCaptains(interaction.options.getString('draft_id', true), ids)
-    await interaction.reply({ content: 'Capitães definidos.', flags: MessageFlags.Ephemeral })
+  if (interaction.commandName === DraftCommandNames.DefineCaptains) {
+    const ids = parseCommaSeparatedIds(interaction.options.getString(DraftOptionNames.CaptainIds, true))
+    await rinhaApi.defineCaptains(interaction.options.getString(DraftOptionNames.DraftId, true), ids)
+    await interaction.reply({ content: t.captainsDefined, flags: MessageFlags.Ephemeral })
     return
   }
 
-  if (interaction.commandName === 'draft-definir-ordem-escolha') {
-    const ids = interaction.options.getString('capitaes_ids')?.split(',').map((item) => item.trim()).filter(Boolean) ?? []
-    await rinhaApi.definePickOrder(interaction.options.getString('draft_id', true), interaction.options.getString('modo', true) as 'Manual' | 'Sorteado', ids)
-    await interaction.reply({ content: 'Ordem de escolha definida.', flags: MessageFlags.Ephemeral })
+  if (interaction.commandName === DraftCommandNames.DefinePickOrder) {
+    const ids = parseCommaSeparatedIds(interaction.options.getString(DraftOptionNames.CaptainIds))
+    await rinhaApi.definePickOrder(
+      interaction.options.getString(DraftOptionNames.DraftId, true),
+      interaction.options.getString(DraftOptionNames.Mode, true) as typeof DraftPickOrderMode.Manual | typeof DraftPickOrderMode.Drawn,
+      ids,
+    )
+    await interaction.reply({ content: t.pickOrderDefined, flags: MessageFlags.Ephemeral })
   }
 }
 
@@ -60,7 +82,7 @@ export async function handlePresenceButton(interaction: ButtonInteraction) {
   const [, action, draftId] = interaction.customId.split(':')
   if (!draftId) return
 
-  if (action === 'confirm') {
+  if (action === PresenceButtonAction.Confirm) {
     const linked = await rinhaApi.getDiscordLink(interaction.user.id)
     if (!linked.vinculado) {
       await interaction.reply({ content: t.accountNotLinked, flags: MessageFlags.Ephemeral })
@@ -72,7 +94,7 @@ export async function handlePresenceButton(interaction: ButtonInteraction) {
     return
   }
 
-  if (action === 'cancel') {
+  if (action === PresenceButtonAction.Cancel) {
     const draft = await rinhaApi.cancelPresence(draftId, interaction.user.id)
     await updatePresenceMessage(interaction, draft)
     await interaction.reply({ content: t.presenceCancelled, flags: MessageFlags.Ephemeral })
@@ -81,7 +103,7 @@ export async function handlePresenceButton(interaction: ButtonInteraction) {
 
   const drafts = await rinhaApi.listActiveDrafts()
   const draft = drafts.find((item) => item.id === draftId)
-  await interaction.reply({ content: draft ? `${draft.nome}: ${draft.status} (${draft.presencas.filter((presence) => presence.status === 'Confirmada').length} confirmados)` : 'Draft não encontrado.', flags: MessageFlags.Ephemeral })
+  await interaction.reply({ content: draft ? formatDraftLine(draft) : t.draftNotFound, flags: MessageFlags.Ephemeral })
 }
 
 export function startDraftPolling(client: Client) {
@@ -92,25 +114,29 @@ export function startDraftPolling(client: Client) {
       const configuration = await rinhaApi.getDiscordConfiguration()
       const drafts = await rinhaApi.listActiveDrafts()
 
-      for (const draft of drafts.filter((item) => item.status === 'PresencaAberta' && !publishedPresences.has(item.id))) {
-        const channel = await getSendableChannel(client, configuration.presenceChannelId, 'Canal Lista de Presença')
+      for (const draft of drafts.filter((item) => item.discordPresenceMessageId)) {
+        publishedPresences.add(draft.id)
+      }
+
+      for (const draft of drafts.filter((item) => item.status === DraftMontagemStatus.PresenceOpen && !item.discordPresenceMessageId && !publishedPresences.has(item.id))) {
+        const channel = await getSendableChannel(client, configuration.presenceChannelId, t.channels.presence)
         const message = await channel.send({ embeds: [presenceEmbed(draft)], components: [presenceButtons(draft.id)] })
         await rinhaApi.registerDiscordPublication(draft.id, { discordGuildId: configuration.guildId, discordPresenceMessageId: message.id })
         publishedPresences.add(draft.id)
       }
 
-      for (const draft of drafts.filter((item) => item.status === 'Finalizada' && !publishedFinalTeams.has(item.id))) {
-        const channel = await getSendableChannel(client, configuration.draftChannelId, 'Canal Drafts/Times Definidos')
+      for (const draft of drafts.filter((item) => item.status === DraftMontagemStatus.Finalized && !publishedFinalTeams.has(item.id))) {
+        const channel = await getSendableChannel(client, configuration.draftChannelId, t.channels.draft)
         await channel.send({ embeds: [finalTeamsEmbed(draft)] })
         publishedFinalTeams.add(draft.id)
       }
     } catch (error) {
       if (error instanceof DiscordChannelAccessError) {
-        console.error(error.message)
+        logger.error('Discord channel access failed', error)
         return
       }
 
-      console.error(error)
+      logger.error('Draft polling failed', error)
     }
   }, 30000)
 }
@@ -122,8 +148,8 @@ async function updatePresenceMessage(interaction: ButtonInteraction, draft: Draf
 
 async function fetchPresenceMessage(client: Client, draft: DraftMontagem) {
   const configuration = await rinhaApi.getDiscordConfiguration()
-  const channel = await getSendableChannel(client, configuration.presenceChannelId, 'Canal Lista de Presença')
-  if (!channel.messages) throw new Error('Canal de presença não suporta busca de mensagens.')
+  const channel = await getSendableChannel(client, configuration.presenceChannelId, t.channels.presence)
+  if (!channel.messages) throw new Error(t.presenceMessageFetchUnsupported)
 
   return channel.messages.fetch(draft.discordPresenceMessageId!)
 }
@@ -143,17 +169,29 @@ type SendableTextChannel = {
 async function getSendableChannel(client: Client, channelId: string, label: string) {
   const channel = await client.channels.fetch(channelId)
   if (!channel?.isTextBased() || !('send' in channel)) {
-    throw new DiscordChannelAccessError(`${label} (${channelId}) não foi encontrado ou não é um canal de texto acessível pelo bot.`)
+    throw new DiscordChannelAccessError(`${label} (${channelId}) ${t.inaccessibleChannel}`)
   }
 
   const sendable = channel as SendableTextChannel
   const permissions = client.user && sendable.permissionsFor ? sendable.permissionsFor(client.user) : null
   const required = [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks]
   if (permissions && !permissions.has(required)) {
-    throw new DiscordChannelAccessError(`${label} (${channelId}) está sem permissão para o bot. Libere Ver canal, Enviar mensagens e Incorporar links.`)
+    throw new DiscordChannelAccessError(`${label} (${channelId}) ${t.missingChannelPermissions}`)
   }
 
   return sendable
+}
+
+function parseCommaSeparatedIds(value: string | null) {
+  return value?.split(',').map((item) => item.trim()).filter(Boolean) ?? []
+}
+
+function formatDraftList(drafts: DraftMontagem[]) {
+  return drafts.map(formatDraftLine).join('\n') || t.noActiveDrafts
+}
+
+function formatDraftLine(draft: DraftMontagem) {
+  return `${draft.nome}: ${formatDraftStatus(draft.status)} (${draft.presencas.filter((presence) => presence.status === DraftPresenceStatus.Confirmed).length} ${t.confirmedCount})`
 }
 
 function parsePresenceClosingTime(dayInput: string, timeInput: string) {

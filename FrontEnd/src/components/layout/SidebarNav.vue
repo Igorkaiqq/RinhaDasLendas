@@ -2,6 +2,7 @@
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
+import brandLogo from '@/assets/rinhadaslendas_brand_logo.png'
 import { AppRoutes } from '@/constants/appRoutes'
 import type { SidebarNavigationItem } from '@/types/layout'
 
@@ -32,7 +33,9 @@ const { t } = useI18n()
     </button>
     <div class="sidebar__brand-row">
       <RouterLink class="sidebar__brand" :to="AppRoutes.Home" :aria-label="t('app.name')">
-        <span class="sidebar__mark" aria-hidden="true">RL</span>
+        <span class="sidebar__mark" aria-hidden="true">
+          <img :src="brandLogo" alt="" />
+        </span>
         <span class="sidebar__brand-copy">
           <strong>{{ t('app.name') }}</strong>
           <small>{{ t('app.league') }}</small>
@@ -57,13 +60,13 @@ const { t } = useI18n()
     </nav>
 
     <div class="sidebar__footer">
-      <button type="button" class="sidebar__tournament">{{ t('navigation.joinTournament') }}</button>
+      <button type="button" class="sidebar__tournament" disabled>{{ t('navigation.joinTournamentSoon') }}</button>
       <RouterLink class="sidebar__item" :to="AppRoutes.Settings" :title="t('navigation.support')">
-        <span class="sidebar__icon" aria-hidden="true">HP</span>
+        <span class="sidebar__icon" aria-hidden="true">?</span>
         <span class="sidebar__label">{{ t('navigation.support') }}</span>
       </RouterLink>
       <button type="button" class="sidebar__item" :title="t('navigation.logout')" @click="$emit('menuAction', 'logout')">
-        <span class="sidebar__icon" aria-hidden="true">EX</span>
+        <span class="sidebar__icon" aria-hidden="true">↩</span>
         <span class="sidebar__label">{{ t('navigation.logout') }}</span>
       </button>
     </div>

@@ -20,7 +20,7 @@ const team = {
 
 describe('TeamList', () => {
   it('emits create from empty state', async () => {
-    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [], loading: false, errors: [] } })
+    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [], loading: false, errors: [], canManage: true } })
 
     await wrapper.find('button').trigger('click')
 
@@ -29,7 +29,7 @@ describe('TeamList', () => {
   })
 
   it('renders team cards and forwards edit events', async () => {
-    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [team], loading: false, errors: [] } })
+    const wrapper = mount(TeamList, { global: { plugins: [i18n] }, props: { teams: [team], loading: false, errors: [], canManage: true } })
 
     await wrapper.find('button').trigger('click')
 

@@ -3,6 +3,7 @@ using FluentValidation;
 using RinhaDasLendas.Application.Commands.Jogadores;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Handlers.Jogadores;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Validators;
 using RinhaDasLendas.Domain.Constants;
 
@@ -16,7 +17,8 @@ public sealed class UpdatePreferenciasTests
         var repository = new InMemoryJogadorRepository();
         var jogador = JogadorTestData.JogadorAtivo();
         await repository.AddAsync(jogador, CancellationToken.None);
-        var handler = new UpdatePreferenciasCommandHandler(repository, new UpdatePreferenciasRotasRequestDtoValidator());
+        var currentUser = new TestCurrentUser(null, [AuthRoles.Admin]);
+        var handler = new UpdatePreferenciasCommandHandler(repository, currentUser, new UpdatePreferenciasRotasRequestDtoValidator());
         var request = new UpdatePreferenciasRotasRequestDto([
             new("Mid", 1, false),
             new("Adc", 2, false),
@@ -66,5 +68,12 @@ public sealed class UpdatePreferenciasTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.OnlyOneNeverPlayRole);
+    }
+
+    private sealed record TestCurrentUser(Guid? UserId, IReadOnlyCollection<string> Roles) : ICurrentUser
+    {
+        public string? IpAddress => null;
+
+        public string? UserAgent => null;
     }
 }

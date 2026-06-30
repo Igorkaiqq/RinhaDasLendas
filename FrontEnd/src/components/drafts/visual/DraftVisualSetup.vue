@@ -76,7 +76,7 @@ function submit() {
           <span class="eyebrow">{{ t('drafts.visualSetup.eyebrow') }}</span>
           <h2 id="draft-visual-title">{{ t('drafts.visualSetup.title') }}</h2>
         </div>
-        <button type="button" :aria-label="t('common.close')" @click="emit('close')">x</button>
+        <button type="button" :aria-label="t('common.close')" @click="emit('close')">×</button>
       </header>
 
       <form class="player-form draft-create-form" @submit.prevent="submit">
@@ -109,7 +109,7 @@ function submit() {
             <span>{{ t('drafts.visualSetup.summary', { teams: quantidadeTimes, captains: quantidadeTimes, reserves: quantidadeReservas }) }}</span>
           </div>
           <label class="draft-search-field">
-            <span aria-hidden="true">S</span>
+            <span aria-hidden="true">⌕</span>
             <input v-model="search" type="search" :placeholder="t('drafts.visualSetup.searchPlayer')" />
           </label>
           <div class="draft-player-picker__grid">

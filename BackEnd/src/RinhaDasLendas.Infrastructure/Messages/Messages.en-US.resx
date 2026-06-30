@@ -29,6 +29,12 @@
   <data name="MSIS014" xml:space="preserve"><value>Draft created successfully</value></data>
   <data name="MSIS015" xml:space="preserve"><value>Pick registered successfully</value></data>
   <data name="MSIS016" xml:space="preserve"><value>Draft canceled successfully</value></data>
+  <data name="MSIS017" xml:space="preserve"><value>User created successfully</value></data>
+  <data name="MSIS018" xml:space="preserve"><value>Login completed successfully</value></data>
+  <data name="MSIS019" xml:space="preserve"><value>Logout completed successfully</value></data>
+  <data name="MSIS020" xml:space="preserve"><value>Password changed successfully</value></data>
+  <data name="MSIS021" xml:space="preserve"><value>Password recovery requested successfully</value></data>
+  <data name="MSIS022" xml:space="preserve"><value>User roles updated successfully</value></data>
   <data name="MSIS023" xml:space="preserve"><value>Discord linked successfully</value></data>
   <data name="MSIS024" xml:space="preserve"><value>Discord unlinked successfully</value></data>
   <data name="ME001" xml:space="preserve"><value>An unexpected error occurred</value></data>
@@ -67,6 +73,11 @@
   <data name="ME034" xml:space="preserve"><value>Discord OAuth is not implemented yet</value></data>
   <data name="ME035" xml:space="preserve"><value>Draft setup not found</value></data>
   <data name="ME036" xml:space="preserve"><value>Invalid password reset token</value></data>
+  <data name="ME037" xml:space="preserve"><value>Authentication:Jwt:Key is not configured.</value></data>
+  <data name="ME038" xml:space="preserve"><value>Connection string RinhaDasLendas or DefaultConnection is not configured.</value></data>
+  <data name="ME039" xml:space="preserve"><value>Authentication:BootstrapSuperAdmin requires Email and Senha when Enabled=true.</value></data>
+  <data name="ME040" xml:space="preserve"><value>Could not create the default SuperAdmin: {0}</value></data>
+  <data name="ME041" xml:space="preserve"><value>Could not assign SuperAdmin to the default user: {0}</value></data>
   <data name="MV001" xml:space="preserve"><value>Required field</value></data>
   <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
   <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
@@ -129,6 +140,8 @@
   <data name="MC007" xml:space="preserve"><value>Do you want to overwrite the statistics?</value></data>
   <data name="MC008" xml:space="preserve"><value>Do you want to change the captains?</value></data>
   <data name="MC009" xml:space="preserve"><value>Do you want to discard changes?</value></data>
+  <data name="MC010" xml:space="preserve"><value>Do you want to deactivate this user?</value></data>
+  <data name="MC011" xml:space="preserve"><value>Do you want to reset this user's password?</value></data>
   <data name="MA001" xml:space="preserve"><value>There are unsaved changes</value></data>
   <data name="MA002" xml:space="preserve"><value>External integration will be skipped</value></data>
   <data name="MA003" xml:space="preserve"><value>Manually entered data needs review</value></data>
@@ -138,6 +151,7 @@
   <data name="MA007" xml:space="preserve"><value>Statistics may be outdated</value></data>
   <data name="MA008" xml:space="preserve"><value>Action available only to administrators</value></data>
   <data name="MA009" xml:space="preserve"><value>Review the data before continuing</value></data>
+  <data name="MA010" xml:space="preserve"><value>Your session has expired. Sign in again to continue.</value></data>
   <data name="MV054" xml:space="preserve"><value>Manual layout is locked during realtime draft</value></data>
   <data name="MV055" xml:space="preserve"><value>The draft setup is already in realtime draft mode</value></data>
   <data name="MV056" xml:space="preserve"><value>Realtime draft has not started yet</value></data>
@@ -168,4 +182,20 @@
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>
   <data name="MSIS028" xml:space="preserve"><value>Discord configuration updated</value></data>
+  <data name="MT001" xml:space="preserve"><value>Docker unavailable for Testcontainers: {0}</value></data>
+  <data name="MT002" xml:space="preserve"><value>every endpoint exposed by the API must have a mapped integration scenario</value></data>
+  <data name="MT003" xml:space="preserve"><value>Endpoint coverage report</value></data>
+  <data name="MT004" xml:space="preserve"><value>No errors were found while running the scenarios.</value></data>
+  <data name="MT005" xml:space="preserve"><value>No endpoint.</value></data>
+  <data name="MT006" xml:space="preserve"><value>Parameters</value></data>
+  <data name="MT007" xml:space="preserve"><value>Input DTOs</value></data>
+  <data name="MT008" xml:space="preserve"><value>Output/status DTOs</value></data>
+  <data name="MT009" xml:space="preserve"><value>The PostgreSQL container must be started before the test API.</value></data>
+  <data name="MT010" xml:space="preserve"><value>Generated at UTC</value></data>
+  <data name="MT011" xml:space="preserve"><value>Discovered endpoints</value></data>
+  <data name="MT012" xml:space="preserve"><value>Covered endpoints</value></data>
+  <data name="MT013" xml:space="preserve"><value>Uncovered endpoints</value></data>
+  <data name="MT014" xml:space="preserve"><value>Errors found</value></data>
+  <data name="MT015" xml:space="preserve"><value>None</value></data>
+  <data name="MT016" xml:space="preserve"><value>Not declared</value></data>
 </root>

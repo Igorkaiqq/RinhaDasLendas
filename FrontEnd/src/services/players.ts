@@ -105,8 +105,12 @@ export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
       params: { somenteAtivos, page: 1, pageSize: 100 },
     })
     return response.data.items
-  } catch {
-    return listFakePlayers(somenteAtivos)
+  } catch (error) {
+    if (canUseFakeFallback(error)) {
+      return listFakePlayers(somenteAtivos)
+    }
+
+    throw toPlayerServiceError(error)
   }
 }
 
@@ -126,7 +130,7 @@ export async function createPlayer(payload: PlayerPayload): Promise<Player> {
     const response = await api.post<Player>('/api/v1/jogadores', normalizePayload(payload))
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return createFakePlayer(payload)
     }
 
@@ -139,7 +143,7 @@ export async function updatePlayerBasics(id: string, payload: PlayerUpdatePayloa
     const response = await api.put<Player>(`/api/v1/jogadores/${id}/dados-basicos`, normalizePayload(payload))
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return updateFakePlayerBasics(id, payload)
     }
 
@@ -152,7 +156,7 @@ export async function updateRoutePreferences(id: string, preferencias: RoutePref
     const response = await api.put<Player>(`/api/v1/jogadores/${id}/preferencias-rotas`, { preferencias })
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return updateFakeRoutePreferences(id, preferencias)
     }
 
@@ -164,7 +168,7 @@ export async function inactivatePlayer(id: string): Promise<void> {
   try {
     await api.patch(`/api/v1/jogadores/${id}/inativar`)
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       inactivateFakePlayer(id)
       return
     }
@@ -177,7 +181,7 @@ export async function deletePlayer(id: string): Promise<void> {
   try {
     await api.patch(`/api/v1/jogadores/${id}/inativar`)
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       deleteFakePlayer(id)
       return
     }
@@ -210,4 +214,8 @@ function toPlayerServiceError(error: unknown): PlayerServiceError {
 
 function isConnectionFailure(error: unknown): boolean {
   return error instanceof AxiosError && !error.response
+}
+
+function canUseFakeFallback(error: unknown): boolean {
+  return import.meta.env.VITE_ENABLE_FAKE_FALLBACK === 'true' && isConnectionFailure(error)
 }

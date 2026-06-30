@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Api.Services;
@@ -9,7 +10,8 @@ namespace RinhaDasLendas.Api.Services;
 public sealed class BotInternalAuthHandler(
     IOptionsMonitor<BotInternalAuthOptions> options,
     ILoggerFactory logger,
-    UrlEncoder encoder) : AuthenticationHandler<BotInternalAuthOptions>(options, logger, encoder)
+    UrlEncoder encoder,
+    ApiMetrics metrics) : AuthenticationHandler<BotInternalAuthOptions>(options, logger, encoder)
 {
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -18,11 +20,13 @@ public sealed class BotInternalAuthHandler(
             : string.IsNullOrWhiteSpace(Options.Token) ? Array.Empty<string>() : [Options.Token];
         if (validTokens.Count == 0)
         {
+            metrics.RecordBotAuthFailure("not_configured");
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         if (!Request.Headers.TryGetValue(BotInternalAuthOptions.HeaderName, out var providedToken) || !validTokens.Contains(providedToken.ToString(), StringComparer.Ordinal))
         {
+            metrics.RecordBotAuthFailure("invalid_token");
             return Task.FromResult(AuthenticateResult.Fail(MessageCodes.BotInternalTokenInvalid));
         }
 

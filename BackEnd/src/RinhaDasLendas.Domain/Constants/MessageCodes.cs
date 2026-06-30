@@ -71,6 +71,11 @@ public static class MessageCodes
     public const string DiscordOAuthNotImplemented = "ME034";
     public const string DraftMontagemNotFound = "ME035";
     public const string InvalidPasswordResetToken = "ME036";
+    public const string JwtKeyNotConfigured = "ME037";
+    public const string DatabaseConnectionStringNotConfigured = "ME038";
+    public const string BootstrapSuperAdminCredentialsRequired = "ME039";
+    public const string BootstrapSuperAdminCreateFailed = "ME040";
+    public const string BootstrapSuperAdminRoleAssignFailed = "ME041";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -180,4 +185,21 @@ public static class MessageCodes
     public const string AdminOnlyAction = "MA008";
     public const string ReviewDataBeforeContinue = "MA009";
     public const string SessionExpiredAlert = "MA010";
+
+    public const string TestDockerUnavailable = "MT001";
+    public const string TestEndpointCoverageRequired = "MT002";
+    public const string TestEndpointCoverageReportTitle = "MT003";
+    public const string TestNoErrorsFound = "MT004";
+    public const string TestNoEndpoint = "MT005";
+    public const string TestParameters = "MT006";
+    public const string TestInputDtos = "MT007";
+    public const string TestOutputDtos = "MT008";
+    public const string TestPostgreSqlContainerNotStarted = "MT009";
+    public const string TestGeneratedAtUtc = "MT010";
+    public const string TestDiscoveredEndpoints = "MT011";
+    public const string TestCoveredEndpoints = "MT012";
+    public const string TestUncoveredEndpoints = "MT013";
+    public const string TestErrorsFound = "MT014";
+    public const string TestNone = "MT015";
+    public const string TestNotDeclared = "MT016";
 }

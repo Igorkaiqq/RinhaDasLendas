@@ -36,7 +36,7 @@ public sealed class TimesController(ISender sender, IMessageProvider messages) :
     {
         var time = await sender.Send(new GetTimeByIdQuery(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.TeamNotFound))
             : Ok(time);
     }
 
@@ -59,7 +59,7 @@ public sealed class TimesController(ISender sender, IMessageProvider messages) :
     {
         var time = await sender.Send(new UpdateTimeCommand(id, request), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.TeamNotFound))
             : Ok(time);
     }
 
@@ -71,7 +71,7 @@ public sealed class TimesController(ISender sender, IMessageProvider messages) :
     {
         var time = await sender.Send(new InativarTimeCommand(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.TeamNotFound))
             : Ok(time);
     }
 
@@ -84,7 +84,7 @@ public sealed class TimesController(ISender sender, IMessageProvider messages) :
     {
         var time = await sender.Send(new ReativarTimeCommand(id), cancellationToken);
         return time is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.TeamNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.TeamNotFound))
             : Ok(time);
     }
 }

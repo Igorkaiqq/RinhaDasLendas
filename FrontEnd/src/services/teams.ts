@@ -1,6 +1,7 @@
 import { AxiosError } from 'axios'
 
 import { MessageCode } from '@/constants/messageCode'
+import { TeamStatus } from '@/constants/teamStatus'
 import type { Team, TeamFilters, TeamPayload, TeamStatusValue } from '@/types/team'
 
 import { api } from './api'
@@ -15,6 +16,7 @@ interface PaginatedTeams {
 }
 
 interface ApiErrorResponse {
+  messageCode?: string
   message?: string
   errors?: string[]
 }
@@ -34,7 +36,7 @@ export async function listTeams(filters: TeamFilters = {}): Promise<Team[]> {
     })
     return response.data.items
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return filterFakeTeams(filters)
     }
 
@@ -47,7 +49,7 @@ export async function createTeam(payload: TeamPayload): Promise<Team> {
     const response = await api.post<Team>('/api/v1/times', normalizePayload(payload))
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       const created = createFakeTeam(payload)
       fakeTeams.unshift(created)
       return created
@@ -62,7 +64,7 @@ export async function updateTeam(id: string, payload: TeamPayload): Promise<Team
     const response = await api.put<Team>(`/api/v1/times/${id}`, normalizePayload(payload))
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       const updated = createFakeTeam(payload, id)
       const index = fakeTeams.findIndex((team) => team.id === id)
       if (index >= 0) {
@@ -80,8 +82,8 @@ export async function inactivateTeam(id: string): Promise<Team> {
     const response = await api.patch<Team>(`/api/v1/times/${id}/inativar`)
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
-      return updateFakeStatus(id, 'Inativo')
+    if (canUseFakeFallback(error)) {
+      return updateFakeStatus(id, TeamStatus.Inactive)
     }
 
     throw toTeamServiceError(error)
@@ -93,8 +95,8 @@ export async function reactivateTeam(id: string): Promise<Team> {
     const response = await api.patch<Team>(`/api/v1/times/${id}/reativar`)
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
-      return updateFakeStatus(id, 'Ativo')
+    if (canUseFakeFallback(error)) {
+      return updateFakeStatus(id, TeamStatus.Active)
     }
 
     throw toTeamServiceError(error)
@@ -130,7 +132,7 @@ function createFakeTeam(payload: TeamPayload, id: string = crypto.randomUUID()):
     nome: payload.nome,
     tag: payload.tag.toUpperCase(),
     observacoes: payload.observacoes,
-    status: 'Ativo',
+    status: TeamStatus.Active,
     capitao: capitao ? { id: capitao.jogadorId, nomeExibicao: capitao.nomeExibicao } : null,
     quantidadeJogadores: membros.length,
     membros,
@@ -161,6 +163,10 @@ function toTeamServiceError(error: unknown): TeamServiceError {
       return new TeamServiceError(data.errors)
     }
 
+    if (data?.messageCode) {
+      return new TeamServiceError([getMessage(data.messageCode)])
+    }
+
     if (data?.message) {
       return new TeamServiceError([data.message])
     }
@@ -171,4 +177,8 @@ function toTeamServiceError(error: unknown): TeamServiceError {
 
 function isConnectionFailure(error: unknown): boolean {
   return error instanceof AxiosError && !error.response
+}
+
+function canUseFakeFallback(error: unknown): boolean {
+  return import.meta.env.VITE_ENABLE_FAKE_FALLBACK === 'true' && isConnectionFailure(error)
 }

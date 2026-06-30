@@ -36,7 +36,7 @@ public sealed class DraftsController(ISender sender, IMessageProvider messages) 
     {
         var draft = await sender.Send(new GetDraftByIdQuery(id), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftNotFound))
             : Ok(draft);
     }
 
@@ -59,7 +59,7 @@ public sealed class DraftsController(ISender sender, IMessageProvider messages) 
     {
         var draft = await sender.Send(new RegistrarPickDraftCommand(id, request), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftNotFound))
             : Ok(draft);
     }
 
@@ -72,7 +72,7 @@ public sealed class DraftsController(ISender sender, IMessageProvider messages) 
     {
         var draft = await sender.Send(new CancelarDraftCommand(id, request), cancellationToken);
         return draft is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftNotFound))
             : Ok(draft);
     }
 }

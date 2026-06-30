@@ -103,7 +103,7 @@ const user = computed<TopbarUserSummary>(() => ({
   ],
 }))
 
-const pageTitle = computed(() => String(route.meta.title ?? t('navigation.dashboard')))
+const pageTitle = computed(() => t(String(route.meta.titleKey ?? 'routes.home.title')))
 
 const sidebarCollapsed = ref(false)
 const showPlayerProfileModal = ref(false)

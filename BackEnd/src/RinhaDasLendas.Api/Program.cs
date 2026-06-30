@@ -1,15 +1,19 @@
 using System.Text.Json.Serialization;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Hubs;
+using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure;
+using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +22,7 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddSingleton<ApiMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
@@ -25,7 +30,14 @@ builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
-var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationException("Authentication:Jwt:Key não configurado.");
+var startupMessages = new ResourceMessageProvider();
+var jwtKey = jwtSection.GetValue<string>("Key")
+    ?? throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.JwtKeyNotConfigured));
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.JwtKeyNotConfigured));
+}
+
 builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.SchemeName, options =>
 {
     options.Token = builder.Configuration["RINHA_API_INTERNAL_TOKEN"] ?? builder.Configuration["DiscordBot:InternalToken"] ?? string.Empty;
@@ -68,6 +80,11 @@ else
             };
             options.Events = new JwtBearerEvents
             {
+                OnAuthenticationFailed = context =>
+                {
+                    context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordAuthFailure(JwtBearerDefaults.AuthenticationScheme);
+                    return Task.CompletedTask;
+                },
                 OnMessageReceived = context =>
                 {
                     var accessToken = context.Request.Query["access_token"];
@@ -121,6 +138,22 @@ builder.Services.AddAuthorization(options =>
     }
 });
 builder.Services.AddHealthChecks();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (context, _) =>
+    {
+        context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordRateLimitedRequest(context.HttpContext.Request.Path);
+        return ValueTask.CompletedTask;
+    };
+    options.AddFixedWindowLimiter("api", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 120;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -146,6 +179,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+ValidateProductionConfiguration(app.Environment, app.Configuration, jwtKey);
+
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
@@ -163,10 +198,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 app.UseMiddleware<ApiExceptionMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapHealthChecks("/health");
 app.UseCors("Frontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 if (app.Environment.IsEnvironment("Testing"))
 {
@@ -181,9 +223,30 @@ if (app.Environment.IsEnvironment("Testing"))
     });
 }
 app.UseAuthorization();
-app.MapControllers();
+app.MapControllers().RequireRateLimiting("api");
 app.MapHub<DraftMontagensHub>("/hubs/draft-montagens");
 
 app.Run();
+
+static void ValidateProductionConfiguration(IWebHostEnvironment environment, IConfiguration configuration, string jwtKey)
+{
+    if (environment.IsDevelopment() || environment.IsEnvironment("Testing") || environment.IsEnvironment("IntegrationTesting"))
+    {
+        return;
+    }
+
+    if (jwtKey.Contains("dev-only", StringComparison.OrdinalIgnoreCase)
+        || jwtKey.Contains("change-me", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(new ResourceMessageProvider().GetMessage(MessageCodes.JwtKeyNotConfigured));
+    }
+
+    var connectionString = configuration.GetConnectionString("RinhaDasLendas") ?? configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+    if (connectionString.Contains("Password=postgres", StringComparison.OrdinalIgnoreCase)
+        || connectionString.Contains("Username=postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(new ResourceMessageProvider().GetMessage(MessageCodes.DatabaseConnectionStringNotConfigured));
+    }
+}
 
 public partial class Program;

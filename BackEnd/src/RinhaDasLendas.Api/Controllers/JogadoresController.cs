@@ -52,7 +52,7 @@ public sealed class JogadoresController(ISender sender, IMessageProvider message
     {
         var jogador = await sender.Send(new GetJogadorByIdQuery(id), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerNotFound))
             : Ok(jogador);
     }
 
@@ -65,7 +65,7 @@ public sealed class JogadoresController(ISender sender, IMessageProvider message
     {
         var jogador = await sender.Send(new UpdateJogadorCommand(id, request), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerNotFound))
             : Ok(jogador);
     }
 
@@ -77,7 +77,7 @@ public sealed class JogadoresController(ISender sender, IMessageProvider message
     {
         var jogador = await sender.Send(new UpdatePreferenciasCommand(id, request), cancellationToken);
         return jogador is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerNotFound))
             : Ok(jogador);
     }
 
@@ -90,6 +90,6 @@ public sealed class JogadoresController(ISender sender, IMessageProvider message
         var inativado = await sender.Send(new InativarJogadorCommand(id), cancellationToken);
         return inativado
             ? NoContent()
-            : NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerNotFound), []));
+            : NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerNotFound));
     }
 }

@@ -22,7 +22,7 @@ public sealed class DiscordController(IDiscordConfigurationService configuration
     {
         var configuration = await configurationService.GetAsync(cancellationToken);
         return configuration is null
-            ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DiscordConfigurationNotFound), []))
+            ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DiscordConfigurationNotFound))
             : Ok(configuration);
     }
 

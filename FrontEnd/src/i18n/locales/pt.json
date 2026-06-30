@@ -16,6 +16,7 @@
     "support": "Suporte",
     "logout": "Sair",
     "joinTournament": "Entrar no Torneio",
+    "joinTournamentSoon": "Torneio em breve",
     "arena": "Arena",
     "soon": "Em breve",
     "expandSidebar": "Expandir menu lateral",
@@ -60,11 +61,42 @@
     "hero": {
       "eyebrow": "Plataforma competitiva interna",
       "title": "Organize a próxima rinha com ritmo de campeonato.",
-      "description": "Centralize jogadores, times, drafts e histórico da comunidade em uma experiência preparada para Discord, Riot e noites de confronto."
+      "description": "Centralize jogadores, times, drafts e histórico da comunidade em uma experiência preparada para Discord, Riot e noites de confronto.",
+      "actionsLabel": "Ações principais do painel",
+      "primaryAction": "Abrir draft",
+      "secondaryAction": "Ver jogadores"
     },
     "signal": {
       "label": "Live ops",
-      "status": "Drafts e jogadores prontos"
+      "status": "Drafts e jogadores prontos",
+      "description": "A base já cobre cadastro, presença, montagem de times e integração com o bot."
+    },
+    "about": {
+      "label": "Sobre a aplicação",
+      "eyebrow": "O que é",
+      "title": "Uma central para transformar a noite da comunidade em operação organizada.",
+      "description": "O RinhaDasLendas reduz combinação manual em chat, planilhas soltas e decisões improvisadas. A plataforma mantém dados de jogadores, preferências de rota, presença e draft em um fluxo único para que a organização foque na partida."
+    },
+    "workflow": {
+      "label": "Como funciona",
+      "eyebrow": "Fluxo da rinha",
+      "title": "Do cadastro ao draft em quatro etapas.",
+      "steps": {
+        "players": { "title": "Jogadores completos", "description": "Cada participante informa Riot ID, elo, links úteis e preferências de rota para deixar o balanceamento mais confiável." },
+        "presence": { "title": "Presença confirmada", "description": "A lista de presença indica quem realmente vai jogar, evitando montar times com ausentes ou reservas indefinidos." },
+        "draft": { "title": "Capitães e escolhas", "description": "A montagem em tempo real organiza capitães, ordem de picks, reservas e times finais com histórico visível." },
+        "history": { "title": "Base para estatísticas", "description": "O histórico de jogadores, drafts e partidas prepara rankings, retrospecto e futuras integrações com Riot." }
+      }
+    },
+    "roadmap": {
+      "label": "Próximas evoluções",
+      "eyebrow": "Em evolução",
+      "title": "O painel também mostra para onde a plataforma está indo.",
+      "items": {
+        "discord": { "tag": "BOT", "title": "Discord mais presente", "description": "Comandos, avisos e presença automática aproximam a organização do canal onde a comunidade já conversa." },
+        "riot": { "tag": "API", "title": "Dados da Riot", "description": "A integração futura pode reduzir cadastro manual e enriquecer estatísticas com dados oficiais." },
+        "stats": { "tag": "MMR", "title": "Estatísticas e ranking", "description": "Partidas registradas viram comparação de desempenho, histórico de times e evolução dos jogadores." }
+      }
     },
     "cards": {
       "discord": { "title": "Discord do grupo", "description": "Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo." },
@@ -404,6 +436,13 @@
       "Aberto": "Aberto",
       "Concluido": "Concluído",
       "Cancelado": "Cancelado",
+      "PresencaAberta": "Presença aberta",
+      "PresencaEncerrada": "Presença encerrada",
+      "CapitaesDefinidos": "Capitães definidos",
+      "OrdemDefinida": "Ordem definida",
+      "Aberta": "Aberta",
+      "Finalizada": "Finalizada",
+      "Cancelada": "Cancelada",
       "finished": "Finalizado"
     },
     "createModal": {

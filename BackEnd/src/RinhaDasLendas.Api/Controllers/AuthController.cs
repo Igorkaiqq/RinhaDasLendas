@@ -46,7 +46,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
         var refreshToken = Request.Cookies[options.Value.Cookie.RefreshTokenName];
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            return Unauthorized(new ApiErrorResponse(messages.GetMessage(MessageCodes.SessionExpired), []));
+            return Unauthorized(ApiErrorResponse.FromCode(messages, MessageCodes.SessionExpired));
         }
 
         var response = await sender.Send(new RefreshSessionCommand(refreshToken, IpAddress(), UserAgent()), cancellationToken);
@@ -97,7 +97,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
         var user = await sender.Send(new GetCurrentUserQuery(CurrentUserId()), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
+        return user is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.UserNotFound)) : Ok(user);
     }
 
     [HttpPut("me/profile")]
@@ -106,7 +106,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateOwnProfileRequestDto request, CancellationToken cancellationToken)
     {
         var user = await sender.Send(new UpdateOwnProfileCommand(CurrentUserId(), request), cancellationToken);
-        return user is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.UserNotFound), [])) : Ok(user);
+        return user is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.UserNotFound)) : Ok(user);
     }
 
     [HttpGet("me/jogador")]
@@ -116,7 +116,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> MeuJogador(CancellationToken cancellationToken)
     {
         var jogador = await sender.Send(new GetMeuJogadorProfileQuery(CurrentUserId()), cancellationToken);
-        return jogador is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerProfileNotFound), [])) : Ok(jogador);
+        return jogador is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerProfileNotFound)) : Ok(jogador);
     }
 
     [HttpPost("me/jogador")]
@@ -128,7 +128,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     {
         var jogador = await sender.Send(new CompleteMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
         return jogador is null
-            ? Conflict(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerAlreadyExists), []))
+            ? Conflict(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerAlreadyExists))
             : CreatedAtAction(nameof(MeuJogador), jogador);
     }
 
@@ -140,7 +140,7 @@ public sealed class AuthController(ISender sender, IOptions<AuthOptions> options
     public async Task<IActionResult> UpdateMeuJogador([FromBody] MeuJogadorProfileRequestDto request, CancellationToken cancellationToken)
     {
         var jogador = await sender.Send(new UpdateMeuJogadorProfileCommand(CurrentUserId(), request), cancellationToken);
-        return jogador is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.PlayerProfileNotFound), [])) : Ok(jogador);
+        return jogador is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.PlayerProfileNotFound)) : Ok(jogador);
     }
 
     [HttpGet("me/permissions")]

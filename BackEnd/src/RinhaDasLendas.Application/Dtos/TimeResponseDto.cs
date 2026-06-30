@@ -40,7 +40,3 @@ public sealed record TimeResponseDto(
             time.DataAtualizacao);
     }
 }
-
-public sealed record TimeCapitaoDto(Guid Id, string NomeExibicao);
-
-public sealed record TimeMembroDto(Guid JogadorId, string NomeExibicao, bool Principal, bool Capitao);
