@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Repositories;
@@ -17,11 +18,13 @@ namespace RinhaDasLendas.Infrastructure;
 
 public static class DependencyInjection
 {
+    private static readonly ResourceMessageProvider StartupMessages = new();
+
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("RinhaDasLendas")
             ?? configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string RinhaDasLendas ou DefaultConnection não configurada.");
+            ?? throw new InvalidOperationException(StartupMessages.GetMessage(MessageCodes.DatabaseConnectionStringNotConfigured));
 
         services.AddDbContext<RinhaDasLendasDbContext>(options => options.UseNpgsql(connectionString));
         services.Configure<AuthOptions>(configuration.GetSection("Authentication"));
@@ -100,7 +103,7 @@ public static class DependencyInjection
 
         if (string.IsNullOrWhiteSpace(options.Email) || string.IsNullOrWhiteSpace(options.Senha))
         {
-            throw new InvalidOperationException("Authentication:BootstrapSuperAdmin exige Email e Senha quando Enabled=true.");
+            throw new InvalidOperationException(StartupMessages.GetMessage(MessageCodes.BootstrapSuperAdminCredentialsRequired));
         }
 
         var user = await userManager.FindByEmailAsync(options.Email);
@@ -122,7 +125,7 @@ public static class DependencyInjection
             if (!createResult.Succeeded)
             {
                 var errors = string.Join("; ", createResult.Errors.Select(error => error.Description));
-                throw new InvalidOperationException($"Nao foi possivel criar o SuperAdmin padrao: {errors}");
+                throw new InvalidOperationException(FormatStartupMessage(MessageCodes.BootstrapSuperAdminCreateFailed, errors));
             }
         }
 
@@ -139,8 +142,13 @@ public static class DependencyInjection
             if (!roleResult.Succeeded)
             {
                 var errors = string.Join("; ", roleResult.Errors.Select(error => error.Description));
-                throw new InvalidOperationException($"Nao foi possivel atribuir SuperAdmin ao usuario padrao: {errors}");
+                throw new InvalidOperationException(FormatStartupMessage(MessageCodes.BootstrapSuperAdminRoleAssignFailed, errors));
             }
         }
+    }
+
+    private static string FormatStartupMessage(string messageCode, params object[] args)
+    {
+        return string.Format(CultureInfo.CurrentCulture, StartupMessages.GetMessage(messageCode), args);
     }
 }

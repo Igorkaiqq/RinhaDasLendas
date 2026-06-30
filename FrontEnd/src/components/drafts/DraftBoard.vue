@@ -2,9 +2,17 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { LeagueRole, type LeagueRoleValue } from '@/constants/leagueRoles'
+import { DraftTeamValues } from '@/constants/draft'
+import {
+  DRAFT_ROUTE_FILTER_OPTIONS,
+  DRAFT_ROUTE_LABEL_BY_LEAGUE_ROLE,
+  DraftRouteFilterValues,
+  LEAGUE_ROLE_BY_DRAFT_FILTER,
+  type DraftRouteFilterValue,
+} from '@/constants/draftRouteFilters'
+import { DraftStatusValues } from '@/constants/draftStatus'
 import type { Player } from '@/services/players'
-import type { Draft, DraftPlayer } from '@/types/draft'
+import type { Draft, DraftPlayer, DraftTeamValue } from '@/types/draft'
 
 const props = defineProps<{ draft: Draft | null; players: Player[]; picking: boolean }>()
 const { t } = useI18n()
@@ -14,25 +22,10 @@ defineEmits<{
 }>()
 
 const playerSearch = ref('')
-const selectedRoute = ref('TODAS AS ROTAS')
-const routeFilters = ['TODAS AS ROTAS', 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPORTE']
+const selectedRoute = ref<DraftRouteFilterValue>(DraftRouteFilterValues.All)
+const routeFilters = DRAFT_ROUTE_FILTER_OPTIONS
 
-const routeLabelByValue: Record<LeagueRoleValue, string> = {
-  [LeagueRole.Top]: 'TOP',
-  [LeagueRole.Jungle]: 'JUNGLE',
-  [LeagueRole.Mid]: 'MID',
-  [LeagueRole.Adc]: 'ADC',
-  [LeagueRole.Support]: 'SUPORTE',
-}
-
-const routeByFilter: Record<string, LeagueRoleValue | null> = {
-  'TODAS AS ROTAS': null,
-  TOP: LeagueRole.Top,
-  JUNGLE: LeagueRole.Jungle,
-  MID: LeagueRole.Mid,
-  ADC: LeagueRole.Adc,
-  SUPORTE: LeagueRole.Support,
-}
+const routeByFilter = LEAGUE_ROLE_BY_DRAFT_FILTER
 
 const playersById = computed(() => new Map(props.players.map((player) => [player.id, player])))
 
@@ -43,7 +36,7 @@ const availablePlayers = computed(() => {
 
   return players.filter((player) => {
     const details = playerDetails(player)
-    const routes = details?.preferencias.map((preference) => routeLabelByValue[preference.rota]) ?? []
+    const routes = details?.preferencias.map((preference) => DRAFT_ROUTE_LABEL_BY_LEAGUE_ROLE[preference.rota]) ?? []
     const matchesSearch =
       !search ||
       player.nomeExibicao.toLowerCase().includes(search) ||
@@ -66,7 +59,7 @@ function preferredRoute(player: DraftPlayer) {
     preferences.find((preference) => preference.prioridade === 1 && !preference.naoJogoNemLascando) ??
     preferences.find((preference) => !preference.naoJogoNemLascando)
 
-  return preferred ? routeLabelByValue[preferred.rota] : '--'
+  return preferred ? DRAFT_ROUTE_LABEL_BY_LEAGUE_ROLE[preferred.rota] : '--'
 }
 
 function playerElo(player: DraftPlayer) {
@@ -74,17 +67,17 @@ function playerElo(player: DraftPlayer) {
   return details?.elo ? [details.elo, details.divisao].filter(Boolean).join(' ') : '--'
 }
 
-function teamSlots(team: 'TimeA' | 'TimeB') {
+function teamSlots(team: DraftTeamValue) {
   if (!props.draft) {
     return []
   }
 
-  const players = team === 'TimeA' ? props.draft.timeA : props.draft.timeB
+  const players = team === DraftTeamValues.TimeA ? props.draft.timeA : props.draft.timeB
   return Array.from({ length: props.draft.tamanhoTime }, (_, index) => players[index] ?? null)
 }
 
-function teamName(team: 'TimeA' | 'TimeB') {
-  return team === 'TimeA' ? t('drafts.teams.blue') : t('drafts.teams.red')
+function teamName(team: DraftTeamValue) {
+  return team === DraftTeamValues.TimeA ? t('drafts.teams.blue') : t('drafts.teams.red')
 }
 
 function pickRoleLabel(captain: boolean) {
@@ -92,19 +85,19 @@ function pickRoleLabel(captain: boolean) {
 }
 
 function nextPickLabel() {
-  if (props.draft?.proximoTime === 'TimeA') {
+  if (props.draft?.proximoTime === DraftTeamValues.TimeA) {
     return t('drafts.teams.blue')
   }
-  if (props.draft?.proximoTime === 'TimeB') {
+  if (props.draft?.proximoTime === DraftTeamValues.TimeB) {
     return t('drafts.teams.red')
   }
   return t('drafts.status.finished')
 }
 
-function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
+function isActivePick(team: DraftTeamValue, index: number) {
   const slots = teamSlots(team)
   const firstEmptyIndex = slots.findIndex((player) => !player)
-  return props.draft?.status === 'Aberto' && props.draft.proximoTime === team && firstEmptyIndex === index
+  return props.draft?.status === DraftStatusValues.Aberto && props.draft.proximoTime === team && firstEmptyIndex === index
 }
 </script>
 
@@ -112,16 +105,16 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
   <section v-if="draft" class="draft-board" :aria-label="t('drafts.board.label')">
     <article class="draft-team draft-team--blue">
       <header class="draft-team__header">
-        <h2>{{ teamName('TimeA') }}</h2>
+        <h2>{{ teamName(DraftTeamValues.TimeA) }}</h2>
         <span>{{ t('drafts.board.captain', { name: draft.capitaoTimeA.nomeExibicao }) }}</span>
       </header>
 
       <ul class="draft-slots">
         <li
-          v-for="(player, index) in teamSlots('TimeA')"
+          v-for="(player, index) in teamSlots(DraftTeamValues.TimeA)"
           :key="player?.jogadorId ?? `time-a-empty-${index}`"
           class="draft-slot"
-          :class="{ 'draft-slot--empty': !player, 'draft-slot--active': isActivePick('TimeA', index) }"
+          :class="{ 'draft-slot--empty': !player, 'draft-slot--active': isActivePick(DraftTeamValues.TimeA, index) }"
         >
           <template v-if="player">
             <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
@@ -132,8 +125,8 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
             <span v-if="player.capitao" class="draft-slot__captain">C</span>
           </template>
           <template v-else>
-            <span>{{ isActivePick('TimeA', index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
-            <small v-if="isActivePick('TimeA', index)">{{ t('drafts.board.choosing') }}</small>
+            <span>{{ isActivePick(DraftTeamValues.TimeA, index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
+            <small v-if="isActivePick(DraftTeamValues.TimeA, index)">{{ t('drafts.board.choosing') }}</small>
           </template>
         </li>
       </ul>
@@ -143,7 +136,7 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
       <span class="draft-available__glow" aria-hidden="true" />
       <header class="draft-available__filters">
         <label class="draft-search-field">
-          <span aria-hidden="true">S</span>
+            <span aria-hidden="true">⌕</span>
           <input v-model="playerSearch" type="search" :placeholder="t('drafts.board.searchPlaceholder')" />
         </label>
         <div class="draft-route-filters" :aria-label="t('drafts.board.routeFilters')">
@@ -179,7 +172,7 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
           :key="player.id"
           type="button"
           class="draft-player-row"
-          :disabled="picking || draft.status !== 'Aberto'"
+          :disabled="picking || draft.status !== DraftStatusValues.Aberto"
           @click="$emit('pick', player)"
         >
           <span class="draft-player-row__identity">
@@ -196,16 +189,16 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
 
     <article class="draft-team draft-team--red">
       <header class="draft-team__header">
-        <h2>{{ teamName('TimeB') }}</h2>
+        <h2>{{ teamName(DraftTeamValues.TimeB) }}</h2>
         <span>{{ t('drafts.board.captain', { name: draft.capitaoTimeB.nomeExibicao }) }}</span>
       </header>
 
       <ul class="draft-slots">
         <li
-          v-for="(player, index) in teamSlots('TimeB')"
+          v-for="(player, index) in teamSlots(DraftTeamValues.TimeB)"
           :key="player?.jogadorId ?? `time-b-empty-${index}`"
           class="draft-slot"
-          :class="{ 'draft-slot--empty': !player, 'draft-slot--active': isActivePick('TimeB', index) }"
+          :class="{ 'draft-slot--empty': !player, 'draft-slot--active': isActivePick(DraftTeamValues.TimeB, index) }"
         >
           <template v-if="player">
             <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
@@ -216,8 +209,8 @@ function isActivePick(team: 'TimeA' | 'TimeB', index: number) {
             <span v-if="player.capitao" class="draft-slot__captain">C</span>
           </template>
           <template v-else>
-            <span>{{ isActivePick('TimeB', index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
-            <small v-if="isActivePick('TimeB', index)">{{ t('drafts.board.choosing') }}</small>
+            <span>{{ isActivePick(DraftTeamValues.TimeB, index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
+            <small v-if="isActivePick(DraftTeamValues.TimeB, index)">{{ t('drafts.board.choosing') }}</small>
           </template>
         </li>
       </ul>

@@ -3,18 +3,23 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { AuthRole } from '@/constants/authRoles'
+import {
+  USER_ROLE_FILTER_OPTIONS,
+  USER_STATUS_FILTER_OPTIONS,
+  type UserStatusFilterValue,
+} from '@/constants/userFilters'
 
 const emit = defineEmits<{
-  filter: [{ search?: string; role?: AuthRole | ''; status?: 'Ativo' | 'Desativado' | '' }]
+  filter: [{ search?: string; role?: AuthRole | ''; status?: UserStatusFilterValue | '' }]
 }>()
 
 const { t } = useI18n()
 
 const search = ref('')
 const role = ref<AuthRole | ''>('')
-const status = ref<'Ativo' | 'Desativado' | ''>('')
-const roleOptions: Array<AuthRole | ''> = ['', 'SuperAdmin', 'Admin', 'Moderador', 'Capitão', 'Jogador']
-const statusOptions: Array<'Ativo' | 'Desativado' | ''> = ['', 'Ativo', 'Desativado']
+const status = ref<UserStatusFilterValue | ''>('')
+const roleOptions = USER_ROLE_FILTER_OPTIONS
+const statusOptions = USER_STATUS_FILTER_OPTIONS
 </script>
 
 <template>
@@ -22,7 +27,7 @@ const statusOptions: Array<'Ativo' | 'Desativado' | ''> = ['', 'Ativo', 'Desativ
     <label class="user-filter-search">
       {{ t('usersAdmin.filters.search') }}
       <span>
-        <span aria-hidden="true">S</span>
+        <span aria-hidden="true">⌕</span>
         <input v-model="search" :placeholder="t('usersAdmin.filters.searchPlaceholder')" />
       </span>
     </label>

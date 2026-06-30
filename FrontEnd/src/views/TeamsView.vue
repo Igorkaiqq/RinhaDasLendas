@@ -5,7 +5,9 @@ import { useI18n } from 'vue-i18n'
 import TeamDeleteDialog from '@/components/teams/TeamDeleteDialog.vue'
 import TeamFormModal from '@/components/teams/TeamFormModal.vue'
 import TeamList from '@/components/teams/TeamList.vue'
+import { Permissions } from '@/constants/permissions'
 import { TEAM_STATUS_OPTIONS } from '@/constants/teamStatus'
+import { useAuthState } from '@/services/authState'
 import { listPlayers, type Player } from '@/services/players'
 import {
   createTeam,
@@ -19,6 +21,7 @@ import type { Team, TeamFormMode, TeamFormPayload, TeamStatusValue } from '@/typ
 
 const teams = ref<Team[]>([])
 const { t } = useI18n()
+const auth = useAuthState()
 const players = ref<Player[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -31,6 +34,7 @@ const formMode = ref<TeamFormMode>('create')
 const editingTeam = ref<Team | null>(null)
 const inactivatingTeam = ref<Team | null>(null)
 const notification = ref<string | null>(null)
+const canManageTeams = computed(() => auth.hasPermission(Permissions.CanManageMatches))
 
 const filteredTeams = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -71,6 +75,10 @@ async function loadPlayers() {
 }
 
 function openCreateModal() {
+  if (!canManageTeams.value) {
+    return
+  }
+
   formMode.value = 'create'
   editingTeam.value = null
   serviceErrors.value = []
@@ -78,6 +86,10 @@ function openCreateModal() {
 }
 
 function openEditModal(team: Team) {
+  if (!canManageTeams.value) {
+    return
+  }
+
   formMode.value = 'edit'
   editingTeam.value = team
   serviceErrors.value = []
@@ -113,7 +125,7 @@ async function saveTeam(payload: TeamFormPayload) {
 }
 
 async function confirmInactivate() {
-  if (!inactivatingTeam.value) {
+  if (!inactivatingTeam.value || !canManageTeams.value) {
     return
   }
 
@@ -128,6 +140,10 @@ async function confirmInactivate() {
 }
 
 async function reactivate(team: Team) {
+  if (!canManageTeams.value) {
+    return
+  }
+
   try {
     const updated = await reactivateTeam(team.id)
     teams.value = teams.value.map((current) => (current.id === updated.id ? updated : current))
@@ -152,7 +168,7 @@ function captureError(error: unknown) {
     <div v-if="notification" class="app-toast app-toast--success" role="status" aria-live="polite">
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification }}</p>
-      <button type="button" :aria-label="t('common.closeNotification')" @click="notification = null">x</button>
+      <button type="button" :aria-label="t('common.closeNotification')" @click="notification = null">×</button>
     </div>
 
     <header class="players-hero">
@@ -163,7 +179,7 @@ function captureError(error: unknown) {
       </div>
       <div class="page-hero__actions">
         <span class="page-hero__metric">{{ t('teams.metrics.visible', { visible: filteredTeams.length, total: teams.length }) }}</span>
-        <button type="button" @click="openCreateModal">{{ t('teams.createWithIcon') }}</button>
+        <button v-if="canManageTeams" type="button" @click="openCreateModal">{{ t('teams.createWithIcon') }}</button>
       </div>
     </header>
 
@@ -171,7 +187,7 @@ function captureError(error: unknown) {
       <label class="filter-field filter-field--wide">
         {{ t('teams.searchLabel') }}
         <span>
-          <span aria-hidden="true">SR</span>
+          <span aria-hidden="true">⌕</span>
           <input v-model="searchTerm" type="search" :placeholder="t('teams.searchPlaceholder')" />
         </span>
       </label>
@@ -179,16 +195,17 @@ function captureError(error: unknown) {
         {{ t('common.status') }}
         <select v-model="selectedStatus">
           <option value="">{{ t('common.all') }}</option>
-          <option v-for="status in TEAM_STATUS_OPTIONS" :key="status" :value="status">{{ status }}</option>
+          <option v-for="status in TEAM_STATUS_OPTIONS" :key="status" :value="status">{{ t(`teams.statusOptions.${status}`) }}</option>
         </select>
       </label>
-      <button class="filter-reset" type="button" :aria-label="t('common.clearFilters')" @click="resetFilters">=</button>
+      <button class="filter-reset" type="button" :aria-label="t('common.clearFilters')" @click="resetFilters">↺</button>
     </section>
 
     <TeamList
       :teams="filteredTeams"
       :loading="loading"
       :errors="errors"
+      :can-manage="canManageTeams"
       @create="openCreateModal"
       @edit="openEditModal"
       @inactivate="inactivatingTeam = $event"

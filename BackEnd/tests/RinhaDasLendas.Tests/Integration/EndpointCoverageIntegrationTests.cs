@@ -14,7 +14,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -22,6 +24,7 @@ namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class EndpointCoverageIntegrationTests
 {
+    private static readonly ResourceMessageProvider Messages = new();
     private readonly List<string> _errors = [];
 
     [Fact]
@@ -35,7 +38,7 @@ public sealed class EndpointCoverageIntegrationTests
         }
         catch (DockerUnavailableException exception)
         {
-            _errors.Add("Docker indisponivel para Testcontainers: " + exception.Message);
+            _errors.Add(M(MessageCodes.TestDockerUnavailable, exception.Message));
             var dockerUnavailableEndpoints = DiscoverEndpointsFromControllerMetadata();
             var dockerUnavailableCoveredEndpoints = CoveredEndpointKeys();
             WriteCoverageReport(dockerUnavailableEndpoints, dockerUnavailableCoveredEndpoints);
@@ -45,7 +48,7 @@ public sealed class EndpointCoverageIntegrationTests
                 .Select(endpoint => endpoint.DisplayName)
                 .ToList();
 
-            dockerUnavailableUncoveredEndpoints.Should().BeEmpty("todo endpoint exposto pela API precisa ter um cenario de integracao mapeado");
+            dockerUnavailableUncoveredEndpoints.Should().BeEmpty(M(MessageCodes.TestEndpointCoverageRequired));
             return;
         }
 
@@ -59,6 +62,7 @@ public sealed class EndpointCoverageIntegrationTests
             await ExecuteTimesFlowAsync(client);
             await ExecuteDraftsFlowAsync(client);
             await ExecuteDraftMontagensFlowAsync(client);
+            await ExecuteDiscordFlowAsync(client);
         }
         catch (Exception exception)
         {
@@ -75,7 +79,7 @@ public sealed class EndpointCoverageIntegrationTests
             .Select(endpoint => endpoint.DisplayName)
             .ToList();
 
-        uncoveredEndpoints.Should().BeEmpty("todo endpoint exposto pela API precisa ter um cenario de integracao mapeado");
+        uncoveredEndpoints.Should().BeEmpty(M(MessageCodes.TestEndpointCoverageRequired));
     }
 
     private async Task ExecuteJogadoresFlowAsync(PostgreSqlApiFactory factory, HttpClient client)
@@ -310,6 +314,14 @@ public sealed class EndpointCoverageIntegrationTests
         var getByIdResponse = await client.GetAsync($"/api/v1/draft-montagens/{created.Id}");
         getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        var realtimeStateResponse = await client.GetAsync($"/api/v1/draft-montagens/{created.Id}/realtime-state");
+        realtimeStateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var activeForDiscordRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/draft-montagens/ativos");
+        activeForDiscordRequest.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+        var activeForDiscordResponse = await client.SendAsync(activeForDiscordRequest);
+        activeForDiscordResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
         var firstFree = created.Livres.First();
         var secondFree = created.Livres.Skip(1).First();
         var layoutRequest = new SalvarLayoutDraftMontagemRequestDto(
@@ -342,6 +354,21 @@ public sealed class EndpointCoverageIntegrationTests
 
         var cancelResponse = await client.PatchAsJsonAsync($"/api/v1/draft-montagens/{cancelTarget!.Id}/cancelar", new CancelarDraftMontagemRequestDto("Teste cancelado"));
         cancelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private static async Task ExecuteDiscordFlowAsync(HttpClient client)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/discord/configuracoes");
+        request.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+
+        var response = await client.SendAsync(request);
+
+        response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound);
+
+        using var linkRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/usuarios/discord/discord-test-user/vinculo");
+        linkRequest.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+        var linkResponse = await client.SendAsync(linkRequest);
+        linkResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     private static async Task<JogadorResponseDto> CreateJogadorAsync(HttpClient client, string nome)
@@ -505,6 +532,7 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("GET", "/api/v1/usuarios"),
             EndpointKey.From("GET", "/api/v1/usuarios/roles"),
             EndpointKey.From("GET", "/api/v1/usuarios/{id}"),
+            EndpointKey.From("GET", "/api/v1/usuarios/discord/{discordUserId}/vinculo"),
             EndpointKey.From("PUT", "/api/v1/usuarios/{id}"),
             EndpointKey.From("PUT", "/api/v1/usuarios/{id}/roles"),
             EndpointKey.From("PATCH", "/api/v1/usuarios/{id}/ativar"),
@@ -522,10 +550,25 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("POST", "/api/v1/drafts"),
             EndpointKey.From("POST", "/api/v1/drafts/{id}/picks"),
             EndpointKey.From("PATCH", "/api/v1/drafts/{id}/cancelar"),
+            EndpointKey.From("GET", "/api/v1/discord/configuracoes"),
+            EndpointKey.From("PUT", "/api/v1/discord/configuracoes"),
             EndpointKey.From("GET", "/api/v1/draft-montagens"),
+            EndpointKey.From("GET", "/api/v1/draft-montagens/ativos"),
             EndpointKey.From("GET", "/api/v1/draft-montagens/{id}"),
+            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/realtime-state"),
             EndpointKey.From("POST", "/api/v1/draft-montagens"),
             EndpointKey.From("PUT", "/api/v1/draft-montagens/{id}/layout"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/iniciar-tempo-real"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/presencas/confirmar"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/presencas/cancelar"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/presencas/confirmar"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/presencas/cancelar"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/encerrar-presenca"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/capitaes"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/ordem-escolha"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacao"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/picks"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/reservas/substituir"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/capitaes/sortear"),
             EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/finalizar"),
             EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/cancelar")
@@ -543,19 +586,19 @@ public sealed class EndpointCoverageIntegrationTests
             .ToList();
 
         var report = new StringBuilder();
-        report.AppendLine("# Relatorio de cobertura de endpoints");
+        report.AppendLine($"# {M(MessageCodes.TestEndpointCoverageReportTitle)}");
         report.AppendLine();
-        report.AppendLine($"Gerado em UTC: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss}");
+        report.AppendLine($"{M(MessageCodes.TestGeneratedAtUtc)}: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss}");
         report.AppendLine();
-        AppendEndpointSection(report, "Endpoints encontrados", discoveredEndpoints);
-        AppendEndpointSection(report, "Endpoints testados", testedEndpoints);
-        AppendEndpointSection(report, "Endpoints sem cobertura", uncoveredEndpoints);
-        report.AppendLine("## Erros encontrados");
+        AppendEndpointSection(report, M(MessageCodes.TestDiscoveredEndpoints), discoveredEndpoints);
+        AppendEndpointSection(report, M(MessageCodes.TestCoveredEndpoints), testedEndpoints);
+        AppendEndpointSection(report, M(MessageCodes.TestUncoveredEndpoints), uncoveredEndpoints);
+        report.AppendLine($"## {M(MessageCodes.TestErrorsFound)}");
         report.AppendLine();
 
         if (_errors.Count == 0)
         {
-            report.AppendLine("Nenhum erro encontrado durante a execucao dos cenarios.");
+            report.AppendLine(M(MessageCodes.TestNoErrorsFound));
         }
         else
         {
@@ -579,7 +622,7 @@ public sealed class EndpointCoverageIntegrationTests
 
         if (endpoints.Count == 0)
         {
-            report.AppendLine("Nenhum endpoint.");
+            report.AppendLine(M(MessageCodes.TestNoEndpoint));
             report.AppendLine();
             return;
         }
@@ -588,9 +631,9 @@ public sealed class EndpointCoverageIntegrationTests
         {
             report.AppendLine($"### {endpoint.HttpMethod} {endpoint.Route}");
             report.AppendLine();
-            report.AppendLine($"- Parametros: {FormatParameters(endpoint.Parameters)}");
-            report.AppendLine($"- DTOs de entrada: {FormatList(endpoint.InputDtos)}");
-            report.AppendLine($"- DTOs de saida/status: {FormatResponses(endpoint.Responses)}");
+            report.AppendLine($"- {M(MessageCodes.TestParameters)}: {FormatParameters(endpoint.Parameters)}");
+            report.AppendLine($"- {M(MessageCodes.TestInputDtos)}: {FormatList(endpoint.InputDtos)}");
+            report.AppendLine($"- {M(MessageCodes.TestOutputDtos)}: {FormatResponses(endpoint.Responses)}");
             report.AppendLine();
         }
     }
@@ -598,19 +641,19 @@ public sealed class EndpointCoverageIntegrationTests
     private static string FormatParameters(IReadOnlyCollection<EndpointParameter> parameters)
     {
         return parameters.Count == 0
-            ? "Nenhum"
+            ? M(MessageCodes.TestNone)
             : string.Join(", ", parameters.Select(parameter => $"{parameter.Name} ({parameter.Source}: {parameter.TypeName})"));
     }
 
     private static string FormatList(IReadOnlyCollection<string> values)
     {
-        return values.Count == 0 ? "Nenhum" : string.Join(", ", values);
+        return values.Count == 0 ? M(MessageCodes.TestNone) : string.Join(", ", values);
     }
 
     private static string FormatResponses(IReadOnlyCollection<EndpointResponse> responses)
     {
         return responses.Count == 0
-            ? "Nao declarado"
+            ? M(MessageCodes.TestNotDeclared)
             : string.Join(", ", responses.Select(response => $"{response.StatusCode} => {response.TypeName}"));
     }
 
@@ -702,7 +745,8 @@ public sealed class EndpointCoverageIntegrationTests
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:RinhaDasLendas"] = _connectionString
-                        ?? throw new InvalidOperationException("O container PostgreSQL deve ser iniciado antes da API de teste.")
+                        ?? throw new InvalidOperationException(M(MessageCodes.TestPostgreSqlContainerNotStarted)),
+                    ["DiscordBot:InternalToken"] = "integration-test-token"
                 });
             });
         }
@@ -730,4 +774,10 @@ public sealed class EndpointCoverageIntegrationTests
     private sealed record EndpointParameter(string Name, string Source, string TypeName);
 
     private sealed record EndpointResponse(int StatusCode, string TypeName);
+
+    private static string M(string code, params object[] args)
+    {
+        var message = Messages.GetMessage(code, "pt-BR");
+        return args.Length == 0 ? message : string.Format(message, args);
+    }
 }

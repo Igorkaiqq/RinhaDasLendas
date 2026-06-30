@@ -1,4 +1,5 @@
 import type { AuthRole } from '@/constants/authRoles'
+import type { UserStatusFilterValue } from '@/constants/userFilters'
 import type { PaginatedUsers, ResetUserPasswordPayload, RoleOption, UpdateUserPayload, UpdateUserRolesPayload, UserDetails } from '@/types/users'
 
 import { api } from './api'
@@ -8,7 +9,7 @@ export interface UserFilters {
   nome?: string
   email?: string
   role?: AuthRole | ''
-  status?: 'Ativo' | 'Desativado' | ''
+  status?: UserStatusFilterValue | ''
   page?: number
   pageSize?: number
 }

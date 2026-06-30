@@ -30,7 +30,7 @@ function routeLabel(player: DraftMontagemParticipante) {
           <p>{{ eloSummary(player) }} · {{ routeLabel(player) }} · {{ player.status }}</p>
         </div>
         <span class="player-details-modal__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
-        <button type="button" :aria-label="t('common.close')" @click="$emit('close')">x</button>
+        <button type="button" :aria-label="t('common.close')" @click="$emit('close')">×</button>
       </header>
 
       <div class="player-details-modal__grid">

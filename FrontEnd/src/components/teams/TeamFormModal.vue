@@ -128,7 +128,7 @@ function submit() {
               <p class="page-kicker">{{ t('teams.title') }}</p>
               <h2 id="team-form-title">{{ title }}</h2>
             </div>
-            <button type="button" :aria-label="t('teams.form.close')" @click="$emit('close')">x</button>
+            <button type="button" :aria-label="t('teams.form.close')" @click="$emit('close')">×</button>
           </header>
 
           <form class="player-form player-form--modal" @submit.prevent="submit">

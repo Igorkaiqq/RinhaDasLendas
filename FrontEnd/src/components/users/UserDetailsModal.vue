@@ -58,7 +58,7 @@ onMounted(load)
           <span class="eyebrow">{{ t('usersAdmin.details.eyebrow') }}</span>
           <h2 id="user-details-title">{{ t('usersAdmin.details.title') }}</h2>
         </div>
-        <button class="icon-button" type="button" :aria-label="t('common.close')" @click="$emit('close')">x</button>
+        <button class="icon-button" type="button" :aria-label="t('common.close')" @click="$emit('close')">×</button>
       </header>
 
       <p v-if="!user" class="user-loading-card">{{ t('usersAdmin.details.loading') }}</p>

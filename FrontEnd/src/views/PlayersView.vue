@@ -208,7 +208,7 @@ function captureError(error: unknown) {
     >
       <span class="app-toast__indicator" aria-hidden="true" />
       <p>{{ notification.message }}</p>
-      <button type="button" :aria-label="t('players.closeNotification')" @click="dismissNotification">x</button>
+      <button type="button" :aria-label="t('players.closeNotification')" @click="dismissNotification">×</button>
     </div>
 
     <header class="players-hero">
@@ -229,7 +229,7 @@ function captureError(error: unknown) {
       <label class="filter-field filter-field--wide">
         {{ t('players.searchName') }}
         <span>
-          <span aria-hidden="true">S</span>
+          <span aria-hidden="true">⌕</span>
           <input v-model="searchTerm" type="search" :placeholder="t('players.searchPlaceholder')" />
         </span>
       </label>
@@ -256,7 +256,7 @@ function captureError(error: unknown) {
         {{ t('players.onlyActive') }}
       </label>
 
-      <button class="filter-reset" type="button" :aria-label="t('players.clearFilters')" @click="resetFilters">=</button>
+      <button class="filter-reset" type="button" :aria-label="t('players.clearFilters')" @click="resetFilters">↺</button>
     </section>
 
     <PlayerList
@@ -273,13 +273,6 @@ function captureError(error: unknown) {
       <span>
         {{ t('players.paginationSummary', { start: paginationStart, end: filteredPlayers.length, total: players.length }) }}
       </span>
-      <div>
-        <button type="button" disabled>&lt;</button>
-        <button type="button" class="is-active">1</button>
-        <button type="button">2</button>
-        <button type="button">3</button>
-        <button type="button">&gt;</button>
-      </div>
     </footer>
 
     <PlayerFormModal

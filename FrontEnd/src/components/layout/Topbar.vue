@@ -27,7 +27,7 @@ const { t } = useI18n()
 
     <div class="topbar__center">
       <label class="topbar__search" :aria-label="t('topbar.globalSearch')">
-        <span aria-hidden="true">SR</span>
+        <span aria-hidden="true">⌕</span>
         <input type="search" :placeholder="t('topbar.searchPlaceholder')" />
       </label>
     </div>
@@ -35,8 +35,8 @@ const { t } = useI18n()
     <div class="topbar__actions">
       <a class="topbar__link" href="https://discord.gg/UAu64Zhnd8" target="_blank" rel="noreferrer">{{ t('topbar.discord') }}</a>
       <span class="topbar__divider" aria-hidden="true" />
-      <button class="topbar__icon" type="button" :aria-label="t('topbar.notifications')">NT</button>
-      <button class="topbar__icon" type="button" :aria-label="t('topbar.settings')">CF</button>
+      <button class="topbar__icon" type="button" :aria-label="t('topbar.notifications')" disabled>•</button>
+      <button class="topbar__icon" type="button" :aria-label="t('topbar.settings')" disabled>⚙</button>
       <div class="topbar__profile">
         <span class="topbar__avatar" aria-hidden="true">{{ user.initials }}</span>
         <div class="topbar__user-copy">

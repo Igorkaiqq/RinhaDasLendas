@@ -29,6 +29,12 @@
   <data name="MSIS014" xml:space="preserve"><value>Draft criado com sucesso</value></data>
   <data name="MSIS015" xml:space="preserve"><value>Pick registrado com sucesso</value></data>
   <data name="MSIS016" xml:space="preserve"><value>Draft cancelado com sucesso</value></data>
+  <data name="MSIS017" xml:space="preserve"><value>Usuário criado com sucesso</value></data>
+  <data name="MSIS018" xml:space="preserve"><value>Login realizado com sucesso</value></data>
+  <data name="MSIS019" xml:space="preserve"><value>Logout realizado com sucesso</value></data>
+  <data name="MSIS020" xml:space="preserve"><value>Senha alterada com sucesso</value></data>
+  <data name="MSIS021" xml:space="preserve"><value>Recuperação de senha solicitada com sucesso</value></data>
+  <data name="MSIS022" xml:space="preserve"><value>Perfis do usuário atualizados com sucesso</value></data>
   <data name="ME001" xml:space="preserve"><value>Ocorreu um erro inesperado</value></data>
   <data name="ME002" xml:space="preserve"><value>Falha ao conectar ao servidor</value></data>
   <data name="ME003" xml:space="preserve"><value>Jogador não encontrado</value></data>
@@ -65,6 +71,11 @@
   <data name="ME034" xml:space="preserve"><value>OAuth do Discord ainda não implementado</value></data>
   <data name="ME035" xml:space="preserve"><value>Montagem de draft não encontrada</value></data>
   <data name="ME036" xml:space="preserve"><value>Token de redefinição inválido</value></data>
+  <data name="ME037" xml:space="preserve"><value>Authentication:Jwt:Key não configurado.</value></data>
+  <data name="ME038" xml:space="preserve"><value>Connection string RinhaDasLendas ou DefaultConnection não configurada.</value></data>
+  <data name="ME039" xml:space="preserve"><value>Authentication:BootstrapSuperAdmin exige Email e Senha quando Enabled=true.</value></data>
+  <data name="ME040" xml:space="preserve"><value>Não foi possível criar o SuperAdmin padrão: {0}</value></data>
+  <data name="ME041" xml:space="preserve"><value>Não foi possível atribuir SuperAdmin ao usuário padrão: {0}</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -127,6 +138,8 @@
   <data name="MC007" xml:space="preserve"><value>Deseja sobrescrever as estatísticas?</value></data>
   <data name="MC008" xml:space="preserve"><value>Deseja trocar os capitães?</value></data>
   <data name="MC009" xml:space="preserve"><value>Deseja cancelar as alterações?</value></data>
+  <data name="MC010" xml:space="preserve"><value>Deseja desativar este usuário?</value></data>
+  <data name="MC011" xml:space="preserve"><value>Deseja redefinir a senha deste usuário?</value></data>
   <data name="MA001" xml:space="preserve"><value>Existem alterações não salvas</value></data>
   <data name="MA002" xml:space="preserve"><value>Integração externa será ignorada</value></data>
   <data name="MA003" xml:space="preserve"><value>Dados informados manualmente precisam de revisão</value></data>
@@ -136,6 +149,7 @@
   <data name="MA007" xml:space="preserve"><value>Estatísticas podem estar desatualizadas</value></data>
   <data name="MA008" xml:space="preserve"><value>Ação disponível apenas para administradores</value></data>
   <data name="MA009" xml:space="preserve"><value>Revise os dados antes de continuar</value></data>
+  <data name="MA010" xml:space="preserve"><value>Sua sessão expirou. Entre novamente para continuar.</value></data>
   <data name="MV054" xml:space="preserve"><value>O layout manual fica bloqueado durante o draft em tempo real</value></data>
   <data name="MV055" xml:space="preserve"><value>A montagem já está em modo de draft em tempo real</value></data>
   <data name="MV056" xml:space="preserve"><value>O draft em tempo real ainda não foi iniciado</value></data>
@@ -156,16 +170,32 @@
   <data name="MV069" xml:space="preserve"><value>Não é possível desvincular o Discord sem manter login tradicional ativo</value></data>
   <data name="MV070" xml:space="preserve"><value>O Discord precisa retornar um e-mail verificado para criar a conta</value></data>
   <data name="MV071" xml:space="preserve"><value>Já existe uma conta com o e-mail deste Discord. Entre com usuário e senha e vincule o Discord nas configurações.</value></data>
-  <data name="MV072" xml:space="preserve"><value>The presence list is already closed</value></data>
-  <data name="MV073" xml:space="preserve"><value>Presence not found</value></data>
-  <data name="MV074" xml:space="preserve"><value>Fewer than 10 confirmed players requires a manual decision</value></data>
-  <data name="MV075" xml:space="preserve"><value>Presence must be closed before defining captains</value></data>
-  <data name="MV076" xml:space="preserve"><value>Invalid pick order</value></data>
-  <data name="MV077" xml:space="preserve"><value>Discord configuration not found</value></data>
-  <data name="MV078" xml:space="preserve"><value>Invalid Discord channel</value></data>
-  <data name="MV079" xml:space="preserve"><value>Invalid internal bot token</value></data>
-  <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
-  <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
-  <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>
-  <data name="MSIS028" xml:space="preserve"><value>Discord configuration updated</value></data>
+  <data name="MV072" xml:space="preserve"><value>A lista de presença já foi encerrada</value></data>
+  <data name="MV073" xml:space="preserve"><value>Presença não encontrada</value></data>
+  <data name="MV074" xml:space="preserve"><value>Menos de 10 jogadores confirmados exige decisão manual</value></data>
+  <data name="MV075" xml:space="preserve"><value>A presença precisa estar encerrada para definir capitães</value></data>
+  <data name="MV076" xml:space="preserve"><value>Ordem de escolha inválida</value></data>
+  <data name="MV077" xml:space="preserve"><value>Configuração do Discord não encontrada</value></data>
+  <data name="MV078" xml:space="preserve"><value>Canal Discord inválido</value></data>
+  <data name="MV079" xml:space="preserve"><value>Token interno do bot inválido</value></data>
+  <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
+  <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
+  <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>
+  <data name="MSIS028" xml:space="preserve"><value>Configuração do Discord atualizada</value></data>
+  <data name="MT001" xml:space="preserve"><value>Docker indisponível para Testcontainers: {0}</value></data>
+  <data name="MT002" xml:space="preserve"><value>todo endpoint exposto pela API precisa ter um cenário de integração mapeado</value></data>
+  <data name="MT003" xml:space="preserve"><value>Relatório de cobertura de endpoints</value></data>
+  <data name="MT004" xml:space="preserve"><value>Nenhum erro encontrado durante a execução dos cenários.</value></data>
+  <data name="MT005" xml:space="preserve"><value>Nenhum endpoint.</value></data>
+  <data name="MT006" xml:space="preserve"><value>Parâmetros</value></data>
+  <data name="MT007" xml:space="preserve"><value>DTOs de entrada</value></data>
+  <data name="MT008" xml:space="preserve"><value>DTOs de saída/status</value></data>
+  <data name="MT009" xml:space="preserve"><value>O container PostgreSQL deve ser iniciado antes da API de teste.</value></data>
+  <data name="MT010" xml:space="preserve"><value>Gerado em UTC</value></data>
+  <data name="MT011" xml:space="preserve"><value>Endpoints encontrados</value></data>
+  <data name="MT012" xml:space="preserve"><value>Endpoints testados</value></data>
+  <data name="MT013" xml:space="preserve"><value>Endpoints sem cobertura</value></data>
+  <data name="MT014" xml:space="preserve"><value>Erros encontrados</value></data>
+  <data name="MT015" xml:space="preserve"><value>Nenhum</value></data>
+  <data name="MT016" xml:space="preserve"><value>Não declarado</value></data>
 </root>

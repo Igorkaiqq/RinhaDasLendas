@@ -1,5 +1,7 @@
 import { AxiosError } from 'axios'
 
+import { DraftCriteriaValues, DraftTeamValues } from '@/constants/draft'
+import { DraftStatusValues } from '@/constants/draftStatus'
 import { MessageCode } from '@/constants/messageCode'
 import type { Draft, DraftPayload, DraftStatusValue } from '@/types/draft'
 
@@ -15,6 +17,7 @@ interface PaginatedDrafts {
 }
 
 interface ApiErrorResponse {
+  messageCode?: string
   message?: string
   errors?: string[]
 }
@@ -39,7 +42,7 @@ export async function listDrafts(filters: DraftFilters = {}): Promise<Draft[]> {
     })
     return response.data.items
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return filterFakeDrafts(filters)
     }
 
@@ -52,7 +55,7 @@ export async function createDraft(payload: DraftPayload): Promise<Draft> {
     const response = await api.post<Draft>('/api/v1/drafts', normalizePayload(payload))
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       const created = createFakeDraft(payload)
       fakeDrafts.unshift(created)
       return created
@@ -67,7 +70,7 @@ export async function registerDraftPick(id: string, jogadorId: string): Promise<
     const response = await api.post<Draft>(`/api/v1/drafts/${id}/picks`, { jogadorId })
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       return pickFakeDraft(id, jogadorId)
     }
 
@@ -80,9 +83,9 @@ export async function cancelDraft(id: string, motivo?: string | null): Promise<D
     const response = await api.patch<Draft>(`/api/v1/drafts/${id}/cancelar`, { motivo })
     return response.data
   } catch (error) {
-    if (isConnectionFailure(error)) {
+    if (canUseFakeFallback(error)) {
       const draft = requireFakeDraft(id)
-      draft.status = 'Cancelado'
+      draft.status = DraftStatusValues.Cancelado
       draft.proximoTime = null
       draft.motivoCancelamento = motivo
       return draft
@@ -115,11 +118,11 @@ function createFakeDraft(payload: DraftPayload): Draft {
     id: crypto.randomUUID(),
     nome: payload.nome,
     observacoes: payload.observacoes,
-    status: 'Aberto',
+    status: DraftStatusValues.Aberto,
     tamanhoTime: payload.tamanhoTime,
-    criterioCapitaes: payload.sortearCapitaes ? 'Sorteio' : 'Manual',
-    criterioPrimeiroPick: payload.sortearPrimeiroPick ? 'Sorteio' : 'Manual',
-    proximoTime: payload.primeiroTime ?? 'TimeA',
+    criterioCapitaes: payload.sortearCapitaes ? DraftCriteriaValues.Sorteio : DraftCriteriaValues.Manual,
+    criterioPrimeiroPick: payload.sortearPrimeiroPick ? DraftCriteriaValues.Sorteio : DraftCriteriaValues.Manual,
+    proximoTime: payload.primeiroTime ?? DraftTeamValues.TimeA,
     capitaoTimeA: capitaoA,
     capitaoTimeB: capitaoB,
     timeA: [{ jogadorId: capitaoA.id, nomeExibicao: capitaoA.nomeExibicao, capitao: true }],
@@ -134,19 +137,19 @@ function createFakeDraft(payload: DraftPayload): Draft {
 function pickFakeDraft(id: string, jogadorId: string): Draft {
   const draft = requireFakeDraft(id)
   const player = draft.disponiveis.find((available) => available.id === jogadorId)
-  if (!player || draft.status !== 'Aberto' || !draft.proximoTime) {
+  if (!player || draft.status !== DraftStatusValues.Aberto || !draft.proximoTime) {
     throw new DraftServiceError([getMessage(MessageCode.DraftInvalidPlayer)])
   }
 
   const participant = { jogadorId: player.id, nomeExibicao: player.nomeExibicao, capitao: false }
   const pickedTeam = draft.proximoTime
-  const captainId = pickedTeam === 'TimeA' ? draft.capitaoTimeA.id : draft.capitaoTimeB.id
-  if (pickedTeam === 'TimeA') {
+  const captainId = pickedTeam === DraftTeamValues.TimeA ? draft.capitaoTimeA.id : draft.capitaoTimeB.id
+  if (pickedTeam === DraftTeamValues.TimeA) {
     draft.timeA.push(participant)
-    draft.proximoTime = 'TimeB'
+    draft.proximoTime = DraftTeamValues.TimeB
   } else {
     draft.timeB.push(participant)
-    draft.proximoTime = 'TimeA'
+    draft.proximoTime = DraftTeamValues.TimeA
   }
   draft.disponiveis = draft.disponiveis.filter((available) => available.id !== jogadorId)
   draft.escolhas.push({
@@ -158,7 +161,7 @@ function pickFakeDraft(id: string, jogadorId: string): Draft {
     dataEscolha: new Date().toISOString(),
   })
   if (draft.timeA.length >= draft.tamanhoTime && draft.timeB.length >= draft.tamanhoTime) {
-    draft.status = 'Concluido'
+    draft.status = DraftStatusValues.Concluido
     draft.proximoTime = null
   }
   return draft
@@ -184,6 +187,10 @@ function toDraftServiceError(error: unknown): DraftServiceError {
       return new DraftServiceError(data.errors)
     }
 
+    if (data?.messageCode) {
+      return new DraftServiceError([getMessage(data.messageCode)])
+    }
+
     if (data?.message) {
       return new DraftServiceError([data.message])
     }
@@ -194,4 +201,8 @@ function toDraftServiceError(error: unknown): DraftServiceError {
 
 function isConnectionFailure(error: unknown): boolean {
   return error instanceof AxiosError && !error.response
+}
+
+function canUseFakeFallback(error: unknown): boolean {
+  return import.meta.env.VITE_ENABLE_FAKE_FALLBACK === 'true' && isConnectionFailure(error)
 }

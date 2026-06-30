@@ -9,6 +9,7 @@ const { t } = useI18n()
 
 defineProps<{
   team: Team
+  canManage: boolean
 }>()
 
 defineEmits<{
@@ -52,11 +53,11 @@ function initials(name: string) {
 
     <div class="route-preferences-panel" :aria-label="t('teams.card.members')">
       <span v-for="member in team.membros" :key="member.jogadorId" class="route-pill">
-        {{ member.capitao ? '*' : '' }}{{ member.nomeExibicao }}
+        {{ member.capitao ? '★ ' : '' }}{{ member.nomeExibicao }}
       </span>
     </div>
 
-    <div class="player-card__actions">
+    <div v-if="canManage" class="player-card__actions">
       <button type="button" class="button-secondary" @click="$emit('edit', team)">{{ t('common.edit') }}</button>
       <button v-if="team.status === TeamStatus.Active" type="button" class="button-danger" @click="$emit('inactivate', team)">
         {{ t('teams.actions.inactivate') }}

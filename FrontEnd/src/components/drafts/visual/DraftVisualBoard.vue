@@ -3,6 +3,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { DraftMontagemEstadoValues, DraftMontagemModoValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
+import {
+  DRAFT_MONTAGEM_ROUTE_BY_FILTER,
+  DRAFT_ROUTE_FILTER_OPTIONS,
+  DraftRouteFilterValues,
+  type DraftRouteFilterValue,
+} from '@/constants/draftRouteFilters'
 import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
@@ -29,27 +36,20 @@ const dragged = ref<{ jogadorId: string } | null>(null)
 const detailsPlayer = ref<DraftMontagemParticipante | null>(null)
 const dirty = ref(false)
 const playerSearch = ref('')
-const selectedRoute = ref('TODAS AS ROTAS')
+const selectedRoute = ref<DraftRouteFilterValue>(DraftRouteFilterValues.All)
 const now = ref(Date.now())
 const soundEnabled = ref(false)
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
 let audioContext: AudioContext | null = null
 let lastTickSecond: number | null = null
-const routeFilters = ['TODAS AS ROTAS', 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPORTE']
-const routeByFilter: Record<string, DraftMontagemRota | null> = {
-  'TODAS AS ROTAS': null,
-  TOP: 'Top',
-  JUNGLE: 'Jungle',
-  MID: 'Mid',
-  ADC: 'Adc',
-  SUPORTE: 'Support',
-}
+const routeFilters = DRAFT_ROUTE_FILTER_OPTIONS
+const routeByFilter = DRAFT_MONTAGEM_ROUTE_BY_FILTER
 
-const isRealtime = computed(() => localMontagem.value.modo === 'TempoReal')
-const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== 'Aberta' || isRealtime.value)
-const isOpen = computed(() => localMontagem.value.status === 'Aberta')
+const isRealtime = computed(() => localMontagem.value.modo === DraftMontagemModoValues.TempoReal)
+const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== DraftMontagemStatusValues.Aberta || isRealtime.value)
+const isOpen = computed(() => localMontagem.value.status === DraftMontagemStatusValues.Aberta)
 const hasActiveTurn = computed(() => isRealtime.value && isOpen.value && Boolean(localMontagem.value.turnoAtualTimeId && localMontagem.value.turnoAtualCapitaoId && localMontagem.value.turnoExpiraEm))
-const canPick = computed(() => isRealtime.value && localMontagem.value.status === 'Aberta' && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)
+const canPick = computed(() => isRealtime.value && localMontagem.value.status === DraftMontagemStatusValues.Aberta && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)
 const currentTurnTeam = computed(() => localMontagem.value.times.find((time) => time.id === localMontagem.value.turnoAtualTimeId) ?? null)
 const currentTurnCaptain = computed(() => allPlayers().find((player) => player.jogadorId === localMontagem.value.turnoAtualCapitaoId) ?? null)
 const remainingSeconds = computed(() => {
@@ -158,11 +158,11 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
   removePlayer(player.jogadorId)
   const moved = { ...player, capitao: false }
   if (target === 'livres') {
-    moved.estado = 'Livre'
+    moved.estado = DraftMontagemEstadoValues.Livre
     moved.ordem = localMontagem.value.livres.length + 1
     localMontagem.value.livres.push(moved)
   } else if (target === 'reservas') {
-    moved.estado = 'Reserva'
+    moved.estado = DraftMontagemEstadoValues.Reserva
     moved.ordem = localMontagem.value.reservas.length + 1
     localMontagem.value.reservas.push(moved)
   } else {
@@ -170,7 +170,7 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
     if (!time || time.jogadores.length >= localMontagem.value.tamanhoEquipe) {
       return
     }
-    moved.estado = 'Time'
+    moved.estado = DraftMontagemEstadoValues.Time
     moved.ordem = time.jogadores.length + 1
     moved.capitao = time.capitaoId === moved.jogadorId
     time.jogadores.push(moved)
@@ -179,7 +179,7 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
 }
 
 function canPickPlayer(player: DraftMontagemParticipante) {
-  return canPick.value && player.estado === 'Livre' && !props.saving
+  return canPick.value && player.estado === DraftMontagemEstadoValues.Livre && !props.saving
 }
 
 async function toggleTimerSound() {
@@ -397,7 +397,7 @@ async function exportImage() {
         <span class="draft-available__glow" aria-hidden="true" />
         <header class="draft-available__filters">
           <label class="draft-search-field">
-            <span aria-hidden="true">S</span>
+            <span aria-hidden="true">⌕</span>
             <input v-model="playerSearch" type="search" :placeholder="t('drafts.visualBoard.searchPlaceholder')" />
           </label>
           <div class="draft-route-filters" :aria-label="t('drafts.visualBoard.displayedRoutes')">
@@ -417,13 +417,13 @@ async function exportImage() {
           <div class="draft-player-row draft-player-row--head" role="row">
             <span>{{ t('drafts.board.player') }}</span>
           </div>
-          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :draggable="!isReadOnly && player.estado === 'Livre'" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
+          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :draggable="!isReadOnly && player.estado === DraftMontagemEstadoValues.Livre" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
             <span class="draft-player-row__identity">
               <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>
                   {{ player.nomeExibicao }}
-                  <span v-if="player.estado === 'Reserva'" class="draft-visual-reserve-badge">{{ t('drafts.visualBoard.reserve') }}</span>
+                  <span v-if="player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.visualBoard.reserve') }}</span>
                 </strong>
                 <small>{{ eloSummary(player) }}</small>
                 <span class="draft-visual-routes">
@@ -433,7 +433,7 @@ async function exportImage() {
               </span>
             </span>
             <button v-if="canPickPlayer(player)" type="button" class="draft-pick-action" @click.stop="emit('pick', player.jogadorId)">{{ t('drafts.realtime.pick') }}</button>
-            <span v-else-if="isRealtime && player.estado === 'Reserva'" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
+            <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
           </article>
         </div>
         <p v-if="!filteredAvailablePlayers.length" class="empty-copy">{{ t('drafts.visualBoard.noPlayersForFilter') }}</p>

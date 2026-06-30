@@ -32,7 +32,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new GetDraftMontagemByIdQuery(id), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpGet("ativos")]
@@ -49,7 +49,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> GetRealtimeState([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new GetDraftMontagemRealtimeStateQuery(id), cancellationToken);
-        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(state);
     }
 
     [HttpPost]
@@ -70,27 +70,47 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> StartRealtime([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new IniciarDraftMontagemTempoRealCommand(id), cancellationToken);
-        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(state);
     }
 
     [HttpPost("{id:guid}/presencas/confirmar")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ConfirmPresence([FromRoute] Guid id, [FromBody] ConfirmarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new ConfirmarPresencaDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/presencas/cancelar")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CancelPresence([FromRoute] Guid id, [FromBody] CancelarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new CancelarPresencaDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpPost("{id:guid}/discord/presencas/confirmar")]
+    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ConfirmDiscordPresence([FromRoute] Guid id, [FromBody] ConfirmarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new ConfirmarPresencaDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpPost("{id:guid}/discord/presencas/cancelar")]
+    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelDiscordPresence([FromRoute] Guid id, [FromBody] CancelarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new CancelarPresencaDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/encerrar-presenca")]
@@ -100,7 +120,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> ClosePresence([FromRoute] Guid id, [FromBody] EncerrarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new EncerrarPresencaDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/capitaes")]
@@ -110,7 +130,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> DefineCaptains([FromRoute] Guid id, [FromBody] DefinirCapitaesDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new DefinirCapitaesDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/ordem-escolha")]
@@ -120,7 +140,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> DefinePickOrder([FromRoute] Guid id, [FromBody] DefinirOrdemEscolhaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new DefinirOrdemEscolhaDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/discord/publicacao")]
@@ -130,7 +150,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> RegisterDiscordPublication([FromRoute] Guid id, [FromBody] RegistrarPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new RegistrarPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/picks")]
@@ -140,7 +160,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> Pick([FromRoute] Guid id, [FromBody] RegistrarPickDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new RegistrarPickDraftMontagemCommand(id, request), cancellationToken);
-        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(state);
     }
 
     [HttpPost("{id:guid}/reservas/substituir")]
@@ -151,7 +171,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> SubstituteReserve([FromRoute] Guid id, [FromBody] SubstituirReservaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new SubstituirReservaDraftMontagemCommand(id, request), cancellationToken);
-        return state is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(state);
+        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(state);
     }
 
     [HttpPut("{id:guid}/layout")]
@@ -162,7 +182,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> SaveLayout([FromRoute] Guid id, [FromBody] SalvarLayoutDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new SalvarLayoutDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPost("{id:guid}/capitaes/sortear")]
@@ -172,7 +192,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> DrawCaptains([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new SortearCapitaesDraftMontagemCommand(id), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPatch("{id:guid}/finalizar")]
@@ -182,7 +202,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> Finalize([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new FinalizarDraftMontagemCommand(id), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
     [HttpPatch("{id:guid}/cancelar")]
@@ -192,6 +212,6 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> Cancel([FromRoute] Guid id, [FromBody] CancelarDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new CancelarDraftMontagemCommand(id, request), cancellationToken);
-        return montagem is null ? NotFound(new ApiErrorResponse(messages.GetMessage(MessageCodes.DraftMontagemNotFound), [])) : Ok(montagem);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 }

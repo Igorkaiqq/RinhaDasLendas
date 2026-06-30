@@ -7,6 +7,7 @@ const schema = z.object({
   DISCORD_GUILD_ID: z.string().min(1),
   RINHA_API_BASE_URL: z.string().url(),
   RINHA_API_INTERNAL_TOKEN: z.string().min(1),
+  BOT_LOCALE: z.enum(['pt-BR', 'en-US']).default('pt-BR'),
   NODE_ENV: z.string().default('development'),
   LOG_LEVEL: z.string().default('debug'),
 })

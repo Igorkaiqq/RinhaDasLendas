@@ -38,12 +38,3 @@ public sealed class GetDraftMontagensQueryHandler(IDraftMontagemRepository repos
             (int)Math.Ceiling(total / (double)pageSize));
     }
 }
-
-public sealed class GetDraftMontagemByIdQueryHandler(IDraftMontagemRepository repository) : IRequestHandler<GetDraftMontagemByIdQuery, DraftMontagemResponseDto?>
-{
-    public async Task<DraftMontagemResponseDto?> Handle(GetDraftMontagemByIdQuery query, CancellationToken cancellationToken)
-    {
-        var montagem = await repository.GetByIdAsync(query.Id, cancellationToken);
-        return montagem is null ? null : DraftMontagemResponseDto.FromEntity(montagem);
-    }
-}

@@ -89,7 +89,7 @@ public sealed class CreateJogadorTests
         var result = await validator.ValidateAsync(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("OP.GG"));
-        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("Deeplol"));
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.InvalidOpGgLink);
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.InvalidDeeplolLink);
     }
 }

@@ -1,4 +1,6 @@
 import { env } from '../../config/env.js'
+import { DraftPresenceOrigin, DraftPickOrderMode } from '../constants/draftConstants/index.js'
+import { t } from '../messages/index.js'
 import type { DiscordConfiguration, DiscordUserLink, DraftMontagem } from './types.js'
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -14,7 +16,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const body = await response.text()
     if (response.status === 401) {
-      throw new Error('Unauthorized: verifique se RINHA_API_INTERNAL_TOKEN está igual no backend e no discord-bot, e reinicie a API após alterar o token.')
+      throw new Error(t.unauthorizedApi)
     }
 
     throw new Error(body || response.statusText)
@@ -33,12 +35,12 @@ export const rinhaApi = {
       body: JSON.stringify({ ...payload, tamanhoEquipe: 5, sortearCapitaes: false, capitaesIds: [], jogadoresIds: [] }),
     }),
   confirmPresence: (draftId: string, discordUserId: string) =>
-    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/presencas/confirmar`, {
+    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/presencas/confirmar`, {
       method: 'POST',
-      body: JSON.stringify({ discordUserId, origem: 'Discord' }),
+      body: JSON.stringify({ discordUserId, origem: DraftPresenceOrigin.Discord }),
     }),
   cancelPresence: (draftId: string, discordUserId: string) =>
-    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/presencas/cancelar`, {
+    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/presencas/cancelar`, {
       method: 'POST',
       body: JSON.stringify({ discordUserId }),
     }),
@@ -52,8 +54,13 @@ export const rinhaApi = {
       method: 'POST',
       body: JSON.stringify({ continuarComMenosDez: false, tamanhoEquipe: 5 }),
     }),
+  cancelDraft: (draftId: string, motivo?: string | null) =>
+    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/cancelar`, {
+      method: 'PATCH',
+      body: JSON.stringify({ motivo }),
+    }),
   defineCaptains: (draftId: string, capitaesIds: string[]) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/capitaes`, { method: 'POST', body: JSON.stringify({ capitaesIds }) }),
-  definePickOrder: (draftId: string, modo: 'Manual' | 'Sorteado', capitaesIds: string[] = []) =>
+  definePickOrder: (draftId: string, modo: (typeof DraftPickOrderMode)[keyof typeof DraftPickOrderMode], capitaesIds: string[] = []) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/ordem-escolha`, { method: 'POST', body: JSON.stringify({ modo, capitaesIds }) }),
 }

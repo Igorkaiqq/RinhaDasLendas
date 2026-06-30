@@ -2,12 +2,14 @@ import { Client, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.j
 import { env } from './config/env.js'
 import { draftCommands } from './discord/commands/draftCommands.js'
 import { DiscordChannelAccessError, handleDraftCommand, handlePresenceButton, startDraftPolling } from './modules/drafts/draftInteractions.js'
+import { PresenceButtonPrefix } from './shared/constants/draftConstants/index.js'
+import { logger } from './shared/logger.js'
 import { t } from './shared/messages/index.js'
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] })
 
 client.once('clientReady', () => {
-  console.log(`Discord bot online: ${client.user?.tag}`)
+  logger.info('Discord bot online', { bot: client.user?.tag })
   startDraftPolling(client)
 })
 
@@ -18,11 +20,11 @@ client.on('interactionCreate', async (interaction) => {
       return
     }
 
-    if (interaction.isButton() && interaction.customId.startsWith('presence:')) {
+    if (interaction.isButton() && interaction.customId.startsWith(`${PresenceButtonPrefix}:`)) {
       await handlePresenceButton(interaction)
     }
   } catch (error) {
-    console.error(error)
+    logger.error('Discord interaction failed', error, { interactionId: interaction.id })
     if (interaction.isRepliable() && !interaction.replied) {
       await interaction.reply({ content: error instanceof DiscordChannelAccessError ? error.userMessage : t.genericError, flags: MessageFlags.Ephemeral })
     }

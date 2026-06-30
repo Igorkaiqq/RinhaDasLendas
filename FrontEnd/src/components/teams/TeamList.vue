@@ -10,6 +10,7 @@ defineProps<{
   teams: Team[]
   loading: boolean
   errors: string[]
+  canManage: boolean
 }>()
 
 defineEmits<{
@@ -33,7 +34,7 @@ defineEmits<{
     <p class="page-kicker">{{ t('playerStates.emptyKicker') }}</p>
     <h2>{{ t('teams.emptyTitle') }}</h2>
     <p>{{ t('teams.emptyDescription') }}</p>
-    <button type="button" @click="$emit('create')">{{ t('teams.create') }}</button>
+    <button v-if="canManage" type="button" @click="$emit('create')">{{ t('teams.create') }}</button>
   </section>
 
   <section v-else class="player-grid" :aria-label="t('teams.listLabel')">
@@ -41,6 +42,7 @@ defineEmits<{
       v-for="team in teams"
       :key="team.id"
       :team="team"
+      :can-manage="canManage"
       @edit="$emit('edit', $event)"
       @inactivate="$emit('inactivate', $event)"
       @reactivate="$emit('reactivate', $event)"

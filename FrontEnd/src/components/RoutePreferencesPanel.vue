@@ -20,7 +20,10 @@ function orderedPreferences() {
       v-for="preference in orderedPreferences()"
       :key="preference.rota"
       class="route-panel__badge"
-      :class="`route-panel__badge--${preference.rota.toLowerCase()}`"
+      :class="{
+        'route-panel__badge--primary': preference.prioridade === 1,
+        'route-panel__badge--blocked': preference.naoJogoNemLascando,
+      }"
     >
       {{ preference.prioridade }}. {{ preference.rota }}
       <strong v-if="preference.naoJogoNemLascando">{{ t('routePreferences.blocked') }}</strong>
@@ -41,9 +44,10 @@ function orderedPreferences() {
   gap: var(--space-xxs);
   min-height: 28px;
   padding: 4px 10px;
-  border: 1px solid currentcolor;
+  border: 1px solid var(--color-hairline-soft);
   border-radius: var(--radius-pill);
   background: var(--color-canvas-raised);
+  color: var(--color-ink-muted);
   font-size: 12px;
   font-weight: 700;
   transition:
@@ -57,9 +61,15 @@ function orderedPreferences() {
   font-size: 11px;
 }
 
-.route-panel__badge--top { color: var(--role-top); }
-.route-panel__badge--jungle { color: var(--role-jungle); }
-.route-panel__badge--mid { color: var(--role-mid); }
-.route-panel__badge--adc { color: var(--role-adc); }
-.route-panel__badge--support { color: var(--role-support); }
+.route-panel__badge--primary {
+  border-color: rgb(139 92 246 / 42%);
+  color: var(--color-ink);
+  background: rgb(124 58 237 / 10%);
+}
+
+.route-panel__badge--blocked {
+  border-color: rgb(239 68 68 / 34%);
+  color: var(--color-ink-muted);
+  background: rgb(239 68 68 / 7%);
+}
 </style>

@@ -1,9 +1,11 @@
 import { AxiosError } from 'axios'
 
+import { DraftMontagemPresencaOrigemValues } from '@/constants/draftMontagem'
 import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
+  DraftMontagemOrdemEscolhaModo,
   DraftMontagemPayload,
   DraftMontagemRealtimeState,
   DraftMontagemResumo,
@@ -22,6 +24,7 @@ interface PaginatedDraftMontagens {
 }
 
 interface ApiErrorResponse {
+  messageCode?: string
   message?: string
   errors?: string[]
 }
@@ -72,7 +75,7 @@ export async function createDraftMontagem(payload: DraftMontagemPayload): Promis
 
 export async function confirmDraftMontagemPresence(id: string): Promise<DraftMontagem> {
   try {
-    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/confirmar`, { origem: 'Web' })
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/confirmar`, { origem: DraftMontagemPresencaOrigemValues.Web })
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -106,7 +109,7 @@ export async function defineDraftMontagemCaptains(id: string, capitaesIds: strin
   }
 }
 
-export async function defineDraftMontagemPickOrder(id: string, modo: 'Manual' | 'Sorteado', capitaesIds: string[] = []): Promise<DraftMontagem> {
+export async function defineDraftMontagemPickOrder(id: string, modo: DraftMontagemOrdemEscolhaModo, capitaesIds: string[] = []): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/ordem-escolha`, { modo, capitaesIds })
     return response.data
@@ -191,6 +194,10 @@ function toDraftMontagemServiceError(error: unknown): DraftMontagemServiceError 
     if (Array.isArray(data?.errors) && data.errors.length > 0) {
       return new DraftMontagemServiceError(data.errors)
     }
+    if (data?.messageCode) {
+      return new DraftMontagemServiceError([getMessage(data.messageCode)])
+    }
+
     if (data?.message) {
       return new DraftMontagemServiceError([data.message])
     }

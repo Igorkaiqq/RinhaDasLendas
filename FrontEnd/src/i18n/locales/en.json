@@ -16,6 +16,7 @@
     "support": "Support",
     "logout": "Log out",
     "joinTournament": "Join Tournament",
+    "joinTournamentSoon": "Tournament soon",
     "arena": "Arena",
     "soon": "Soon",
     "expandSidebar": "Expand sidebar",
@@ -60,11 +61,42 @@
     "hero": {
       "eyebrow": "Internal competitive platform",
       "title": "Organize the next rinha with tournament pace.",
-      "description": "Centralize players, teams, drafts, and community history in an experience prepared for Discord, Riot, and match nights."
+      "description": "Centralize players, teams, drafts, and community history in an experience prepared for Discord, Riot, and match nights.",
+      "actionsLabel": "Main dashboard actions",
+      "primaryAction": "Open draft",
+      "secondaryAction": "View players"
     },
     "signal": {
       "label": "Live ops",
-      "status": "Drafts and players ready"
+      "status": "Drafts and players ready",
+      "description": "The foundation already covers registration, presence, team building, and bot integration."
+    },
+    "about": {
+      "label": "About the application",
+      "eyebrow": "What it is",
+      "title": "A hub that turns community match night into organized operations.",
+      "description": "RinhaDasLendas reduces manual coordination in chat, loose spreadsheets, and improvised decisions. The platform keeps player data, route preferences, presence, and draft in one flow so organizers can focus on the match."
+    },
+    "workflow": {
+      "label": "How it works",
+      "eyebrow": "Rinha flow",
+      "title": "From registration to draft in four steps.",
+      "steps": {
+        "players": { "title": "Complete players", "description": "Each participant provides Riot ID, elo, useful links, and route preferences to make balancing more reliable." },
+        "presence": { "title": "Confirmed presence", "description": "The presence list shows who will actually play, avoiding teams built with absent players or undefined reserves." },
+        "draft": { "title": "Captains and picks", "description": "Realtime setup organizes captains, pick order, reserves, and final teams with visible history." },
+        "history": { "title": "Statistics foundation", "description": "Player, draft, and match history prepares rankings, retrospectives, and future Riot integrations." }
+      }
+    },
+    "roadmap": {
+      "label": "Upcoming improvements",
+      "eyebrow": "Evolving",
+      "title": "The dashboard also shows where the platform is going.",
+      "items": {
+        "discord": { "tag": "BOT", "title": "Deeper Discord", "description": "Commands, announcements, and automatic presence bring organization closer to the channel where the community already talks." },
+        "riot": { "tag": "API", "title": "Riot data", "description": "Future integration can reduce manual registration and enrich statistics with official data." },
+        "stats": { "tag": "MMR", "title": "Statistics and ranking", "description": "Registered matches become performance comparisons, team history, and player progression." }
+      }
     },
     "cards": {
       "discord": { "title": "Group Discord", "description": "Centralize players, calls, and rinha organization with consistent group data." },
@@ -404,6 +436,13 @@
       "Aberto": "Open",
       "Concluido": "Completed",
       "Cancelado": "Canceled",
+      "PresencaAberta": "Presence open",
+      "PresencaEncerrada": "Presence closed",
+      "CapitaesDefinidos": "Captains defined",
+      "OrdemDefinida": "Order defined",
+      "Aberta": "Open",
+      "Finalizada": "Finished",
+      "Cancelada": "Canceled",
       "finished": "Finished"
     },
     "createModal": {

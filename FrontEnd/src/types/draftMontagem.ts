@@ -1,10 +1,23 @@
+import {
+  DraftMontagemEscolhaTipoValues,
+  DraftMontagemEstadoValues,
+  DraftMontagemModoValues,
+  DraftMontagemOrdemEscolhaModoValues,
+  DraftMontagemPresencaOrigemValues,
+  DraftMontagemPresencaStatusValues,
+  DraftMontagemStatusValues,
+} from '@/constants/draftMontagem'
 import type { RoutePreference } from '@/services/players'
+import type { DraftCriteriaValue } from '@/types/draft'
 
-export type DraftMontagemStatus = 'PresencaAberta' | 'PresencaEncerrada' | 'CapitaesDefinidos' | 'OrdemDefinida' | 'Aberta' | 'Finalizada' | 'Cancelada'
-export type DraftMontagemEstado = 'Livre' | 'Reserva' | 'Time'
+export type DraftMontagemStatus = (typeof DraftMontagemStatusValues)[keyof typeof DraftMontagemStatusValues]
+export type DraftMontagemEstado = (typeof DraftMontagemEstadoValues)[keyof typeof DraftMontagemEstadoValues]
 export type DraftMontagemRota = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
-export type DraftMontagemModo = 'Manual' | 'TempoReal'
-export type DraftMontagemEscolhaTipo = 'Escolha' | 'Timeout'
+export type DraftMontagemModo = (typeof DraftMontagemModoValues)[keyof typeof DraftMontagemModoValues]
+export type DraftMontagemEscolhaTipo = (typeof DraftMontagemEscolhaTipoValues)[keyof typeof DraftMontagemEscolhaTipoValues]
+export type DraftMontagemOrdemEscolhaModo = (typeof DraftMontagemOrdemEscolhaModoValues)[keyof typeof DraftMontagemOrdemEscolhaModoValues]
+export type DraftMontagemPresencaStatus = (typeof DraftMontagemPresencaStatusValues)[keyof typeof DraftMontagemPresencaStatusValues]
+export type DraftMontagemPresencaOrigem = (typeof DraftMontagemPresencaOrigemValues)[keyof typeof DraftMontagemPresencaOrigemValues]
 
 export interface DraftMontagemParticipante {
   jogadorId: string
@@ -43,7 +56,7 @@ export interface DraftMontagem {
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
-  criterioCapitaes: 'Manual' | 'Sorteio'
+  criterioCapitaes: DraftCriteriaValue
   turnoAtualTimeId?: string | null
   turnoAtualCapitaoId?: string | null
   turnoSequencia?: number | null
@@ -53,7 +66,7 @@ export interface DraftMontagem {
   horarioEncerramentoPresenca?: string | null
   discordGuildId?: string | null
   discordPresenceMessageId?: string | null
-  ordemEscolhaModo?: 'Manual' | 'Sorteado' | null
+  ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
   presencas: DraftMontagemPresenca[]
   times: DraftMontagemTime[]
@@ -77,7 +90,7 @@ export interface DraftMontagemResumo {
   horarioEncerramentoPresenca?: string | null
   discordGuildId?: string | null
   discordPresenceMessageId?: string | null
-  ordemEscolhaModo?: 'Manual' | 'Sorteado' | null
+  ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
   dataCadastro: string
   dataAtualizacao: string
@@ -89,8 +102,8 @@ export interface DraftMontagemPresenca {
   jogadorId: string
   nomeExibicao: string
   discordUserId?: string | null
-  origemConfirmacao: 'Web' | 'Discord'
-  status: 'Confirmada' | 'Cancelada'
+  origemConfirmacao: DraftMontagemPresencaOrigem
+  status: DraftMontagemPresencaStatus
   confirmadoEm: string
   canceladoEm?: string | null
   ordemConfirmacao: number
