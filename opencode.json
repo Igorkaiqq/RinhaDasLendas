@@ -1,0 +1,50 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "figma": {
+      "type": "remote",
+      "url": "https://mcp.figma.com/mcp",
+      "enabled": false,
+      "timeout": 30000
+    },
+    "figma-ai": {
+      "type": "local",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "rinhadaslendas_devcontainer",
+        "-f",
+        ".devcontainer/docker-compose.yml",
+        "exec",
+        "-T",
+        "app",
+        "figma-developer-mcp",
+        "--stdio"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "enabled": true
+    },
+    "shadcnVue": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "shadcn-vue@latest",
+        "mcp"
+      ]
+    }
+  },
+  "experimental": {
+    "mcp_timeout": 30000
+  }
+}
