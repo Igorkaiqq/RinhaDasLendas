@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Restore backend
+        run: dotnet restore BackEnd/RinhaDasLendas.sln
+
+      - name: Build backend
+        run: dotnet build BackEnd/RinhaDasLendas.sln --configuration Release --no-restore
+
+      - name: Test backend
+        run: dotnet test BackEnd/RinhaDasLendas.sln --configuration Release --no-restore --no-build
+
+      - name: Install frontend dependencies
+        working-directory: FrontEnd
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: FrontEnd
+        run: npm run build
+
+      - name: Test frontend
+        working-directory: FrontEnd
+        run: npm test
+
+      - name: Audit frontend dependencies
+        working-directory: FrontEnd
+        run: npm audit --audit-level=moderate
+
+      - name: Install bot dependencies
+        working-directory: discord-bot
+        run: npm ci
+
+      - name: Build bot
+        working-directory: discord-bot
+        run: npm run build
+
+      - name: Audit bot dependencies
+        working-directory: discord-bot
+        run: npm audit --audit-level=moderate
+
+      - name: Validate stack file
+        run: docker compose -f docker-stack.prod.yml config >/dev/null

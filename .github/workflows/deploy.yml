@@ -1,0 +1,33 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -eu
+            cd /opt/rinhadaslendas
+            git pull --ff-only
+            set -a
+            . ./.env
+            set +a
+            docker build -t rinhadaslendas/backend:prod -f BackEnd/src/RinhaDasLendas.Api/Dockerfile .
+            docker build -t rinhadaslendas/frontend:prod --build-arg VITE_API_URL="$VITE_API_URL" --build-arg VITE_ENABLE_FAKE_FALLBACK="$VITE_ENABLE_FAKE_FALLBACK" -f FrontEnd/Dockerfile .
+            docker build -t rinhadaslendas/discord-bot:prod -f discord-bot/Dockerfile discord-bot
+            docker stack deploy -c docker-stack.prod.yml rinhadaslendas --resolve-image never
+            docker image prune -f
+            docker service ls --filter label=com.docker.stack.namespace=rinhadaslendas
+            docker service logs rinhadaslendas_backend --tail 80 || true

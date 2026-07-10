@@ -43,3 +43,4 @@ coverage/
 # Local environment variants
 .env*
 !.env.example
+appsettings.Development.json

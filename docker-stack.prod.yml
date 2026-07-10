@@ -1,0 +1,127 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      restart_policy:
+        condition: any
+
+  backend:
+    image: rinhadaslendas/backend:prod
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__RinhaDasLendas: Host=rinhadaslendas_postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: Host=rinhadaslendas_postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      AllowedHosts: ${BACKEND_ALLOWED_HOSTS}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL}
+      Authentication__Jwt__Issuer: ${JWT_ISSUER}
+      Authentication__Jwt__Audience: ${JWT_AUDIENCE}
+      Authentication__Jwt__Key: ${JWT_KEY}
+      Authentication__Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES}
+      Authentication__Jwt__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS}
+      Authentication__BootstrapSuperAdmin__Enabled: ${BOOTSTRAP_SUPER_ADMIN_ENABLED}
+      Authentication__BootstrapSuperAdmin__Nome: ${BOOTSTRAP_SUPER_ADMIN_NAME}
+      Authentication__BootstrapSuperAdmin__Email: ${BOOTSTRAP_SUPER_ADMIN_EMAIL}
+      Authentication__BootstrapSuperAdmin__Senha: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
+      DISCORD_SCOPES: ${DISCORD_SCOPES}
+      FRONTEND_AUTH_SUCCESS_URL: ${FRONTEND_AUTH_SUCCESS_URL}
+      FRONTEND_AUTH_ERROR_URL: ${FRONTEND_AUTH_ERROR_URL}
+      FRONTEND_AUTH_LOGIN_ERROR_URL: ${FRONTEND_AUTH_LOGIN_ERROR_URL}
+      RINHA_API_INTERNAL_TOKEN: ${RINHA_API_INTERNAL_TOKEN}
+      DraftMontagem__RealtimeMaxDurationMinutes: ${DRAFT_REALTIME_MAX_DURATION_MINUTES}
+    networks:
+      - internal
+      - traefik-public
+    healthcheck:
+      test: ["CMD-SHELL", "wget --header 'Host: ${API_DOMAIN}' -qO- http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.swarm.network=${TRAEFIK_NETWORK}
+        - traefik.http.routers.rinhadaslendas-api.rule=Host(`${API_DOMAIN}`)
+        - traefik.http.routers.rinhadaslendas-api.priority=1000
+        - traefik.http.routers.rinhadaslendas-api.entrypoints=websecure
+        - traefik.http.routers.rinhadaslendas-api.tls=true
+        - traefik.http.routers.rinhadaslendas-api.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+        - traefik.http.routers.rinhadaslendas-api.middlewares=rinhadaslendas-security,rinhadaslendas-api-ratelimit
+        - traefik.http.services.rinhadaslendas-api.loadbalancer.server.port=8080
+        - traefik.http.middlewares.rinhadaslendas-api-ratelimit.ratelimit.average=80
+        - traefik.http.middlewares.rinhadaslendas-api-ratelimit.ratelimit.burst=40
+        - traefik.http.middlewares.rinhadaslendas-security.headers.contenttypenosniff=true
+        - traefik.http.middlewares.rinhadaslendas-security.headers.framedeny=true
+        - traefik.http.middlewares.rinhadaslendas-security.headers.referrerpolicy=strict-origin-when-cross-origin
+        - traefik.http.middlewares.rinhadaslendas-security.headers.stsseconds=31536000
+        - traefik.http.middlewares.rinhadaslendas-security.headers.stsincludesubdomains=true
+
+  frontend:
+    image: rinhadaslendas/frontend:prod
+    networks:
+      - traefik-public
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.swarm.network=${TRAEFIK_NETWORK}
+        - traefik.http.routers.rinhadaslendas-front.rule=Host(`${FRONTEND_DOMAIN}`)
+        - traefik.http.routers.rinhadaslendas-front.priority=1000
+        - traefik.http.routers.rinhadaslendas-front.entrypoints=websecure
+        - traefik.http.routers.rinhadaslendas-front.tls=true
+        - traefik.http.routers.rinhadaslendas-front.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+        - traefik.http.routers.rinhadaslendas-front.middlewares=rinhadaslendas-security
+        - traefik.http.services.rinhadaslendas-front.loadbalancer.server.port=80
+
+  discord-bot:
+    image: rinhadaslendas/discord-bot:prod
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${BOT_LOG_LEVEL}
+      BOT_LOCALE: ${BOT_LOCALE}
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+      RINHA_API_BASE_URL: http://backend:8080
+      RINHA_API_INTERNAL_TOKEN: ${RINHA_API_INTERNAL_TOKEN}
+    networks:
+      - internal
+    deploy:
+      restart_policy:
+        condition: any
+
+networks:
+  internal:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+volumes:
+  postgres_data:
