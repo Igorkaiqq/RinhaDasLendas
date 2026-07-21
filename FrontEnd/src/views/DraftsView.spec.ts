@@ -410,7 +410,9 @@ describe('DraftsView reason actions', () => {
     expect(selected.status).toBe('Cancelada')
     expect(selected.acoesAdministrativas[0]?.motivo).toBe('auditoria inicial')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('cancelado')
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(wrapper.get('[role="status"]').text()).toContain('cancelado')
+    expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     wrapper.unmount()
   })
@@ -430,11 +432,14 @@ describe('DraftsView reason actions', () => {
     expect(selected.status).toBe('Finalizada')
     expect('acoesAdministrativas' in selected).toBe(false)
     expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledTimes(3)
+    expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
-  it('does not let an older mutation admin refresh overwrite a newer realtime refresh', async () => {
+  it('finishes mutation UX once while a newer realtime refresh wins over its pending admin refresh', async () => {
     const wrapper = await mountView()
     let resolveMutationRefresh!: (value: DraftMontagemAdmin) => void
     let resolveRealtimeRefresh!: (value: DraftMontagemAdmin) => void
@@ -445,6 +450,12 @@ describe('DraftsView reason actions', () => {
 
     const mutation = confirmReasonAction(wrapper, 'Cancelar', 'mutacao antiga')
     await vi.waitFor(() => expect(resolveMutationRefresh).toBeTypeOf('function'))
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(wrapper.get('[role="status"]').text()).toContain('cancelado')
+    expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
+
     const realtime = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
     resolveRealtimeRefresh(adminProjection('Finalizada', 'realtime novo'))
     await realtime
@@ -454,6 +465,36 @@ describe('DraftsView reason actions', () => {
     const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
     expect(selected.status).toBe('Finalizada')
     expect(selected.acoesAdministrativas[0]?.motivo).toBe('realtime novo')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('does not apply or surface a late mutation response after another draft becomes active', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection())
+    serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
+    let resolveMutation!: (value: DraftMontagem) => void
+    serviceMocks.cancelDraftMontagem.mockImplementationOnce(() => new Promise((resolve) => { resolveMutation = resolve }))
+    const wrapper = await mountView()
+
+    await openReasonDialog(wrapper, 'Cancelar')
+    await wrapper.get('textarea').setValue('resposta tardia A')
+    await wrapper.get('form').trigger('submit')
+    await vi.waitFor(() => expect(resolveMutation).toBeTypeOf('function'))
+    await wrapper.findAll('button').find((button) => button.text().includes('Rinha de segunda'))!.trigger('click')
+    await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe('montagem-2'))
+
+    resolveMutation({ ...montagem, status: 'Cancelada' })
+    await flushPromises()
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
+    expect(selected.id).toBe('montagem-2')
+    expect(selected.status).toBe('Aberta')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 

@@ -202,7 +202,12 @@ function beginSelectedDraftUpdate() {
 }
 
 async function applyMutationProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
-  return refreshMontagemDetail(context.draftId, context.generation, montagem, context)
+  if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
+
+  void refreshMontagemDetail(context.draftId, context.generation, montagem, context).catch(() => {
+    // The public mutation response is authoritative; administrative enrichment is best-effort.
+  })
+  return true
 }
 
 async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem, existingContext?: DraftUpdateContext) {
