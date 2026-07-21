@@ -9,6 +9,8 @@
 
 - Draft detail displays Discord publication state for presence and final teams.
 - Administrators can request republish when state is failed, missing or stale.
+- Reconciliation-required state is visible to administrators and cannot trigger automatic resend.
+- Operational Discord identifiers, errors and audit reasons are loaded only from the administrative endpoint.
 
 ## Manual presence search
 
@@ -26,3 +28,4 @@
 
 - Presence and publication changes update the currently opened draft without manual reload when the realtime connection is active.
 - If realtime reconnects, the page refreshes the current draft state.
+- Realtime payloads contain only the public draft projection.

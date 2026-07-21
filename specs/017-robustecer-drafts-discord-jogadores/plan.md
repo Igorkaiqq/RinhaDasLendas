@@ -101,6 +101,18 @@ discord-bot/
 
 `DraftReasonDialog.vue` concentra apresentação e validação local do motivo; `DraftsView.vue` mantém somente a ação pendente e o despacho para serviços existentes.
 
+O endurecimento mantém decisões de host na API, invariantes no Domain, coordenação em Application e operações atômicas PostgreSQL em Infrastructure. O bot separará um ciclo de polling executável do agendamento para permitir testes determinísticos.
+
+### Hardening Components
+
+- `InternalTokenSecurity`: resolve, valida e compara tokens internos sem expor segredos.
+- `ApiRateLimitPartition`: seleciona partições `bot:`, `user:` ou `ip:` depois da autenticação.
+- `DomainException.MessageCode`: preserva o código público localizado no middleware.
+- `DraftMontagemPublicacaoDiscord`: controla `Pendente`, `EmAndamento`, `Publicada`, `Falha` e `RequerReconciliacao` por claim.
+- `IDraftMontagemRepository`: expõe claim/conclusão/falha atômicos e traduz conflitos de persistência para resultados neutros.
+- Projeções pública, administrativa e operacional do bot: evitam vazar auditoria e IDs Discord.
+- `runDraftPollingCycle`: executa um ciclo aguardável e isolado; `startDraftPolling` apenas agenda.
+
 ## Complexity Tracking
 
 No constitution violations identified.
@@ -112,6 +124,7 @@ No constitution violations identified.
 3. P2 presence consistency: idempotency/concurrency, eligible player search and realtime presence updates.
 4. P2 operational audit: administrative reasons, responsible user, metrics/logs and UI visibility.
 5. P2 confirmação contextual: componente único baseado em Reka UI, integração dos quatro fluxos, i18n e testes responsivos.
+6. P1 endurecimento pós-auditoria: autorização Discord, token e rate limiting, erros estruturados, claim de publicação, concorrência de presença, validação, realtime, projeções e testes comportamentais.
 
 ## Post-Design Constitution Check
 
@@ -119,3 +132,6 @@ No constitution violations identified.
 - New persistent state is limited to operational publication/audit needs.
 - Domain remains infrastructure-agnostic; Discord-specific fields are represented as system state, not Discord SDK objects.
 - All user-facing messages require frontend/backend/bot localization.
+- Claims de resultado desconhecido nunca retornam automaticamente para pendente.
+- Tipos do Entity Framework e PostgreSQL permanecem restritos à Infrastructure.
+- Testes de segurança usam autenticação real e não as policies permissivas do ambiente `Testing`.

@@ -52,14 +52,20 @@ Represents an operational publication attempt/result for a draft.
 - Guild identifier
 - Channel identifier
 - Message identifier
-- Status: pending, published, failed, skipped
+- Status: pending, in progress, published, failed, reconciliation required, skipped
 - Last error code/message for operators
 - Published at / last attempted at
+- Claim identifier
+- Claim expiration timestamp
 
 **Validation rules**:
 - Each draft should have at most one active publication record per publication type.
 - Republishing updates or supersedes the previous publication state.
 - Failed publication must not block manual site flow.
+- Only a pending publication can grant an atomic claim.
+- Only the active claim can complete or fail its publication attempt.
+- An expired in-progress attempt becomes reconciliation required and never returns automatically to pending.
+- Reconciliation requires an administrator to register the existing message or explicitly request a new publication.
 
 ## Eligible Player Result
 
@@ -91,4 +97,5 @@ Represents sensitive manual operation performed by an administrator.
 
 **Validation rules**:
 - Responsible user is required.
-- Reason is required for cancellation when UI prompts for it; backend accepts localized validation if mandatory for an action.
+- Reason is required for cancellation, manual presence changes and republication when the action prompts for it.
+- Missing or invalid responsible user rejects the action before aggregate mutation.

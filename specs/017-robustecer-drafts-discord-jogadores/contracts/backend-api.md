@@ -18,7 +18,7 @@ Expected error shape:
 
 ```json
 {
-  "messageCode": "PresenceAlreadyClosed",
+  "messageCode": "MV072",
   "message": "Localized message",
   "errors": []
 }
@@ -36,6 +36,28 @@ Required publication summary fields:
 - last attempted date
 - published date
 - last error code
+- claim expiration when an attempt is in progress
+
+Public responses expose only publication type and status. Operational identifiers and errors are restricted to bot or administrator projections.
+
+## Publication claim
+
+`POST /api/v1/draft-montagens/{id}/discord/publicacoes/claim` is restricted to the internal bot scheme.
+
+Request fields:
+- publication type
+
+Successful claim response fields:
+- acquired flag
+- claim identifier
+- claim expiration
+- publication status
+
+Rules:
+- Claim acquisition is atomic and exactly one concurrent caller succeeds.
+- Completion and failure requests include the claim identifier.
+- A different or stale claim is rejected with a stable localized code.
+- Expired attempts become reconciliation required and are not automatically publishable.
 
 ## Republish operations
 
@@ -63,3 +85,16 @@ Expected result:
 ## Realtime notifications
 
 Draft state updates are emitted after presence, publication, republish, pick and administrative changes.
+
+Realtime payloads use the public projection and never include administrative reasons, actors, Discord IDs or failure details.
+
+## Administrative projection
+
+`GET /api/v1/draft-montagens/{id}/administracao` requires `CanManageDrafts` and returns audit entries plus operational publication details. The common detail endpoint does not return those fields.
+
+## Authentication and throttling
+
+- Production startup rejects missing, placeholder or shorter-than-32-character internal tokens.
+- Internal token comparison is constant-time.
+- API throttling is partitioned by bot identity, authenticated user or anonymous IP.
+- Authentication, authorization and rate-limit failures use localized `ApiErrorResponse` bodies.
