@@ -22,8 +22,9 @@ const serviceMocks = vi.hoisted(() => ({
 }))
 const authMock = vi.hoisted(() => ({ canManageDrafts: true }))
 const realtimeMock = vi.hoisted(() => ({
-  onStateUpdated: null as ((state: { montagem: DraftMontagem }) => void | Promise<void>) | null,
-  onReconnected: null as (() => void | Promise<void>) | null,
+  handlers: new Map<string, (state: { montagem: DraftMontagem }) => void | Promise<void>>(),
+  reconnectHandlers: new Map<string, () => void | Promise<void>>(),
+  disconnected: [] as string[],
 }))
 
 vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }))
@@ -63,11 +64,14 @@ vi.mock('@/services/draftMontagens', () => ({
 
 vi.mock('@/services/draftMontagemRealtime', () => ({
   DraftMontagemRealtimeConnection: class DraftMontagemRealtimeConnection {
+    constructor(private readonly id: string) {}
     connect = vi.fn().mockImplementation(async (onStateUpdated, onReconnected) => {
-      realtimeMock.onStateUpdated = onStateUpdated
-      realtimeMock.onReconnected = onReconnected
+      realtimeMock.handlers.set(this.id, onStateUpdated)
+      realtimeMock.reconnectHandlers.set(this.id, onReconnected)
     })
-    disconnect = vi.fn().mockResolvedValue(undefined)
+    disconnect = vi.fn().mockImplementation(async () => {
+      realtimeMock.disconnected.push(this.id)
+    })
   },
 }))
 
@@ -120,6 +124,22 @@ const resumo: DraftMontagemResumo = {
   dataAtualizacao: montagem.dataAtualizacao,
 }
 
+const montagemB: DraftMontagem = {
+  ...montagem,
+  id: 'montagem-2',
+  nome: 'Rinha de segunda',
+  status: 'Aberta',
+  presencas: [],
+  publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }],
+}
+
+const resumoB: DraftMontagemResumo = {
+  ...resumo,
+  id: montagemB.id,
+  nome: montagemB.nome,
+  status: montagemB.status,
+}
+
 function adminProjection(status: DraftMontagemStatus = montagem.status, auditReason = 'auditoria inicial'): DraftMontagemAdmin {
   return {
     ...montagem,
@@ -160,6 +180,36 @@ function adminProjection(status: DraftMontagemStatus = montagem.status, auditRea
       },
     ],
   }
+}
+
+function adminProjectionB(auditReason = 'auditoria B'): DraftMontagemAdmin {
+  return {
+    ...adminProjection('Aberta', auditReason),
+    ...montagemB,
+    presencas: [],
+    substituicoes: [],
+    publicacoesDiscord: [
+      {
+        id: 'publicacao-admin-b',
+        tipo: 'Presenca',
+        status: 'Pendente',
+        ultimaTentativaEm: '2026-07-20T12:00:00Z',
+      },
+    ],
+    acoesAdministrativas: [
+      {
+        id: 'acao-b',
+        tipo: 'RepublicacaoDiscord:Presenca',
+        responsavelUsuarioId: 'organizador-1',
+        motivo: auditReason,
+        registradoEm: '2026-07-20T12:00:00Z',
+      },
+    ],
+  }
+}
+
+async function emitRealtime(id: string, projection: DraftMontagem) {
+  await realtimeMock.handlers.get(id)?.({ montagem: projection })
 }
 
 async function mountView() {
@@ -205,8 +255,9 @@ describe('DraftsView reason actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authMock.canManageDrafts = true
-    realtimeMock.onStateUpdated = null
-    realtimeMock.onReconnected = null
+    realtimeMock.handlers.clear()
+    realtimeMock.reconnectHandlers.clear()
+    realtimeMock.disconnected = []
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo])
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection())
     serviceMocks.getDraftMontagemById.mockResolvedValue(montagem)
@@ -245,8 +296,8 @@ describe('DraftsView reason actions', () => {
     expect(serviceMocks.getDraftMontagemById).toHaveBeenCalledWith('montagem-1')
     expect(wrapper.text()).not.toContain('Republicar presença')
 
-    await realtimeMock.onStateUpdated?.({ montagem: { ...montagem, status: 'Aberta' } })
-    await realtimeMock.onStateUpdated?.({ montagem: { ...montagem, status: 'Finalizada' } })
+    await emitRealtime('montagem-1', { ...montagem, status: 'Aberta' })
+    await emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
     await flushPromises()
 
     expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledTimes(1)
@@ -258,7 +309,7 @@ describe('DraftsView reason actions', () => {
     const refreshedAdmin = adminProjection('Aberta', 'auditoria atualizada pelo realtime')
     serviceMocks.getDraftMontagemAdminById.mockResolvedValueOnce(refreshedAdmin)
 
-    await realtimeMock.onStateUpdated?.({ montagem: { ...montagem, status: 'Aberta', publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }] } })
+    await emitRealtime('montagem-1', { ...montagem, status: 'Aberta', publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }] })
     await flushPromises()
 
     const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
@@ -293,8 +344,8 @@ describe('DraftsView reason actions', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
       .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve }))
 
-    const firstRefresh = realtimeMock.onStateUpdated?.({ montagem: { ...montagem, status: 'Aberta' } })
-    const secondRefresh = realtimeMock.onStateUpdated?.({ montagem: { ...montagem, status: 'Finalizada' } })
+    const firstRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Aberta' })
+    const secondRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
     resolveSecond(adminProjection('Finalizada', 'evento mais novo'))
     await secondRefresh
     resolveFirst(adminProjection('Aberta', 'evento antigo'))
@@ -304,6 +355,105 @@ describe('DraftsView reason actions', () => {
     const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
     expect(selected.status).toBe('Finalizada')
     expect(selected.acoesAdministrativas[0]?.motivo).toBe('evento mais novo')
+    wrapper.unmount()
+  })
+
+  it('never reapplies draft A after opening draft B starts', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
+    const wrapper = await mountView()
+    let resolveOldA!: (value: DraftMontagemAdmin) => void
+    let resolveB!: (value: DraftMontagemAdmin) => void
+    serviceMocks.getDraftMontagemAdminById
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldA = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveB = resolve }))
+      .mockResolvedValue(adminProjectionB('B realtime'))
+
+    const oldARefresh = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
+    const openB = wrapper.findAll('button').find((button) => button.text().includes('Rinha de segunda'))!.trigger('click')
+    await vi.waitFor(() => expect(realtimeMock.disconnected).toContain('montagem-1'))
+    const lateAEvent = emitRealtime('montagem-1', { ...montagem, status: 'Cancelada' })
+    resolveOldA(adminProjection('Finalizada', 'resposta antiga A'))
+    await oldARefresh
+    await lateAEvent
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem?.id).not.toBe('montagem-1')
+
+    resolveB(adminProjectionB('B assumiu'))
+    await openB
+    await flushPromises()
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
+    expect(selected.id).toBe('montagem-2')
+    expect(selected.acoesAdministrativas[0]?.motivo).toBe('B realtime')
+    expect(selected.acoesAdministrativas.some((action) => action.motivo?.includes('A'))).toBe(false)
+    expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledTimes(5)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['network', new Error('network unavailable')],
+    ['500', { status: 500 }],
+  ])('keeps successful public mutation state when admin refresh fails with %s', async (_, refreshError) => {
+    const wrapper = await mountView()
+    const publicMutation = {
+      ...montagem,
+      status: 'Cancelada' as const,
+      publicacoesDiscord: [{ tipo: 'Presenca' as const, status: 'Pendente' as const }],
+    }
+    serviceMocks.cancelDraftMontagem.mockResolvedValueOnce(publicMutation)
+    serviceMocks.getDraftMontagemAdminById.mockRejectedValueOnce(refreshError)
+
+    await confirmReasonAction(wrapper, 'Cancelar', 'mutacao concluida')
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
+    expect(selected.status).toBe('Cancelada')
+    expect(selected.acoesAdministrativas[0]?.motivo).toBe('auditoria inicial')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('cancelado')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('uses the successful public mutation as a permanent fallback after admin refresh returns 403', async () => {
+    const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
+    const wrapper = await mountView()
+    const publicMutation = { ...montagem, status: 'Cancelada' as const }
+    serviceMocks.cancelDraftMontagem.mockResolvedValueOnce(publicMutation)
+    serviceMocks.getDraftMontagemAdminById.mockRejectedValueOnce(new ServiceError([], 403))
+
+    await confirmReasonAction(wrapper, 'Cancelar', 'mutacao concluida')
+    await emitRealtime('montagem-1', { ...publicMutation, status: 'Finalizada' })
+    await flushPromises()
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem
+    expect(selected.status).toBe('Finalizada')
+    expect('acoesAdministrativas' in selected).toBe(false)
+    expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledTimes(3)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not let an older mutation admin refresh overwrite a newer realtime refresh', async () => {
+    const wrapper = await mountView()
+    let resolveMutationRefresh!: (value: DraftMontagemAdmin) => void
+    let resolveRealtimeRefresh!: (value: DraftMontagemAdmin) => void
+    serviceMocks.cancelDraftMontagem.mockResolvedValueOnce({ ...montagem, status: 'Cancelada' })
+    serviceMocks.getDraftMontagemAdminById
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveMutationRefresh = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveRealtimeRefresh = resolve }))
+
+    const mutation = confirmReasonAction(wrapper, 'Cancelar', 'mutacao antiga')
+    await vi.waitFor(() => expect(resolveMutationRefresh).toBeTypeOf('function'))
+    const realtime = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
+    resolveRealtimeRefresh(adminProjection('Finalizada', 'realtime novo'))
+    await realtime
+    resolveMutationRefresh(adminProjection('Cancelada', 'refresh antigo da mutacao'))
+    await mutation
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
+    expect(selected.status).toBe('Finalizada')
+    expect(selected.acoesAdministrativas[0]?.motivo).toBe('realtime novo')
     wrapper.unmount()
   })
 

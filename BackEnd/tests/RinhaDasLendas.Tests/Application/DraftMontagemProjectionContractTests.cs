@@ -9,8 +9,9 @@ namespace RinhaDasLendas.Tests.Application;
 public sealed class DraftMontagemProjectionContractTests
 {
     [Fact]
-    public void DezesseteSuperficiesPublicasDetalhadasDevemDeclararSomenteDtoPublico()
+    public void GuardaArquiteturalDeveFixarMetadataEDtoExatoDasDezesseteSuperficiesPublicas()
     {
+        // This guards declared response metadata and DTO families only. The HTTP mutation matrix belongs to T110.
         string[] actionNames =
         [
             nameof(DraftMontagensController.GetById),

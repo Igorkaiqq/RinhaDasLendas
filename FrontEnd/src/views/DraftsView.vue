@@ -42,7 +42,7 @@ import {
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
 import { DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
-import type { DraftMontagem, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
 const { t, locale } = useI18n()
@@ -66,6 +66,14 @@ const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const adminAccessDenied = ref(false)
 let detailRequestVersion = 0
+let activeDraftId: string | null = null
+let activeDraftGeneration = 0
+
+interface DraftUpdateContext {
+  draftId: string
+  generation: number
+  requestVersion: number
+}
 
 const captainSelection = ref<string[]>([])
 const statusOptions = DRAFT_MONTAGEM_STATUS_OPTIONS
@@ -102,6 +110,9 @@ onMounted(async () => {
 })
 
 onUnmounted(async () => {
+  activeDraftId = null
+  activeDraftGeneration++
+  detailRequestVersion = 0
   await disconnectRealtime()
 })
 
@@ -146,78 +157,146 @@ async function openMontagemFromLink(id: string) {
   }
 }
 
-async function openMontagem(id: string) {
+async function openMontagem(id: string, publicProjection?: DraftMontagem) {
+  const generation = ++activeDraftGeneration
+  activeDraftId = id
+  detailRequestVersion = 0
+  selectedMontagem.value = null
+  pendingReasonAction.value = null
+  captainSelection.value = []
+  manualPresencePlayers.value = []
+  selectedManualPresencePlayerId.value = ''
+  const disconnecting = disconnectRealtime()
   saving.value = true
   errors.value = []
   try {
-    if (!(await refreshMontagemDetail(id))) return
+    await disconnecting
+    if (!isActiveDraft(id, generation)) return
+    if (!(await refreshMontagemDetail(id, generation, publicProjection))) return
     captainSelection.value = []
     await loadEligibleManualPresencePlayers()
-    await connectRealtime(id)
+    if (!isActiveDraft(id, generation)) return
+    await connectRealtime(id, generation)
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(id, generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(id, generation)) saving.value = false
   }
 }
 
-async function refreshMontagemDetail(id: string, publicProjection?: DraftMontagem) {
-  const requestVersion = ++detailRequestVersion
+function isActiveDraft(id: string, generation: number) {
+  return activeDraftId === id && activeDraftGeneration === generation
+}
+
+function beginDraftUpdate(id: string, generation = activeDraftGeneration): DraftUpdateContext | null {
+  if (!isActiveDraft(id, generation)) return null
+  return { draftId: id, generation, requestVersion: ++detailRequestVersion }
+}
+
+function isCurrentUpdate(context: DraftUpdateContext) {
+  return isActiveDraft(context.draftId, context.generation) && detailRequestVersion === context.requestVersion
+}
+
+function beginSelectedDraftUpdate() {
+  return selectedMontagem.value ? beginDraftUpdate(selectedMontagem.value.id) : null
+}
+
+async function applyMutationProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
+  return refreshMontagemDetail(context.draftId, context.generation, montagem, context)
+}
+
+async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem, existingContext?: DraftUpdateContext) {
+  const context = existingContext ?? beginDraftUpdate(id, generation)
+  if (!context || !isCurrentUpdate(context)) return false
   let detail = publicProjection
+
+  if (publicProjection) {
+    applyPublicMontagemState(publicProjection)
+  }
 
   if (hasDraftManagementPermission.value && !adminAccessDenied.value) {
     try {
       detail = await getDraftMontagemAdminById(id)
     } catch (error) {
-      if (requestVersion !== detailRequestVersion) return false
-      if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) throw error
+      if (!isCurrentUpdate(context)) return false
+      if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) {
+        if (publicProjection) return true
+        throw error
+      }
 
       adminAccessDenied.value = true
       detail = publicProjection ?? (await getDraftMontagemById(id))
+      if (!isCurrentUpdate(context)) return false
+      applyMontagemState(detail)
+      return true
     }
   } else if (!detail) {
     detail = await getDraftMontagemById(id)
   }
 
-  if (requestVersion !== detailRequestVersion) return false
+  if (!isCurrentUpdate(context) || detail.id !== id) return false
   applyMontagemState(detail)
   return true
 }
 
+function applyPublicMontagemState(montagem: DraftMontagem) {
+  const current = selectedMontagem.value
+  if (!current || current.id !== montagem.id) {
+    applyMontagemState(montagem)
+    return
+  }
+
+  const currentAdmin = current as DraftMontagemAdmin
+  const merged = {
+    ...current,
+    ...montagem,
+    presencas: montagem.presencas.map((presence) => ({ ...currentAdmin.presencas?.find((item) => item.id === presence.id), ...presence })),
+    substituicoes: montagem.substituicoes.map((substitution) => ({
+      ...currentAdmin.substituicoes?.find((item) => item.timeId === substitution.timeId && item.jogadorSaiuId === substitution.jogadorSaiuId && item.reservaEntrouId === substitution.reservaEntrouId),
+      ...substitution,
+    })),
+    publicacoesDiscord: montagem.publicacoesDiscord?.map((publication) => ({ ...currentAdmin.publicacoesDiscord?.find((item) => item.tipo === publication.tipo), ...publication })),
+  }
+  applyMontagemState(merged)
+}
+
 async function loadEligibleManualPresencePlayers() {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
+  const draftId = selectedMontagem.value?.id
+  const generation = activeDraftGeneration
+  if (!draftId || !canManageDrafts.value) {
     manualPresencePlayers.value = []
     return
   }
 
-  manualPresencePlayers.value = await listEligibleManualPresencePlayers(selectedMontagem.value.id, manualPresenceSearch.value)
+  const players = await listEligibleManualPresencePlayers(draftId, manualPresenceSearch.value)
+  if (isActiveDraft(draftId, generation)) manualPresencePlayers.value = players
 }
 
 async function confirmPresence() {
-  if (!selectedMontagem.value) return
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
   saving.value = true
   try {
-    const montagem = await confirmDraftMontagemPresence(selectedMontagem.value.id)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.presence.confirmed')
+    const montagem = await confirmDraftMontagemPresence(context.draftId)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.confirmed')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function cancelPresence() {
-  if (!selectedMontagem.value) return
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
   saving.value = true
   try {
-    const montagem = await cancelDraftMontagemPresence(selectedMontagem.value.id)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.presence.cancelled')
+    const montagem = await cancelDraftMontagemPresence(context.draftId)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.cancelled')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
@@ -236,16 +315,17 @@ function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
 }
 
 async function closePresence(continueWithLess = false) {
-  if (!selectedMontagem.value || !canManageDrafts.value) return
+  const montagemAtual = selectedMontagem.value
+  const context = beginSelectedDraftUpdate()
+  if (!montagemAtual || !context || !canManageDrafts.value) return
   saving.value = true
   try {
-    const montagem = await closeDraftMontagemPresence(selectedMontagem.value.id, continueWithLess, selectedMontagem.value.tamanhoEquipe)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.presence.closed')
+    const montagem = await closeDraftMontagemPresence(context.draftId, continueWithLess, montagemAtual.tamanhoEquipe)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.closed')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
@@ -259,56 +339,65 @@ function toggleCaptainSelection(jogadorId: string) {
 }
 
 async function defineCaptains() {
-  if (!selectedMontagem.value || !canManageDrafts.value) return
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
   saving.value = true
   try {
-    const montagem = await defineDraftMontagemCaptains(selectedMontagem.value.id, captainSelection.value)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.presence.captainsDefined')
+    const montagem = await defineDraftMontagemCaptains(context.draftId, captainSelection.value)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.captainsDefined')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function drawPickOrder() {
-  if (!selectedMontagem.value || !canManageDrafts.value) return
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
   saving.value = true
   try {
-    const montagem = await defineDraftMontagemPickOrder(selectedMontagem.value.id, DraftMontagemOrdemEscolhaModoValues.Sorteado)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.presence.orderDefined')
+    const montagem = await defineDraftMontagemPickOrder(context.draftId, DraftMontagemOrdemEscolhaModoValues.Sorteado)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.orderDefined')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
-async function connectRealtime(id: string) {
-  await disconnectRealtime()
+async function connectRealtime(id: string, generation: number) {
+  if (!isActiveDraft(id, generation)) return
   try {
     const state = await getDraftMontagemRealtimeState(id)
-    await refreshMontagemDetail(id, state.montagem)
+    if (!isActiveDraft(id, generation)) return
+    await refreshMontagemDetail(id, generation, state.montagem)
   } catch {
     // The regular detail endpoint already loaded the board; realtime state errors are shown by later actions.
   }
 
-  realtimeConnection.value = new DraftMontagemRealtimeConnection(id)
-  await realtimeConnection.value.connect(
+  if (!isActiveDraft(id, generation)) return
+  const connection = new DraftMontagemRealtimeConnection(id)
+  realtimeConnection.value = connection
+  await connection.connect(
     async (state) => {
+      if (!isActiveDraft(id, generation)) return
       try {
-        await refreshMontagemDetail(id, state.montagem)
+        await refreshMontagemDetail(id, generation, state.montagem)
       } catch {
         // Keep the last complete administrative projection if its refresh fails.
       }
     },
     async () => {
+      if (!isActiveDraft(id, generation)) return
       const state = await getDraftMontagemRealtimeState(id)
-      await refreshMontagemDetail(id, state.montagem)
+      await refreshMontagemDetail(id, generation, state.montagem)
     },
   )
+  if (!isActiveDraft(id, generation)) {
+    if (realtimeConnection.value === connection) realtimeConnection.value = null
+    await connection.disconnect()
+  }
 }
 
 function applyMontagemState(montagem: DraftMontagem) {
@@ -328,12 +417,9 @@ function applyMontagemState(montagem: DraftMontagem) {
 }
 
 async function disconnectRealtime() {
-  if (!realtimeConnection.value) {
-    return
-  }
-
-  await realtimeConnection.value.disconnect()
+  const connection = realtimeConnection.value
   realtimeConnection.value = null
+  await connection?.disconnect()
 }
 
 async function saveMontagem(payload: DraftMontagemPayload) {
@@ -345,7 +431,7 @@ async function saveMontagem(payload: DraftMontagemPayload) {
   serviceErrors.value = []
   try {
     const montagem = await createDraftMontagem(payload)
-    await refreshMontagemDetail(montagem.id, montagem)
+    await openMontagem(montagem.id, montagem)
     await loadVisualMontagens()
     notification.value = t('drafts.created', { name: montagem.nome })
     visualSetupOpen.value = false
@@ -357,106 +443,97 @@ async function saveMontagem(payload: DraftMontagemPayload) {
 }
 
 async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
   saving.value = true
   errors.value = []
   try {
-    const montagem = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
-    await refreshMontagemDetail(montagem.id, montagem)
+    const montagem = await saveDraftMontagemLayout(context.draftId, payload)
+    if (!(await applyMutationProjection(context, montagem))) return
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function startRealtime() {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
 
   saving.value = true
   errors.value = []
   try {
-    const state = await startDraftMontagemRealtime(selectedMontagem.value.id)
-    await refreshMontagemDetail(state.montagem.id, state.montagem)
-    notification.value = t('drafts.realtime.started')
+    const state = await startDraftMontagemRealtime(context.draftId)
+    if (await applyMutationProjection(context, state.montagem)) notification.value = t('drafts.realtime.started')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function pickRealtime(jogadorId: string) {
-  if (!selectedMontagem.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
 
   saving.value = true
   errors.value = []
   try {
-    const state = await registerDraftMontagemPick(selectedMontagem.value.id, jogadorId)
-    await refreshMontagemDetail(state.montagem.id, state.montagem)
+    const state = await registerDraftMontagemPick(context.draftId, jogadorId)
+    await applyMutationProjection(context, state.montagem)
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function substituteReserve(payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }) {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
 
   saving.value = true
   errors.value = []
   try {
-    const state = await substituteDraftMontagemReserve(selectedMontagem.value.id, payload)
-    await refreshMontagemDetail(state.montagem.id, state.montagem)
-    notification.value = t('drafts.realtime.reserveSubstituted')
+    const state = await substituteDraftMontagemReserve(context.draftId, payload)
+    if (await applyMutationProjection(context, state.montagem)) notification.value = t('drafts.realtime.reserveSubstituted')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function drawMontagemCaptains() {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
   saving.value = true
   try {
-    const montagem = await drawDraftMontagemCaptains(selectedMontagem.value.id)
-    await refreshMontagemDetail(montagem.id, montagem)
-    notification.value = t('drafts.messages.captainsDrawn')
+    const montagem = await drawDraftMontagemCaptains(context.draftId)
+    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.messages.captainsDrawn')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
 async function finalizeMontagem() {
-  if (!selectedMontagem.value || !canManageDrafts.value) {
-    return
-  }
+  const context = beginSelectedDraftUpdate()
+  if (!context || !canManageDrafts.value) return
   saving.value = true
   try {
-    const montagem = await finalizeDraftMontagem(selectedMontagem.value.id)
-    await refreshMontagemDetail(montagem.id, montagem)
+    const montagem = await finalizeDraftMontagem(context.draftId)
+    if (!(await applyMutationProjection(context, montagem))) return
     await loadVisualMontagens()
     notification.value = t('drafts.messages.finished')
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
@@ -499,36 +576,38 @@ async function confirmReasonAction(reason: string) {
 
   const action = pendingReasonAction.value
   if (!action || !selectedMontagem.value || !canManageDrafts.value) return
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
 
   saving.value = true
   try {
     if (action.type === 'cancelDraft') {
-      const montagem = await cancelDraftMontagem(selectedMontagem.value.id, reason)
-      await refreshMontagemDetail(montagem.id, montagem)
+      const montagem = await cancelDraftMontagem(context.draftId, reason)
+      if (!(await applyMutationProjection(context, montagem))) return
       await loadVisualMontagens()
-      notification.value = t('drafts.canceled', { name: selectedMontagem.value.nome })
+      notification.value = t('drafts.canceled', { name: montagem.nome })
     } else if (action.type === 'addManualPresence') {
-      const montagem = await addManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
-      await refreshMontagemDetail(montagem.id, montagem)
+      const montagem = await addManualDraftMontagemPresence(context.draftId, action.jogadorId, reason)
+      if (!(await applyMutationProjection(context, montagem))) return
       selectedManualPresencePlayerId.value = ''
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualAdded')
     } else if (action.type === 'removeManualPresence') {
-      const montagem = await removeManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
-      await refreshMontagemDetail(montagem.id, montagem)
+      const montagem = await removeManualDraftMontagemPresence(context.draftId, action.jogadorId, reason)
+      if (!(await applyMutationProjection(context, montagem))) return
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
     } else {
       const tipo = action.type === 'republishPresence' ? 'Presenca' : 'TimesDefinidos'
-      const montagem = await republishDraftMontagemDiscordPublication(selectedMontagem.value.id, tipo, reason)
-      await refreshMontagemDetail(montagem.id, montagem)
+      const montagem = await republishDraftMontagemDiscordPublication(context.draftId, tipo, reason)
+      if (!(await applyMutationProjection(context, montagem))) return
       notification.value = t('drafts.publication.republishRequested')
     }
     pendingReasonAction.value = null
   } catch (error) {
-    captureError(error)
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 

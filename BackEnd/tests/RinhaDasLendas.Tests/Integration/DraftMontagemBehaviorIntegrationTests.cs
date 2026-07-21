@@ -50,6 +50,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         responses.Should().OnlyContain(response => (int)response.StatusCode < 500);
         responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        foreach (var response in responses)
+        {
+            AssertPublicProjection(await response.Content.ReadAsStringAsync());
+        }
         var payloads = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>()));
         payloads.Should().OnlyContain(payload => payload != null
             && payload.Presencas.Count(presence => presence.UsuarioId == userId && presence.Status == DraftMontagemPresencaStatus.Confirmada.ToString()) == 1);
@@ -80,6 +84,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 new { UsuarioId = userId, DiscordUserId = (string?)null }));
 
         responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        foreach (var response in responses)
+        {
+            AssertPublicProjection(await response.Content.ReadAsStringAsync());
+        }
         var payloads = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>()));
         payloads.Should().OnlyContain(payload => payload != null
             && payload.Presencas.Single(presence => presence.UsuarioId == userId).Status == DraftMontagemPresencaStatus.Cancelada.ToString());
@@ -370,6 +378,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             new { JogadorId = fixture.TargetPlayerId, Motivo = "  convidado pelo organizador  " });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        AssertPublicProjection(await response.Content.ReadAsStringAsync());
         var action = await factory.GetAdministrativeActionAsync(fixture.DraftId);
         action.Should().Be(("AdicaoPresencaManual", fixture.ExecutorUserId, fixture.TargetPlayerId, "convidado pelo organizador"));
         (await factory.GetAdministrativeMutationStateAsync(fixture.DraftId)).Should().Be((1, 1, DraftMontagemStatus.PresencaAberta));
