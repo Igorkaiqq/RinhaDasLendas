@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -118,6 +119,74 @@ public sealed class SecurityHardeningTests
     }
 
     [Fact]
+    public void ResolveTokens_ShouldReturnDistinctConfiguredTokens()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["RINHA_API_INTERNAL_TOKEN"] = "primary-token",
+            ["DiscordBot:InternalToken"] = "primary-token",
+        }).Build();
+
+        var tokens = InternalTokenSecurity.ResolveTokens(configuration);
+
+        tokens.Should().Equal("primary-token");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("short-token")]
+    [InlineData("change-me-generate-a-long-random-secret")]
+    public void ProductionStartup_ShouldRejectUnsafeInternalToken(string token)
+    {
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [token], new Infrastructure.Messages.ResourceMessageProvider());
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
+    }
+
+    [Fact]
+    public void ProductionStartup_ShouldRejectMissingInternalToken()
+    {
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [], new Infrastructure.Messages.ResourceMessageProvider());
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
+    }
+
+    [Fact]
+    public void ProductionStartup_ShouldAcceptStrongInternalToken()
+    {
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(
+            ProductionEnvironment(),
+            ["a-strong-internal-token-with-32-characters"],
+            new Infrastructure.Messages.ResourceMessageProvider());
+
+        action.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Testing")]
+    [InlineData("IntegrationTesting")]
+    public void NonProductionStartup_ShouldIgnoreUnsafeInternalToken(string environmentName)
+    {
+        var environment = new Moq.Mock<IWebHostEnvironment>();
+        environment.SetupGet(value => value.EnvironmentName).Returns(environmentName);
+
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(environment.Object, [], new Infrastructure.Messages.ResourceMessageProvider());
+
+        action.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("same-token", "same-token", true)]
+    [InlineData("same-token", "different-token", false)]
+    public void FixedTimeEquals_ShouldCompareTokenValues(string provided, string expected, bool result)
+    {
+        InternalTokenSecurity.FixedTimeEquals(provided, expected).Should().Be(result);
+    }
+
+    [Fact]
     public void ProductionStartup_ShouldRejectDefaultJwtKey()
     {
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
@@ -125,6 +194,13 @@ public sealed class SecurityHardeningTests
         var act = () => factory.CreateClient();
 
         act.Should().Throw<InvalidOperationException>();
+    }
+
+    private static IWebHostEnvironment ProductionEnvironment()
+    {
+        var environment = new Moq.Mock<IWebHostEnvironment>();
+        environment.SetupGet(value => value.EnvironmentName).Returns("Production");
+        return environment.Object;
     }
 
     private static UpdatePreferenciasRotasRequestDto ValidPreferencesRequest() => new([

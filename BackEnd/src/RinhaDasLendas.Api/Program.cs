@@ -40,18 +40,11 @@ if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.JwtKeyNotConfigured));
 }
 
+var internalTokens = InternalTokenSecurity.ResolveTokens(builder.Configuration);
 builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.SchemeName, options =>
 {
-    options.Token = builder.Configuration["RINHA_API_INTERNAL_TOKEN"] ?? builder.Configuration["DiscordBot:InternalToken"] ?? string.Empty;
-    options.ValidTokens = new[]
-        {
-            builder.Configuration["RINHA_API_INTERNAL_TOKEN"],
-            builder.Configuration["DiscordBot:InternalToken"]
-        }
-        .Where(token => !string.IsNullOrWhiteSpace(token))
-        .Select(token => token!)
-        .Distinct(StringComparer.Ordinal)
-        .ToArray();
+    options.Token = internalTokens.FirstOrDefault() ?? string.Empty;
+    options.ValidTokens = internalTokens;
 });
 if (builder.Environment.IsEnvironment("Testing"))
 {
@@ -192,6 +185,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 var app = builder.Build();
 
 ValidateProductionConfiguration(app.Environment, app.Configuration, jwtKey);
+InternalTokenSecurity.ValidateProductionTokens(app.Environment, internalTokens, startupMessages);
 
 app.UseForwardedHeaders();
 

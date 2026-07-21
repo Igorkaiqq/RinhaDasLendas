@@ -76,6 +76,7 @@
   <data name="ME039" xml:space="preserve"><value>Authentication:BootstrapSuperAdmin exige Email e Senha quando Enabled=true.</value></data>
   <data name="ME040" xml:space="preserve"><value>Não foi possível criar o SuperAdmin padrão: {0}</value></data>
   <data name="ME041" xml:space="preserve"><value>Não foi possível atribuir SuperAdmin ao usuário padrão: {0}</value></data>
+  <data name="ME042" xml:space="preserve"><value>O token interno do bot não está configurado com segurança.</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>

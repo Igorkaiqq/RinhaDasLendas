@@ -76,6 +76,7 @@ public static class MessageCodes
     public const string BootstrapSuperAdminCredentialsRequired = "ME039";
     public const string BootstrapSuperAdminCreateFailed = "ME040";
     public const string BootstrapSuperAdminRoleAssignFailed = "ME041";
+    public const string BotInternalTokenNotSecurelyConfigured = "ME042";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
