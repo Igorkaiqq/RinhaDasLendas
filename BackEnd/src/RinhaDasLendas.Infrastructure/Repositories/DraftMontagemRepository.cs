@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Npgsql;
 using System.Data;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -12,9 +11,6 @@ namespace RinhaDasLendas.Infrastructure.Repositories;
 
 public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) : IDraftMontagemRepository
 {
-    private const string PresenceByUserIndex = "ix_draft_montagem_presencas_draft_montagem_id_usuario_id";
-    private const string PresenceByPlayerIndex = "ix_draft_montagem_presencas_draft_montagem_id_jogador_id";
-
     public async Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken)
     {
         await dbContext.DraftMontagens.AddAsync(montagem, cancellationToken);
@@ -277,23 +273,10 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             await dbContext.SaveChangesAsync(cancellationToken);
             return DraftMontagemSaveResultado.Persistido;
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception exception) when (DraftMontagemSaveConflictClassifier.Classify(exception) is { } result)
         {
-            return DraftMontagemSaveResultado.ConflitoDeVersao;
+            return result;
         }
-        catch (DbUpdateException exception) when (IsExpectedPresenceConflict(exception))
-        {
-            return DraftMontagemSaveResultado.ConflitoDePresencaConfirmada;
-        }
-    }
-
-    private static bool IsExpectedPresenceConflict(DbUpdateException exception)
-    {
-        return exception.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: PresenceByUserIndex or PresenceByPlayerIndex,
-        };
     }
 
     private static IQueryable<DraftMontagem> IncludeMontagem(IQueryable<DraftMontagem> query)

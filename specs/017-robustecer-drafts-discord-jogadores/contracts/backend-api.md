@@ -88,6 +88,13 @@ Draft state updates are emitted after presence, publication, republish, pick and
 
 Realtime payloads use the public projection and never include administrative reasons, actors, Discord IDs or failure details.
 
+## Presence concurrency
+
+- After a persistence conflict, repeated or concurrent confirmation/cancellation returns success only when the desired state is observed after reloading the persisted aggregate.
+- Conflict-reconciled success is linearizable at that reload instant; the winning write remains linearizable at its database commit.
+- A later concurrent request may change presence again before the HTTP response reaches the caller; success does not reserve or promise that state until response arrival.
+- SignalR notifications and presence metrics are emitted only by the request that effectively persists the state transition.
+
 ## Administrative projection
 
 `GET /api/v1/draft-montagens/{id}/administracao` requires `CanManageDrafts` and returns audit entries plus operational publication details. The common detail endpoint does not return those fields.

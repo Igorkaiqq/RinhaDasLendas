@@ -5,21 +5,28 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Concurrent;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
+using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Models;
+using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
+using RinhaDasLendas.Infrastructure.Repositories;
 
 namespace RinhaDasLendas.Tests.Integration;
 
@@ -30,33 +37,59 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     {
         await using var factory = new PostgreSqlComposeApiFactory();
         var (draftId, userId) = await factory.SeedPresenceAsync();
+        factory.ArmPresenceConcurrency(draftId);
         using var firstClient = factory.CreateUserClient(userId);
         using var secondClient = factory.CreateUserClient(userId);
-        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var readyCount = 0;
-
-        async Task<HttpResponseMessage> ConfirmAsync(HttpClient client)
-        {
-            if (Interlocked.Increment(ref readyCount) == 2)
-            {
-                ready.SetResult();
-            }
-
-            await release.Task;
-            return await client.PostAsJsonAsync(
+        var responses = await Task.WhenAll(
+            firstClient.PostAsJsonAsync(
                 $"/api/v1/draft-montagens/{draftId}/presencas/confirmar",
-                new { UsuarioId = userId, DiscordUserId = (string?)null, Origem = "Web" });
-        }
-
-        var requests = new[] { ConfirmAsync(firstClient), ConfirmAsync(secondClient) };
-        await ready.Task;
-        release.SetResult();
-        var responses = await Task.WhenAll(requests);
+                new { UsuarioId = userId, DiscordUserId = (string?)null, Origem = "Web" }),
+            secondClient.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/presencas/confirmar",
+                new { UsuarioId = userId, DiscordUserId = (string?)null, Origem = "Web" }));
 
         responses.Should().OnlyContain(response => (int)response.StatusCode < 500);
         responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        var payloads = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>()));
+        payloads.Should().OnlyContain(payload => payload != null
+            && payload.Presencas.Count(presence => presence.UsuarioId == userId && presence.Status == DraftMontagemPresencaStatus.Confirmada.ToString()) == 1);
         (await factory.CountConfirmedPresencesAsync(draftId, userId)).Should().Be(1);
+        factory.LoadedVersions.Should().HaveCount(2).And.OnlyContain(version => version == factory.LoadedVersions[0]);
+        factory.SaveObservedLoadedCounts.Should().Equal(2, 2);
+        factory.SaveResults.Should().ContainSingle(result => result == DraftMontagemSaveResultado.Persistido);
+        factory.SaveResults.Should().ContainSingle(result => result != DraftMontagemSaveResultado.Persistido);
+        factory.PresenceConfirmedEffects.Should().Be(1);
+        factory.RealtimeEffects.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DoisCancelamentosHttpConcorrentes_DevemRetornarSucessoEUmEfeito()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var (draftId, userId) = await factory.SeedPresenceAsync(confirmed: true);
+        factory.ArmPresenceConcurrency(draftId);
+        using var firstClient = factory.CreateUserClient(userId);
+        using var secondClient = factory.CreateUserClient(userId);
+
+        var responses = await Task.WhenAll(
+            firstClient.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/presencas/cancelar",
+                new { UsuarioId = userId, DiscordUserId = (string?)null }),
+            secondClient.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/presencas/cancelar",
+                new { UsuarioId = userId, DiscordUserId = (string?)null }));
+
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        var payloads = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>()));
+        payloads.Should().OnlyContain(payload => payload != null
+            && payload.Presencas.Single(presence => presence.UsuarioId == userId).Status == DraftMontagemPresencaStatus.Cancelada.ToString());
+        (await factory.GetPresenceStatusAsync(draftId, userId)).Should().Be(DraftMontagemPresencaStatus.Cancelada);
+        factory.LoadedVersions.Should().HaveCount(2).And.OnlyContain(version => version == factory.LoadedVersions[0]);
+        factory.SaveObservedLoadedCounts.Should().Equal(2, 2);
+        factory.SaveResults.Should().ContainSingle(result => result == DraftMontagemSaveResultado.Persistido);
+        factory.SaveResults.Should().ContainSingle(result => result == DraftMontagemSaveResultado.ConflitoDeVersao);
+        factory.PresenceCancelledEffects.Should().Be(1);
+        factory.RealtimeEffects.Should().Be(1);
     }
 
     [Fact]
@@ -67,6 +100,19 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         var act = () => factory.SaveDuplicateUserNamesThroughDraftRepositoryAsync();
 
         await act.Should().ThrowAsync<DbUpdateException>();
+    }
+
+    [Fact]
+    public async Task ReloadByIdAsync_DeveLimparTrackingAntesDeRecarregar()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var (draftId, _) = await factory.SeedPresenceAsync();
+
+        var result = await factory.MutateWithoutSavingAndReloadAsync(draftId);
+
+        result.OriginalDetached.Should().BeTrue();
+        result.DifferentInstance.Should().BeTrue();
+        result.ReloadedClosingTime.Should().BeNull();
     }
 
     [Fact]
@@ -310,7 +356,16 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         private const string BotToken = "draft-behavior-tests-internal-token-with-at-least-thirty-two-characters";
         private readonly string _databaseName = $"rinha_draft_behavior_{Guid.NewGuid():N}";
         private readonly string _connectionString;
+        private readonly PresenceConcurrencyCoordinator _presenceConcurrency = new();
+        private readonly PresenceEffectCounter _presenceEffects = new();
         private bool _databaseCreated;
+
+        public IReadOnlyList<long> LoadedVersions => _presenceConcurrency.LoadedVersions;
+        public IReadOnlyList<DraftMontagemSaveResultado> SaveResults => _presenceConcurrency.SaveResults;
+        public IReadOnlyList<int> SaveObservedLoadedCounts => _presenceConcurrency.SaveObservedLoadedCounts;
+        public int PresenceConfirmedEffects => _presenceEffects.PresenceConfirmed;
+        public int PresenceCancelledEffects => _presenceEffects.PresenceCancelled;
+        public int RealtimeEffects => _presenceEffects.Realtime;
 
         public PostgreSqlComposeApiFactory()
         {
@@ -330,6 +385,12 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             var client = CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId));
             return client;
+        }
+
+        public void ArmPresenceConcurrency(Guid draftId)
+        {
+            _presenceConcurrency.Arm(draftId);
+            _presenceEffects.Reset();
         }
 
         public string CreateJwt()
@@ -357,7 +418,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public async Task<(Guid DraftId, Guid UserId)> SeedPresenceAsync()
+        public async Task<(Guid DraftId, Guid UserId)> SeedPresenceAsync(bool confirmed = false)
         {
             _ = CreateClient();
             await using var scope = Services.CreateAsyncScope();
@@ -391,6 +452,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 });
             jogador.VincularUsuario(userId);
             var draft = new DraftMontagem("Draft de presenca", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            if (confirmed)
+            {
+                draft.ConfirmarPresenca(userId, jogador.Id, null, DraftMontagemPresencaOrigem.Web);
+            }
             dbContext.Jogadores.Add(jogador);
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
@@ -408,6 +473,17 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                     && presence.Status == DraftMontagemPresencaStatus.Confirmada);
         }
 
+        public async Task<DraftMontagemPresencaStatus?> GetPresenceStatusAsync(Guid draftId, Guid userId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            return await dbContext.DraftMontagemPresencas
+                .AsNoTracking()
+                .Where(presence => presence.DraftMontagemId == draftId && presence.UsuarioId == userId)
+                .Select(presence => (DraftMontagemPresencaStatus?)presence.Status)
+                .SingleOrDefaultAsync();
+        }
+
         public async Task SaveDuplicateUserNamesThroughDraftRepositoryAsync()
         {
             _ = CreateClient();
@@ -420,6 +496,24 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 new ApplicationUser { Id = Guid.NewGuid(), Nome = "Segundo", UserName = normalizedName, NormalizedUserName = normalizedName });
 
             await repository.TrySaveChangesAsync(CancellationToken.None);
+        }
+
+        public async Task<(bool OriginalDetached, bool DifferentInstance, DateTimeOffset? ReloadedClosingTime)> MutateWithoutSavingAndReloadAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var repository = scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
+            var original = await repository.GetByIdAsync(draftId, CancellationToken.None)
+                ?? throw new InvalidOperationException("Draft test fixture was not found.");
+            original.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
+
+            var reloaded = await repository.ReloadByIdAsync(draftId, CancellationToken.None)
+                ?? throw new InvalidOperationException("Draft test fixture was not reloaded.");
+
+            return (
+                dbContext.Entry(original).State == EntityState.Detached,
+                !ReferenceEquals(original, reloaded),
+                reloaded.HorarioEncerramentoPresenca);
         }
 
         public async Task<Guid> SeedPendingPublicationAsync()
@@ -530,6 +624,15 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                     ["ConnectionStrings:RinhaDasLendas"] = _connectionString,
                     ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 }));
+            builder.ConfigureServices(services =>
+            {
+                services.Replace(ServiceDescriptor.Scoped<IDraftMontagemRepository>(serviceProvider =>
+                    new CoordinatedDraftMontagemRepository(
+                        new DraftMontagemRepository(serviceProvider.GetRequiredService<RinhaDasLendasDbContext>()),
+                        _presenceConcurrency)));
+                services.Replace(ServiceDescriptor.Scoped<IDraftMontagemRealtimeNotifier>(_ => _presenceEffects));
+                services.Replace(ServiceDescriptor.Scoped<IDraftMontagemMetrics>(_ => _presenceEffects));
+            });
         }
 
         private async Task CreateDatabaseAsync()
@@ -541,5 +644,140 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             await command.ExecuteNonQueryAsync();
             _databaseCreated = true;
         }
+    }
+
+    private sealed class PresenceConcurrencyCoordinator
+    {
+        private readonly ConcurrentQueue<long> _loadedVersions = new();
+        private readonly ConcurrentQueue<DraftMontagemSaveResultado> _saveResults = new();
+        private readonly ConcurrentQueue<int> _saveObservedLoadedCounts = new();
+        private readonly object _sync = new();
+        private TaskCompletionSource _release = NewCompletionSource();
+        private Guid? _draftId;
+        private int _loadedCount;
+
+        public IReadOnlyList<long> LoadedVersions => _loadedVersions.ToArray();
+        public IReadOnlyList<DraftMontagemSaveResultado> SaveResults => _saveResults.ToArray();
+        public IReadOnlyList<int> SaveObservedLoadedCounts => _saveObservedLoadedCounts.ToArray();
+
+        public void Arm(Guid draftId)
+        {
+            lock (_sync)
+            {
+                _draftId = draftId;
+                _loadedCount = 0;
+                _release = NewCompletionSource();
+                _loadedVersions.Clear();
+                _saveResults.Clear();
+                _saveObservedLoadedCounts.Clear();
+            }
+        }
+
+        public async Task AfterLoadAsync(Guid draftId, long version, CancellationToken cancellationToken)
+        {
+            Task releaseTask;
+            lock (_sync)
+            {
+                if (_draftId != draftId || _loadedCount >= 2)
+                {
+                    return;
+                }
+
+                _loadedVersions.Enqueue(version);
+                _loadedCount++;
+                if (_loadedCount == 2)
+                {
+                    _release.TrySetResult();
+                }
+
+                releaseTask = _release.Task;
+            }
+
+            await releaseTask.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+
+        public void RecordSaveResult(DraftMontagemSaveResultado result)
+        {
+            if (_draftId is not null)
+            {
+                _saveObservedLoadedCounts.Enqueue(Volatile.Read(ref _loadedCount));
+                _saveResults.Enqueue(result);
+            }
+        }
+
+        private static TaskCompletionSource NewCompletionSource() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    private sealed class PresenceEffectCounter : IDraftMontagemRealtimeNotifier, IDraftMontagemMetrics
+    {
+        private int _presenceConfirmed;
+        private int _presenceCancelled;
+        private int _realtime;
+
+        public int PresenceConfirmed => Volatile.Read(ref _presenceConfirmed);
+        public int PresenceCancelled => Volatile.Read(ref _presenceCancelled);
+        public int Realtime => Volatile.Read(ref _realtime);
+
+        public void Reset()
+        {
+            Volatile.Write(ref _presenceConfirmed, 0);
+            Volatile.Write(ref _presenceCancelled, 0);
+            Volatile.Write(ref _realtime, 0);
+        }
+
+        public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _realtime);
+            return Task.CompletedTask;
+        }
+
+        public void RecordPresenceConfirmed(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceConfirmed);
+        public void RecordPresenceCancelled(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceCancelled);
+        public void RecordPresenceClosed(Guid draftMontagemId) { }
+        public void RecordDiscordPublication(Guid draftMontagemId, string type, string status) { }
+        public void RecordPick(Guid draftMontagemId, string type) { }
+        public void RecordDraftTimeout(Guid draftMontagemId) { }
+    }
+
+    private sealed class CoordinatedDraftMontagemRepository(
+        IDraftMontagemRepository inner,
+        PresenceConcurrencyCoordinator coordinator) : IDraftMontagemRepository
+    {
+        public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => inner.AddAsync(montagem, cancellationToken);
+
+        public async Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+        {
+            var montagem = await inner.GetByIdAsync(id, cancellationToken);
+            if (montagem is not null)
+            {
+                await coordinator.AfterLoadAsync(id, montagem.VersaoEstado, cancellationToken);
+            }
+
+            return montagem;
+        }
+
+        public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdAsync(id, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredRealtimeAsync(now, limit, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredPresenceAsync(now, limit, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => inner.ListActiveForDiscordAsync(cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, page, pageSize, cancellationToken);
+        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken) => inner.CountAsync(search, status, includeCancelled, cancellationToken);
+        public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetJogadoresByIdsAsync(jogadoresIds, cancellationToken);
+        public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => inner.GetJogadorByUsuarioIdAsync(usuarioId, cancellationToken);
+        public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => inner.SearchJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, page, pageSize, cancellationToken);
+        public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => inner.CountJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, cancellationToken);
+        public Task<DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryClaimPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, expiraEm, agora, cancellationToken);
+        public Task<bool> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
+        public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
+        public Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+
+        public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
+        {
+            var result = await inner.TrySaveChangesAsync(cancellationToken);
+            coordinator.RecordSaveResult(result);
+            return result;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
     }
 }

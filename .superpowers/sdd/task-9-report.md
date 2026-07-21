@@ -6,6 +6,8 @@ T093 a T096 concluídas no checkout autorizado da branch `feature/016-melhorias-
 
 Confirmação e cancelamento repetidos são no-op no agregado. Concorrência de persistência é reconciliada apenas quando o estado exato solicitado já foi alcançado; conflitos diferentes continuam sendo propagados ou retornam o código localizado `MV088`.
 
+Os findings Medium de revisão foram corrigidos em incremento separado, sem amend: a concorrência HTTP agora é coordenada dentro do servidor após os dois carregamentos da mesma versão, confirmação e cancelamento exercitam a branch real de conflito e as classificações/reloads possuem cobertura determinística.
+
 ## RED/GREEN
 
 ### RED
@@ -14,16 +16,23 @@ Confirmação e cancelamento repetidos são no-op no agregado. Concorrência de 
 - Duas requisições HTTP de confirmação, liberadas simultaneamente por barreira, produziram uma resposta HTTP 500.
 - A primeira execução completa no devcontainer identificou a ausência do socket Docker para Testcontainers; o proxy temporário documentado foi usado na verificação final.
 - A execução com Testcontainers revelou que `PostgreSqlApiFactory` dependia de configuração externa para criar o usuário do JWT. A factory passou a configurar seu próprio SuperAdmin de teste.
+- A revisão mostrou que a barreira HTTP original sincronizava somente o envio dos clientes e não provava que ambos os handlers carregaram a mesma versão.
+- A revisão também mostrou ausência de testes diretos das branches de reconciliação dos handlers e da classificação exata dos conflitos de persistência.
 
 ### GREEN
 
 - Confirmação repetida retorna a mesma presença, sem alterar `VersaoEstado`.
 - Cancelamento repetido mantém a presença cancelada, sem exceção ou nova versão.
-- As duas confirmações HTTP concorrentes retornam HTTP 200 e o PostgreSQL mantém uma presença confirmada.
+- As duas confirmações HTTP concorrentes carregam a mesma versão antes de qualquer save, retornam HTTP 200 e o PostgreSQL mantém uma presença confirmada.
+- Dois cancelamentos HTTP concorrentes carregam a mesma versão, retornam HTTP 200 e persistem estado cancelado.
+- Em ambos os fluxos, os dois saves observam a barreira completa; há um `Persistido`, um conflito classificado e somente uma notificação/métrica.
 - No-op não chama persistência, SignalR nem métricas.
 - Violação única fora dos dois índices esperados de presença continua lançando `DbUpdateException`.
-- Suíte focada final: 80 aprovados, 0 falhas.
-- Backend completo: 154 aprovados, 0 falhas.
+- Handlers de confirmar/cancelar cobrem conflitos de versão e presença: estado desejado retorna sucesso sem efeitos; estado divergente retorna `MV088`.
+- Classificador puro cobre `DbUpdateConcurrencyException`, cada constraint exata de presença e constraint diferente.
+- Reload real comprova `ChangeTracker.Clear`: entidade anterior fica detached e mutação não persistida não contamina o estado recarregado.
+- Suíte focada final: 94 aprovados, 0 falhas.
+- Backend completo: 168 aprovados, 0 falhas.
 
 ## Persistência
 
@@ -33,16 +42,26 @@ Confirmação e cancelamento repetidos são no-op no agregado. Concorrência de 
 - `ReloadByIdAsync` limpa o change tracker antes de recarregar o agregado completo.
 - Handlers retornam sucesso sem efeitos duplicados somente quando a confirmação ou o cancelamento exato já está persistido.
 - Conflitos de versão com estado divergente retornam `MV088`; demais falhas de banco não são engolidas.
+- `DraftMontagemSaveConflictClassifier` permanece internal à Infrastructure e não expõe EF/Npgsql ao Domain ou Application.
+
+## Concorrência e linearização
+
+- O decorator test-only de `IDraftMontagemRepository` coordena as duas requisições após `GetByIdAsync` carregar o agregado e antes de `TrySaveChangesAsync`.
+- Os testes registram as duas versões carregadas, a quantidade de loads observada por cada save e os resultados de persistência.
+- Nenhum hook de teste foi adicionado a código de produção.
+- O vencedor lineariza no commit do banco. O sucesso reconciliado lineariza no instante do reload que observa o estado desejado.
+- Outra requisição pode alterar o estado depois desse instante e antes de a resposta HTTP chegar; o contrato não promete estabilidade até a chegada ao cliente.
 
 ## Verificações
 
 - `dotnet test BackEnd/RinhaDasLendas.sln --filter "FullyQualifiedName~DraftMontagemTests|FullyQualifiedName~DraftMontagemBehaviorIntegrationTests" --configuration Release`: 47 aprovados na primeira GREEN focada.
-- Foco ampliado de domínio, integração e segurança: 80 aprovados, 0 falhas.
-- `dotnet test BackEnd/RinhaDasLendas.sln --configuration Release`: 154 aprovados, 0 falhas.
+- Foco ampliado de domínio, integração, handlers, classifier e segurança: 94 aprovados, 0 falhas.
+- `dotnet test BackEnd/RinhaDasLendas.sln --configuration Release`: 168 aprovados, 0 falhas.
 - `dotnet build BackEnd/RinhaDasLendas.sln --configuration Release`: aprovado, 0 erros e 2 avisos NU1903.
 - `dotnet ef migrations has-pending-model-changes`: nenhum change pendente.
 - `git diff --check`: aprovado antes do relatório; repetido antes do commit.
 - Proxy Docker temporário e override temporário de porta PostgreSQL removidos após os testes.
+- Proxy Docker temporário da correção de review removido após a suíte completa.
 
 ## Auditoria de internacionalização
 
