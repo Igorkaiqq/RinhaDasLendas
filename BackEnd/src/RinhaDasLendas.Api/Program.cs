@@ -46,53 +46,62 @@ builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.Scheme
     options.Token = internalTokens.FirstOrDefault() ?? string.Empty;
     options.ValidTokens = internalTokens;
 });
+const string apiAuthenticationScheme = "ApiAuthentication";
+var fallbackAuthenticationScheme = builder.Environment.IsEnvironment("Testing")
+    ? TestingAuthHandler.SchemeName
+    : JwtBearerDefaults.AuthenticationScheme;
+var authentication = builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = apiAuthenticationScheme;
+        options.DefaultChallengeScheme = apiAuthenticationScheme;
+        options.DefaultScheme = apiAuthenticationScheme;
+    })
+    .AddPolicyScheme(apiAuthenticationScheme, null, options =>
+    {
+        options.ForwardDefaultSelector = context => context.Request.Headers.ContainsKey(BotInternalAuthOptions.HeaderName)
+            ? BotInternalAuthOptions.SchemeName
+            : fallbackAuthenticationScheme;
+    })
+    .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { });
 if (builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddAuthentication(TestingAuthHandler.SchemeName)
-        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.SchemeName, _ => { });
+    authentication.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.SchemeName, _ => { });
 }
 else
 {
-    builder.Services.AddAuthentication(options =>
+    authentication.AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { })
-        .AddJwtBearer(options =>
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtSection.GetValue<string>("Issuer"),
+            ValidAudience = jwtSection.GetValue<string>("Audience"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+        options.Events = new JwtBearerEvents
         {
-            options.TokenValidationParameters = new TokenValidationParameters
+            OnAuthenticationFailed = context =>
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateIssuerSigningKey = true,
-                ValidateLifetime = true,
-                ValidIssuer = jwtSection.GetValue<string>("Issuer"),
-                ValidAudience = jwtSection.GetValue<string>("Audience"),
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                ClockSkew = TimeSpan.FromSeconds(30),
-            };
-            options.Events = new JwtBearerEvents
+                context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordAuthFailure(JwtBearerDefaults.AuthenticationScheme);
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
             {
-                OnAuthenticationFailed = context =>
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/draft-montagens"))
                 {
-                    context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordAuthFailure(JwtBearerDefaults.AuthenticationScheme);
-                    return Task.CompletedTask;
-                },
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/draft-montagens"))
-                    {
-                        context.Token = accessToken;
-                    }
+                    context.Token = accessToken;
+                }
 
-                    return Task.CompletedTask;
-                },
-            };
-        });
+                return Task.CompletedTask;
+            },
+        };
+    });
 }
 builder.Services.AddAuthorization(options =>
 {
@@ -136,6 +145,10 @@ builder.Services.AddHealthChecks();
 var apiRateLimitOptions = builder.Configuration
     .GetSection(ApiRateLimitOptions.SectionName)
     .Get<ApiRateLimitOptions>() ?? new ApiRateLimitOptions();
+if (apiRateLimitOptions.PermitLimit <= 0 || apiRateLimitOptions.WindowSeconds <= 0)
+{
+    throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.RateLimitConfigurationInvalid));
+}
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

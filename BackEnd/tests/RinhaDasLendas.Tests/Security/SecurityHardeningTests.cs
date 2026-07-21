@@ -62,6 +62,51 @@ public sealed class SecurityHardeningTests
     }
 
     [Fact]
+    public void RateLimitPartition_ShouldIgnoreNameIdentifierFromUnauthenticatedIdentity()
+    {
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([
+                new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            ])),
+        };
+        context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.11");
+
+        ApiRateLimitPartition.GetPartitionKey(context).Should().Be("ip:203.0.113.11");
+    }
+
+    [Fact]
+    public async Task RateLimiter_ShouldAuthenticateBotBeforeSelectingPartition()
+    {
+        using var factory = new RateLimitedApiFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+
+        var firstBotResponse = await client.PostAsJsonAsync("/api/v1/drafts", new { });
+        client.DefaultRequestHeaders.Remove(BotInternalAuthOptions.HeaderName);
+        var userResponse = await client.PostAsJsonAsync("/api/v1/drafts", new { });
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+        var secondBotResponse = await client.PostAsJsonAsync("/api/v1/drafts", new { });
+
+        firstBotResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        userResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        secondBotResponse.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+    }
+
+    [Theory]
+    [InlineData("PermitLimit")]
+    [InlineData("WindowSeconds")]
+    public void RateLimiter_ShouldRejectNonPositiveOptionsAtStartup(string optionName)
+    {
+        using var factory = new InvalidRateLimitApiFactory(optionName);
+
+        var action = () => factory.CreateClient();
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.RateLimitConfigurationInvalid));
+    }
+
+    [Fact]
     public async Task RateLimiter_ShouldReturnLocalizedApiError_WhenPartitionLimitIsExceeded()
     {
         using var factory = new RateLimitedApiFactory();
@@ -366,12 +411,26 @@ public sealed class SecurityHardeningTests
 
     private sealed class RateLimitedApiFactory : WebApplicationFactory<Program>
     {
+        public const string InternalToken = "task-four-review-internal-token";
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder
                 .UseEnvironment("Testing")
+                .UseSetting("DiscordBot:InternalToken", InternalToken)
                 .UseSetting("RateLimiting:Api:PermitLimit", "1")
                 .UseSetting("RateLimiting:Api:WindowSeconds", "60");
+        }
+    }
+
+    private sealed class InvalidRateLimitApiFactory(string optionName) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder
+                .UseEnvironment("Testing")
+                .UseSetting("RateLimiting:Api:PermitLimit", optionName == "PermitLimit" ? "0" : "1")
+                .UseSetting("RateLimiting:Api:WindowSeconds", optionName == "WindowSeconds" ? "0" : "60");
         }
     }
 }
