@@ -1,5 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,6 +16,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -26,6 +31,40 @@ public sealed class EndpointCoverageIntegrationTests
 {
     private static readonly ResourceMessageProvider Messages = new();
     private readonly List<string> _errors = [];
+
+    [Fact]
+    public async Task ClosedPresenceMutation_ShouldReturnSpecificDomainMessageCode()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        await factory.StartContainerAsync();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateJwt());
+        var createRequest = new CreateDraftMontagemRequestDto(
+            $"Montagem Presenca {Guid.NewGuid():N}",
+            null,
+            5,
+            false,
+            null,
+            null,
+            [],
+            []);
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        created.Should().NotBeNull();
+        var closeRequest = new EncerrarPresencaDraftMontagemRequestDto(true, 5);
+        var closeResponse = await client.PostAsJsonAsync($"/api/v1/draft-montagens/{created!.Id}/encerrar-presenca", closeRequest);
+        closeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var repeatedMutationResponse = await client.PostAsJsonAsync($"/api/v1/draft-montagens/{created.Id}/encerrar-presenca", closeRequest);
+
+        repeatedMutationResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await repeatedMutationResponse.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error.Should().NotBeNull();
+        error!.MessageCode.Should().Be(MessageCodes.PresenceAlreadyClosed);
+        error.Message.Should().Be(M(MessageCodes.PresenceAlreadyClosed));
+    }
 
     [Fact]
     public async Task AllDiscoveredEndpoints_ShouldHaveIntegrationCoverage()
@@ -53,6 +92,7 @@ public sealed class EndpointCoverageIntegrationTests
         }
 
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateJwt());
         var discoveredEndpoints = DiscoverEndpoints(factory);
         var coveredEndpoints = CoveredEndpointKeys();
 
@@ -100,12 +140,12 @@ public sealed class EndpointCoverageIntegrationTests
             jogador.Preferencias.Should().HaveCount(5);
         });
 
-        var listResponse = await client.GetAsync("/api/v1/jogadores?page=1&pageSize=20");
+        var listResponse = await client.GetAsync("/api/v1/jogadores?page=1&pageSize=100");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var list = await listResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<JogadorResponseDto>>();
         list.Should().NotBeNull();
         list!.Page.Should().Be(1);
-        list.PageSize.Should().Be(20);
+        list.PageSize.Should().Be(100);
         list.Items.Should().Contain(jogador => jogador.Id == created.Id);
 
         var getByIdResponse = await client.GetAsync($"/api/v1/jogadores/{created.Id}");
@@ -711,8 +751,31 @@ public sealed class EndpointCoverageIntegrationTests
 
     private sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>
     {
+        private const string Issuer = "RinhaDasLendas.IntegrationTests";
+        private const string Audience = "RinhaDasLendas.IntegrationTests.Client";
+        private const string JwtKey = "integration-tests-jwt-key-with-at-least-thirty-two-characters";
         private PostgreSqlContainer? _postgres;
         private string? _connectionString;
+
+        public string CreateJwt()
+        {
+            using var scope = Services.CreateScope();
+            var userId = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
+                .Select(user => user.Id)
+                .First();
+            var token = new JwtSecurityToken(
+                Issuer,
+                Audience,
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Role, AuthRoles.Admin),
+                ],
+                expires: DateTime.UtcNow.AddMinutes(5),
+                signingCredentials: new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                    SecurityAlgorithms.HmacSha256));
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
 
         public async Task StartContainerAsync()
         {
@@ -744,14 +807,20 @@ public sealed class EndpointCoverageIntegrationTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("IntegrationTesting");
+            builder
+                .UseEnvironment("IntegrationTesting")
+                .UseSetting("DiscordBot:InternalToken", "integration-test-token")
+                .UseSetting("Authentication:Jwt:Issuer", Issuer)
+                .UseSetting("Authentication:Jwt:Audience", Audience)
+                .UseSetting("Authentication:Jwt:Key", JwtKey);
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:RinhaDasLendas"] = _connectionString
                         ?? throw new InvalidOperationException(M(MessageCodes.TestPostgreSqlContainerNotStarted)),
-                    ["DiscordBot:InternalToken"] = "integration-test-token"
+                    ["ConnectionStrings:DefaultConnection"] = _connectionString
+                        ?? throw new InvalidOperationException(M(MessageCodes.TestPostgreSqlContainerNotStarted))
                 });
             });
         }

@@ -25,7 +25,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         catch (DomainException exception)
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse(messages.GetMessage(MessageCodes.ValidationError), [messages.GetMessage(exception.Message)], MessageCodes.ValidationError));
+            await context.Response.WriteAsJsonAsync(ApiErrorResponse.FromCode(messages, exception.MessageCode));
         }
         catch (UnauthorizedAccessException exception)
         {

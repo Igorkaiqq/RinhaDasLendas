@@ -16,6 +16,23 @@ import {
   PresenceButtonAction,
 } from '../../shared/constants/draftConstants/index.js'
 
+const MessageCodes = {
+  BotInternalTokenInvalid: 'MV079',
+  DiscordAccountNotLinked: 'MV063',
+  PlayerProfileNotFound: 'ME033',
+  InactivePlayerCannotJoinQueue: 'MV012',
+  PresenceAlreadyClosed: 'MV072',
+  PresenceNotFound: 'MV073',
+  PlayerAlreadyInQueue: 'MV014',
+  DraftMontagemInsufficientPresencePlayers: 'MV074',
+  DraftMontagemPresenceMustBeClosed: 'MV075',
+  DraftMontagemCaptainsRequired: 'MV048',
+  DraftMontagemCaptainsMustBePlayers: 'MV050',
+  DraftMontagemPickOrderInvalid: 'MV076',
+  DraftClosed: 'MV029',
+  DraftMontagemNotFound: 'ME035',
+} as const
+
 export async function handleDraftCommand(interaction: ChatInputCommandInteraction) {
   try {
     if (isMutableDraftCommand(interaction.commandName) && !isDraftAdministrator(interaction, parseCommaSeparatedIds(env.DRAFT_ADMIN_ROLE_IDS))) {
@@ -439,20 +456,20 @@ export function getDraftInteractionErrorMessage(error: unknown, context: DraftIn
 
 function getDraftInteractionErrorMessageByCode(messageCode: string, context: DraftInteractionErrorContext) {
   const messages: Record<string, string> = {
-    BotInternalTokenInvalid: t.internalTokenInvalid,
-    DiscordAccountNotLinked: t.accountNotLinked,
-    PlayerProfileNotFound: t.playerProfileIncomplete,
-    InactivePlayerCannotJoinQueue: t.playerInactive,
-    PresenceAlreadyClosed: context === 'cancelPresence' ? t.draftErrors.presenceClosedCannotCancel : t.draftErrors.presenceAlreadyClosed,
-    PresenceNotFound: context === 'cancelPresence' ? t.draftErrors.presenceNotConfirmed : t.draftNotFound,
-    PlayerAlreadyInQueue: t.draftErrors.presenceAlreadyConfirmed,
-    DraftMontagemInsufficientPresencePlayers: t.draftErrors.closePresenceLessThanTen,
-    DraftMontagemPresenceMustBeClosed: t.draftErrors.presenceStillOpen,
-    DraftMontagemCaptainsRequired: context === 'definePickOrder' ? t.draftErrors.missingCaptains : t.draftErrors.captainCountMismatch,
-    DraftMontagemCaptainsMustBePlayers: t.draftErrors.captainNotConfirmed,
-    DraftMontagemPickOrderInvalid: t.draftErrors.invalidManualPickOrder,
-    DraftClosed: context === 'cancel' ? t.draftErrors.draftAlreadyClosed : contextGenericMessage(context),
-    DraftMontagemNotFound: context === 'status' ? t.draftNotFoundMaybeFinished : t.draftNotFound,
+    [MessageCodes.BotInternalTokenInvalid]: t.internalTokenInvalid,
+    [MessageCodes.DiscordAccountNotLinked]: t.accountNotLinked,
+    [MessageCodes.PlayerProfileNotFound]: t.playerProfileIncomplete,
+    [MessageCodes.InactivePlayerCannotJoinQueue]: t.playerInactive,
+    [MessageCodes.PresenceAlreadyClosed]: context === 'cancelPresence' ? t.draftErrors.presenceClosedCannotCancel : t.draftErrors.presenceAlreadyClosed,
+    [MessageCodes.PresenceNotFound]: context === 'cancelPresence' ? t.draftErrors.presenceNotConfirmed : t.draftNotFound,
+    [MessageCodes.PlayerAlreadyInQueue]: t.draftErrors.presenceAlreadyConfirmed,
+    [MessageCodes.DraftMontagemInsufficientPresencePlayers]: t.draftErrors.closePresenceLessThanTen,
+    [MessageCodes.DraftMontagemPresenceMustBeClosed]: t.draftErrors.presenceStillOpen,
+    [MessageCodes.DraftMontagemCaptainsRequired]: context === 'definePickOrder' ? t.draftErrors.missingCaptains : t.draftErrors.captainCountMismatch,
+    [MessageCodes.DraftMontagemCaptainsMustBePlayers]: t.draftErrors.captainNotConfirmed,
+    [MessageCodes.DraftMontagemPickOrderInvalid]: t.draftErrors.invalidManualPickOrder,
+    [MessageCodes.DraftClosed]: context === 'cancel' ? t.draftErrors.draftAlreadyClosed : contextGenericMessage(context),
+    [MessageCodes.DraftMontagemNotFound]: context === 'status' ? t.draftNotFoundMaybeFinished : t.draftNotFound,
   }
 
   return messages[messageCode]

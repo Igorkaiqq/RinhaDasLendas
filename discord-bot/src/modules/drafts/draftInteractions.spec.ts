@@ -135,10 +135,29 @@ describe('getDraftInteractionErrorMessage', () => {
     assert.equal(result, 'A autenticação interna do bot falhou. Verifique RINHA_API_INTERNAL_TOKEN no backend e no bot.')
   })
 
-  it('maps structured API message codes to specific messages', () => {
-    const result = getDraftInteractionErrorMessage(new RinhaApiError('PresenceAlreadyClosed', 'Lista encerrada', 400), 'confirmPresence')
+  it('maps public API message codes to specific messages', () => {
+    const scenarios = [
+      ['MV079', 'create', t.internalTokenInvalid],
+      ['MV063', 'confirmPresence', t.accountNotLinked],
+      ['ME033', 'confirmPresence', t.playerProfileIncomplete],
+      ['MV012', 'confirmPresence', t.playerInactive],
+      ['MV072', 'confirmPresence', t.draftErrors.presenceAlreadyClosed],
+      ['MV072', 'cancelPresence', t.draftErrors.presenceClosedCannotCancel],
+      ['MV073', 'cancelPresence', t.draftErrors.presenceNotConfirmed],
+      ['MV014', 'confirmPresence', t.draftErrors.presenceAlreadyConfirmed],
+      ['MV074', 'closePresence', t.draftErrors.closePresenceLessThanTen],
+      ['MV075', 'defineCaptains', t.draftErrors.presenceStillOpen],
+      ['MV048', 'definePickOrder', t.draftErrors.missingCaptains],
+      ['MV050', 'defineCaptains', t.draftErrors.captainNotConfirmed],
+      ['MV076', 'definePickOrder', t.draftErrors.invalidManualPickOrder],
+      ['MV029', 'cancel', t.draftErrors.draftAlreadyClosed],
+      ['ME035', 'status', t.draftNotFoundMaybeFinished],
+    ] as const
 
-    assert.equal(result, 'Essa lista de presença já foi encerrada.')
+    for (const [messageCode, context, expected] of scenarios) {
+      const result = getDraftInteractionErrorMessage(new RinhaApiError(messageCode, 'technical detail', 400), context)
+      assert.equal(result, expected, messageCode)
+    }
   })
 
   it('maps network failures to the API unavailable message', () => {

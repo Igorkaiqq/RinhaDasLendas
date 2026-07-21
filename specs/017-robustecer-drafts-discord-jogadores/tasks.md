@@ -211,8 +211,8 @@
 
 ### Structured errors
 
-- [ ] T083 [P] [US7] Adicionar teste falho de integração que provoque `MV072` e valide `messageCode` específico.
-- [ ] T084 [US7] Preservar `DomainException.MessageCode` em `ApiExceptionMiddleware` e alinhar contrato/mapeamento do bot aos códigos públicos.
+- [x] T083 [P] [US7] Adicionar teste falho de integração que provoque `MV072` e valide `messageCode` específico.
+- [x] T084 [US7] Preservar `DomainException.MessageCode` em `ApiExceptionMiddleware` e alinhar contrato/mapeamento do bot aos códigos públicos.
 
 ### Atomic Discord publication
 
