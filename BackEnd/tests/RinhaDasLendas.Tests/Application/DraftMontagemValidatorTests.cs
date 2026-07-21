@@ -60,15 +60,17 @@ public sealed class DraftMontagemValidatorTests
         results.Should().OnlyContain(result => result.Errors.Any(error => error.ErrorMessage == MessageCodes.FieldRequired));
     }
 
-    [Fact]
-    public void AcoesAdministrativas_DevemLimitarMotivoA500Caracteres()
+    [Theory]
+    [InlineData(500, true)]
+    [InlineData(501, false)]
+    public void AcoesAdministrativas_DevemLimitarMotivoA500Caracteres(int length, bool expectedValid)
     {
-        var motivo = new string('a', 501);
+        var motivo = new string('a', length);
 
-        new CancelarDraftMontagemValidator().Validate(new CancelarDraftMontagemRequestDto(motivo)).Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.CancellationReasonMaxLength);
-        new AdicionarPresencaManualDraftMontagemValidator().Validate(new AdicionarPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.CancellationReasonMaxLength);
-        new RemoverPresencaManualDraftMontagemValidator().Validate(new RemoverPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.CancellationReasonMaxLength);
-        new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(new RepublicarPublicacaoDiscordDraftMontagemRequestDto(DraftMontagemPublicacaoDiscordTipo.Presenca, motivo)).Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.CancellationReasonMaxLength);
+        new CancelarDraftMontagemValidator().Validate(new CancelarDraftMontagemRequestDto(motivo)).IsValid.Should().Be(expectedValid);
+        new AdicionarPresencaManualDraftMontagemValidator().Validate(new AdicionarPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).IsValid.Should().Be(expectedValid);
+        new RemoverPresencaManualDraftMontagemValidator().Validate(new RemoverPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).IsValid.Should().Be(expectedValid);
+        new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(new RepublicarPublicacaoDiscordDraftMontagemRequestDto(DraftMontagemPublicacaoDiscordTipo.Presenca, motivo)).IsValid.Should().Be(expectedValid);
     }
 
     [Theory]
@@ -83,16 +85,44 @@ public sealed class DraftMontagemValidatorTests
             new RegistrarPublicacaoDiscordDraftMontagemRequestDto(tipo!, Guid.NewGuid(), "guild", "channel", "message"));
         var failure = new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(
             new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto(tipo!, Guid.NewGuid(), "guild", "channel", "erro"));
+        var claim = new AdquirirClaimPublicacaoDiscordDraftMontagemValidator().Validate(
+            new AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto(tipo!));
 
         completion.IsValid.Should().BeFalse();
         failure.IsValid.Should().BeFalse();
+        claim.IsValid.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Presenca")]
+    [InlineData("presenca")]
+    [InlineData("ChamadaPresenca")]
+    [InlineData("chamadapresenca")]
+    [InlineData("TimesDefinidos")]
+    [InlineData("timesdefinidos")]
+    public void PublicacaoDiscord_DeveAceitarTodosOsTiposNominais(string tipo)
+    {
+        new AdquirirClaimPublicacaoDiscordDraftMontagemValidator().Validate(new AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto(tipo)).IsValid.Should().BeTrue();
+        new RegistrarPublicacaoDiscordDraftMontagemValidator().Validate(new RegistrarPublicacaoDiscordDraftMontagemRequestDto(tipo, Guid.NewGuid(), new string('1', 40), new string('2', 40), new string('3', 40))).IsValid.Should().BeTrue();
+        new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto(tipo, Guid.NewGuid(), new string('1', 40), new string('2', 40), new string('e', 120))).IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("3")]
+    public void PublicacaoDiscord_DeveRejeitarTiposNumericosMesmoQuandoDefinidos(string tipo)
+    {
+        new AdquirirClaimPublicacaoDiscordDraftMontagemValidator().Validate(new AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto(tipo)).IsValid.Should().BeFalse();
+        new RegistrarPublicacaoDiscordDraftMontagemValidator().Validate(new RegistrarPublicacaoDiscordDraftMontagemRequestDto(tipo, Guid.NewGuid(), "guild", "channel", "message")).IsValid.Should().BeFalse();
+        new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto(tipo, Guid.NewGuid(), "guild", "channel", "erro")).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void PublicacaoDiscord_DeveExigirClaimEMessageId()
     {
         var completion = new RegistrarPublicacaoDiscordDraftMontagemValidator().Validate(
-            new RegistrarPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.Empty, null, null, null!));
+            new RegistrarPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.Empty, null, null, string.Empty));
         var failure = new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(
             new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.Empty, null, null, null));
 
@@ -101,21 +131,29 @@ public sealed class DraftMontagemValidatorTests
         failure.Errors.Should().Contain(error => error.PropertyName == "ClaimId" && error.ErrorMessage == MessageCodes.DiscordPublicationClaimInvalid);
     }
 
-    [Fact]
-    public void PublicacaoDiscord_DeveRespeitarLimitesDosCampos()
+    [Theory]
+    [InlineData(40, true)]
+    [InlineData(41, false)]
+    public void PublicacaoDiscord_DeveRespeitarLimitesDosIds(int length, bool expectedValid)
     {
-        var overForty = new string('1', 41);
-        var overOneHundredTwenty = new string('e', 121);
+        var id = new string('1', length);
         var completion = new RegistrarPublicacaoDiscordDraftMontagemValidator().Validate(
-            new RegistrarPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.NewGuid(), overForty, overForty, overForty));
+            new RegistrarPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.NewGuid(), id, id, id));
         var failure = new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(
-            new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.NewGuid(), overForty, overForty, overOneHundredTwenty));
+            new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.NewGuid(), id, id, "erro"));
 
-        completion.Errors.Should().Contain(error => error.PropertyName == "DiscordGuildId" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
-        completion.Errors.Should().Contain(error => error.PropertyName == "DiscordChannelId" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
-        completion.Errors.Should().Contain(error => error.PropertyName == "MessageId" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
-        failure.Errors.Should().Contain(error => error.PropertyName == "DiscordGuildId" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
-        failure.Errors.Should().Contain(error => error.PropertyName == "DiscordChannelId" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
-        failure.Errors.Should().Contain(error => error.PropertyName == "ErroCodigo" && error.ErrorMessage == MessageCodes.MaxLengthExceeded);
+        completion.IsValid.Should().Be(expectedValid);
+        failure.IsValid.Should().Be(expectedValid);
+    }
+
+    [Theory]
+    [InlineData(120, true)]
+    [InlineData(121, false)]
+    public void FalhaPublicacaoDiscord_DeveLimitarErroA120Caracteres(int length, bool expectedValid)
+    {
+        var result = new RegistrarFalhaPublicacaoDiscordDraftMontagemValidator().Validate(
+            new RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto("Presenca", Guid.NewGuid(), "guild", "channel", new string('e', length)));
+
+        result.IsValid.Should().Be(expectedValid);
     }
 }

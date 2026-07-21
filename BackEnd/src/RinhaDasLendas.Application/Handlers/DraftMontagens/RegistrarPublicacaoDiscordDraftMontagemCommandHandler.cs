@@ -18,7 +18,7 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
-        if (!Enum.TryParse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true, out var tipo) || !Enum.IsDefined(tipo))
+        if (!DraftMontagemPublicacaoDiscordTipoParser.TryParse(command.Request.Tipo, out var tipo))
         {
             throw new DomainException(MessageCodes.FieldRequired);
         }

@@ -278,6 +278,9 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
     [Theory]
     [InlineData("Invalido")]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("3")]
     [InlineData("999")]
     public async Task ClaimComTipoInvalido_DeveRetornarValidacaoLocalizada(string tipo)
     {
@@ -293,6 +296,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
         error.Should().NotBeNull();
         error!.MessageCode.Should().Be(MessageCodes.ValidationError);
+        (await factory.GetPublicationClaimStateAsync(draftId)).Should().Be(("Pendente", null));
     }
 
     [Fact]
@@ -368,7 +372,89 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.ValidationError);
         (await factory.GetPublicationClaimStateAsync(draftId)).Should().Be(("EmAndamento", claimId));
+    }
+
+    [Fact]
+    public async Task FalhaPublicacaoComPayloadInvalido_NaoDeveConsumirClaim()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        using var client = factory.CreateBotClient();
+        var draftId = await factory.SeedPendingPublicationAsync();
+        var claimId = await AcquireClaimIdAsync(client, draftId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{draftId}/discord/publicacao/falha",
+            new { Tipo = "Presenca", ClaimId = claimId, ErroCodigo = new string('e', 121) });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.ValidationError);
+        (await factory.GetPublicationClaimStateAsync(draftId)).Should().Be(("EmAndamento", claimId));
+    }
+
+    [Fact]
+    public async Task AcoesAdministrativasSemExecutor_NaoDevemMutarDrafts()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        using var client = factory.CreateAdminClientWithoutNameIdentifier();
+        var addition = await factory.SeedAdministrativeDraftAsync();
+        var removal = await factory.SeedAdministrativeDraftAsync(confirmed: true);
+        var republication = await factory.SeedAdministrativeDraftAsync();
+
+        var responses = new[]
+        {
+            await client.PostAsJsonAsync($"/api/v1/draft-montagens/{addition.DraftId}/presencas/manual", new { JogadorId = addition.TargetPlayerId, Motivo = "convite" }),
+            await client.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/draft-montagens/{removal.DraftId}/presencas/{removal.TargetPlayerId}")
+            {
+                Content = JsonContent.Create(new { Motivo = "ausencia" }),
+            }),
+            await client.PostAsJsonAsync($"/api/v1/draft-montagens/{republication.DraftId}/discord/publicacoes/republicar", new { Tipo = "Presenca", Motivo = "mensagem removida" }),
+        };
+
+        foreach (var response in responses)
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.UnauthorizedAccess);
+        }
+        (await factory.GetAdministrativeMutationStateAsync(addition.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetAdministrativeMutationStateAsync(removal.DraftId)).Should().Be((1, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetConfirmedPresenceCountByPlayerAsync(removal.DraftId, removal.TargetPlayerId)).Should().Be(1);
+        (await factory.GetAdministrativeMutationStateAsync(republication.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetPublicationCountAsync(republication.DraftId)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MotivosInvalidos_NaoDevemMutarAcoesAdministrativas()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var cancellation = await factory.SeedAdministrativeDraftAsync();
+        var addition = await factory.SeedAdministrativeDraftAsync();
+        var removal = await factory.SeedAdministrativeDraftAsync(confirmed: true);
+        var republication = await factory.SeedAdministrativeDraftAsync();
+        using var client = factory.CreateUserClient(cancellation.ExecutorUserId);
+
+        var responses = new[]
+        {
+            await client.PatchAsJsonAsync($"/api/v1/draft-montagens/{cancellation.DraftId}/cancelar", new { Motivo = " " }),
+            await client.PostAsJsonAsync($"/api/v1/draft-montagens/{addition.DraftId}/presencas/manual", new { JogadorId = addition.TargetPlayerId, Motivo = (string?)null }),
+            await client.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/draft-montagens/{removal.DraftId}/presencas/{removal.TargetPlayerId}")
+            {
+                Content = JsonContent.Create(new { Motivo = string.Empty }),
+            }),
+            await client.PostAsJsonAsync($"/api/v1/draft-montagens/{republication.DraftId}/discord/publicacoes/republicar", new { Tipo = "Presenca", Motivo = new string('a', 501) }),
+        };
+
+        foreach (var response in responses)
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.ValidationError);
+        }
+        (await factory.GetAdministrativeMutationStateAsync(cancellation.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetAdministrativeMutationStateAsync(addition.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetAdministrativeMutationStateAsync(removal.DraftId)).Should().Be((1, 0, DraftMontagemStatus.PresencaAberta));
+        (await factory.GetConfirmedPresenceCountByPlayerAsync(removal.DraftId, removal.TargetPlayerId)).Should().Be(1);
+        (await factory.GetPublicationCountAsync(republication.DraftId)).Should().Be(0);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -509,7 +595,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public async Task<(Guid DraftId, Guid ExecutorUserId, Guid TargetPlayerId)> SeedAdministrativeDraftAsync()
+        public async Task<(Guid DraftId, Guid ExecutorUserId, Guid TargetPlayerId)> SeedAdministrativeDraftAsync(bool confirmed = false)
         {
             _ = CreateClient();
             await using var scope = Services.CreateAsyncScope();
@@ -550,6 +636,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 });
             jogador.VincularUsuario(targetUserId);
             var draft = new DraftMontagem("Draft administrativo", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            if (confirmed)
+            {
+                draft.ConfirmarPresenca(targetUserId, jogador.Id, null, DraftMontagemPresencaOrigem.Web);
+            }
             dbContext.Jogadores.Add(jogador);
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
@@ -586,6 +676,21 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 .Where(item => item.DraftMontagemId == draftId && item.Tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
                 .Select(item => new ValueTuple<string, Guid?>(item.Status.ToString(), item.ClaimId))
                 .SingleAsync();
+        }
+
+        public async Task<int> GetConfirmedPresenceCountByPlayerAsync(Guid draftId, Guid playerId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            return await dbContext.DraftMontagemPresencas.AsNoTracking().CountAsync(
+                item => item.DraftMontagemId == draftId && item.JogadorId == playerId && item.Status == DraftMontagemPresencaStatus.Confirmada);
+        }
+
+        public async Task<int> GetPublicationCountAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>()
+                .DraftMontagemPublicacoesDiscord.AsNoTracking().CountAsync(item => item.DraftMontagemId == draftId);
         }
 
         public async Task<(Guid DraftId, Guid UserId)> SeedPresenceAsync(bool confirmed = false)
