@@ -18,7 +18,10 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
-        var tipo = Enum.Parse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true);
+        if (!Enum.TryParse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true, out var tipo) || !Enum.IsDefined(tipo))
+        {
+            throw new DomainException(MessageCodes.FieldRequired);
+        }
         var agora = DateTimeOffset.UtcNow;
         var updated = await repository.TryConcluirPublicacaoDiscordAsync(
             command.Id,

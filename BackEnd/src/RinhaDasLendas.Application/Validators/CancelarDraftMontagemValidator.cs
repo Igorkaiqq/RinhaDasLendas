@@ -11,6 +11,8 @@ public sealed class CancelarDraftMontagemValidator : AbstractValidator<CancelarD
     public CancelarDraftMontagemValidator()
     {
         RuleFor(request => request.Motivo)
+            .NotEmpty()
+            .WithMessage(MessageCodes.FieldRequired)
             .MaximumLength(500)
             .WithMessage(MessageCodes.CancellationReasonMaxLength);
     }

@@ -16,13 +16,14 @@ public sealed class CancelarDraftMontagemCommandHandler(
     public async Task<DraftMontagemResponseDto?> Handle(CancelarDraftMontagemCommand command, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
+        var currentUserId = DraftMontagemHandlerHelpers.ResolveRequiredCurrentUserId(currentUser);
         var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
         if (montagem is null)
         {
             return null;
         }
 
-        montagem.Cancelar(command.Request.Motivo, currentUser.UserId);
+        montagem.Cancelar(command.Request.Motivo, currentUserId);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);

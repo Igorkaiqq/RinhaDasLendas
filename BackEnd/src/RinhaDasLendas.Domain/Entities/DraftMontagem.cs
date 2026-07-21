@@ -230,7 +230,11 @@ public sealed class DraftMontagem
         return presenca;
     }
 
-    public DraftMontagemPresenca AdicionarPresencaManual(Guid usuarioId, Guid jogadorId)
+    public DraftMontagemPresenca AdicionarPresencaManual(
+        Guid usuarioId,
+        Guid jogadorId,
+        Guid responsavelUsuarioId,
+        string? motivo)
     {
         if (Status != DraftMontagemStatus.PresencaAberta)
         {
@@ -250,6 +254,7 @@ public sealed class DraftMontagem
 
         var presenca = new DraftMontagemPresenca(usuarioId, jogadorId, null, DraftMontagemPresencaOrigem.Manual, _presencas.Count + 1);
         _presencas.Add(presenca);
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("AdicaoPresencaManual", responsavelUsuarioId, motivo, jogadorId));
         Touch();
         return presenca;
     }

@@ -295,6 +295,82 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         error!.MessageCode.Should().Be(MessageCodes.ValidationError);
     }
 
+    [Fact]
+    public async Task AdicaoManualSemMotivo_NaoDeveMutarDraft()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedAdministrativeDraftAsync();
+        using var client = factory.CreateUserClient(fixture.ExecutorUserId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/presencas/manual",
+            new { JogadorId = fixture.TargetPlayerId, Motivo = "   " });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error.Should().NotBeNull();
+        error!.MessageCode.Should().Be(MessageCodes.ValidationError);
+        (await factory.GetAdministrativeMutationStateAsync(fixture.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+    }
+
+    [Fact]
+    public async Task CancelamentoSemNameIdentifier_NaoDeveMutarDraft()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedAdministrativeDraftAsync();
+        using var client = factory.CreateAdminClientWithoutNameIdentifier();
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/cancelar",
+            new { Motivo = "evento cancelado" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error.Should().NotBeNull();
+        error!.MessageCode.Should().Be(MessageCodes.UnauthorizedAccess);
+        (await factory.GetAdministrativeMutationStateAsync(fixture.DraftId)).Should().Be((0, 0, DraftMontagemStatus.PresencaAberta));
+    }
+
+    [Fact]
+    public async Task AdicaoManualValida_DevePersistirExecutorAlvoEMotivo()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedAdministrativeDraftAsync();
+        using var client = factory.CreateUserClient(fixture.ExecutorUserId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/presencas/manual",
+            new { JogadorId = fixture.TargetPlayerId, Motivo = "  convidado pelo organizador  " });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var action = await factory.GetAdministrativeActionAsync(fixture.DraftId);
+        action.Should().Be(("AdicaoPresencaManual", fixture.ExecutorUserId, fixture.TargetPlayerId, "convidado pelo organizador"));
+        (await factory.GetAdministrativeMutationStateAsync(fixture.DraftId)).Should().Be((1, 1, DraftMontagemStatus.PresencaAberta));
+    }
+
+    [Fact]
+    public async Task PublicacaoComPayloadInvalido_NaoDeveConsumirClaim()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        using var client = factory.CreateBotClient();
+        var draftId = await factory.SeedPendingPublicationAsync();
+        var claimId = await AcquireClaimIdAsync(client, draftId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{draftId}/discord/publicacao",
+            new
+            {
+                Tipo = "Presenca",
+                ClaimId = claimId,
+                DiscordGuildId = new string('1', 41),
+                DiscordChannelId = "channel-1",
+                MessageId = "message-1",
+            });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await factory.GetPublicationClaimStateAsync(draftId)).Should().Be(("EmAndamento", claimId));
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -387,6 +463,13 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return client;
         }
 
+        public HttpClient CreateAdminClientWithoutNameIdentifier()
+        {
+            var client = CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(null));
+            return client;
+        }
+
         public void ArmPresenceConcurrency(Guid draftId)
         {
             _presenceConcurrency.Arm(draftId);
@@ -404,18 +487,105 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         public string CreateJwt(Guid userId)
         {
+            return CreateJwt((Guid?)userId);
+        }
+
+        private string CreateJwt(Guid? userId)
+        {
+            var claims = new List<Claim> { new(ClaimTypes.Role, AuthRoles.Admin) };
+            if (userId.HasValue)
+            {
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
+            }
+
             var token = new JwtSecurityToken(
                 Issuer,
                 Audience,
-                [
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim(ClaimTypes.Role, AuthRoles.Admin),
-                ],
+                claims,
                 expires: DateTime.UtcNow.AddMinutes(5),
                 signingCredentials: new SigningCredentials(
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
                     SecurityAlgorithms.HmacSha256));
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task<(Guid DraftId, Guid ExecutorUserId, Guid TargetPlayerId)> SeedAdministrativeDraftAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var executorUserId = Guid.NewGuid();
+            var targetUserId = Guid.NewGuid();
+            dbContext.Users.AddRange(
+                new ApplicationUser
+                {
+                    Id = executorUserId,
+                    Nome = "Organizador",
+                    UserName = $"admin-{executorUserId:N}",
+                    NormalizedUserName = $"ADMIN-{executorUserId:N}",
+                },
+                new ApplicationUser
+                {
+                    Id = targetUserId,
+                    Nome = "Jogador alvo",
+                    UserName = $"target-{targetUserId:N}",
+                    NormalizedUserName = $"TARGET-{targetUserId:N}",
+                });
+            var jogador = new Jogador(
+                "Jogador alvo",
+                null,
+                "target#1234",
+                null,
+                null,
+                null,
+                Elo.Ouro,
+                Divisao.II,
+                new[]
+                {
+                    new PreferenciaRota(Rota.Top, 1, false),
+                    new PreferenciaRota(Rota.Jungle, 2, false),
+                    new PreferenciaRota(Rota.Mid, 3, false),
+                    new PreferenciaRota(Rota.Adc, 4, false),
+                    new PreferenciaRota(Rota.Support, 5, false),
+                });
+            jogador.VincularUsuario(targetUserId);
+            var draft = new DraftMontagem("Draft administrativo", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            dbContext.Jogadores.Add(jogador);
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            return (draft.Id, executorUserId, jogador.Id);
+        }
+
+        public async Task<(int Presences, int Actions, DraftMontagemStatus Status)> GetAdministrativeMutationStateAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var presences = await dbContext.DraftMontagemPresencas.AsNoTracking().CountAsync(item => item.DraftMontagemId == draftId);
+            var actions = await dbContext.DraftMontagemAcoesAdministrativas.AsNoTracking().CountAsync(item => item.DraftMontagemId == draftId);
+            var status = await dbContext.DraftMontagens.AsNoTracking().Where(item => item.Id == draftId).Select(item => item.Status).SingleAsync();
+            return (presences, actions, status);
+        }
+
+        public async Task<(string Type, Guid ExecutorUserId, Guid TargetPlayerId, string? Reason)> GetAdministrativeActionAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            return await dbContext.DraftMontagemAcoesAdministrativas
+                .AsNoTracking()
+                .Where(item => item.DraftMontagemId == draftId)
+                .Select(item => new ValueTuple<string, Guid, Guid, string?>(item.Tipo, item.ResponsavelUsuarioId, item.JogadorAlvoId!.Value, item.Motivo))
+                .SingleAsync();
+        }
+
+        public async Task<(string Status, Guid? ClaimId)> GetPublicationClaimStateAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            return await dbContext.DraftMontagemPublicacoesDiscord
+                .AsNoTracking()
+                .Where(item => item.DraftMontagemId == draftId && item.Tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
+                .Select(item => new ValueTuple<string, Guid?>(item.Status.ToString(), item.ClaimId))
+                .SingleAsync();
         }
 
         public async Task<(Guid DraftId, Guid UserId)> SeedPresenceAsync(bool confirmed = false)

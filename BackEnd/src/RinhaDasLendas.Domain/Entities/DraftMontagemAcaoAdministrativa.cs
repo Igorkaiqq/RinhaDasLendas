@@ -12,7 +12,9 @@ public sealed class DraftMontagemAcaoAdministrativa
     {
         Id = Guid.NewGuid();
         Tipo = string.IsNullOrWhiteSpace(tipo) ? throw new ArgumentException(MessageCodes.FieldRequired, nameof(tipo)) : tipo.Trim();
-        ResponsavelUsuarioId = responsavelUsuarioId;
+        ResponsavelUsuarioId = responsavelUsuarioId == Guid.Empty
+            ? throw new ArgumentException(MessageCodes.FieldRequired, nameof(responsavelUsuarioId))
+            : responsavelUsuarioId;
         JogadorAlvoId = jogadorAlvoId;
         Motivo = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
         RegistradoEm = DateTimeOffset.UtcNow;

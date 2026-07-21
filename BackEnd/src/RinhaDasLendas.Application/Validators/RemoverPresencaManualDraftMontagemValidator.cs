@@ -12,6 +12,8 @@ public sealed class RemoverPresencaManualDraftMontagemValidator : AbstractValida
             .NotEmpty().WithMessage(MessageCodes.FieldRequired);
 
         RuleFor(request => request.Motivo)
+            .NotEmpty()
+            .WithMessage(MessageCodes.FieldRequired)
             .MaximumLength(500)
             .WithMessage(MessageCodes.CancellationReasonMaxLength);
     }

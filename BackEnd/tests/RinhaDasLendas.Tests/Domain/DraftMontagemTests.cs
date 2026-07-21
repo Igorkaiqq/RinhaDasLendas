@@ -135,7 +135,7 @@ public sealed class DraftMontagemTests
         var usuarioId = Guid.NewGuid();
         var jogadorId = Guid.NewGuid();
 
-        var presenca = montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+        var presenca = montagem.AdicionarPresencaManual(usuarioId, jogadorId, Guid.NewGuid(), "Adição manual");
 
         presenca.UsuarioId.Should().Be(usuarioId);
         presenca.JogadorId.Should().Be(jogadorId);
@@ -174,9 +174,9 @@ public sealed class DraftMontagemTests
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         var usuarioId = Guid.NewGuid();
         var jogadorId = Guid.NewGuid();
-        montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+        montagem.AdicionarPresencaManual(usuarioId, jogadorId, Guid.NewGuid(), "Adição manual");
 
-        var act = () => montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+        var act = () => montagem.AdicionarPresencaManual(usuarioId, jogadorId, Guid.NewGuid(), "Adição manual");
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PlayerAlreadyInQueue);
     }
@@ -186,7 +186,7 @@ public sealed class DraftMontagemTests
     {
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         var jogadorId = Guid.NewGuid();
-        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId);
+        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId, Guid.NewGuid(), "Adição manual");
 
         montagem.RemoverPresencaManual(jogadorId);
 
@@ -199,7 +199,7 @@ public sealed class DraftMontagemTests
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         var jogadorId = Guid.NewGuid();
         var responsavelId = Guid.NewGuid();
-        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId);
+        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId, Guid.NewGuid(), "Adição manual");
 
         montagem.RemoverPresencaManual(jogadorId, responsavelId, "não poderá jogar");
 

@@ -18,13 +18,14 @@ public sealed class RemoverPresencaManualDraftMontagemCommandHandler(
     public async Task<DraftMontagemResponseDto?> Handle(RemoverPresencaManualDraftMontagemCommand command, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
+        var currentUserId = DraftMontagemHandlerHelpers.ResolveRequiredCurrentUserId(currentUser);
         var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
         if (montagem is null)
         {
             return null;
         }
 
-        montagem.RemoverPresencaManual(command.Request.JogadorId, currentUser.UserId, command.Request.Motivo);
+        montagem.RemoverPresencaManual(command.Request.JogadorId, currentUserId, command.Request.Motivo);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);

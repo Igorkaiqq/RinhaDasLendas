@@ -131,7 +131,7 @@
   <data name="MV048" xml:space="preserve"><value>Enter one captain for each generated team or enable the draw</value></data>
   <data name="MV049" xml:space="preserve"><value>Captains must be distinct</value></data>
   <data name="MV050" xml:space="preserve"><value>Captains must be part of the selected players</value></data>
-  <data name="MV051" xml:space="preserve"><value>Cancellation reason must have at most 500 characters</value></data>
+  <data name="MV051" xml:space="preserve"><value>The reason must be at most 500 characters</value></data>
   <data name="MV052" xml:space="preserve"><value>User cannot change their own roles</value></data>
   <data name="MV053" xml:space="preserve"><value>The system must keep at least one active SuperAdmin</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirm this action?</value></data>

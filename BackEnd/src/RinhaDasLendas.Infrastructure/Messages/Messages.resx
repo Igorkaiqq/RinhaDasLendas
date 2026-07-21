@@ -129,7 +129,7 @@
   <data name="MV048" xml:space="preserve"><value>Informe um capitão para cada time gerado ou habilite o sorteio</value></data>
   <data name="MV049" xml:space="preserve"><value>Capitães devem ser distintos</value></data>
   <data name="MV050" xml:space="preserve"><value>Capitães devem fazer parte dos jogadores selecionados</value></data>
-  <data name="MV051" xml:space="preserve"><value>Motivo do cancelamento deve ter no máximo 500 caracteres</value></data>
+  <data name="MV051" xml:space="preserve"><value>O motivo deve ter no máximo 500 caracteres</value></data>
   <data name="MV052" xml:space="preserve"><value>Usuário não pode alterar as próprias roles</value></data>
   <data name="MV053" xml:space="preserve"><value>O sistema deve manter ao menos um SuperAdmin ativo</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>

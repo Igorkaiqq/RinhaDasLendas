@@ -17,13 +17,14 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemCommandHandler(
     public async Task<DraftMontagemResponseDto?> Handle(RepublicarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
+        var currentUserId = DraftMontagemHandlerHelpers.ResolveRequiredCurrentUserId(currentUser);
         var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
         if (montagem is null)
         {
             return null;
         }
 
-        montagem.SolicitarRepublicacaoDiscord(command.Request.Tipo, currentUser.UserId.GetValueOrDefault(), command.Request.Motivo, DateTimeOffset.UtcNow);
+        montagem.SolicitarRepublicacaoDiscord(command.Request.Tipo, currentUserId, command.Request.Motivo, DateTimeOffset.UtcNow);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         metrics.RecordDiscordPublication(command.Id, command.Request.Tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Pendente.ToString());

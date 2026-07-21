@@ -2,7 +2,9 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
@@ -19,7 +21,10 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
         CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
-        var tipo = Enum.Parse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true);
+        if (!Enum.TryParse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true, out var tipo) || !Enum.IsDefined(tipo))
+        {
+            throw new DomainException(MessageCodes.FieldRequired);
+        }
         var agora = DateTimeOffset.UtcNow;
         await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
         var claim = await repository.TryClaimPublicacaoDiscordAsync(

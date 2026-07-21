@@ -13,6 +13,8 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemValidator : Abstract
             .WithMessage(MessageCodes.FieldRequired);
 
         RuleFor(request => request.Motivo)
+            .NotEmpty()
+            .WithMessage(MessageCodes.FieldRequired)
             .MaximumLength(500)
             .WithMessage(MessageCodes.CancellationReasonMaxLength);
     }
