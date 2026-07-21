@@ -384,14 +384,28 @@ export async function getSendableChannel(
   }
 
   const sendable = channel as SendableTextChannel
-  const permissions = client.user && sendable.permissionsFor ? sendable.permissionsFor(client.user) : null
+  if (!client.user || !sendable.permissionsFor) {
+    throw new DiscordChannelAccessError(
+      `${label} (${channelId}) ${t.indeterminateChannelPermissions}`,
+      'DiscordChannelPermissionsUnknownError',
+    )
+  }
+
+  const permissions = sendable.permissionsFor(client.user)
+  if (!permissions) {
+    throw new DiscordChannelAccessError(
+      `${label} (${channelId}) ${t.indeterminateChannelPermissions}`,
+      'DiscordChannelPermissionsUnknownError',
+    )
+  }
+
   const permissionRequirements = [
     { required: true, flag: PermissionsBitField.Flags.ViewChannel, code: 'DiscordChannelViewPermissionError', message: t.missingViewChannelPermission },
     { required: true, flag: PermissionsBitField.Flags.SendMessages, code: 'DiscordChannelSendPermissionError', message: t.missingSendMessagesPermission },
     { required: requirements.embed, flag: PermissionsBitField.Flags.EmbedLinks, code: 'DiscordChannelEmbedPermissionError', message: t.missingEmbedLinksPermission },
     { required: requirements.mentionRole, flag: PermissionsBitField.Flags.MentionEveryone, code: 'DiscordChannelMentionPermissionError', message: t.missingMentionRolePermission },
   ]
-  const missing = permissionRequirements.find((requirement) => requirement.required && !permissions?.has(requirement.flag))
+  const missing = permissionRequirements.find((requirement) => requirement.required && !permissions.has(requirement.flag))
   if (missing) {
     throw new DiscordChannelAccessError(`${label} (${channelId}) ${missing.message}`, missing.code)
   }

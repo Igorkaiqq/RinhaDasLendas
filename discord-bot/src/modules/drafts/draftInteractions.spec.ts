@@ -4,13 +4,15 @@ import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.
 import type { ButtonInteraction, ChatInputCommandInteraction, Client } from 'discord.js'
 import type { DraftMontagem } from '../../shared/api/types.js'
 
-import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, handlePresenceButton, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
+import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, getSendableChannel, handleDraftCommand, handlePresenceButton, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { env } from '../../config/env.js'
 import { logger } from '../../shared/logger.js'
 import { t } from '../../shared/messages/index.js'
 import { enUS } from '../../shared/messages/en-US.js'
 import { ptBR } from '../../shared/messages/pt-BR.js'
+import { buildDraftPresenceCta } from '../../discord/embeds/draftEmbeds.js'
+import { DraftOptionNames } from '../../shared/constants/draftConstants/index.js'
 
 const originalNotifyRoleId = env.DRAFT_NOTIFY_ROLE_ID
 
@@ -56,16 +58,22 @@ function pollingClientWithChannelFailure() {
   } as unknown as Client
 }
 
-function pollingClientWithPermissions(permissions: PermissionsBitField | null, send: (options: unknown) => Promise<{ id: string }>) {
+function pollingClientWithPermissions(
+  permissions: PermissionsBitField | null,
+  send: (options: unknown) => Promise<{ id: string }>,
+  options: { user?: boolean; permissionsFor?: boolean } = {},
+) {
+  const includeUser = options.user ?? true
+  const includePermissionsFor = options.permissionsFor ?? true
   return {
     channels: {
       fetch: async () => ({
         isTextBased: () => true,
         send,
-        permissionsFor: () => permissions,
+        ...(includePermissionsFor ? { permissionsFor: () => permissions } : {}),
       }),
     },
-    user: { id: 'bot-user' },
+    user: includeUser ? { id: 'bot-user' } : null,
   } as unknown as Client
 }
 
@@ -269,29 +277,79 @@ describe('runDraftPollingCycle', () => {
     }
   })
 
-  it('fails safely before send when channel permissions cannot be resolved', async () => {
-    mockPollingApi([pollingDraft('draft-1')])
+  it('fails safely with a specific error when channel permissions cannot be resolved', async () => {
+    const scenarios = [
+      { name: 'permissionsFor returns null', permissions: null, options: {} },
+      { name: 'client user is unavailable', permissions: new PermissionsBitField(PermissionFlagsBits.ViewChannel), options: { user: false } },
+      { name: 'permissionsFor is unavailable', permissions: new PermissionsBitField(PermissionFlagsBits.ViewChannel), options: { permissionsFor: false } },
+    ] as const
+
+    for (const scenario of scenarios) {
+      mock.restoreAll()
+      mockPollingApi([pollingDraft('draft-1')])
+      mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+      const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+      const send = mock.fn(async () => ({ id: 'message-1' }))
+      const client = pollingClientWithPermissions(scenario.permissions, send, scenario.options)
+
+      await assert.rejects(
+        () => getSendableChannel(client, 'presence', t.channels.presence, { embed: true, mentionRole: false }),
+        (error: Error) => error.name === 'DiscordChannelPermissionsUnknownError'
+          && error.message === `${t.channels.presence} (presence) ${t.indeterminateChannelPermissions}`,
+        scenario.name,
+      )
+      await runDraftPollingCycle(client)
+
+      assert.equal(send.mock.callCount(), 0, scenario.name)
+      assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'DiscordChannelPermissionsUnknownError', scenario.name)
+    }
+  })
+
+  it('sends the presence message and exact role CTA when all permissions are available', async () => {
+    const draft = pollingDraft('draft-1')
+    mockPollingApi([draft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
     mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
-    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
-    const send = mock.fn(async () => ({ id: 'message-1' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const send = mock.fn(async (_options: unknown) => ({ id: `message-${send.mock.callCount() + 1}` }))
 
-    await runDraftPollingCycle(pollingClientWithPermissions(null, send))
+    await runDraftPollingCycle(pollingClient(send))
 
-    assert.equal(send.mock.callCount(), 0)
-    assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'DiscordChannelViewPermissionError')
+    assert.equal(send.mock.callCount(), 2)
+    assert.ok('embeds' in (send.mock.calls[0]?.arguments[0] as object))
+    assert.deepEqual(send.mock.calls[1]?.arguments[0], {
+      content: buildDraftPresenceCta('draft-1', 'role-1', env.FRONTEND_PUBLIC_URL),
+      allowedMentions: { roles: ['role-1'] },
+    })
+    assert.equal(complete.mock.calls[0]?.arguments[1]?.messageId, 'message-1')
+  })
+
+  it('sends final teams once even when a notification role is configured', async () => {
+    const draft = pollingDraft('draft-1')
+    draft.status = 'Finalizada'
+    mockPollingApi([draft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const send = mock.fn(async (_options: unknown) => ({ id: 'message-1' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(send.mock.callCount(), 1)
+    assert.ok('embeds' in (send.mock.calls[0]?.arguments[0] as object))
   })
 })
 
 function draftCommandInteraction(commandName: string) {
   const replies: unknown[] = []
   const values: Record<string, string> = {
-    nome: 'Rinha segura',
-    dia: '31/12/2099',
-    horario: '21:30',
-    draft_id: 'draft-1',
-    motivo: 'motivo',
-    capitaes_ids: 'captain-1,captain-2',
-    modo: 'Manual',
+    [DraftOptionNames.Name]: 'Rinha segura',
+    [DraftOptionNames.Day]: '31/12/2099',
+    [DraftOptionNames.Time]: '21:30',
+    [DraftOptionNames.DraftId]: 'draft-1',
+    [DraftOptionNames.Reason]: 'motivo',
+    [DraftOptionNames.CaptainIds]: 'captain-1,captain-2',
+    [DraftOptionNames.Mode]: 'Manual',
   }
   const interaction = {
     commandName,
@@ -379,6 +437,74 @@ describe('botEnabled mutation guard', () => {
     assert.equal(getConfiguration.mock.callCount(), 0)
     assert.equal(listDrafts.mock.callCount(), 3)
   })
+
+  it('blocks every mutation when loading configuration fails', async () => {
+    const mutationScenarios = [
+      ...[
+        ['draft-criar', 'createDraft'],
+        ['draft-cancelar', 'cancelDraft'],
+        ['draft-encerrar-presenca', 'closePresence'],
+        ['draft-definir-capitaes', 'defineCaptains'],
+        ['draft-definir-ordem-escolha', 'definePickOrder'],
+      ].map(([commandName, apiMethod]) => ({
+        name: commandName,
+        apiMethod,
+        execute: async () => {
+          const result = draftCommandInteraction(commandName)
+          await handleDraftCommand(result.interaction)
+          return result.replies
+        },
+      })),
+      ...(['confirm', 'cancel'] as const).map((action) => ({
+        name: `presence-${action}`,
+        apiMethod: action === 'confirm' ? 'confirmPresence' : 'cancelPresence',
+        execute: async () => {
+          const result = presenceButtonInteraction(action)
+          await handlePresenceButton(result.interaction)
+          return result.replies
+        },
+      })),
+    ]
+    const errors = [
+      { name: 'network', create: () => new TypeError('fetch failed'), expected: t.apiUnavailable },
+      { name: 'internal token', create: () => new RinhaApiError('MV079', 'technical detail', 401), expected: t.internalTokenInvalid },
+    ]
+
+    for (const errorScenario of errors) {
+      for (const mutationScenario of mutationScenarios) {
+        mock.restoreAll()
+        mock.method(rinhaApi, 'getDiscordConfiguration', async () => { throw errorScenario.create() })
+        const mutation = mock.method(rinhaApi, mutationScenario.apiMethod as keyof typeof rinhaApi, async () => pollingDraft('draft-1') as never)
+        const getDiscordLink = mock.method(rinhaApi, 'getDiscordLink', async () => ({ vinculado: true, roles: [] }))
+
+        const replies = await mutationScenario.execute()
+
+        assert.equal(mutation.mock.callCount(), 0, `${errorScenario.name}: ${mutationScenario.name}`)
+        assert.equal(getDiscordLink.mock.callCount(), 0, `${errorScenario.name}: ${mutationScenario.name}`)
+        assert.deepEqual(replies, [{ content: errorScenario.expected, flags: MessageFlags.Ephemeral }], `${errorScenario.name}: ${mutationScenario.name}`)
+      }
+    }
+  })
+
+  it('passes the real draft option and command arguments to mutable APIs', async () => {
+    const scenarios = [
+      { commandName: 'draft-cancelar', apiMethod: 'cancelDraft', expected: ['draft-1', 'motivo'] },
+      { commandName: 'draft-encerrar-presenca', apiMethod: 'closePresence', expected: ['draft-1'] },
+      { commandName: 'draft-definir-capitaes', apiMethod: 'defineCaptains', expected: ['draft-1', ['captain-1', 'captain-2']] },
+      { commandName: 'draft-definir-ordem-escolha', apiMethod: 'definePickOrder', expected: ['draft-1', 'Manual', ['captain-1', 'captain-2']] },
+    ] as const
+
+    for (const scenario of scenarios) {
+      mock.restoreAll()
+      mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+      const mutation = mock.method(rinhaApi, scenario.apiMethod, async () => pollingDraft('draft-1') as never)
+      const { interaction } = draftCommandInteraction(scenario.commandName)
+
+      await handleDraftCommand(interaction)
+
+      assert.deepEqual(mutation.mock.calls[0]?.arguments, scenario.expected, scenario.commandName)
+    }
+  })
 })
 
 describe('channel permission messages', () => {
@@ -388,6 +514,7 @@ describe('channel permission messages', () => {
       ['missingSendMessagesPermission', 'não permite que o bot envie mensagens. Libere Enviar mensagens.', 'does not allow the bot to send messages. Allow Send Messages.'],
       ['missingEmbedLinksPermission', 'não permite que o bot incorpore links. Libere Incorporar links.', 'does not allow the bot to embed links. Allow Embed Links.'],
       ['missingMentionRolePermission', 'não permite que o bot mencione o cargo configurado. Libere Mencionar @everyone, @here e todos os cargos.', 'does not allow the bot to mention the configured role. Allow Mention @everyone, @here, and All Roles.'],
+      ['indeterminateChannelPermissions', 'não foi possível determinar as permissões do bot no canal. Verifique o acesso do bot e tente novamente.', 'could not determine the bot permissions in the channel. Check the bot access and try again.'],
     ] as const
 
     for (const [key, portuguese, english] of scenarios) {
@@ -409,7 +536,7 @@ function cancelInteraction(options: {
     memberPermissions: options.memberPermissions ?? new PermissionsBitField(),
     member: { roles: { cache: new Map((options.roleIds ?? []).map((roleId) => [roleId, {}])) } },
     options: {
-      getString: (name: string) => name === 'draft-id' ? 'draft-1' : null,
+      getString: (name: string) => name === DraftOptionNames.DraftId ? 'draft-1' : name === DraftOptionNames.Reason ? 'motivo' : null,
     },
     reply: async (payload: unknown) => {
       replies.push(payload)
@@ -430,6 +557,7 @@ describe('handleDraftCommand authorization', () => {
     await handleDraftCommand(interaction)
 
     assert.equal(cancelDraft.mock.callCount(), 1)
+    assert.deepEqual(cancelDraft.mock.calls[0]?.arguments, ['draft-1', 'motivo'])
   })
 
   it('allows a member with a configured draft administrator role', async () => {

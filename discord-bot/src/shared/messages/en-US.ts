@@ -68,6 +68,7 @@ export const enUS = {
   missingSendMessagesPermission: 'does not allow the bot to send messages. Allow Send Messages.',
   missingEmbedLinksPermission: 'does not allow the bot to embed links. Allow Embed Links.',
   missingMentionRolePermission: 'does not allow the bot to mention the configured role. Allow Mention @everyone, @here, and All Roles.',
+  indeterminateChannelPermissions: 'could not determine the bot permissions in the channel. Check the bot access and try again.',
   presenceMessageFetchUnsupported: 'Presence channel does not support message fetching.',
   unauthorizedApi: 'Unauthorized: check that RINHA_API_INTERNAL_TOKEN matches in the backend and discord-bot, then restart the API after changing the token.',
   draftErrors: {

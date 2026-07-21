@@ -68,6 +68,7 @@ export const ptBR = {
   missingSendMessagesPermission: 'não permite que o bot envie mensagens. Libere Enviar mensagens.',
   missingEmbedLinksPermission: 'não permite que o bot incorpore links. Libere Incorporar links.',
   missingMentionRolePermission: 'não permite que o bot mencione o cargo configurado. Libere Mencionar @everyone, @here e todos os cargos.',
+  indeterminateChannelPermissions: 'não foi possível determinar as permissões do bot no canal. Verifique o acesso do bot e tente novamente.',
   presenceMessageFetchUnsupported: 'Canal de presença não suporta busca de mensagens.',
   unauthorizedApi: 'Unauthorized: verifique se RINHA_API_INTERNAL_TOKEN está igual no backend e no discord-bot, e reinicie a API após alterar o token.',
   draftErrors: {
