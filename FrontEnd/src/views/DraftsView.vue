@@ -194,17 +194,10 @@ async function cancelPresence() {
 
 async function addManualPresence() {
   if (!selectedMontagem.value || !canManageDrafts.value || !selectedManualPresencePlayerId.value) return
-  saving.value = true
-  try {
-    selectedMontagem.value = await addManualDraftMontagemPresence(selectedMontagem.value.id, selectedManualPresencePlayerId.value)
-    selectedManualPresencePlayerId.value = ''
-    await loadEligibleManualPresencePlayers()
-    notification.value = t('drafts.presence.manualAdded')
-  } catch (error) {
-    captureError(error)
-  } finally {
-    saving.value = false
-  }
+  const player = availableManualPresencePlayers.value.find((item) => item.id === selectedManualPresencePlayerId.value)
+  if (!player) return
+
+  pendingReasonAction.value = { type: 'addManualPresence', jogadorId: player.id, jogadorNome: player.nomeExibicao }
 }
 
 function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
@@ -473,6 +466,11 @@ async function confirmReasonAction(reason: string) {
       selectedMontagem.value = await cancelDraftMontagem(selectedMontagem.value.id, reason)
       await loadVisualMontagens()
       notification.value = t('drafts.canceled', { name: selectedMontagem.value.nome })
+    } else if (action.type === 'addManualPresence') {
+      selectedMontagem.value = await addManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
+      selectedManualPresencePlayerId.value = ''
+      await loadEligibleManualPresencePlayers()
+      notification.value = t('drafts.presence.manualAdded')
     } else if (action.type === 'removeManualPresence') {
       selectedMontagem.value = await removeManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
       await loadEligibleManualPresencePlayers()

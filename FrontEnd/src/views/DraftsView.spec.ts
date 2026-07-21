@@ -11,6 +11,7 @@ import DraftsViewSource from './DraftsView.vue?raw'
 
 const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
+  addManualDraftMontagemPresence: vi.fn(),
   getDraftMontagemById: vi.fn(),
   getDraftMontagemRealtimeState: vi.fn(),
   listDraftMontagens: vi.fn(),
@@ -38,7 +39,6 @@ vi.mock('@/services/draftMontagens', () => ({
   DraftMontagemServiceError: class DraftMontagemServiceError extends Error {
     errors: string[] = []
   },
-  addManualDraftMontagemPresence: vi.fn(),
   cancelDraftMontagemPresence: vi.fn(),
   closeDraftMontagemPresence: vi.fn(),
   confirmDraftMontagemPresence: vi.fn(),
@@ -154,7 +154,8 @@ describe('DraftsView reason actions', () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo])
     serviceMocks.getDraftMontagemById.mockResolvedValue(montagem)
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem })
-    serviceMocks.listEligibleManualPresencePlayers.mockResolvedValue([])
+    serviceMocks.listEligibleManualPresencePlayers.mockResolvedValue([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
+    serviceMocks.addManualDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.cancelDraftMontagem.mockResolvedValue(montagem)
     serviceMocks.removeManualDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.republishDraftMontagemDiscordPublication.mockResolvedValue(montagem)
@@ -212,6 +213,22 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
 
     expect(serviceMocks.removeManualDraftMontagemPresence).toHaveBeenCalledWith('montagem-1', 'jogador-1', 'jogador avisou ausência')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('adds the selected manual presence with player context and exact reason', async () => {
+    const wrapper = await mountView()
+    const select = wrapper.findAll('select').find((candidate) => candidate.text().includes('Lux'))!
+    await select.setValue('jogador-2')
+
+    await openReasonDialog(wrapper, 'Adicionar presença')
+    expect(wrapper.text()).toContain('Jogador afetado: Lux')
+    await wrapper.get('textarea').setValue('convidado pelo organizador')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.addManualDraftMontagemPresence).toHaveBeenCalledWith('montagem-1', 'jogador-2', 'convidado pelo organizador')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     wrapper.unmount()
   })

@@ -77,12 +77,15 @@ describe('draftMontagens service', () => {
     expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/cancelar', { motivo: 'motivo' })
   })
 
-  it('adds manual presence to a visual draft assembly', async () => {
+  it('adds manual presence to a visual draft assembly with reason', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: montagem })
 
-    await addManualDraftMontagemPresence('montagem-1', 'jogador-1')
+    await addManualDraftMontagemPresence('montagem-1', 'jogador-1', 'convidado pelo organizador')
 
-    expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/presencas/manual', { jogadorId: 'jogador-1' })
+    expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/presencas/manual', {
+      jogadorId: 'jogador-1',
+      motivo: 'convidado pelo organizador',
+    })
   })
 
   it('removes manual presence from a visual draft assembly', async () => {

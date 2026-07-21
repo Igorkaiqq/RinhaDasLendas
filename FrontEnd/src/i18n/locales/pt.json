@@ -473,6 +473,7 @@
       "discordKicker": "Publicação no Discord",
       "reasonLabel": "Motivo",
       "reasonRequired": "Informe um motivo para continuar.",
+      "reasonMaxLength": "O motivo deve ter no máximo 500 caracteres.",
       "back": "Voltar",
       "currentStatus": "Status atual: {status}",
       "affectedPlayer": "Jogador afetado: {name}",
@@ -481,6 +482,12 @@
         "description": "O draft será cancelado e deixará de aparecer na listagem padrão.",
         "defaultReason": "Draft cancelado",
         "confirm": "Cancelar draft"
+      },
+      "addManualPresence": {
+        "title": "Adicionar presença",
+        "description": "O jogador será adicionado manualmente à lista de presença deste draft.",
+        "defaultReason": "Presença adicionada manualmente",
+        "confirm": "Adicionar presença"
       },
       "removeManualPresence": {
         "title": "Remover presença",

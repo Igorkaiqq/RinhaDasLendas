@@ -175,6 +175,11 @@ export interface DraftMontagemPayload {
   jogadoresIds: string[]
 }
 
+export interface DraftMontagemManualPresencePayload {
+  jogadorId: string
+  motivo: string
+}
+
 export interface DraftMontagemLayoutParticipantePayload {
   jogadorId: string
   ordem: number

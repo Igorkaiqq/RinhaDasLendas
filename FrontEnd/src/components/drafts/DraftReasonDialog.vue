@@ -3,6 +3,7 @@ import type { DraftMontagemPublicacaoDiscordStatus } from '@/types/draftMontagem
 
 export type DraftReasonDialogAction =
   | { type: 'cancelDraft' }
+  | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
   | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
@@ -30,11 +31,14 @@ const submitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
 const translationKey = computed(() => (props.action ? `drafts.reasonDialog.${props.action.type}` : ''))
 const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishTeams')
+const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
 const publicationStatus = computed(() => {
   const action = props.action
   return action?.type === 'republishPresence' || action?.type === 'republishTeams' ? action.publicationStatus : null
 })
-const valid = computed(() => reason.value.trim().length > 0)
+const normalizedReasonLength = computed(() => reason.value.trim().length)
+const reasonTooLong = computed(() => normalizedReasonLength.value > 500)
+const valid = computed(() => normalizedReasonLength.value > 0 && !reasonTooLong.value)
 
 watch(
   () => [props.open, props.action] as const,
@@ -97,7 +101,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
             {{ t('drafts.reasonDialog.currentStatus', { status: t(`drafts.publication.status.${publicationStatus}`) }) }}
           </Badge>
         </div>
-        <div v-else-if="action.type === 'removeManualPresence'" class="rounded-lg border bg-muted/40 p-3 text-sm">
+        <div v-else-if="action.type === 'addManualPresence' || action.type === 'removeManualPresence'" class="rounded-lg border bg-muted/40 p-3 text-sm">
           {{ t('drafts.reasonDialog.affectedPlayer', { name: action.jogadorNome }) }}
         </div>
 
@@ -111,13 +115,16 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
               autofocus
               name="reason"
               autocomplete="off"
+              maxlength="500"
               class="min-h-24 resize-y"
               :disabled="saving"
               :aria-invalid="submitted && !valid"
               :aria-describedby="submitted && !valid ? 'draft-reason-error' : undefined"
               @keydown="handleReasonKeydown"
             />
-            <FieldError v-if="submitted && !valid" id="draft-reason-error">{{ t('drafts.reasonDialog.reasonRequired') }}</FieldError>
+            <FieldError v-if="submitted && !valid" id="draft-reason-error">
+              {{ t(reasonTooLong ? 'drafts.reasonDialog.reasonMaxLength' : 'drafts.reasonDialog.reasonRequired') }}
+            </FieldError>
           </Field>
         </FieldGroup>
 
@@ -128,7 +135,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
           <Button
             data-testid="draft-reason-confirm"
             type="submit"
-            :variant="discordAction ? 'default' : 'destructive'"
+            :variant="constructiveAction ? 'default' : 'destructive'"
             :disabled="saving"
           >
             <Spinner v-if="saving" data-icon="inline-start" />

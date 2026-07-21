@@ -5,6 +5,7 @@ import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
+  DraftMontagemManualPresencePayload,
   DraftMontagemOrdemEscolhaModo,
   DraftMontagemPublicacaoDiscordTipo,
   DraftMontagemPayload,
@@ -101,9 +102,10 @@ export async function cancelDraftMontagemPresence(id: string): Promise<DraftMont
   }
 }
 
-export async function addManualDraftMontagemPresence(id: string, jogadorId: string): Promise<DraftMontagem> {
+export async function addManualDraftMontagemPresence(id: string, jogadorId: string, motivo: string): Promise<DraftMontagem> {
   try {
-    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/manual`, { jogadorId })
+    const payload: DraftMontagemManualPresencePayload = { jogadorId, motivo }
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/manual`, payload)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)

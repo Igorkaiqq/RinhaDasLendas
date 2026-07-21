@@ -22,6 +22,7 @@ const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
 describe('DraftReasonDialog', () => {
   it.each([
     ['cancelDraft', { type: 'cancelDraft' }, 'Cancelar draft'],
+    ['addManualPresence', { type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'Adicionar presença'],
     ['removeManualPresence', { type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'Remover presença'],
     ['republishPresence', { type: 'republishPresence', publicationStatus: 'Falha' }, 'Republicar lista de presença'],
     ['republishTeams', { type: 'republishTeams', publicationStatus: 'Pendente' }, 'Republicar times'],
@@ -38,6 +39,14 @@ describe('DraftReasonDialog', () => {
 
     expect(wrapper.text()).toContain('Jogador afetado: Ahri')
     expect(wrapper.get('textarea').element.value).toBe('Presença removida manualmente')
+    wrapper.unmount()
+  })
+
+  it('renders the target player and localized default reason for manual addition', async () => {
+    const wrapper = await mountDialog({ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' })
+
+    expect(wrapper.text()).toContain('Jogador afetado: Lux')
+    expect(wrapper.get('textarea').element.value).toBe('Presença adicionada manualmente')
     wrapper.unmount()
   })
 
@@ -133,6 +142,18 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it('does not submit a reason longer than 500 characters', async () => {
+    const wrapper = await mountDialog({ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' })
+
+    await wrapper.get('textarea').setValue('a'.repeat(501))
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('confirm')).toBeUndefined()
+    expect(wrapper.get('textarea').attributes('maxlength')).toBe('500')
+    expect(wrapper.get('[role="alert"]').text()).toBe('O motivo deve ter no máximo 500 caracteres.')
+    wrapper.unmount()
+  })
+
   it('groups the reason field with FieldGroup', async () => {
     const wrapper = await mountDialog({ type: 'cancelDraft' })
 
@@ -151,6 +172,7 @@ describe('DraftReasonDialog', () => {
 
   it.each([
     [{ type: 'cancelDraft' }, 'destructive'],
+    [{ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'default'],
     [{ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'destructive'],
     [{ type: 'republishPresence', publicationStatus: 'Falha' }, 'default'],
     [{ type: 'republishTeams', publicationStatus: 'Pendente' }, 'default'],

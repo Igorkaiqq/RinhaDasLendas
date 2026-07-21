@@ -473,6 +473,7 @@
       "discordKicker": "Discord publication",
       "reasonLabel": "Reason",
       "reasonRequired": "Enter a reason to continue.",
+      "reasonMaxLength": "The reason must be at most 500 characters.",
       "back": "Back",
       "currentStatus": "Current status: {status}",
       "affectedPlayer": "Affected player: {name}",
@@ -481,6 +482,12 @@
         "description": "The draft will be canceled and will no longer appear in the default list.",
         "defaultReason": "Draft canceled",
         "confirm": "Cancel draft"
+      },
+      "addManualPresence": {
+        "title": "Add presence",
+        "description": "The player will be manually added to this draft's presence list.",
+        "defaultReason": "Presence added manually",
+        "confirm": "Add presence"
       },
       "removeManualPresence": {
         "title": "Remove presence",
