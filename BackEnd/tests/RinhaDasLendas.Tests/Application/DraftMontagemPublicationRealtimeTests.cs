@@ -481,6 +481,22 @@ public sealed class DraftMontagemPublicationRealtimeTests
         json.Should().NotContain("erro-secreto");
     }
 
+    [Fact]
+    public void PublicacaoPublicaDeveSerializarSomenteTipoEStatus()
+    {
+        var montagem = CreatePublishedMontagem(Guid.NewGuid());
+
+        var json = JsonSerializer.Serialize(DraftMontagemResponseDto.FromEntity(montagem), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var publicationProperties = document.RootElement
+            .GetProperty("publicacoesDiscord")[0]
+            .EnumerateObject()
+            .Select(property => property.Name)
+            .ToList();
+
+        publicationProperties.Should().BeEquivalentTo(["tipo", "status"]);
+    }
+
     private static Mock<IDraftMontagemRealtimeNotifier> CreateNotifier(params Action[] assertions)
     {
         var notifier = new Mock<IDraftMontagemRealtimeNotifier>();

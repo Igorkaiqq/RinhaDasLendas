@@ -118,16 +118,12 @@ public sealed record DraftMontagemSubstituicaoPublicResponseDto(
 
 public sealed record DraftMontagemPublicacaoDiscordPublicResponseDto(
     string Tipo,
-    string Status,
-    DateTimeOffset? PublicadaEm,
-    DateTimeOffset UltimaTentativaEm)
+    string Status)
 {
     public static DraftMontagemPublicacaoDiscordPublicResponseDto FromEntity(DraftMontagemPublicacaoDiscord publicacao)
     {
         return new DraftMontagemPublicacaoDiscordPublicResponseDto(
             publicacao.Tipo.ToString(),
-            publicacao.Status.ToString(),
-            publicacao.PublicadaEm,
-            publicacao.UltimaTentativaEm);
+            publicacao.Status.ToString());
     }
 }

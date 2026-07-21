@@ -102,7 +102,7 @@ describe('DraftMontagemRealtimeConnection', () => {
         reservas: [],
         escolhas: [],
         substituicoes: [],
-        publicacoesDiscord: [{ tipo: 'Presenca', status: 'RequerReconciliacao', ultimaTentativaEm: '2026-07-21T12:00:00Z' }],
+        publicacoesDiscord: [{ tipo: 'Presenca', status: 'RequerReconciliacao' }],
         dataCadastro: '2026-07-21T11:00:00Z',
         dataAtualizacao: '2026-07-21T12:00:00Z',
       },

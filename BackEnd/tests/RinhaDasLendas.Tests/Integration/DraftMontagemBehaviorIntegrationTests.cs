@@ -291,6 +291,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         completionResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         failureResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var completion = await ReadJsonAsync(completionResponse);
+        using var failure = await ReadJsonAsync(failureResponse);
+        AssertBotOperationalProjection(completion.RootElement);
+        AssertBotOperationalProjection(failure.RootElement);
         (await factory.GetPublicationStatusAsync(publishedDraftId)).Should().Be("Publicada");
         (await factory.GetPublicationStatusAsync(failedDraftId)).Should().Be("Falha");
     }
@@ -533,16 +537,31 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         var response = await client.GetAsync("/api/v1/draft-montagens/ativos");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var json = await response.Content.ReadAsStringAsync();
-        json.Should().Contain(fixture.DraftId.ToString());
-        json.Should().Contain("discordPresenceMessageId");
-        json.Should().Contain("publicacoesDiscord");
-        json.Should().NotContain("acoesAdministrativas");
-        json.Should().NotContain("responsavelUsuarioId");
-        json.Should().NotContain("jogadorAlvoId");
-        json.Should().NotContain("discordUserId");
-        json.Should().NotContain("claimId");
-        json.Should().NotContain("ultimoErroCodigo");
+        using var document = await ReadJsonAsync(response);
+        var draft = document.RootElement.EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == fixture.DraftId);
+        AssertBotOperationalProjection(draft);
+    }
+
+    [Fact]
+    public async Task ConfirmacaoECancelamentoDiscord_DevemRetornarContratoOperacionalMinimo()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedProjectionDraftAsync();
+        using var client = factory.CreateBotClient();
+
+        var cancellationResponse = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/presencas/cancelar",
+            new { DiscordUserId = "discord-user-secreto" });
+        var confirmationResponse = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/presencas/confirmar",
+            new { DiscordUserId = "discord-user-secreto", Origem = "Discord" });
+
+        cancellationResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        confirmationResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var cancellation = await ReadJsonAsync(cancellationResponse);
+        using var confirmation = await ReadJsonAsync(confirmationResponse);
+        AssertBotOperationalProjection(cancellation.RootElement);
+        AssertBotOperationalProjection(confirmation.RootElement);
     }
 
     private static void AssertPublicProjection(string json)
@@ -559,6 +578,35 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         json.Should().NotContain("messageId");
         json.Should().NotContain("ultimoErroCodigo");
         json.Should().NotContain("claimId");
+        json.Should().NotContain("publicadaEm");
+        json.Should().NotContain("ultimaTentativaEm");
+    }
+
+    private static void AssertBotOperationalProjection(JsonElement draft)
+    {
+        draft.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(
+        [
+            "id",
+            "nome",
+            "status",
+            "horarioEncerramentoPresenca",
+            "discordPresenceMessageId",
+            "publicacoesDiscord",
+            "presencas",
+            "times",
+            "reservas",
+        ]);
+        var publications = draft.GetProperty("publicacoesDiscord");
+        if (publications.GetArrayLength() > 0)
+        {
+            publications[0].EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(["tipo", "status"]);
+        }
+
+        var presences = draft.GetProperty("presencas");
+        if (presences.GetArrayLength() > 0)
+        {
+            presences[0].EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(["nomeExibicao", "status"]);
+        }
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -728,6 +776,12 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                     UserName = $"projection-player-{playerUserId:N}",
                     NormalizedUserName = $"PROJECTION-PLAYER-{playerUserId:N}",
                 });
+            dbContext.VinculosDiscord.Add(new VinculoDiscord
+            {
+                UsuarioId = playerUserId,
+                DiscordUserId = "discord-user-secreto",
+                DiscordUsername = "projection-player",
+            });
             var jogador = new Jogador(
                 "Jogador da projecao",
                 null,

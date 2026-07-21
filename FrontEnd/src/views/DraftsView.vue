@@ -65,6 +65,7 @@ const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const adminAccessDenied = ref(false)
+let detailRequestVersion = 0
 
 const captainSelection = ref<string[]>([])
 const statusOptions = DRAFT_MONTAGEM_STATUS_OPTIONS
@@ -149,7 +150,7 @@ async function openMontagem(id: string) {
   saving.value = true
   errors.value = []
   try {
-    selectedMontagem.value = await loadMontagemDetail(id)
+    if (!(await refreshMontagemDetail(id))) return
     captainSelection.value = []
     await loadEligibleManualPresencePlayers()
     await connectRealtime(id)
@@ -160,21 +161,27 @@ async function openMontagem(id: string) {
   }
 }
 
-async function loadMontagemDetail(id: string) {
-  if (!hasDraftManagementPermission.value || adminAccessDenied.value) {
-    return getDraftMontagemById(id)
-  }
+async function refreshMontagemDetail(id: string, publicProjection?: DraftMontagem) {
+  const requestVersion = ++detailRequestVersion
+  let detail = publicProjection
 
-  try {
-    return await getDraftMontagemAdminById(id)
-  } catch (error) {
-    if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) {
-      throw error
+  if (hasDraftManagementPermission.value && !adminAccessDenied.value) {
+    try {
+      detail = await getDraftMontagemAdminById(id)
+    } catch (error) {
+      if (requestVersion !== detailRequestVersion) return false
+      if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) throw error
+
+      adminAccessDenied.value = true
+      detail = publicProjection ?? (await getDraftMontagemById(id))
     }
-
-    adminAccessDenied.value = true
-    return getDraftMontagemById(id)
+  } else if (!detail) {
+    detail = await getDraftMontagemById(id)
   }
+
+  if (requestVersion !== detailRequestVersion) return false
+  applyMontagemState(detail)
+  return true
 }
 
 async function loadEligibleManualPresencePlayers() {
@@ -190,7 +197,8 @@ async function confirmPresence() {
   if (!selectedMontagem.value) return
   saving.value = true
   try {
-    selectedMontagem.value = await confirmDraftMontagemPresence(selectedMontagem.value.id)
+    const montagem = await confirmDraftMontagemPresence(selectedMontagem.value.id)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.presence.confirmed')
   } catch (error) {
     captureError(error)
@@ -203,7 +211,8 @@ async function cancelPresence() {
   if (!selectedMontagem.value) return
   saving.value = true
   try {
-    selectedMontagem.value = await cancelDraftMontagemPresence(selectedMontagem.value.id)
+    const montagem = await cancelDraftMontagemPresence(selectedMontagem.value.id)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.presence.cancelled')
   } catch (error) {
     captureError(error)
@@ -230,7 +239,8 @@ async function closePresence(continueWithLess = false) {
   if (!selectedMontagem.value || !canManageDrafts.value) return
   saving.value = true
   try {
-    selectedMontagem.value = await closeDraftMontagemPresence(selectedMontagem.value.id, continueWithLess, selectedMontagem.value.tamanhoEquipe)
+    const montagem = await closeDraftMontagemPresence(selectedMontagem.value.id, continueWithLess, selectedMontagem.value.tamanhoEquipe)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.presence.closed')
   } catch (error) {
     captureError(error)
@@ -252,7 +262,8 @@ async function defineCaptains() {
   if (!selectedMontagem.value || !canManageDrafts.value) return
   saving.value = true
   try {
-    selectedMontagem.value = await defineDraftMontagemCaptains(selectedMontagem.value.id, captainSelection.value)
+    const montagem = await defineDraftMontagemCaptains(selectedMontagem.value.id, captainSelection.value)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.presence.captainsDefined')
   } catch (error) {
     captureError(error)
@@ -265,7 +276,8 @@ async function drawPickOrder() {
   if (!selectedMontagem.value || !canManageDrafts.value) return
   saving.value = true
   try {
-    selectedMontagem.value = await defineDraftMontagemPickOrder(selectedMontagem.value.id, DraftMontagemOrdemEscolhaModoValues.Sorteado)
+    const montagem = await defineDraftMontagemPickOrder(selectedMontagem.value.id, DraftMontagemOrdemEscolhaModoValues.Sorteado)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.presence.orderDefined')
   } catch (error) {
     captureError(error)
@@ -278,24 +290,28 @@ async function connectRealtime(id: string) {
   await disconnectRealtime()
   try {
     const state = await getDraftMontagemRealtimeState(id)
-    applyRealtimeState(state.montagem)
+    await refreshMontagemDetail(id, state.montagem)
   } catch {
     // The regular detail endpoint already loaded the board; realtime state errors are shown by later actions.
   }
 
   realtimeConnection.value = new DraftMontagemRealtimeConnection(id)
   await realtimeConnection.value.connect(
-    (state) => {
-      applyRealtimeState(state.montagem)
+    async (state) => {
+      try {
+        await refreshMontagemDetail(id, state.montagem)
+      } catch {
+        // Keep the last complete administrative projection if its refresh fails.
+      }
     },
     async () => {
       const state = await getDraftMontagemRealtimeState(id)
-      applyRealtimeState(state.montagem)
+      await refreshMontagemDetail(id, state.montagem)
     },
   )
 }
 
-function applyRealtimeState(montagem: DraftMontagem) {
+function applyMontagemState(montagem: DraftMontagem) {
   selectedMontagem.value = montagem
   visualMontagens.value = visualMontagens.value.map((item) =>
     item.id === montagem.id
@@ -328,9 +344,10 @@ async function saveMontagem(payload: DraftMontagemPayload) {
   saving.value = true
   serviceErrors.value = []
   try {
-    selectedMontagem.value = await createDraftMontagem(payload)
+    const montagem = await createDraftMontagem(payload)
+    await refreshMontagemDetail(montagem.id, montagem)
     await loadVisualMontagens()
-    notification.value = t('drafts.created', { name: selectedMontagem.value.nome })
+    notification.value = t('drafts.created', { name: montagem.nome })
     visualSetupOpen.value = false
   } catch (error) {
     serviceErrors.value = error instanceof DraftMontagemServiceError ? error.errors : [t('drafts.errors.create')]
@@ -346,7 +363,8 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   saving.value = true
   errors.value = []
   try {
-    selectedMontagem.value = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
+    const montagem = await saveDraftMontagemLayout(selectedMontagem.value.id, payload)
+    await refreshMontagemDetail(montagem.id, montagem)
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
@@ -365,7 +383,7 @@ async function startRealtime() {
   errors.value = []
   try {
     const state = await startDraftMontagemRealtime(selectedMontagem.value.id)
-    applyRealtimeState(state.montagem)
+    await refreshMontagemDetail(state.montagem.id, state.montagem)
     notification.value = t('drafts.realtime.started')
   } catch (error) {
     captureError(error)
@@ -383,7 +401,7 @@ async function pickRealtime(jogadorId: string) {
   errors.value = []
   try {
     const state = await registerDraftMontagemPick(selectedMontagem.value.id, jogadorId)
-    applyRealtimeState(state.montagem)
+    await refreshMontagemDetail(state.montagem.id, state.montagem)
   } catch (error) {
     captureError(error)
   } finally {
@@ -400,7 +418,7 @@ async function substituteReserve(payload: { timeId: string; jogadorSaiuId: strin
   errors.value = []
   try {
     const state = await substituteDraftMontagemReserve(selectedMontagem.value.id, payload)
-    applyRealtimeState(state.montagem)
+    await refreshMontagemDetail(state.montagem.id, state.montagem)
     notification.value = t('drafts.realtime.reserveSubstituted')
   } catch (error) {
     captureError(error)
@@ -415,7 +433,8 @@ async function drawMontagemCaptains() {
   }
   saving.value = true
   try {
-    selectedMontagem.value = await drawDraftMontagemCaptains(selectedMontagem.value.id)
+    const montagem = await drawDraftMontagemCaptains(selectedMontagem.value.id)
+    await refreshMontagemDetail(montagem.id, montagem)
     notification.value = t('drafts.messages.captainsDrawn')
   } catch (error) {
     captureError(error)
@@ -430,7 +449,8 @@ async function finalizeMontagem() {
   }
   saving.value = true
   try {
-    selectedMontagem.value = await finalizeDraftMontagem(selectedMontagem.value.id)
+    const montagem = await finalizeDraftMontagem(selectedMontagem.value.id)
+    await refreshMontagemDetail(montagem.id, montagem)
     await loadVisualMontagens()
     notification.value = t('drafts.messages.finished')
   } catch (error) {
@@ -483,21 +503,25 @@ async function confirmReasonAction(reason: string) {
   saving.value = true
   try {
     if (action.type === 'cancelDraft') {
-      selectedMontagem.value = await cancelDraftMontagem(selectedMontagem.value.id, reason)
+      const montagem = await cancelDraftMontagem(selectedMontagem.value.id, reason)
+      await refreshMontagemDetail(montagem.id, montagem)
       await loadVisualMontagens()
       notification.value = t('drafts.canceled', { name: selectedMontagem.value.nome })
     } else if (action.type === 'addManualPresence') {
-      selectedMontagem.value = await addManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
+      const montagem = await addManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
+      await refreshMontagemDetail(montagem.id, montagem)
       selectedManualPresencePlayerId.value = ''
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualAdded')
     } else if (action.type === 'removeManualPresence') {
-      selectedMontagem.value = await removeManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
+      const montagem = await removeManualDraftMontagemPresence(selectedMontagem.value.id, action.jogadorId, reason)
+      await refreshMontagemDetail(montagem.id, montagem)
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
     } else {
       const tipo = action.type === 'republishPresence' ? 'Presenca' : 'TimesDefinidos'
-      selectedMontagem.value = await republishDraftMontagemDiscordPublication(selectedMontagem.value.id, tipo, reason)
+      const montagem = await republishDraftMontagemDiscordPublication(selectedMontagem.value.id, tipo, reason)
+      await refreshMontagemDetail(montagem.id, montagem)
       notification.value = t('drafts.publication.republishRequested')
     }
     pendingReasonAction.value = null

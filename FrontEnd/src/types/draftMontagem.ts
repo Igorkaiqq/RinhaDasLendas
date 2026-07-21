@@ -82,8 +82,6 @@ export interface DraftMontagem {
 export interface DraftMontagemPublicacaoDiscord {
   tipo: DraftMontagemPublicacaoDiscordTipo
   status: DraftMontagemPublicacaoDiscordStatus
-  publicadaEm?: string | null
-  ultimaTentativaEm: string
 }
 
 export interface DraftMontagemAdminPublicacaoDiscord extends DraftMontagemPublicacaoDiscord {
@@ -94,6 +92,8 @@ export interface DraftMontagemAdminPublicacaoDiscord extends DraftMontagemPublic
   ultimoErroCodigo?: string | null
   claimId?: string | null
   claimExpiraEm?: string | null
+  publicadaEm?: string | null
+  ultimaTentativaEm: string
 }
 
 export interface DraftMontagemAcaoAdministrativa {

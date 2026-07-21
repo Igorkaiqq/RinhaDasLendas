@@ -25,15 +25,11 @@ export interface DiscordPublicationClaim {
 export interface DraftMontagem {
   id: string
   nome: string
-  observacoes?: string | null
   status: string
-  tamanhoEquipe: number
-  quantidadeTimes: number
-  quantidadeReservas: number
   horarioEncerramentoPresenca?: string | null
   discordPresenceMessageId?: string | null
   publicacoesDiscord?: Array<{ tipo: DiscordPublicationType; status: string }>
-  presencas: Array<{ id: string; nomeExibicao: string; status: string; origemConfirmacao: string }>
-  times: Array<{ id: string; nome: string; cor: string; capitaoId?: string | null; jogadores: Array<{ nomeExibicao: string; capitao: boolean }> }>
+  presencas: Array<{ nomeExibicao: string; status: string }>
+  times: Array<{ nome: string; jogadores: Array<{ nomeExibicao: string; capitao: boolean }> }>
   reservas: Array<{ nomeExibicao: string }>
 }
