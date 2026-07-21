@@ -104,6 +104,24 @@ Como administrador, quero confirmar cancelamento, remoção manual e republicaç
 
 ---
 
+### User Story 7 - Operar drafts com segurança e consistência verificável (Priority: P1)
+
+Como administrador, quero que comandos, publicações e presenças tenham autorização, idempotência e contratos verificáveis, para operar drafts sem duplicações, efeitos indevidos ou falhas internas.
+
+**Why this priority**: Os controles impedem abuso de comandos administrativos, indisponibilidade compartilhada, duplicação de mensagens e respostas 500 em operações repetidas ou concorrentes.
+
+**Independent Test**: Executar a matriz de autenticação e autorização, duas tentativas concorrentes de publicação e presença, payloads inválidos e reconexão realtime; cada fluxo deve produzir estado único, resposta localizada e nenhuma exposição operacional indevida.
+
+**Acceptance Scenarios**:
+
+1. **Given** um membro Discord sem permissão administrativa, **When** executa comando mutável de draft, **Then** recebe negação localizada e nenhuma chamada mutável chega ao backend.
+2. **Given** duas instâncias do bot tentando publicar o mesmo draft, **When** ambas solicitam autorização de envio, **Then** apenas uma adquire o claim persistido e pode enviar.
+3. **Given** um envio cujo resultado ficou desconhecido após queda do bot, **When** o claim deixa de estar ativo, **Then** a publicação exige reconciliação administrativa e não é reenviada automaticamente.
+4. **Given** confirmações ou cancelamentos repetidos ou concorrentes, **When** o estado desejado já foi alcançado, **Then** todas as chamadas terminam sem erro interno e existe uma única presença efetiva.
+5. **Given** um usuário comum autenticado, **When** consulta um draft, **Then** não recebe motivos de auditoria nem identificadores operacionais do Discord.
+
+---
+
 ### Edge Cases
 
 - Link Discord aponta para draft inexistente, cancelado ou sem permissão de visualização.
@@ -116,6 +134,11 @@ Como administrador, quero confirmar cancelamento, remoção manual e republicaç
 - Draft é encerrado automaticamente com menos jogadores que o mínimo esperado.
 - Administrador remove presença ou cancela draft sem informar motivo.
 - Conexão em tempo real cai e reconecta durante uma alteração de presença ou pick.
+- Duas instâncias do bot executam o polling ao mesmo tempo.
+- Bot cai depois de enviar ao Discord, antes de concluir o registro da publicação.
+- Cliente anônimo esgota seu limite de requisições sem afetar usuários autenticados ou o bot.
+- Token interno usa valor vazio, curto ou placeholder conhecido em produção.
+- Identidade administrativa autenticada não possui identificador de usuário válido.
 
 ## Requirements *(mandatory)*
 
@@ -145,6 +168,21 @@ Como administrador, quero confirmar cancelamento, remoção manual e republicaç
 - **FR-022**: O modal MUST exigir motivo não vazio e impedir envio duplicado durante processamento.
 - **FR-023**: Republicações MUST mostrar tipo e status atual; remoção manual MUST mostrar o jogador afetado.
 - **FR-024**: O modal MUST funcionar por teclado, controlar foco e usar somente textos internacionalizados.
+- **FR-025**: Comandos mutáveis do Discord MUST exigir `ManageGuild` ou cargo listado em `DRAFT_ADMIN_ROLE_IDS`, com verificação no registro e antes de qualquer efeito colateral.
+- **FR-026**: O backend MUST rejeitar inicialização em produção quando o token interno estiver ausente, tiver menos de 32 caracteres ou usar placeholder conhecido.
+- **FR-027**: A comparação do token interno MUST resistir a diferenças observáveis de tempo e nunca registrar o segredo.
+- **FR-028**: O rate limiting MUST isolar clientes por identidade do bot, usuário autenticado ou endereço IP anônimo.
+- **FR-029**: Erros de domínio conhecidos MUST preservar seu código estável em `messageCode` e localizar a mensagem sem expor detalhes técnicos.
+- **FR-030**: A publicação Discord MUST adquirir claim atômico persistido antes do envio e somente o detentor do claim pode concluir ou registrar falha.
+- **FR-031**: Uma tentativa de publicação com resultado desconhecido MUST entrar em `RequerReconciliacao` e MUST NOT ser reenviada automaticamente.
+- **FR-032**: Toda interação mutável do bot MUST verificar `botEnabled` antes de chamar o backend.
+- **FR-033**: Falha ao publicar um draft MUST NOT interromper o processamento dos demais drafts no mesmo ciclo.
+- **FR-034**: Motivo e executor válidos MUST ser exigidos no backend para cancelamento, presença manual e republicação quando aplicável.
+- **FR-035**: Payloads de publicação MUST validar tipo, claim, obrigatoriedade e limites antes de parsing ou persistência.
+- **FR-036**: Mudanças de publicação e ações administrativas MUST emitir estado público atualizado via SignalR após persistência bem-sucedida.
+- **FR-037**: Respostas comuns e realtime MUST NOT expor motivos administrativos, executor, códigos de falha ou identificadores operacionais do Discord.
+- **FR-038**: Cancelamento de draft MUST registrar métrica estruturada sem dados pessoais, motivos ou segredos.
+- **FR-039**: Cobertura de endpoint MUST exigir requisição comportamental com assertivas de status, resposta e persistência; listas estáticas não contam como cobertura.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -168,6 +206,13 @@ Como administrador, quero confirmar cancelamento, remoção manual e republicaç
 - **SC-008**: 100% das ações administrativas sensíveis da feature registram responsável e momento.
 - **SC-009**: Usuários conseguem continuar o fluxo de draft pelo site mesmo quando Discord está desativado ou indisponível.
 - **SC-010**: 100% das quatro ações com motivo na tela de drafts usam confirmação contextual integrada à interface.
+- **SC-011**: 100% dos comandos mutáveis do Discord negam membros não autorizados antes de qualquer chamada mutável.
+- **SC-012**: Duas tentativas concorrentes de publicação concedem exatamente um claim e produzem no máximo uma mensagem automática.
+- **SC-013**: Nenhuma tentativa em `RequerReconciliacao` é reenviada sem ação administrativa explícita.
+- **SC-014**: Confirmações e cancelamentos repetidos ou concorrentes não retornam HTTP 500 e mantêm uma única presença efetiva.
+- **SC-015**: Saturar o limite de um cliente não reduz a cota de um usuário, bot ou IP diferente.
+- **SC-016**: 100% dos endpoints críticos novos possuem testes negativos de autenticação, autorização, esquema incorreto e payload inválido.
+- **SC-017**: Testes e builds de backend, frontend e bot aprovam com relógio determinístico e catálogos localizados sincronizados.
 
 ## Assumptions
 
@@ -176,3 +221,5 @@ Como administrador, quero confirmar cancelamento, remoção manual e republicaç
 - Jogadores elegíveis para presença manual são jogadores ativos, com perfil associado a usuário, ainda não confirmados no draft selecionado.
 - Publicações Discord relevantes para esta feature são listas de presença, CTA de presença e times definidos.
 - Métricas e logs não precisam expor dados sensíveis, tokens ou payloads técnicos ao usuário final.
+- `DRAFT_ADMIN_ROLE_IDS` é uma lista opcional de IDs de cargos separados por vírgula; `ManageGuild` permanece como permissão administrativa segura padrão.
+- Migrações de julho de 2026 da feature 017 ainda não foram publicadas e podem ser consolidadas antes do merge.
