@@ -140,26 +140,22 @@ public sealed class EndpointCoverageIntegrationTests
             jogador.Preferencias.Should().HaveCount(5);
         });
 
-        var listResponse = await client.GetAsync("/api/v1/jogadores?page=1&pageSize=100");
+        const int pageSize = 100;
+        int jogadoresAnteriores;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            jogadoresAnteriores = await dbContext.Jogadores.CountAsync(jogador => jogador.NomeExibicao.CompareTo(created.NomeExibicao) < 0);
+        }
+
+        var paginaDoJogador = (jogadoresAnteriores / pageSize) + 1;
+        var listResponse = await client.GetAsync($"/api/v1/jogadores?page={paginaDoJogador}&pageSize={pageSize}");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var list = await listResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<JogadorResponseDto>>();
         list.Should().NotBeNull();
-        list!.Page.Should().Be(1);
-        list.PageSize.Should().Be(100);
-        var jogadoresListados = list.Items.ToList();
-        for (var page = 2; ; page++)
-        {
-            var pageResponse = await client.GetAsync($"/api/v1/jogadores?page={page}&pageSize=100");
-            pageResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-            var pageResult = await pageResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<JogadorResponseDto>>();
-            pageResult.Should().NotBeNull();
-            if (pageResult!.Items.Count == 0)
-            {
-                break;
-            }
-            jogadoresListados.AddRange(pageResult!.Items);
-        }
-        jogadoresListados.Should().Contain(jogador => jogador.Id == created.Id);
+        list!.Page.Should().Be(paginaDoJogador);
+        list.PageSize.Should().Be(pageSize);
+        list.Items.Should().Contain(jogador => jogador.Id == created.Id);
 
         var getByIdResponse = await client.GetAsync($"/api/v1/jogadores/{created.Id}");
         getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);

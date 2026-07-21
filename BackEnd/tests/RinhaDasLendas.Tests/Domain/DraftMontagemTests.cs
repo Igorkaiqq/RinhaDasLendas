@@ -598,6 +598,22 @@ public sealed class DraftMontagemTests
     }
 
     [Fact]
+    public void Contrato_legado_nao_deve_registrar_falha_sobre_claim_ativo()
+    {
+        var montagem = NovaMontagem();
+        var claimId = Guid.NewGuid();
+        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
+        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
+
+        var act = () => montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "Timeout");
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationInProgress);
+        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
+        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.EmAndamento);
+        publicacao.ClaimId.Should().Be(claimId);
+    }
+
+    [Fact]
     public void Configuracao_legada_nao_deve_alterar_metadados_antes_de_rejeitar_claim_ativo()
     {
         var montagem = NovaMontagem();
