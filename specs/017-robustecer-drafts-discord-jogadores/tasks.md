@@ -189,6 +189,81 @@
 
 ---
 
+## Phase 9: User Story 7 - Operação segura e consistente (Priority: P1)
+
+**Goal**: Eliminar os bloqueadores de autorização, configuração, publicação, concorrência e cobertura encontrados na auditoria.
+
+**TDD Order**: Cada tarefa de teste deve falhar antes da implementação correspondente. Cada incremento aprovado recebe commit próprio em português.
+
+### Test determinism and Discord authorization
+
+- [ ] T075 [P] [US7] Corrigir o teste dependente do calendário com relógio explícito em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`.
+- [ ] T076 [P] [US7] Adicionar testes falhos de permissão padrão dos comandos em `discord-bot/src/discord/commands/draftCommands.spec.ts`.
+- [ ] T077 [P] [US7] Adicionar testes falhos de autorização runtime por `ManageGuild` ou `DRAFT_ADMIN_ROLE_IDS` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`.
+- [ ] T078 [US7] Implementar autorização dos comandos mutáveis em `discord-bot/src/discord/commands/draftCommands.ts`, `discord-bot/src/modules/drafts/draftInteractions.ts` e configuração/mensagens do bot.
+
+### Internal token and rate limiting
+
+- [ ] T079 [P] [US7] Adicionar testes falhos de token ausente, curto, placeholder e comparação em tempo constante em `BackEnd/tests/RinhaDasLendas.Tests/Security/SecurityHardeningTests.cs`.
+- [ ] T080 [US7] Implementar `InternalTokenSecurity` e validação de startup em produção na API, com recursos sincronizados.
+- [ ] T081 [P] [US7] Adicionar testes falhos de partições de bot, usuário e IP e resposta 429 localizada em testes de segurança HTTP.
+- [ ] T082 [US7] Implementar rate limiter particionado após autenticação em `BackEnd/src/RinhaDasLendas.Api/Program.cs` e helper focado da API.
+
+### Structured errors
+
+- [ ] T083 [P] [US7] Adicionar teste falho de integração que provoque `MV072` e valide `messageCode` específico.
+- [ ] T084 [US7] Preservar `DomainException.MessageCode` em `ApiExceptionMiddleware` e alinhar contrato/mapeamento do bot aos códigos públicos.
+
+### Atomic Discord publication
+
+- [ ] T085 [P] [US7] Adicionar testes falhos de domínio para claim único, claim divergente e `RequerReconciliacao` em `BackEnd/tests/RinhaDasLendas.Tests/Domain/DraftMontagemTests.cs`.
+- [ ] T086 [US7] Implementar estados, campos e transições de claim em `DraftMontagemPublicacaoDiscord` e `DraftMontagem`.
+- [ ] T087 [P] [US7] Adicionar testes falhos de repositório/integração para dois claims concorrentes e transição de tentativa expirada.
+- [ ] T088 [US7] Implementar operações atômicas de claim, conclusão, falha e expiração em `IDraftMontagemRepository` e `DraftMontagemRepository`.
+- [ ] T089 [P] [US7] Adicionar testes falhos dos endpoints e cliente do bot para claim, conclusão e falha com `ClaimId`.
+- [ ] T090 [US7] Implementar commands, handlers, DTOs, validators e endpoints bot-only do protocolo de publicação.
+- [ ] T091 [P] [US7] Adicionar testes falhos de um ciclo de polling: claim negado, claim adquirido, reconciliação bloqueada e continuidade após falha.
+- [ ] T092 [US7] Extrair `runDraftPollingCycle` e migrar o bot para claim persistido sem usar memória como fonte de verdade.
+
+### Presence idempotency and concurrency
+
+- [ ] T093 [P] [US7] Adicionar testes falhos de domínio para confirmação e cancelamento repetidos.
+- [ ] T094 [US7] Tornar confirmação e cancelamento idempotentes no agregado `DraftMontagem`.
+- [ ] T095 [P] [US7] Adicionar teste HTTP falho para confirmações concorrentes sem resposta 500.
+- [ ] T096 [US7] Traduzir conflitos EF/PostgreSQL em resultado neutro de persistência e recarregar o agregado nos handlers de presença.
+
+### Bot guards and channel permissions
+
+- [ ] T097 [P] [US7] Adicionar testes falhos de `botEnabled=false` em todas as mutações e da matriz view/send/embed/mention.
+- [ ] T098 [US7] Centralizar a guarda `botEnabled`, tornar menção condicional e diferenciar erros localizados de permissão.
+
+### Administrative validation and authorship
+
+- [ ] T099 [P] [US7] Adicionar testes falhos de validators para motivos nulo, vazio, whitespace e executor inválido.
+- [ ] T100 [US7] Exigir motivo e usuário atual válido em cancelamento, presença manual e republicação; auditar adição manual.
+- [ ] T101 [P] [US7] Adicionar testes falhos dos payloads de publicação para tipo, claim, obrigatoriedade e limites.
+- [ ] T102 [US7] Implementar validators de publicação e remover `Enum.Parse` sobre entrada não validada.
+
+### Realtime, projections and metrics
+
+- [ ] T103 [P] [US7] Adicionar testes falhos de notifier após publicação, falha, republicação e ação administrativa.
+- [ ] T104 [US7] Emitir projeção pública atualizada via SignalR após persistência das mudanças.
+- [ ] T105 [P] [US7] Adicionar testes falhos provando que GET/realtime comum não expõe auditoria ou IDs operacionais e que endpoint admin os retorna.
+- [ ] T106 [US7] Separar DTOs público, administrativo e operacional do bot e adicionar query/endpoint `/{id}/administracao`.
+- [ ] T107 [P] [US7] Adicionar teste falho da métrica de cancelamento de draft.
+- [ ] T108 [US7] Implementar `RecordDraftCancelled` sem tags sensíveis e atualizar documentação operacional.
+
+### Behavioral coverage and final verification
+
+- [ ] T109 [US7] Criar `SecurityApiFactory` com autenticação real e clientes anônimo, JWT e bot.
+- [ ] T110 [US7] Adicionar matriz HTTP comportamental para 401, 403, esquemas incorretos, payloads inválidos, auditoria, concorrência e claims.
+- [ ] T111 [US7] Consolidar as migrações não publicadas da feature em migração final com claims e auditoria.
+- [ ] T112 [US7] Executar testes/builds backend, frontend e bot, validar migrações, `git diff --check` e auditoria completa de internacionalização.
+
+**Checkpoint**: US7 atende FR-025 a FR-039 e SC-011 a SC-017 sem reabrir os incrementos funcionais já entregues.
+
+---
+
 ## Final Phase: Polish & Cross-Cutting Concerns
 
 **Purpose**: Verify, clean up and document the complete feature.
@@ -217,8 +292,10 @@
 - US4: can start after Foundational; benefits from US3 realtime/publication DTO patterns.
 - US5: should run after US3 and US4 because it audits publication and presence changes.
 - US6: should run after US3 and US5 because it replaces the existing cancel, remove and republish confirmations; T068 precedes T070 and T071 precedes T072.
+- US7: correção pós-auditoria; T075-T084 estabilizam segurança e contratos, T085-T092 bloqueiam duplicação, T093-T102 corrigem consistência e validação, T103-T108 finalizam realtime/projeções/métricas e T109-T112 comprovam o comportamento.
 - Final Phase (T058-T067): historical and already complete; US6 does not depend on it retroactively and does not reopen it.
 - US6 verification: T074 performs the tests, build, i18n audit and desktop/mobile checks specific to US6.
+- US7 verification: T112 só pode iniciar após T075-T111 e exige todas as suítes aprovadas.
 
 ### Parallel Opportunities
 
@@ -243,6 +320,7 @@
 3. US5 adds audit, reasons and metrics.
 4. US6 replaces the four reason prompts with contextual confirmation, following the T068-before-T070 and T071-before-T072 TDD order.
 5. T074 verifies the US6 increment; the historical Final Phase (T058-T067) remains complete and is neither a prerequisite nor a follow-up phase for US6.
+6. US7 executa um incremento por vez, com teste falho, correção mínima, verificação focada e commit antes do próximo incremento.
 
 ## Notes
 
