@@ -171,8 +171,9 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/discord/publicacao")]
-    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [Authorize(AuthenticationSchemes = BotInternalAuthOptions.SchemeName, Policy = AuthPermissions.CanUseDiscordBotApi)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterDiscordPublication([FromRoute] Guid id, [FromBody] RegistrarPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
@@ -181,13 +182,28 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/discord/publicacao/falha")]
-    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [Authorize(AuthenticationSchemes = BotInternalAuthOptions.SchemeName, Policy = AuthPermissions.CanUseDiscordBotApi)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterDiscordPublicationFailure([FromRoute] Guid id, [FromBody] RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new RegistrarFalhaPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
         return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpPost("{id:guid}/discord/publicacoes/claim")]
+    [Authorize(AuthenticationSchemes = BotInternalAuthOptions.SchemeName, Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [ProducesResponseType(typeof(ClaimPublicacaoDiscordResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ClaimDiscordPublication(
+        [FromRoute] Guid id,
+        [FromBody] AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var claim = await sender.Send(new AdquirirClaimPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
+        return claim is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(claim);
     }
 
     [HttpPost("{id:guid}/discord/publicacoes/republicar")]

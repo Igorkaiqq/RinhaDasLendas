@@ -339,11 +339,12 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(publicacao => publicacao.UltimoErroCodigo).HasColumnName("ultimo_erro_codigo").HasMaxLength(120);
             entity.Property(publicacao => publicacao.PublicadaEm).HasColumnName("publicada_em");
             entity.Property(publicacao => publicacao.UltimaTentativaEm).HasColumnName("ultima_tentativa_em").IsRequired();
-            entity.Ignore(publicacao => publicacao.ClaimId);
-            entity.Ignore(publicacao => publicacao.ClaimExpiraEm);
+            entity.Property(publicacao => publicacao.ClaimId).HasColumnName("claim_id");
+            entity.Property(publicacao => publicacao.ClaimExpiraEm).HasColumnName("claim_expira_em");
 
             entity.HasIndex(publicacao => new { publicacao.DraftMontagemId, publicacao.Tipo }).IsUnique();
             entity.HasIndex(publicacao => publicacao.Status);
+            entity.HasIndex(publicacao => new { publicacao.Status, publicacao.ClaimExpiraEm });
         });
 
         modelBuilder.Entity<DraftMontagemAcaoAdministrativa>(entity =>

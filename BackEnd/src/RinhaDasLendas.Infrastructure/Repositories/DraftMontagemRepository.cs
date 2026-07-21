@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
 
@@ -89,6 +91,153 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return ApplyEligibleManualPresenceFilters(draftMontagemId, search).CountAsync(cancellationToken);
     }
 
+    public async Task<DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(
+        Guid draftMontagemId,
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        DateTimeOffset expiraEm,
+        DateTimeOffset agora,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            WITH claimed AS (
+                INSERT INTO draft_montagem_publicacoes_discord
+                    (id, draft_montagem_id, tipo, status, ultima_tentativa_em, claim_id, claim_expira_em)
+                SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId, @expiraEm
+                FROM draft_montagens
+                WHERE id = @draftMontagemId
+                ON CONFLICT (draft_montagem_id, tipo) DO UPDATE
+                SET status = 'EmAndamento',
+                    ultima_tentativa_em = @agora,
+                    claim_id = @claimId,
+                    claim_expira_em = @expiraEm
+                WHERE draft_montagem_publicacoes_discord.status = 'Pendente'
+                RETURNING claim_id, claim_expira_em, status
+            )
+            SELECT TRUE, claim_id, claim_expira_em, status FROM claimed
+            UNION ALL
+            SELECT FALSE, NULL, NULL, status
+            FROM draft_montagem_publicacoes_discord
+            WHERE draft_montagem_id = @draftMontagemId
+              AND tipo = @tipo
+              AND NOT EXISTS (SELECT 1 FROM claimed)
+            LIMIT 1
+            """;
+
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        AddParameter(command, "id", Guid.NewGuid());
+        AddParameter(command, "draftMontagemId", draftMontagemId);
+        AddParameter(command, "tipo", tipo.ToString());
+        AddParameter(command, "claimId", claimId);
+        AddParameter(command, "expiraEm", expiraEm);
+        AddParameter(command, "agora", agora);
+        await OpenConnectionAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var adquirido = reader.GetBoolean(0);
+        return new DraftMontagemPublicacaoClaim(
+            adquirido,
+            adquirido ? reader.GetGuid(1) : null,
+            adquirido ? reader.GetFieldValue<DateTimeOffset>(2) : null,
+            Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(reader.GetString(3)));
+    }
+
+    public async Task<bool> TryConcluirPublicacaoDiscordAsync(
+        Guid draftMontagemId,
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string messageId,
+        DateTimeOffset agora,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            WITH updated AS (
+                UPDATE draft_montagem_publicacoes_discord
+                SET status = 'Publicada',
+                    guild_id = @guildId,
+                    channel_id = @channelId,
+                    message_id = @messageId,
+                    ultimo_erro_codigo = NULL,
+                    publicada_em = @agora,
+                    ultima_tentativa_em = @agora,
+                    claim_expira_em = NULL
+                WHERE draft_montagem_id = @draftMontagemId
+                  AND tipo = @tipo
+                  AND status = 'EmAndamento'
+                  AND claim_id = @claimId
+                  AND claim_expira_em > @agora
+                RETURNING draft_montagem_id
+            ), legacy AS (
+                UPDATE draft_montagens
+                SET discord_guild_id = @guildId,
+                    discord_presence_message_id = @messageId,
+                    data_atualizacao = @agora
+                FROM updated
+                WHERE draft_montagens.id = updated.draft_montagem_id
+                  AND @tipo = 'Presenca'
+            )
+            SELECT EXISTS (SELECT 1 FROM updated)
+            """;
+
+        return await ExecuteTransitionAsync(sql, draftMontagemId, tipo, claimId, guildId, channelId, messageId, null, agora, cancellationToken);
+    }
+
+    public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(
+        Guid draftMontagemId,
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string? erroCodigo,
+        DateTimeOffset agora,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            WITH updated AS (
+                UPDATE draft_montagem_publicacoes_discord
+                SET status = 'Falha',
+                    guild_id = @guildId,
+                    channel_id = @channelId,
+                    ultimo_erro_codigo = @erroCodigo,
+                    ultima_tentativa_em = @agora,
+                    claim_expira_em = NULL
+                WHERE draft_montagem_id = @draftMontagemId
+                  AND tipo = @tipo
+                  AND status = 'EmAndamento'
+                  AND claim_id = @claimId
+                  AND claim_expira_em > @agora
+                RETURNING 1
+            )
+            SELECT EXISTS (SELECT 1 FROM updated)
+            """;
+
+        return ExecuteTransitionAsync(sql, draftMontagemId, tipo, claimId, guildId, channelId, null, erroCodigo, agora, cancellationToken);
+    }
+
+    public async Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE draft_montagem_publicacoes_discord
+            SET status = 'RequerReconciliacao',
+                claim_expira_em = NULL
+            WHERE status = 'EmAndamento'
+              AND claim_expira_em <= @agora
+            """;
+
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        AddParameter(command, "agora", agora);
+        await OpenConnectionAsync(cancellationToken);
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
@@ -151,5 +300,47 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         }
 
         return query;
+    }
+
+    private async Task<bool> ExecuteTransitionAsync(
+        string sql,
+        Guid draftMontagemId,
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string? messageId,
+        string? erroCodigo,
+        DateTimeOffset agora,
+        CancellationToken cancellationToken)
+    {
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        AddParameter(command, "draftMontagemId", draftMontagemId);
+        AddParameter(command, "tipo", tipo.ToString());
+        AddParameter(command, "claimId", claimId);
+        AddParameter(command, "guildId", guildId);
+        AddParameter(command, "channelId", channelId);
+        AddParameter(command, "messageId", messageId);
+        AddParameter(command, "erroCodigo", erroCodigo);
+        AddParameter(command, "agora", agora);
+        await OpenConnectionAsync(cancellationToken);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+    }
+
+    private async Task OpenConnectionAsync(CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.GetDbConnection().State != ConnectionState.Open)
+        {
+            await dbContext.Database.OpenConnectionAsync(cancellationToken);
+        }
+    }
+
+    private static void AddParameter(System.Data.Common.DbCommand command, string name, object? value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value ?? DBNull.Value;
+        command.Parameters.Add(parameter);
     }
 }

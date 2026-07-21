@@ -371,30 +371,6 @@ public sealed class DraftMontagemTests
         montagem.PublicacoesDiscord.Should().ContainSingle().Which.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao);
     }
 
-    [Fact]
-    public void Deve_publicar_pelo_contrato_legado_ate_migracao_da_task_7()
-    {
-        var montagem = NovaMontagem();
-
-        montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
-
-        montagem.PublicacoesDiscord.Should().ContainSingle(item =>
-            item.Status == DraftMontagemPublicacaoDiscordStatus.Publicada
-            && item.MessageId == "mensagem");
-    }
-
-    [Fact]
-    public void Deve_registrar_falha_pelo_contrato_legado_ate_migracao_da_task_7()
-    {
-        var montagem = NovaMontagem();
-
-        montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "MissingPermissions");
-
-        montagem.PublicacoesDiscord.Should().ContainSingle(item =>
-            item.Status == DraftMontagemPublicacaoDiscordStatus.Falha
-            && item.UltimoErroCodigo == "MissingPermissions");
-    }
-
     [Theory]
     [InlineData(5)]
     [InlineData(6)]
@@ -501,7 +477,7 @@ public sealed class DraftMontagemTests
     {
         var montagem = NovaMontagem();
         var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
+        Publicar(montagem, DraftMontagemPublicacaoDiscordTipo.Presenca, agora);
 
         var act = () => montagem.SolicitarRepublicacaoDiscord(
             DraftMontagemPublicacaoDiscordTipo.Presenca,
@@ -518,7 +494,7 @@ public sealed class DraftMontagemTests
     {
         var montagem = NovaMontagem();
         var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
+        Publicar(montagem, DraftMontagemPublicacaoDiscordTipo.Presenca, agora);
 
         montagem.SolicitarRepublicacaoDiscord(
             DraftMontagemPublicacaoDiscordTipo.Presenca,
@@ -551,7 +527,7 @@ public sealed class DraftMontagemTests
         var montagem = NovaMontagem();
         var responsavelId = Guid.NewGuid();
         var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "Timeout");
+        Falhar(montagem, DraftMontagemPublicacaoDiscordTipo.Presenca, agora);
         montagem.SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, responsavelId, "corrigida", agora);
         var versao = montagem.VersaoEstado;
         var auditorias = montagem.AcoesAdministrativas.Count;
@@ -582,52 +558,6 @@ public sealed class DraftMontagemTests
     }
 
     [Fact]
-    public void Contrato_legado_nao_deve_sobrescrever_claim_ativo()
-    {
-        var montagem = NovaMontagem();
-        var claimId = Guid.NewGuid();
-        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
-
-        var act = () => montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationInProgress);
-        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
-        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.EmAndamento);
-        publicacao.ClaimId.Should().Be(claimId);
-    }
-
-    [Fact]
-    public void Contrato_legado_nao_deve_registrar_falha_sobre_claim_ativo()
-    {
-        var montagem = NovaMontagem();
-        var claimId = Guid.NewGuid();
-        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
-
-        var act = () => montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "Timeout");
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationInProgress);
-        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
-        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.EmAndamento);
-        publicacao.ClaimId.Should().Be(claimId);
-    }
-
-    [Fact]
-    public void Configuracao_legada_nao_deve_alterar_metadados_antes_de_rejeitar_claim_ativo()
-    {
-        var montagem = NovaMontagem();
-        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", Guid.NewGuid(), agora.AddMinutes(5), agora);
-
-        var act = () => montagem.ConfigurarPublicacaoDiscord("outra-guild", "mensagem");
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationInProgress);
-        montagem.DiscordGuildId.Should().BeNull();
-        montagem.DiscordPresenceMessageId.Should().BeNull();
-    }
-
-    [Fact]
     public void Deve_usar_relogio_explicito_ao_criar_primeira_solicitacao_de_republicacao()
     {
         var montagem = NovaMontagem();
@@ -639,38 +569,18 @@ public sealed class DraftMontagemTests
         montagem.DataAtualizacao.Should().Be(agora);
     }
 
-    [Fact]
-    public void Contrato_legado_nao_deve_publicar_estado_que_requer_reconciliacao()
+    private static void Publicar(DraftMontagem montagem, DraftMontagemPublicacaoDiscordTipo tipo, DateTimeOffset agora)
     {
-        var montagem = NovaMontagem();
         var claimId = Guid.NewGuid();
-        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
-        montagem.MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo.Presenca, agora.AddMinutes(5));
-
-        var act = () => montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationRequiresReconciliation);
-        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
-        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao);
-        publicacao.ClaimId.Should().Be(claimId);
+        montagem.IniciarTentativaPublicacaoDiscord(tipo, "guild", "canal", claimId, agora.AddMinutes(5), agora);
+        montagem.RegistrarPublicacaoDiscord(tipo, claimId, "guild", "canal", "mensagem", agora.AddMinutes(1));
     }
 
-    [Fact]
-    public void Contrato_legado_nao_deve_registrar_falha_em_estado_que_requer_reconciliacao()
+    private static void Falhar(DraftMontagem montagem, DraftMontagemPublicacaoDiscordTipo tipo, DateTimeOffset agora)
     {
-        var montagem = NovaMontagem();
         var claimId = Guid.NewGuid();
-        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
-        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
-        montagem.MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo.Presenca, agora.AddMinutes(5));
-
-        var act = () => montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "Timeout");
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationRequiresReconciliation);
-        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
-        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao);
-        publicacao.ClaimId.Should().Be(claimId);
+        montagem.IniciarTentativaPublicacaoDiscord(tipo, "guild", "canal", claimId, agora.AddMinutes(5), agora);
+        montagem.RegistrarFalhaPublicacaoDiscord(tipo, claimId, "guild", "canal", "Timeout", agora.AddMinutes(1));
     }
 
     private static DraftMontagem NovaMontagem()

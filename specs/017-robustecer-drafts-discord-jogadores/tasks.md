@@ -218,10 +218,10 @@
 
 - [x] T085 [P] [US7] Adicionar testes falhos de domínio para claim único, claim divergente e `RequerReconciliacao` em `BackEnd/tests/RinhaDasLendas.Tests/Domain/DraftMontagemTests.cs`.
 - [x] T086 [US7] Implementar estados, campos e transições de claim em `DraftMontagemPublicacaoDiscord` e `DraftMontagem`.
-- [ ] T087 [P] [US7] Adicionar testes falhos de repositório/integração para dois claims concorrentes e transição de tentativa expirada.
-- [ ] T088 [US7] Implementar operações atômicas de claim, conclusão, falha e expiração em `IDraftMontagemRepository` e `DraftMontagemRepository`.
-- [ ] T089 [P] [US7] Adicionar testes falhos dos endpoints e cliente do bot para claim, conclusão e falha com `ClaimId`.
-- [ ] T090 [US7] Implementar commands, handlers, DTOs, validators e endpoints bot-only do protocolo de publicação.
+- [x] T087 [P] [US7] Adicionar testes falhos de repositório/integração para dois claims concorrentes e transição de tentativa expirada.
+- [x] T088 [US7] Implementar operações atômicas de claim, conclusão, falha e expiração em `IDraftMontagemRepository` e `DraftMontagemRepository`.
+- [x] T089 [P] [US7] Adicionar testes falhos dos endpoints e cliente do bot para claim, conclusão e falha com `ClaimId`.
+- [x] T090 [US7] Implementar commands, handlers, DTOs, validators e endpoints bot-only do protocolo de publicação.
 - [ ] T091 [P] [US7] Adicionar testes falhos de um ciclo de polling: claim negado, claim adquirido, reconciliação bloqueada e continuidade após falha.
 - [ ] T092 [US7] Extrair `runDraftPollingCycle` e migrar o bot para claim persistido sem usar memória como fonte de verdade.
 

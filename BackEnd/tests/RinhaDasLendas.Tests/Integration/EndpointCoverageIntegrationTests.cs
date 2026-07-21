@@ -620,6 +620,7 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/ordem-escolha"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacao"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacao/falha"),
+            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacoes/claim"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacoes/republicar"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/picks"),
             EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/reservas/substituir"),

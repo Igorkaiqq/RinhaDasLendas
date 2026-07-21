@@ -90,26 +90,8 @@ public sealed class DraftMontagem
 
     public void ConfigurarPublicacaoDiscord(string? guildId, string? messageId)
     {
-        if (!string.IsNullOrWhiteSpace(messageId))
-        {
-            RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, guildId, null, messageId);
-            return;
-        }
-
         DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
-        DiscordPresenceMessageId = null;
-        Touch();
-    }
-
-    public void RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string messageId)
-    {
-        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
-        publicacao.RegistrarPublicada(guildId, channelId, messageId);
-        if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
-        {
-            DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
-            DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
-        }
+        DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
         Touch();
     }
 
@@ -143,13 +125,6 @@ public sealed class DraftMontagem
             DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
         }
         Touch(agora);
-    }
-
-    public void RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string? erroCodigo)
-    {
-        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
-        publicacao.RegistrarFalha(guildId, channelId, erroCodigo);
-        Touch();
     }
 
     public void RegistrarFalhaPublicacaoDiscord(

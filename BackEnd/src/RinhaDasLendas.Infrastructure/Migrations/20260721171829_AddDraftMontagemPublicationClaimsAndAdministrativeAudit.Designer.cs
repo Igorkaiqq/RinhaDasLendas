@@ -12,8 +12,8 @@ using RinhaDasLendas.Infrastructure.Persistence;
 namespace RinhaDasLendas.Infrastructure.Migrations
 {
     [DbContext(typeof(RinhaDasLendasDbContext))]
-    [Migration("20260710230953_AddDraftMontagemAdministrativeActions")]
-    partial class AddDraftMontagemAdministrativeActions
+    [Migration("20260721171829_AddDraftMontagemPublicationClaimsAndAdministrativeAudit")]
+    partial class AddDraftMontagemPublicationClaimsAndAdministrativeAudit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -392,6 +392,10 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("draft_montagem_id");
 
+                    b.Property<Guid?>("JogadorAlvoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_alvo_id");
+
                     b.Property<string>("Motivo")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -414,6 +418,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DraftMontagemId");
+
+                    b.HasIndex("JogadorAlvoId");
 
                     b.HasIndex("ResponsavelUsuarioId");
 
@@ -622,6 +628,14 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("channel_id");
 
+                    b.Property<DateTimeOffset?>("ClaimExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claim_expira_em");
+
+                    b.Property<Guid?>("ClaimId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("claim_id");
+
                     b.Property<Guid>("DraftMontagemId")
                         .HasColumnType("uuid")
                         .HasColumnName("draft_montagem_id");
@@ -667,6 +681,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
 
                     b.HasIndex("DraftMontagemId", "Tipo")
                         .IsUnique();
+
+                    b.HasIndex("Status", "ClaimExpiraEm");
 
                     b.ToTable("draft_montagem_publicacoes_discord", (string)null);
                 });
@@ -1658,6 +1674,11 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasForeignKey("DraftMontagemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                        .WithMany()
+                        .HasForeignKey("JogadorAlvoId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()

@@ -38,20 +38,6 @@ public sealed class DraftMontagemPublicacaoDiscord
     public Guid? ClaimId { get; private set; }
     public DateTimeOffset? ClaimExpiraEm { get; private set; }
 
-    internal void RegistrarPublicada(string? guildId, string? channelId, string messageId)
-    {
-        EnsureLegacyMutationAllowed();
-        GuildId = Normalize(guildId);
-        ChannelId = Normalize(channelId);
-        MessageId = string.IsNullOrWhiteSpace(messageId) ? throw new ArgumentException(MessageCodes.FieldRequired, nameof(messageId)) : messageId.Trim();
-        Status = DraftMontagemPublicacaoDiscordStatus.Publicada;
-        UltimoErroCodigo = null;
-        PublicadaEm = DateTimeOffset.UtcNow;
-        UltimaTentativaEm = PublicadaEm.Value;
-        ClaimId = null;
-        ClaimExpiraEm = null;
-    }
-
     internal static void ValidarInicioTentativa(Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora)
     {
         if (claimId == Guid.Empty)
@@ -89,18 +75,6 @@ public sealed class DraftMontagemPublicacaoDiscord
         UltimoErroCodigo = null;
         PublicadaEm = agora;
         UltimaTentativaEm = agora;
-        ClaimExpiraEm = null;
-    }
-
-    internal void RegistrarFalha(string? guildId, string? channelId, string? erroCodigo)
-    {
-        EnsureLegacyMutationAllowed();
-        GuildId = Normalize(guildId);
-        ChannelId = Normalize(channelId);
-        Status = DraftMontagemPublicacaoDiscordStatus.Falha;
-        UltimoErroCodigo = Normalize(erroCodigo);
-        UltimaTentativaEm = DateTimeOffset.UtcNow;
-        ClaimId = null;
         ClaimExpiraEm = null;
     }
 
@@ -174,19 +148,6 @@ public sealed class DraftMontagemPublicacaoDiscord
         if (ClaimExpiraEm is null || agora >= ClaimExpiraEm)
         {
             throw new DomainException(MessageCodes.DiscordPublicationClaimExpired);
-        }
-    }
-
-    private void EnsureLegacyMutationAllowed()
-    {
-        if (Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento)
-        {
-            throw new DomainException(MessageCodes.DiscordPublicationInProgress);
-        }
-
-        if (Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao)
-        {
-            throw new DomainException(MessageCodes.DiscordPublicationRequiresReconciliation);
         }
     }
 

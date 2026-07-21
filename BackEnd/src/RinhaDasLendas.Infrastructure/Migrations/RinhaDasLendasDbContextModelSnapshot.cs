@@ -625,6 +625,14 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("channel_id");
 
+                    b.Property<DateTimeOffset?>("ClaimExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claim_expira_em");
+
+                    b.Property<Guid?>("ClaimId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("claim_id");
+
                     b.Property<Guid>("DraftMontagemId")
                         .HasColumnType("uuid")
                         .HasColumnName("draft_montagem_id");
@@ -670,6 +678,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
 
                     b.HasIndex("DraftMontagemId", "Tipo")
                         .IsUnique();
+
+                    b.HasIndex("Status", "ClaimExpiraEm");
 
                     b.ToTable("draft_montagem_publicacoes_discord", (string)null);
                 });

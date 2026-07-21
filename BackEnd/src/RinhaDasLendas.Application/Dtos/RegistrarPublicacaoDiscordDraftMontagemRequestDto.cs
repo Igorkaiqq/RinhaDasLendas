@@ -1,6 +1,8 @@
-using RinhaDasLendas.Domain.Entities;
-using RinhaDasLendas.Domain.Enums;
-
 namespace RinhaDasLendas.Application.Dtos;
 
-public sealed record RegistrarPublicacaoDiscordDraftMontagemRequestDto(string? DiscordGuildId, string DiscordPresenceMessageId, string? Tipo = null, string? DiscordChannelId = null);
+public sealed record RegistrarPublicacaoDiscordDraftMontagemRequestDto(
+    string Tipo,
+    Guid ClaimId,
+    string? DiscordGuildId,
+    string? DiscordChannelId,
+    string MessageId);

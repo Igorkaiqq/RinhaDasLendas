@@ -12,23 +12,36 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
+    IValidator<RegistrarPublicacaoDiscordDraftMontagemRequestDto> validator,
     IDraftMontagemMetrics metrics) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
-        var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
-        if (montagem is null)
+        await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
+        var tipo = Enum.Parse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true);
+        var agora = DateTimeOffset.UtcNow;
+        var updated = await repository.TryConcluirPublicacaoDiscordAsync(
+            command.Id,
+            tipo,
+            command.Request.ClaimId,
+            command.Request.DiscordGuildId,
+            command.Request.DiscordChannelId,
+            command.Request.MessageId,
+            agora,
+            cancellationToken);
+        if (!updated)
         {
-            return null;
+            await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+            if (await repository.GetByIdAsync(command.Id, cancellationToken) is null)
+            {
+                return null;
+            }
+
+            throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
-        var tipo = string.IsNullOrWhiteSpace(command.Request.Tipo)
-            ? DraftMontagemPublicacaoDiscordTipo.Presenca
-            : Enum.Parse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true);
-        montagem.RegistrarPublicacaoDiscord(tipo, command.Request.DiscordGuildId ?? montagem.DiscordGuildId, command.Request.DiscordChannelId, command.Request.DiscordPresenceMessageId);
-        await repository.SaveChangesAsync(cancellationToken);
-        var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
         metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Publicada.ToString());
-        return DraftMontagemResponseDto.FromEntity(updated);
+        return montagem is null ? null : DraftMontagemResponseDto.FromEntity(montagem);
     }
 }
