@@ -29,8 +29,30 @@ public sealed class ConfirmarPresencaDraftMontagemCommandHandler(
 
         var origem = Enum.Parse<DraftMontagemPresencaOrigem>(command.Request.Origem, true);
         var (usuarioId, jogadorId, discordUserId) = await ResolveIdentityAsync(command.Request.UsuarioId, command.Request.DiscordUserId, origem, cancellationToken);
+        var versaoAnterior = montagem.VersaoEstado;
         montagem.ConfirmarPresenca(usuarioId, jogadorId, discordUserId, origem);
-        await repository.SaveChangesAsync(cancellationToken);
+        if (montagem.VersaoEstado == versaoAnterior)
+        {
+            return DraftMontagemResponseDto.FromEntity(montagem);
+        }
+
+        var saveResult = await repository.TrySaveChangesAsync(cancellationToken);
+        if (saveResult != DraftMontagemSaveResultado.Persistido)
+        {
+            var reloaded = await repository.ReloadByIdAsync(command.Id, cancellationToken);
+            if (reloaded is null)
+            {
+                return null;
+            }
+
+            if (reloaded.Presencas.Any(presenca => presenca.Confirmada && presenca.UsuarioId == usuarioId && presenca.JogadorId == jogadorId))
+            {
+                return DraftMontagemResponseDto.FromEntity(reloaded);
+            }
+
+            throw new DomainException(MessageCodes.PresencePersistenceConflict);
+        }
+
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         metrics.RecordPresenceConfirmed(command.Id, origem.ToString());

@@ -270,6 +270,62 @@ public sealed class SecurityHardeningTests
     }
 
     [Fact]
+    public async Task RepeatedPresenceConfirmation_ShouldNotPersistNotifyOrRecordMetric()
+    {
+        var userId = Guid.NewGuid();
+        var jogador = JogadorTestData.JogadorAtivo();
+        jogador.VincularUsuario(userId);
+        var montagem = new DraftMontagem("Draft", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        montagem.ConfirmarPresenca(userId, jogador.Id, null, DraftMontagemPresencaOrigem.Web);
+        var repository = new InMemoryDraftMontagemRepository([montagem], [jogador]);
+        var notifier = new TestDraftMontagemRealtimeNotifier();
+        var metrics = new TestDraftMontagemMetrics();
+        var handler = new ConfirmarPresencaDraftMontagemCommandHandler(
+            repository,
+            new TestCurrentUser(userId, [AuthRoles.Jogador]),
+            new TestDiscordIdentityLookupService(),
+            new ConfirmarPresencaDraftMontagemValidator(),
+            notifier,
+            metrics);
+
+        await handler.Handle(new ConfirmarPresencaDraftMontagemCommand(
+            montagem.Id,
+            new ConfirmarPresencaDraftMontagemRequestDto(userId, null, DraftMontagemPresencaOrigem.Web.ToString())), CancellationToken.None);
+
+        repository.TrySaveCalls.Should().Be(0);
+        notifier.Calls.Should().Be(0);
+        metrics.ConfirmedPresenceCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RepeatedPresenceCancellation_ShouldNotPersistNotifyOrRecordMetric()
+    {
+        var userId = Guid.NewGuid();
+        var jogador = JogadorTestData.JogadorAtivo();
+        jogador.VincularUsuario(userId);
+        var montagem = new DraftMontagem("Draft", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        montagem.ConfirmarPresenca(userId, jogador.Id, null, DraftMontagemPresencaOrigem.Web);
+        montagem.CancelarPresenca(userId);
+        var repository = new InMemoryDraftMontagemRepository([montagem], [jogador]);
+        var notifier = new TestDraftMontagemRealtimeNotifier();
+        var metrics = new TestDraftMontagemMetrics();
+        var handler = new CancelarPresencaDraftMontagemCommandHandler(
+            repository,
+            new TestCurrentUser(userId, [AuthRoles.Jogador]),
+            new TestDiscordIdentityLookupService(),
+            notifier,
+            metrics);
+
+        await handler.Handle(new CancelarPresencaDraftMontagemCommand(
+            montagem.Id,
+            new CancelarPresencaDraftMontagemRequestDto(userId, null)), CancellationToken.None);
+
+        repository.TrySaveCalls.Should().Be(0);
+        notifier.Calls.Should().Be(0);
+        metrics.CancelledPresenceCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task CancelPresence_ShouldRejectImpersonation_WhenAuthenticatedUserHasNoPresence()
     {
         var userA = Guid.NewGuid();
@@ -442,6 +498,8 @@ public sealed class SecurityHardeningTests
     {
         public int ConfirmedPresenceCalls { get; private set; }
 
+        public int CancelledPresenceCalls { get; private set; }
+
         public void RecordPresenceConfirmed(Guid draftMontagemId, string origin)
         {
             ConfirmedPresenceCalls++;
@@ -449,6 +507,7 @@ public sealed class SecurityHardeningTests
 
         public void RecordPresenceCancelled(Guid draftMontagemId, string origin)
         {
+            CancelledPresenceCalls++;
         }
 
         public void RecordPresenceClosed(Guid draftMontagemId)
@@ -470,9 +529,13 @@ public sealed class SecurityHardeningTests
 
     private sealed class InMemoryDraftMontagemRepository(IReadOnlyCollection<DraftMontagem> montagens, IReadOnlyCollection<Jogador> jogadores) : IDraftMontagemRepository
     {
+        public int TrySaveCalls { get; private set; }
+
         public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(montagens.FirstOrDefault(montagem => montagem.Id == id));
+
+        public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => GetByIdAsync(id, cancellationToken);
 
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
@@ -499,6 +562,12 @@ public sealed class SecurityHardeningTests
         public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(false);
 
         public Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(0);
+
+        public Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
+        {
+            TrySaveCalls++;
+            return Task.FromResult(DraftMontagemSaveResultado.Persistido);
+        }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

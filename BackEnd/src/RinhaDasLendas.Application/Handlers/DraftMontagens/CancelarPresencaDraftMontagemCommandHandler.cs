@@ -26,8 +26,31 @@ public sealed class CancelarPresencaDraftMontagemCommandHandler(
         }
 
         var usuarioId = await ResolveUserIdAsync(command.Request, cancellationToken);
+        var versaoAnterior = montagem.VersaoEstado;
         montagem.CancelarPresenca(usuarioId);
-        await repository.SaveChangesAsync(cancellationToken);
+        if (montagem.VersaoEstado == versaoAnterior)
+        {
+            return DraftMontagemResponseDto.FromEntity(montagem);
+        }
+
+        var saveResult = await repository.TrySaveChangesAsync(cancellationToken);
+        if (saveResult != DraftMontagemSaveResultado.Persistido)
+        {
+            var reloaded = await repository.ReloadByIdAsync(command.Id, cancellationToken);
+            if (reloaded is null)
+            {
+                return null;
+            }
+
+            var presencasDoUsuario = reloaded.Presencas.Where(presenca => presenca.UsuarioId == usuarioId).ToList();
+            if (presencasDoUsuario.Count > 0 && presencasDoUsuario.All(presenca => !presenca.Confirmada))
+            {
+                return DraftMontagemResponseDto.FromEntity(reloaded);
+            }
+
+            throw new DomainException(MessageCodes.PresencePersistenceConflict);
+        }
+
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         metrics.RecordPresenceCancelled(command.Id, string.IsNullOrWhiteSpace(command.Request.DiscordUserId) ? "Web" : "Discord");

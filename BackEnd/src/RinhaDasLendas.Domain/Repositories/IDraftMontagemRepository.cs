@@ -8,6 +8,7 @@ public interface IDraftMontagemRepository
 {
     Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken);
     Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken);
@@ -21,5 +22,6 @@ public interface IDraftMontagemRepository
     Task<bool> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken);
     Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken);
     Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken);
+    Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

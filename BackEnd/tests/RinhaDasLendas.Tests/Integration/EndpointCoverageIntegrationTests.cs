@@ -822,7 +822,10 @@ public sealed class EndpointCoverageIntegrationTests
                 .UseSetting("DiscordBot:InternalToken", "integration-test-token")
                 .UseSetting("Authentication:Jwt:Issuer", Issuer)
                 .UseSetting("Authentication:Jwt:Audience", Audience)
-                .UseSetting("Authentication:Jwt:Key", JwtKey);
+                .UseSetting("Authentication:Jwt:Key", JwtKey)
+                .UseSetting("Authentication:BootstrapSuperAdmin:Enabled", "true")
+                .UseSetting("Authentication:BootstrapSuperAdmin:Email", "integration-admin@example.com")
+                .UseSetting("Authentication:BootstrapSuperAdmin:Senha", "IntegrationAdmin123!");
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>

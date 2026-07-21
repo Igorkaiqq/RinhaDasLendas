@@ -211,9 +211,14 @@ public sealed class DraftMontagem
         var existente = _presencas.FirstOrDefault(presenca => presenca.UsuarioId == usuarioId || presenca.JogadorId == jogadorId);
         if (existente is not null)
         {
-            if (existente.Confirmada)
+            if (existente.Confirmada && existente.UsuarioId == usuarioId && existente.JogadorId == jogadorId)
             {
                 return existente;
+            }
+
+            if (existente.Confirmada)
+            {
+                throw new DomainException(MessageCodes.PlayerAlreadyInQueue);
             }
 
             _presencas.Remove(existente);
@@ -278,8 +283,13 @@ public sealed class DraftMontagem
             throw new DomainException(MessageCodes.PresenceAlreadyClosed);
         }
 
-        var presenca = _presencas.FirstOrDefault(item => item.UsuarioId == usuarioId && item.Confirmada)
+        var presenca = _presencas.LastOrDefault(item => item.UsuarioId == usuarioId)
             ?? throw new DomainException(MessageCodes.PresenceNotFound);
+        if (!presenca.Confirmada)
+        {
+            return;
+        }
+
         presenca.Cancelar();
         Touch();
     }

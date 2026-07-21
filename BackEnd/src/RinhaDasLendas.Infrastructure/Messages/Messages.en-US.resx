@@ -189,6 +189,7 @@
   <data name="MV085" xml:space="preserve"><value>The Discord publication is in progress</value></data>
   <data name="MV086" xml:space="preserve"><value>Confirm that the Discord publication is absent before republishing</value></data>
   <data name="MV087" xml:space="preserve"><value>The Discord publication requires administrative reconciliation</value></data>
+  <data name="MV088" xml:space="preserve"><value>The presence was changed by another request. Refresh the draft and try again</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

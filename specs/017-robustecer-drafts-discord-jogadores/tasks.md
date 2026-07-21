@@ -227,10 +227,10 @@
 
 ### Presence idempotency and concurrency
 
-- [ ] T093 [P] [US7] Adicionar testes falhos de domínio para confirmação e cancelamento repetidos.
-- [ ] T094 [US7] Tornar confirmação e cancelamento idempotentes no agregado `DraftMontagem`.
-- [ ] T095 [P] [US7] Adicionar teste HTTP falho para confirmações concorrentes sem resposta 500.
-- [ ] T096 [US7] Traduzir conflitos EF/PostgreSQL em resultado neutro de persistência e recarregar o agregado nos handlers de presença.
+- [x] T093 [P] [US7] Adicionar testes falhos de domínio para confirmação e cancelamento repetidos.
+- [x] T094 [US7] Tornar confirmação e cancelamento idempotentes no agregado `DraftMontagem`.
+- [x] T095 [P] [US7] Adicionar teste HTTP falho para confirmações concorrentes sem resposta 500.
+- [x] T096 [US7] Traduzir conflitos EF/PostgreSQL em resultado neutro de persistência e recarregar o agregado nos handlers de presença.
 
 ### Bot guards and channel permissions
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 using System.Data;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -11,6 +12,9 @@ namespace RinhaDasLendas.Infrastructure.Repositories;
 
 public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) : IDraftMontagemRepository
 {
+    private const string PresenceByUserIndex = "ix_draft_montagem_presencas_draft_montagem_id_usuario_id";
+    private const string PresenceByPlayerIndex = "ix_draft_montagem_presencas_draft_montagem_id_jogador_id";
+
     public async Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken)
     {
         await dbContext.DraftMontagens.AddAsync(montagem, cancellationToken);
@@ -19,6 +23,12 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id, cancellationToken);
+    }
+
+    public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        dbContext.ChangeTracker.Clear();
+        return GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
@@ -258,6 +268,32 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return DraftMontagemSaveResultado.Persistido;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return DraftMontagemSaveResultado.ConflitoDeVersao;
+        }
+        catch (DbUpdateException exception) when (IsExpectedPresenceConflict(exception))
+        {
+            return DraftMontagemSaveResultado.ConflitoDePresencaConfirmada;
+        }
+    }
+
+    private static bool IsExpectedPresenceConflict(DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: PresenceByUserIndex or PresenceByPlayerIndex,
+        };
     }
 
     private static IQueryable<DraftMontagem> IncludeMontagem(IQueryable<DraftMontagem> query)

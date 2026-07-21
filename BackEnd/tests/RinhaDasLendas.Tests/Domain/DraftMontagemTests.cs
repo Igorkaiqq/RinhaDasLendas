@@ -144,6 +144,31 @@ public sealed class DraftMontagemTests
     }
 
     [Fact]
+    public void Deve_manter_confirmacao_e_cancelamento_repetidos_como_no_op()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var usuarioId = Guid.NewGuid();
+        var jogadorId = Guid.NewGuid();
+        var primeiraConfirmacao = montagem.ConfirmarPresenca(usuarioId, jogadorId, null, DraftMontagemPresencaOrigem.Web);
+        var versaoConfirmada = montagem.VersaoEstado;
+
+        var segundaConfirmacao = montagem.ConfirmarPresenca(usuarioId, jogadorId, null, DraftMontagemPresencaOrigem.Web);
+
+        segundaConfirmacao.Should().BeSameAs(primeiraConfirmacao);
+        montagem.Presencas.Should().ContainSingle();
+        montagem.VersaoEstado.Should().Be(versaoConfirmada);
+
+        montagem.CancelarPresenca(usuarioId);
+        var versaoCancelada = montagem.VersaoEstado;
+
+        var act = () => montagem.CancelarPresenca(usuarioId);
+
+        act.Should().NotThrow();
+        montagem.Presencas.Should().ContainSingle().Which.Confirmada.Should().BeFalse();
+        montagem.VersaoEstado.Should().Be(versaoCancelada);
+    }
+
+    [Fact]
     public void Deve_impedir_presenca_manual_duplicada()
     {
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);

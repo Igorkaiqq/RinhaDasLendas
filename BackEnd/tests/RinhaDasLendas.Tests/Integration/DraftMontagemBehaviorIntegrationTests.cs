@@ -26,6 +26,50 @@ namespace RinhaDasLendas.Tests.Integration;
 public sealed class DraftMontagemBehaviorIntegrationTests
 {
     [Fact]
+    public async Task DuasConfirmacoesHttpConcorrentes_DevemRetornarSemErroInternoEUmaPresenca()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var (draftId, userId) = await factory.SeedPresenceAsync();
+        using var firstClient = factory.CreateUserClient(userId);
+        using var secondClient = factory.CreateUserClient(userId);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyCount = 0;
+
+        async Task<HttpResponseMessage> ConfirmAsync(HttpClient client)
+        {
+            if (Interlocked.Increment(ref readyCount) == 2)
+            {
+                ready.SetResult();
+            }
+
+            await release.Task;
+            return await client.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/presencas/confirmar",
+                new { UsuarioId = userId, DiscordUserId = (string?)null, Origem = "Web" });
+        }
+
+        var requests = new[] { ConfirmAsync(firstClient), ConfirmAsync(secondClient) };
+        await ready.Task;
+        release.SetResult();
+        var responses = await Task.WhenAll(requests);
+
+        responses.Should().OnlyContain(response => (int)response.StatusCode < 500);
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        (await factory.CountConfirmedPresencesAsync(draftId, userId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task TrySaveChangesAsync_DevePropagarViolacaoUnicaQueNaoSejaDePresenca()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+
+        var act = () => factory.SaveDuplicateUserNamesThroughDraftRepositoryAsync();
+
+        await act.Should().ThrowAsync<DbUpdateException>();
+    }
+
+    [Fact]
     public async Task DoisClaimsConcorrentes_DevemConcederExatamenteUmClaim()
     {
         await using var factory = new PostgreSqlComposeApiFactory();
@@ -281,12 +325,24 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return client;
         }
 
+        public HttpClient CreateUserClient(Guid userId)
+        {
+            var client = CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId));
+            return client;
+        }
+
         public string CreateJwt()
         {
             using var scope = Services.CreateScope();
             var userId = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
                 .Select(user => user.Id)
                 .First();
+            return CreateJwt(userId);
+        }
+
+        public string CreateJwt(Guid userId)
+        {
             var token = new JwtSecurityToken(
                 Issuer,
                 Audience,
@@ -299,6 +355,71 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
                     SecurityAlgorithms.HmacSha256));
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task<(Guid DraftId, Guid UserId)> SeedPresenceAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var userId = Guid.NewGuid();
+            dbContext.Users.Add(new ApplicationUser
+            {
+                Id = userId,
+                Nome = "Usuario de presenca",
+                UserName = $"presence-test-{userId:N}",
+                NormalizedUserName = $"PRESENCE-TEST-{userId:N}",
+                Email = $"presence-test-{userId:N}@example.com",
+                NormalizedEmail = $"PRESENCE-TEST-{userId:N}@EXAMPLE.COM",
+            });
+            var jogador = new Jogador(
+                "Jogador de presenca",
+                null,
+                "presence#1234",
+                null,
+                null,
+                null,
+                Elo.Ouro,
+                Divisao.II,
+                new[]
+                {
+                    new PreferenciaRota(Rota.Top, 1, false),
+                    new PreferenciaRota(Rota.Jungle, 2, false),
+                    new PreferenciaRota(Rota.Mid, 3, false),
+                    new PreferenciaRota(Rota.Adc, 4, false),
+                    new PreferenciaRota(Rota.Support, 5, false),
+                });
+            jogador.VincularUsuario(userId);
+            var draft = new DraftMontagem("Draft de presenca", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            dbContext.Jogadores.Add(jogador);
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            return (draft.Id, userId);
+        }
+
+        public async Task<int> CountConfirmedPresencesAsync(Guid draftId, Guid userId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            return await dbContext.DraftMontagemPresencas
+                .AsNoTracking()
+                .CountAsync(presence => presence.DraftMontagemId == draftId
+                    && presence.UsuarioId == userId
+                    && presence.Status == DraftMontagemPresencaStatus.Confirmada);
+        }
+
+        public async Task SaveDuplicateUserNamesThroughDraftRepositoryAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var repository = scope.ServiceProvider.GetRequiredService<RinhaDasLendas.Domain.Repositories.IDraftMontagemRepository>();
+            var normalizedName = $"DUPLICATE-{Guid.NewGuid():N}";
+            dbContext.Users.AddRange(
+                new ApplicationUser { Id = Guid.NewGuid(), Nome = "Primeiro", UserName = normalizedName, NormalizedUserName = normalizedName },
+                new ApplicationUser { Id = Guid.NewGuid(), Nome = "Segundo", UserName = normalizedName, NormalizedUserName = normalizedName });
+
+            await repository.TrySaveChangesAsync(CancellationToken.None);
         }
 
         public async Task<Guid> SeedPendingPublicationAsync()
