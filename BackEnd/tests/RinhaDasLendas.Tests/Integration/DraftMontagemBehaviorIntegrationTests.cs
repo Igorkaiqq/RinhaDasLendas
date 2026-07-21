@@ -103,6 +103,24 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     }
 
     [Fact]
+    public async Task ClaimExpirado_DeveExigirReconciliacaoSemNovaAquisicao()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        using var client = factory.CreateBotClient();
+        var draftId = await factory.SeedPendingPublicationAsync();
+        var claimResponse = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{draftId}/discord/publicacoes/claim",
+            new { Tipo = "Presenca" });
+        claimResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        await factory.ExpireClaimAsync(draftId);
+
+        var reconciled = await factory.ReconcileExpiredClaimsAsync();
+
+        reconciled.Should().Be(1);
+        (await factory.GetPublicationStatusAsync(draftId)).Should().Be("RequerReconciliacao");
+    }
+
+    [Fact]
     public async Task Claim_DeveAceitarSomenteAutenticacaoInternaDoBot()
     {
         await using var factory = new PostgreSqlComposeApiFactory();
@@ -337,6 +355,13 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 """;
             command.Parameters.AddWithValue("draftId", draftId);
             await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task<int> ReconcileExpiredClaimsAsync()
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var repository = scope.ServiceProvider.GetRequiredService<RinhaDasLendas.Domain.Repositories.IDraftMontagemRepository>();
+            return await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None);
         }
 
         public async Task<string?> GetPublicationStatusAsync(Guid draftId)

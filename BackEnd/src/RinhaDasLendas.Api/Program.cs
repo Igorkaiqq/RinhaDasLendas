@@ -28,6 +28,7 @@ builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
+builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
