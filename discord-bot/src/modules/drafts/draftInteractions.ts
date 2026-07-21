@@ -196,6 +196,7 @@ export async function runDraftPollingCycle(client: Client) {
       if (!claim.adquirido || !claim.claimId) continue
       await publishClaimedDraft(client, configuration, candidate, claim.claimId)
     } catch (error) {
+      if (error instanceof DiscordPublicationResultUnknownError) continue
       logger.error('Discord publication failed', error, { draftId: candidate.draft.id, tipo: candidate.tipo })
     }
   }
@@ -230,22 +231,14 @@ async function publishClaimedDraft(
   const isPresence = candidate.tipo === 'Presenca'
   const channelId = isPresence ? configuration.presenceChannelId : configuration.draftChannelId
   const channelLabel = isPresence ? t.channels.presence : t.channels.draft
+  let channel: SendableTextChannel
+  let sendPayload: unknown
 
   try {
-    const channel = await getSendableChannel(client, channelId, channelLabel)
-    const message = await channel.send(isPresence
+    channel = await getSendableChannel(client, channelId, channelLabel)
+    sendPayload = isPresence
       ? { embeds: [presenceEmbed(candidate.draft)], components: [presenceButtons(candidate.draft.id)] }
-      : { embeds: [finalTeamsEmbed(candidate.draft)] })
-    const ctaResult = isPresence ? await sendDraftPresenceCta(channel, candidate.draft.id) : 'not-configured'
-    await rinhaApi.registerDiscordPublication(candidate.draft.id, {
-      tipo: candidate.tipo,
-      claimId,
-      discordGuildId: configuration.guildId,
-      discordChannelId: channelId,
-      messageId: message.id,
-    })
-    logger.info(isPresence ? t.logs.siteDraftPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
-    return ctaResult
+      : { embeds: [finalTeamsEmbed(candidate.draft)] }
   } catch (error) {
     await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
       tipo: candidate.tipo,
@@ -256,6 +249,46 @@ async function publishClaimedDraft(
     })
     throw error
   }
+
+  let message: { id: string }
+  try {
+    message = await channel.send(sendPayload)
+  } catch (error) {
+    logUnknownPublicationResult(candidate, 'send', error)
+    throw new DiscordPublicationResultUnknownError()
+  }
+
+  const ctaResult = isPresence ? await sendDraftPresenceCta(channel, candidate.draft.id) : 'not-configured'
+  try {
+    await rinhaApi.registerDiscordPublication(candidate.draft.id, {
+      tipo: candidate.tipo,
+      claimId,
+      discordGuildId: configuration.guildId,
+      discordChannelId: channelId,
+      messageId: message.id,
+    })
+    logger.info(isPresence ? t.logs.siteDraftPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
+    return ctaResult
+  } catch (error) {
+    logUnknownPublicationResult(candidate, 'completion', error)
+    throw new DiscordPublicationResultUnknownError()
+  }
+}
+
+class DiscordPublicationResultUnknownError extends Error {
+  constructor() {
+    super('Discord publication result unknown')
+    this.name = 'DiscordPublicationResultUnknownError'
+  }
+}
+
+function logUnknownPublicationResult(candidate: PublicationCandidate, stage: 'send' | 'completion', error: unknown) {
+  logger.error('Discord publication result unknown', undefined, {
+    draftId: candidate.draft.id,
+    tipo: candidate.tipo,
+    stage,
+    errorType: error instanceof Error ? error.name : typeof error,
+  })
 }
 
 function getPublicationErrorCode(error: unknown) {

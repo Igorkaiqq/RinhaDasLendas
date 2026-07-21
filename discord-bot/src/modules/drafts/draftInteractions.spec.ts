@@ -7,6 +7,7 @@ import type { DraftMontagem } from '../../shared/api/types.js'
 import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { env } from '../../config/env.js'
+import { logger } from '../../shared/logger.js'
 import { t } from '../../shared/messages/index.js'
 
 const originalNotifyRoleId = env.DRAFT_NOTIFY_ROLE_ID
@@ -40,10 +41,25 @@ function pollingClient(send: (options: unknown) => Promise<{ id: string }>) {
   } as unknown as Client
 }
 
+function pollingClientWithChannelFailure() {
+  return {
+    channels: { fetch: async () => null },
+    user: null,
+  } as unknown as Client
+}
+
 function mockPollingApi(drafts: ReturnType<typeof pollingDraft>[]) {
   env.DRAFT_NOTIFY_ROLE_ID = ''
   mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
   mock.method(rinhaApi, 'listActiveDrafts', async () => drafts)
+}
+
+function deferred() {
+  let resolve!: () => void
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
 }
 
 describe('runDraftPollingCycle', () => {
@@ -75,19 +91,65 @@ describe('runDraftPollingCycle', () => {
     assert.equal(completePayload.messageId, 'message-1')
   })
 
-  it('registers a publication failure with the acquired claim id', async () => {
+  it('registers failure when channel validation fails before send starts', async () => {
     mockPollingApi([pollingDraft('draft-1')])
     mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: '2026-07-21T10:05:00Z', status: 'EmAndamento' }))
     const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-1') as never)
 
-    await runDraftPollingCycle(pollingClient(async () => { throw new Error('send failed') }))
+    await runDraftPollingCycle(pollingClientWithChannelFailure())
 
     assert.equal(failure.mock.callCount(), 1)
+    assert.equal(complete.mock.callCount(), 0)
     const failureCall = failure.mock.calls[0]
     assert.ok(failureCall)
     const failurePayload = failureCall.arguments[1]
     assert.ok(failurePayload)
     assert.equal(failurePayload.claimId, 'claim-1')
+  })
+
+  it('keeps the claim in progress when send rejects', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-1') as never)
+    const logError = mock.method(logger, 'error', () => undefined)
+
+    await runDraftPollingCycle(pollingClient(async () => { throw new Error('sensitive send detail') }))
+
+    assert.equal(failure.mock.callCount(), 0)
+    assert.equal(complete.mock.callCount(), 0)
+    assert.equal(JSON.stringify(logError.mock.calls).includes('sensitive send detail'), false)
+  })
+
+  it('keeps the claim in progress when backend completion fails after send', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => { throw new Error('sensitive backend detail') })
+    const logError = mock.method(logger, 'error', () => undefined)
+
+    await runDraftPollingCycle(pollingClient(async () => ({ id: 'message-1' })))
+
+    assert.equal(failure.mock.callCount(), 0)
+    assert.equal(JSON.stringify(logError.mock.calls).includes('sensitive backend detail'), false)
+  })
+
+  it('does not send again in the next cycle while the claim is in progress', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    let claimAttempt = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ++claimAttempt === 1
+      ? { adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }
+      : { adquirido: false, claimId: null, expiraEm: null, status: 'EmAndamento' })
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    const send = mock.fn(async () => { throw new Error('send result unknown') })
+    const client = pollingClient(send)
+
+    await runDraftPollingCycle(client)
+    await runDraftPollingCycle(client)
+
+    assert.equal(send.mock.callCount(), 1)
+    assert.equal(failure.mock.callCount(), 0)
   })
 
   it('does not claim or send a publication requiring reconciliation', async () => {
@@ -114,9 +176,34 @@ describe('runDraftPollingCycle', () => {
       return { id: 'message-2' }
     }))
 
-    assert.equal(failure.mock.callCount(), 1)
+    assert.equal(failure.mock.callCount(), 0)
     assert.equal(complete.mock.callCount(), 1)
     assert.equal(complete.mock.calls[0].arguments[0], 'draft-2')
+  })
+
+  it('allows only one send across two concurrent polling cycles', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    const ready = deferred()
+    const release = deferred()
+    let waitingClaims = 0
+    let claimNumber = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => {
+      if (++waitingClaims === 2) ready.resolve()
+      await release.promise
+      return ++claimNumber === 1
+        ? { adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }
+        : { adquirido: false, claimId: null, expiraEm: null, status: 'EmAndamento' }
+    })
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-1') as never)
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+    const client = pollingClient(send)
+
+    const cycles = [runDraftPollingCycle(client), runDraftPollingCycle(client)]
+    await ready.promise
+    release.resolve()
+    await Promise.all(cycles)
+
+    assert.equal(send.mock.callCount(), 1)
   })
 })
 
