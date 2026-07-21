@@ -211,6 +211,25 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     }
 
     [Fact]
+    public async Task ExpiracoesDeMultiplasPublicacoes_DevemRetornarIdsDistintosEAtualizarTodosOsEstados()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var (primeiroDraftId, segundoDraftId) = await factory.SeedMultipleExpiredPublicationsAsync();
+
+        var reconciledIds = await factory.ReconcileExpiredClaimIdsAsync();
+        var states = await factory.GetPublicationStatesAsync([primeiroDraftId, segundoDraftId]);
+
+        reconciledIds.Should().HaveCount(2);
+        reconciledIds.Should().BeEquivalentTo([primeiroDraftId, segundoDraftId]);
+        states.Should().BeEquivalentTo(
+        [
+            (primeiroDraftId, DraftMontagemPublicacaoDiscordTipo.Presenca, DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao),
+            (primeiroDraftId, DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao),
+            (segundoDraftId, DraftMontagemPublicacaoDiscordTipo.Presenca, DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao),
+        ]);
+    }
+
+    [Fact]
     public async Task Claim_DeveAceitarSomenteAutenticacaoInternaDoBot()
     {
         await using var factory = new PostgreSqlComposeApiFactory();
@@ -849,9 +868,45 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         public async Task<int> ReconcileExpiredClaimsAsync()
         {
+            return (await ReconcileExpiredClaimIdsAsync()).Count;
+        }
+
+        public async Task<IReadOnlyCollection<Guid>> ReconcileExpiredClaimIdsAsync()
+        {
             await using var scope = Services.CreateAsyncScope();
             var repository = scope.ServiceProvider.GetRequiredService<RinhaDasLendas.Domain.Repositories.IDraftMontagemRepository>();
-            return (await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None)).Count;
+            return await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+        }
+
+        public async Task<(Guid FirstDraftId, Guid SecondDraftId)> SeedMultipleExpiredPublicationsAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var agora = DateTimeOffset.UtcNow.AddMinutes(-10);
+            var expiraEm = agora.AddMinutes(5);
+            var primeiroDraft = new DraftMontagem("Draft com duas publicacoes", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            primeiroDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, null, null, Guid.NewGuid(), expiraEm, agora);
+            primeiroDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, null, null, Guid.NewGuid(), expiraEm, agora);
+            var segundoDraft = new DraftMontagem("Draft com uma publicacao", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            segundoDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, null, null, Guid.NewGuid(), expiraEm, agora);
+            dbContext.DraftMontagens.AddRange(primeiroDraft, segundoDraft);
+            await dbContext.SaveChangesAsync();
+            return (primeiroDraft.Id, segundoDraft.Id);
+        }
+
+        public async Task<IReadOnlyCollection<(Guid DraftId, DraftMontagemPublicacaoDiscordTipo Type, DraftMontagemPublicacaoDiscordStatus Status)>> GetPublicationStatesAsync(IReadOnlyCollection<Guid> draftIds)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>()
+                .DraftMontagemPublicacoesDiscord
+                .AsNoTracking()
+                .Where(publicacao => draftIds.Contains(publicacao.DraftMontagemId))
+                .Select(publicacao => new ValueTuple<Guid, DraftMontagemPublicacaoDiscordTipo, DraftMontagemPublicacaoDiscordStatus>(
+                    publicacao.DraftMontagemId,
+                    publicacao.Tipo,
+                    publicacao.Status))
+                .ToListAsync();
         }
 
         public async Task<string?> GetPublicationStatusAsync(Guid draftId)
