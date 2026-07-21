@@ -1,7 +1,9 @@
 using System.Net;
 using System.Diagnostics.Metrics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using FluentAssertions;
@@ -14,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
@@ -91,6 +94,54 @@ public sealed class SecurityHardeningTests
         firstBotResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         userResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         secondBotResponse.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task RealJwtBearer_ShouldPartitionAuthenticatedUsersByIdentifier()
+    {
+        using var factory = new RealAuthenticationApiFactory(1);
+        using var client = factory.CreateClient();
+        var firstUserToken = RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid());
+        var secondUserToken = RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid());
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", firstUserToken);
+        var firstUserResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
+        client.DefaultRequestHeaders.Authorization = new("Bearer", secondUserToken);
+        var secondUserResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
+        client.DefaultRequestHeaders.Authorization = new("Bearer", firstUserToken);
+        var repeatedFirstUserResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
+
+        firstUserResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        secondUserResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        repeatedFirstUserResponse.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task RealJwtBearer_ShouldNotAuthorizeMixedEndpoint_WhenInternalHeaderIsInvalid()
+    {
+        using var factory = new RealAuthenticationApiFactory(10);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, "invalid-internal-token");
+
+        var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task RealJwtBearer_ShouldNotAuthorizeJwtOnlyEndpoint_WhenInternalHeaderIsInvalid()
+    {
+        using var factory = new RealAuthenticationApiFactory(10);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, "invalid-internal-token");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{Guid.NewGuid()}/presencas/confirmar",
+            new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Theory]
@@ -431,6 +482,41 @@ public sealed class SecurityHardeningTests
                 .UseEnvironment("Testing")
                 .UseSetting("RateLimiting:Api:PermitLimit", optionName == "PermitLimit" ? "0" : "1")
                 .UseSetting("RateLimiting:Api:WindowSeconds", optionName == "WindowSeconds" ? "0" : "60");
+        }
+    }
+
+    private sealed class RealAuthenticationApiFactory(int permitLimit) : WebApplicationFactory<Program>
+    {
+        private const string Issuer = "RinhaDasLendas.SecurityTests";
+        private const string Audience = "RinhaDasLendas.SecurityTests.Client";
+        private const string JwtKey = "security-tests-jwt-key-with-at-least-thirty-two-characters";
+
+        public static string CreateJwt(Guid userId)
+        {
+            var token = new JwtSecurityToken(
+                Issuer,
+                Audience,
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Role, AuthRoles.Admin),
+                ],
+                expires: DateTime.UtcNow.AddMinutes(5),
+                signingCredentials: new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                    SecurityAlgorithms.HmacSha256));
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder
+                .UseEnvironment("IntegrationTesting")
+                .UseSetting("Authentication:Jwt:Issuer", Issuer)
+                .UseSetting("Authentication:Jwt:Audience", Audience)
+                .UseSetting("Authentication:Jwt:Key", JwtKey)
+                .UseSetting("DiscordBot:InternalToken", RateLimitedApiFactory.InternalToken)
+                .UseSetting("RateLimiting:Api:PermitLimit", permitLimit.ToString())
+                .UseSetting("RateLimiting:Api:WindowSeconds", "60");
         }
     }
 }

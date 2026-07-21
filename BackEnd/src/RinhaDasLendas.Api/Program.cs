@@ -46,17 +46,16 @@ builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.Scheme
     options.Token = internalTokens.FirstOrDefault() ?? string.Empty;
     options.ValidTokens = internalTokens;
 });
-const string apiAuthenticationScheme = "ApiAuthentication";
 var fallbackAuthenticationScheme = builder.Environment.IsEnvironment("Testing")
     ? TestingAuthHandler.SchemeName
     : JwtBearerDefaults.AuthenticationScheme;
 var authentication = builder.Services.AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = apiAuthenticationScheme;
-        options.DefaultChallengeScheme = apiAuthenticationScheme;
-        options.DefaultScheme = apiAuthenticationScheme;
+        options.DefaultAuthenticateScheme = ApiAuthenticationDefaults.SchemeName;
+        options.DefaultChallengeScheme = ApiAuthenticationDefaults.SchemeName;
+        options.DefaultScheme = ApiAuthenticationDefaults.SchemeName;
     })
-    .AddPolicyScheme(apiAuthenticationScheme, null, options =>
+    .AddPolicyScheme(ApiAuthenticationDefaults.SchemeName, null, options =>
     {
         options.ForwardDefaultSelector = context => context.Request.Headers.ContainsKey(BotInternalAuthOptions.HeaderName)
             ? BotInternalAuthOptions.SchemeName
@@ -118,6 +117,7 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy.RequireAssertion(_ => true));
     }
     else
     {
@@ -133,12 +133,17 @@ builder.Services.AddAuthorization(options =>
             .AddAuthenticationSchemes(BotInternalAuthOptions.SchemeName)
             .RequireClaim("scope", AuthPermissions.CanUseDiscordBotApi));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy
-            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, BotInternalAuthOptions.SchemeName)
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
             .RequireAssertion(context =>
                 context.User.IsInRole(AuthRoles.SuperAdmin)
                 || context.User.IsInRole(AuthRoles.Admin)
                 || context.User.IsInRole(AuthRoles.Moderador)
                 || context.User.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi)));
+        options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context => context.User.Identities.Any(identity =>
+                identity.IsAuthenticated
+                && identity.AuthenticationType == JwtBearerDefaults.AuthenticationScheme)));
     }
 });
 builder.Services.AddHealthChecks();

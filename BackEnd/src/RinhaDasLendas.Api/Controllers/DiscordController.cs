@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
@@ -15,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 public sealed class DiscordController(IDiscordConfigurationService configurationService, IMessageProvider messages) : ControllerBase
 {
     [HttpGet("configuracoes")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
+    [Authorize(AuthenticationSchemes = ApiAuthenticationDefaults.SchemeName)]
     [ProducesResponseType(typeof(DiscordConfigurationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetConfiguration(CancellationToken cancellationToken)

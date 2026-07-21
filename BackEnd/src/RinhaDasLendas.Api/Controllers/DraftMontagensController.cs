@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
@@ -13,7 +12,7 @@ using RinhaDasLendas.Domain.Constants;
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
+[Authorize(AuthenticationSchemes = ApiAuthenticationDefaults.SchemeName)]
 [Route("api/v1/draft-montagens")]
 [Produces("application/json")]
 public sealed class DraftMontagensController(ISender sender, IMessageProvider messages) : ControllerBase
@@ -74,7 +73,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/presencas/confirmar")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(Policy = AuthPermissions.CanConfirmPresence)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ConfirmPresence([FromRoute] Guid id, [FromBody] ConfirmarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
@@ -84,7 +83,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/presencas/cancelar")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(Policy = AuthPermissions.CanConfirmPresence)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CancelPresence([FromRoute] Guid id, [FromBody] CancelarPresencaDraftMontagemRequestDto request, CancellationToken cancellationToken)
