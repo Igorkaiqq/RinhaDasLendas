@@ -29,19 +29,26 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     public async Task DoisClaimsConcorrentes_DevemConcederExatamenteUmClaim()
     {
         await using var factory = new PostgreSqlComposeApiFactory();
-        using var client = factory.CreateBotClient();
         var draftId = await factory.SeedPendingPublicationAsync();
 
-        var requests = Enumerable.Range(0, 2)
-            .Select(_ => client.PostAsJsonAsync(
-                $"/api/v1/draft-montagens/{draftId}/discord/publicacoes/claim",
-                new { Tipo = "Presenca" }))
-            .ToArray();
+        var payloads = await SendConcurrentClaimsAsync(factory, draftId);
 
-        var responses = await Task.WhenAll(requests);
-        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
-        var payloads = await Task.WhenAll(responses.Select(ReadJsonAsync));
-        payloads.Count(payload => payload.RootElement.GetProperty("adquirido").GetBoolean()).Should().Be(1);
+        AssertSingleWinnerAndCurrentLoser(payloads);
+    }
+
+    [Fact]
+    public async Task DoisClaimsConcorrentesSemPublicacaoPreexistente_DevemRetornarEstadoAtualAoPerdedor()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var draftId = await factory.SeedDraftWithoutPublicationAsync();
+
+            var payloads = await SendConcurrentClaimsAsync(factory, draftId);
+
+            AssertSingleWinnerAndCurrentLoser(payloads);
+        }
     }
 
     [Fact]
@@ -185,6 +192,43 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     }
 
+    private static async Task<JsonDocument[]> SendConcurrentClaimsAsync(PostgreSqlComposeApiFactory factory, Guid draftId)
+    {
+        using var firstClient = factory.CreateBotClient();
+        using var secondClient = factory.CreateBotClient();
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyCount = 0;
+
+        async Task<HttpResponseMessage> SendAsync(HttpClient client)
+        {
+            if (Interlocked.Increment(ref readyCount) == 2)
+            {
+                ready.SetResult();
+            }
+
+            await release.Task;
+            return await client.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/discord/publicacoes/claim",
+                new { Tipo = "Presenca" });
+        }
+
+        var requests = new[] { SendAsync(firstClient), SendAsync(secondClient) };
+        await ready.Task;
+        release.SetResult();
+        var responses = await Task.WhenAll(requests);
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        return await Task.WhenAll(responses.Select(ReadJsonAsync));
+    }
+
+    private static void AssertSingleWinnerAndCurrentLoser(JsonDocument[] payloads)
+    {
+        payloads.Count(payload => payload.RootElement.GetProperty("adquirido").GetBoolean()).Should().Be(1);
+        var loser = payloads.Single(payload => !payload.RootElement.GetProperty("adquirido").GetBoolean());
+        loser.RootElement.GetProperty("status").GetString().Should().Be("EmAndamento");
+        loser.RootElement.GetProperty("claimId").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
     private static async Task<Guid> AcquireClaimIdAsync(HttpClient client, Guid draftId)
     {
         var response = await client.PostAsJsonAsync(
@@ -265,6 +309,17 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 responsibleUserId,
                 "Preparar publicacao para teste",
                 DateTimeOffset.UtcNow);
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            return draft.Id;
+        }
+
+        public async Task<Guid> SeedDraftWithoutPublicationAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var draft = new DraftMontagem("Draft sem publicacao", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
             return draft.Id;

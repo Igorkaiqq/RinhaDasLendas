@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -99,8 +100,23 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         DateTimeOffset agora,
         CancellationToken cancellationToken)
     {
-        const string sql = """
-            WITH claimed AS (
+        await OpenConnectionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var dbTransaction = transaction.GetDbTransaction();
+
+        await using (var lockCommand = dbContext.Database.GetDbConnection().CreateCommand())
+        {
+            lockCommand.Transaction = dbTransaction;
+            lockCommand.CommandText = "SELECT pg_advisory_xact_lock(hashtextextended(@resource, 0))";
+            AddParameter(lockCommand, "resource", $"draft-publication:{draftMontagemId:N}:{tipo}");
+            await lockCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        bool adquirido;
+        await using (var claimCommand = dbContext.Database.GetDbConnection().CreateCommand())
+        {
+            claimCommand.Transaction = dbTransaction;
+            claimCommand.CommandText = """
                 INSERT INTO draft_montagem_publicacoes_discord
                     (id, draft_montagem_id, tipo, status, ultima_tentativa_em, claim_id, claim_expira_em)
                 SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId, @expiraEm
@@ -112,39 +128,40 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                     claim_id = @claimId,
                     claim_expira_em = @expiraEm
                 WHERE draft_montagem_publicacoes_discord.status = 'Pendente'
-                RETURNING claim_id, claim_expira_em, status
-            )
-            SELECT TRUE, claim_id, claim_expira_em, status FROM claimed
-            UNION ALL
-            SELECT FALSE, NULL, NULL, status
-            FROM draft_montagem_publicacoes_discord
-            WHERE draft_montagem_id = @draftMontagemId
-              AND tipo = @tipo
-              AND NOT EXISTS (SELECT 1 FROM claimed)
-            LIMIT 1
-            """;
-
-        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
-        command.CommandText = sql;
-        AddParameter(command, "id", Guid.NewGuid());
-        AddParameter(command, "draftMontagemId", draftMontagemId);
-        AddParameter(command, "tipo", tipo.ToString());
-        AddParameter(command, "claimId", claimId);
-        AddParameter(command, "expiraEm", expiraEm);
-        AddParameter(command, "agora", agora);
-        await OpenConnectionAsync(cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken))
-        {
-            return null;
+                RETURNING TRUE
+                """;
+            AddParameter(claimCommand, "id", Guid.NewGuid());
+            AddParameter(claimCommand, "draftMontagemId", draftMontagemId);
+            AddParameter(claimCommand, "tipo", tipo.ToString());
+            AddParameter(claimCommand, "claimId", claimId);
+            AddParameter(claimCommand, "expiraEm", expiraEm);
+            AddParameter(claimCommand, "agora", agora);
+            adquirido = await claimCommand.ExecuteScalarAsync(cancellationToken) is true;
         }
 
-        var adquirido = reader.GetBoolean(0);
-        return new DraftMontagemPublicacaoClaim(
-            adquirido,
-            adquirido ? reader.GetGuid(1) : null,
-            adquirido ? reader.GetFieldValue<DateTimeOffset>(2) : null,
-            Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(reader.GetString(3)));
+        DraftMontagemPublicacaoClaim? result;
+        await using (var stateCommand = dbContext.Database.GetDbConnection().CreateCommand())
+        {
+            stateCommand.Transaction = dbTransaction;
+            stateCommand.CommandText = """
+                SELECT status
+                FROM draft_montagem_publicacoes_discord
+                WHERE draft_montagem_id = @draftMontagemId AND tipo = @tipo
+                """;
+            AddParameter(stateCommand, "draftMontagemId", draftMontagemId);
+            AddParameter(stateCommand, "tipo", tipo.ToString());
+            var status = (string?)await stateCommand.ExecuteScalarAsync(cancellationToken);
+            result = status is null
+                ? null
+                : new DraftMontagemPublicacaoClaim(
+                    adquirido,
+                    adquirido ? claimId : null,
+                    adquirido ? expiraEm : null,
+                    Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(status));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     public async Task<bool> TryConcluirPublicacaoDiscordAsync(
