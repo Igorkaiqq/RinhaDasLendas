@@ -1,7 +1,7 @@
 import { env } from '../../config/env.js'
 import { DraftPresenceOrigin, DraftPickOrderMode } from '../constants/draftConstants/index.js'
 import { t } from '../messages/index.js'
-import type { DiscordConfiguration, DiscordUserLink, DraftMontagem } from './types.js'
+import type { DiscordConfiguration, DiscordPublicationClaim, DiscordPublicationType, DiscordUserLink, DraftMontagem } from './types.js'
 
 interface ApiErrorResponse {
   messageCode?: string
@@ -66,12 +66,17 @@ export const rinhaApi = {
       method: 'POST',
       body: JSON.stringify({ discordUserId }),
     }),
-  registerDiscordPublication: (draftId: string, payload: { discordGuildId?: string | null; discordPresenceMessageId: string; tipo?: string; discordChannelId?: string | null }) =>
+  claimDiscordPublication: (draftId: string, tipo: DiscordPublicationType) =>
+    request<DiscordPublicationClaim>(`/api/v1/draft-montagens/${draftId}/discord/publicacoes/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ tipo }),
+    }),
+  registerDiscordPublication: (draftId: string, payload: { tipo: DiscordPublicationType; claimId: string; discordGuildId?: string | null; discordChannelId?: string | null; messageId: string }) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/publicacao`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  registerDiscordPublicationFailure: (draftId: string, payload: { tipo: string; discordGuildId?: string | null; discordChannelId?: string | null; erroCodigo?: string | null }) =>
+  registerDiscordPublicationFailure: (draftId: string, payload: { tipo: DiscordPublicationType; claimId: string; discordGuildId?: string | null; discordChannelId?: string | null; erroCodigo?: string | null }) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/publicacao/falha`, {
       method: 'POST',
       body: JSON.stringify(payload),

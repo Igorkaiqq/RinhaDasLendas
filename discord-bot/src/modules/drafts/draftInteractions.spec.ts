@@ -1,14 +1,124 @@
 import { afterEach, describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
-import type { ChatInputCommandInteraction } from 'discord.js'
+import type { ChatInputCommandInteraction, Client } from 'discord.js'
+import type { DraftMontagem } from '../../shared/api/types.js'
 
-import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, parsePresenceClosingTime, shouldPublishDiscordPublication, validatePresenceClosingTime } from './draftInteractions.js'
+import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { env } from '../../config/env.js'
 import { t } from '../../shared/messages/index.js'
 
-afterEach(() => mock.restoreAll())
+const originalNotifyRoleId = env.DRAFT_NOTIFY_ROLE_ID
+
+afterEach(() => {
+  mock.restoreAll()
+  env.DRAFT_NOTIFY_ROLE_ID = originalNotifyRoleId
+})
+
+function pollingDraft(id: string, publicationStatus?: string): DraftMontagem {
+  return {
+    id,
+    nome: `Rinha ${id}`,
+    status: 'PresencaAberta',
+    tamanhoEquipe: 5,
+    quantidadeTimes: 2,
+    quantidadeReservas: 0,
+    publicacoesDiscord: publicationStatus ? [{ tipo: 'Presenca', status: publicationStatus }] : [],
+    presencas: [],
+    times: [],
+    reservas: [],
+  }
+}
+
+function pollingClient(send: (options: unknown) => Promise<{ id: string }>) {
+  return {
+    channels: {
+      fetch: async () => ({ isTextBased: () => true, send }),
+    },
+    user: null,
+  } as unknown as Client
+}
+
+function mockPollingApi(drafts: ReturnType<typeof pollingDraft>[]) {
+  env.DRAFT_NOTIFY_ROLE_ID = ''
+  mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+  mock.method(rinhaApi, 'listActiveDrafts', async () => drafts)
+}
+
+describe('runDraftPollingCycle', () => {
+  it('does not send when the claim is denied', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: false, claimId: null, expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-1') as never)
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(send.mock.callCount(), 0)
+    assert.equal(complete.mock.callCount(), 0)
+  })
+
+  it('completes an acquired claim with the same claim id', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: '2026-07-21T10:05:00Z', status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-1') as never)
+
+    await runDraftPollingCycle(pollingClient(async () => ({ id: 'message-1' })))
+
+    assert.equal(complete.mock.callCount(), 1)
+    const completeCall = complete.mock.calls[0]
+    assert.ok(completeCall)
+    const completePayload = completeCall.arguments[1]
+    assert.ok(completePayload)
+    assert.equal(completePayload.claimId, 'claim-1')
+    assert.equal(completePayload.messageId, 'message-1')
+  })
+
+  it('registers a publication failure with the acquired claim id', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: '2026-07-21T10:05:00Z', status: 'EmAndamento' }))
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+
+    await runDraftPollingCycle(pollingClient(async () => { throw new Error('send failed') }))
+
+    assert.equal(failure.mock.callCount(), 1)
+    const failureCall = failure.mock.calls[0]
+    assert.ok(failureCall)
+    const failurePayload = failureCall.arguments[1]
+    assert.ok(failurePayload)
+    assert.equal(failurePayload.claimId, 'claim-1')
+  })
+
+  it('does not claim or send a publication requiring reconciliation', async () => {
+    mockPollingApi([pollingDraft('draft-1', 'RequerReconciliacao')])
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(claim.mock.callCount(), 0)
+    assert.equal(send.mock.callCount(), 0)
+  })
+
+  it('continues with the second draft when the first publication fails', async () => {
+    mockPollingApi([pollingDraft('draft-1'), pollingDraft('draft-2')])
+    let claimNumber = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: `claim-${++claimNumber}`, expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => pollingDraft('draft-2') as never)
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    let sendNumber = 0
+
+    await runDraftPollingCycle(pollingClient(async () => {
+      if (++sendNumber === 1) throw new Error('first failed')
+      return { id: 'message-2' }
+    }))
+
+    assert.equal(failure.mock.callCount(), 1)
+    assert.equal(complete.mock.callCount(), 1)
+    assert.equal(complete.mock.calls[0].arguments[0], 'draft-2')
+  })
+})
 
 function cancelInteraction(options: {
   memberPermissions?: PermissionsBitField
@@ -101,30 +211,6 @@ describe('assertDiscordBotEnabled', () => {
       () => assertDiscordBotEnabled({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: false }),
       /A integração está indisponível no momento/,
     )
-  })
-})
-
-describe('shouldPublishDiscordPublication', () => {
-  it('allows pending presence republish even when a previous message id exists', () => {
-    const result = shouldPublishDiscordPublication(
-      {
-        id: 'draft-1',
-        nome: 'Rinha',
-        status: 'PresencaAberta',
-        tamanhoEquipe: 5,
-        quantidadeTimes: 2,
-        quantidadeReservas: 0,
-        discordPresenceMessageId: 'old-message',
-        publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente', messageId: 'old-message' }],
-        presencas: [],
-        times: [],
-        reservas: [],
-      },
-      'Presenca',
-      new Set(['draft-1']),
-    )
-
-    assert.equal(result, true)
   })
 })
 

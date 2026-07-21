@@ -13,6 +13,15 @@ export interface DiscordUserLink {
   roles: string[]
 }
 
+export type DiscordPublicationType = 'Presenca' | 'TimesDefinidos'
+
+export interface DiscordPublicationClaim {
+  adquirido: boolean
+  claimId?: string | null
+  expiraEm?: string | null
+  status: string
+}
+
 export interface DraftMontagem {
   id: string
   nome: string
@@ -24,7 +33,7 @@ export interface DraftMontagem {
   horarioEncerramentoPresenca?: string | null
   discordGuildId?: string | null
   discordPresenceMessageId?: string | null
-  publicacoesDiscord?: Array<{ tipo: string; status: string; guildId?: string | null; channelId?: string | null; messageId?: string | null; ultimoErroCodigo?: string | null }>
+  publicacoesDiscord?: Array<{ tipo: DiscordPublicationType; status: string; guildId?: string | null; channelId?: string | null; messageId?: string | null; ultimoErroCodigo?: string | null }>
   presencas: Array<{ id: string; nomeExibicao: string; status: string; origemConfirmacao: string }>
   times: Array<{ id: string; nome: string; cor: string; capitaoId?: string | null; jogadores: Array<{ nomeExibicao: string; capitao: boolean }> }>
   reservas: Array<{ nomeExibicao: string }>

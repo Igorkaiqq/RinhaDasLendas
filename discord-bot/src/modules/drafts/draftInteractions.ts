@@ -1,7 +1,6 @@
 import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
 import type { ButtonInteraction, ChatInputCommandInteraction, Client, User } from 'discord.js'
-import type { DraftMontagem } from '../../shared/api/types.js'
-import type { DiscordConfiguration } from '../../shared/api/types.js'
+import type { DiscordConfiguration, DiscordPublicationType, DraftMontagem } from '../../shared/api/types.js'
 import { env } from '../../config/env.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { logger } from '../../shared/logger.js'
@@ -49,7 +48,6 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
 
     const configuration = await rinhaApi.getDiscordConfiguration()
     assertDiscordBotEnabled(configuration)
-    const channel = await getSendableChannel(interaction.client, configuration.presenceChannelId, t.channels.presence)
     const presenceClosingTimeValidation = validatePresenceClosingTime(
       interaction.options.getString(DraftOptionNames.Day, true),
       interaction.options.getString(DraftOptionNames.Time, true),
@@ -70,9 +68,11 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
       observacoes: interaction.options.getString(DraftOptionNames.Note),
       discordGuildId: interaction.guildId,
     })
-    const message = await channel.send({ embeds: [presenceEmbed(draft)], components: [presenceButtons(draft.id)] })
-    const ctaResult = await sendDraftPresenceCta(channel, draft.id)
-    await rinhaApi.registerDiscordPublication(draft.id, { discordGuildId: interaction.guildId, discordPresenceMessageId: message.id })
+    const claim = await rinhaApi.claimDiscordPublication(draft.id, 'Presenca')
+    if (!claim.adquirido || !claim.claimId) {
+      throw new Error('Discord publication claim was not acquired')
+    }
+    const ctaResult = await publishClaimedDraft(interaction.client, configuration, { draft, tipo: 'Presenca' }, claim.claimId)
     await interaction.reply({ content: getDraftCreatedMessage(ctaResult), flags: MessageFlags.Ephemeral })
     return
   }
@@ -175,82 +175,87 @@ export async function handlePresenceButton(interaction: ButtonInteraction) {
 }
 
 export function startDraftPolling(client: Client) {
-  const publishedPresences = new Set<string>()
-  const publishedFinalTeams = new Set<string>()
-  setInterval(async () => {
-    try {
-      const configuration = await rinhaApi.getDiscordConfiguration()
-      assertDiscordBotEnabled(configuration)
-      const drafts = await rinhaApi.listActiveDrafts()
-
-      for (const draft of drafts.filter((item) => hasPublishedDiscordPublication(item, 'Presenca') || item.discordPresenceMessageId)) {
-        publishedPresences.add(draft.id)
-      }
-
-      for (const draft of drafts.filter((item) => hasPublishedDiscordPublication(item, 'TimesDefinidos'))) {
-        publishedFinalTeams.add(draft.id)
-      }
-
-      for (const draft of drafts.filter((item) => item.status === DraftMontagemStatus.PresenceOpen && shouldPublishDiscordPublication(item, 'Presenca', publishedPresences))) {
-        try {
-          const channel = await getSendableChannel(client, configuration.presenceChannelId, t.channels.presence)
-          const message = await channel.send({ embeds: [presenceEmbed(draft)], components: [presenceButtons(draft.id)] })
-          await sendDraftPresenceCta(channel, draft.id)
-          await rinhaApi.registerDiscordPublication(draft.id, { discordGuildId: configuration.guildId, discordPresenceMessageId: message.id, tipo: 'Presenca', discordChannelId: configuration.presenceChannelId })
-          publishedPresences.add(draft.id)
-          logger.info(t.logs.siteDraftPublished, { draftId: draft.id })
-        } catch (error) {
-          await rinhaApi.registerDiscordPublicationFailure(draft.id, { tipo: 'Presenca', discordGuildId: configuration.guildId, discordChannelId: configuration.presenceChannelId, erroCodigo: getPublicationErrorCode(error) })
-          throw error
-        }
-      }
-
-      for (const draft of drafts.filter((item) => item.status === DraftMontagemStatus.Finalized && shouldPublishDiscordPublication(item, 'TimesDefinidos', publishedFinalTeams))) {
-        try {
-          const channel = await getSendableChannel(client, configuration.draftChannelId, t.channels.draft)
-          const message = await channel.send({ embeds: [finalTeamsEmbed(draft)] })
-          await rinhaApi.registerDiscordPublication(draft.id, { discordGuildId: configuration.guildId, discordPresenceMessageId: message.id, tipo: 'TimesDefinidos', discordChannelId: configuration.draftChannelId })
-          publishedFinalTeams.add(draft.id)
-          logger.info(t.logs.finalTeamsPublished, { draftId: draft.id })
-        } catch (error) {
-          await rinhaApi.registerDiscordPublicationFailure(draft.id, { tipo: 'TimesDefinidos', discordGuildId: configuration.guildId, discordChannelId: configuration.draftChannelId, erroCodigo: getPublicationErrorCode(error) })
-          throw error
-        }
-      }
-    } catch (error) {
-      if (error instanceof DiscordChannelAccessError) {
-        logger.error(t.logs.finalTeamsPublishFailed, error)
-        return
-      }
-
-      logger.error('Draft polling failed', error)
-    }
+  setInterval(() => {
+    void runDraftPollingCycle(client).catch((error) => logger.error('Draft polling failed', error))
   }, 30000)
 }
 
-function hasPublishedDiscordPublication(draft: DraftMontagem, tipo: string) {
-  return draft.publicacoesDiscord?.some((publication) => publication.tipo === tipo && publication.status === 'Publicada' && publication.messageId) ?? false
+type PublicationCandidate = {
+  draft: DraftMontagem
+  tipo: DiscordPublicationType
 }
 
-export function shouldPublishDiscordPublication(draft: DraftMontagem, tipo: string, locallyPublishedDraftIds: ReadonlySet<string>) {
+export async function runDraftPollingCycle(client: Client) {
+  const configuration = await rinhaApi.getDiscordConfiguration()
+  assertDiscordBotEnabled(configuration)
+  const drafts = await rinhaApi.listActiveDrafts()
+
+  for (const candidate of publicationCandidates(drafts)) {
+    try {
+      const claim = await rinhaApi.claimDiscordPublication(candidate.draft.id, candidate.tipo)
+      if (!claim.adquirido || !claim.claimId) continue
+      await publishClaimedDraft(client, configuration, candidate, claim.claimId)
+    } catch (error) {
+      logger.error('Discord publication failed', error, { draftId: candidate.draft.id, tipo: candidate.tipo })
+    }
+  }
+}
+
+function publicationCandidates(drafts: DraftMontagem[]): PublicationCandidate[] {
+  return drafts.flatMap((draft) => {
+    const candidates: PublicationCandidate[] = []
+    if (draft.status === DraftMontagemStatus.PresenceOpen && canAttemptPublication(draft, 'Presenca')) {
+      candidates.push({ draft, tipo: 'Presenca' })
+    }
+    if (draft.status === DraftMontagemStatus.Finalized && canAttemptPublication(draft, 'TimesDefinidos')) {
+      candidates.push({ draft, tipo: 'TimesDefinidos' })
+    }
+    return candidates
+  })
+}
+
+function canAttemptPublication(draft: DraftMontagem, tipo: DiscordPublicationType) {
   const publication = draft.publicacoesDiscord?.find((item) => item.tipo === tipo)
-  if (publication?.status === 'Pendente') {
-    return true
-  }
-
-  if (publication?.status === 'Publicada' && publication.messageId) {
-    return false
-  }
-
-  if (locallyPublishedDraftIds.has(draft.id)) {
-    return false
-  }
-
-  if (tipo === 'Presenca' && draft.discordPresenceMessageId) {
-    return false
-  }
-
+  if (publication) return publication.status === 'Pendente'
+  if (tipo === 'Presenca' && draft.discordPresenceMessageId) return false
   return true
+}
+
+async function publishClaimedDraft(
+  client: Client,
+  configuration: DiscordConfiguration,
+  candidate: PublicationCandidate,
+  claimId: string,
+): Promise<'sent' | 'not-configured' | 'failed'> {
+  const isPresence = candidate.tipo === 'Presenca'
+  const channelId = isPresence ? configuration.presenceChannelId : configuration.draftChannelId
+  const channelLabel = isPresence ? t.channels.presence : t.channels.draft
+
+  try {
+    const channel = await getSendableChannel(client, channelId, channelLabel)
+    const message = await channel.send(isPresence
+      ? { embeds: [presenceEmbed(candidate.draft)], components: [presenceButtons(candidate.draft.id)] }
+      : { embeds: [finalTeamsEmbed(candidate.draft)] })
+    const ctaResult = isPresence ? await sendDraftPresenceCta(channel, candidate.draft.id) : 'not-configured'
+    await rinhaApi.registerDiscordPublication(candidate.draft.id, {
+      tipo: candidate.tipo,
+      claimId,
+      discordGuildId: configuration.guildId,
+      discordChannelId: channelId,
+      messageId: message.id,
+    })
+    logger.info(isPresence ? t.logs.siteDraftPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
+    return ctaResult
+  } catch (error) {
+    await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
+      tipo: candidate.tipo,
+      claimId,
+      discordGuildId: configuration.guildId,
+      discordChannelId: channelId,
+      erroCodigo: getPublicationErrorCode(error),
+    })
+    throw error
+  }
 }
 
 function getPublicationErrorCode(error: unknown) {

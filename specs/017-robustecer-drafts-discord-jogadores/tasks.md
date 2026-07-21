@@ -222,8 +222,8 @@
 - [x] T088 [US7] Implementar operações atômicas de claim, conclusão, falha e expiração em `IDraftMontagemRepository` e `DraftMontagemRepository`.
 - [x] T089 [P] [US7] Adicionar testes falhos dos endpoints e cliente do bot para claim, conclusão e falha com `ClaimId`.
 - [x] T090 [US7] Implementar commands, handlers, DTOs, validators e endpoints bot-only do protocolo de publicação.
-- [ ] T091 [P] [US7] Adicionar testes falhos de um ciclo de polling: claim negado, claim adquirido, reconciliação bloqueada e continuidade após falha.
-- [ ] T092 [US7] Extrair `runDraftPollingCycle` e migrar o bot para claim persistido sem usar memória como fonte de verdade.
+- [x] T091 [P] [US7] Adicionar testes falhos de um ciclo de polling: claim negado, claim adquirido, reconciliação bloqueada e continuidade após falha.
+- [x] T092 [US7] Extrair `runDraftPollingCycle` e migrar o bot para claim persistido sem usar memória como fonte de verdade.
 
 ### Presence idempotency and concurrency
 
