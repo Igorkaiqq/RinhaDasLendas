@@ -181,6 +181,8 @@
   <data name="MV077" xml:space="preserve"><value>Discord configuration not found</value></data>
   <data name="MV078" xml:space="preserve"><value>Invalid Discord channel</value></data>
   <data name="MV079" xml:space="preserve"><value>Invalid internal bot token</value></data>
+  <data name="MV080" xml:space="preserve"><value>The Discord publication is not pending</value></data>
+  <data name="MV081" xml:space="preserve"><value>The Discord publication claim is invalid</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

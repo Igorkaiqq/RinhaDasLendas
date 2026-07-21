@@ -23,7 +23,7 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemCommandHandler(
             return null;
         }
 
-        montagem.SolicitarRepublicacaoDiscord(command.Request.Tipo, currentUser.UserId.GetValueOrDefault(), command.Request.Motivo);
+        montagem.SolicitarRepublicacaoDiscord(command.Request.Tipo, currentUser.UserId.GetValueOrDefault(), command.Request.Motivo, DateTimeOffset.UtcNow);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         metrics.RecordDiscordPublication(command.Id, command.Request.Tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Pendente.ToString());

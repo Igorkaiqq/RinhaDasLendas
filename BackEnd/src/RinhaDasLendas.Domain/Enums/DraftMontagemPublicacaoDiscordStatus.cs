@@ -6,4 +6,6 @@ public enum DraftMontagemPublicacaoDiscordStatus
     Publicada = 1,
     Falha = 2,
     Ignorada = 3,
+    EmAndamento = 4,
+    RequerReconciliacao = 5,
 }

@@ -1,5 +1,6 @@
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 
 namespace RinhaDasLendas.Domain.Entities;
 
@@ -29,32 +30,83 @@ public sealed class DraftMontagemPublicacaoDiscord
     public string? UltimoErroCodigo { get; private set; }
     public DateTimeOffset? PublicadaEm { get; private set; }
     public DateTimeOffset UltimaTentativaEm { get; private set; }
+    public Guid? ClaimId { get; private set; }
+    public DateTimeOffset? ClaimExpiraEm { get; private set; }
 
     public void RegistrarPublicada(string? guildId, string? channelId, string messageId)
     {
+        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+    }
+
+    public void IniciarTentativa(Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora)
+    {
+        if (Status != DraftMontagemPublicacaoDiscordStatus.Pendente)
+        {
+            throw new DomainException(MessageCodes.DiscordPublicationNotPending);
+        }
+
+        ClaimId = claimId;
+        ClaimExpiraEm = expiraEm;
+        UltimaTentativaEm = agora;
+        Status = DraftMontagemPublicacaoDiscordStatus.EmAndamento;
+    }
+
+    public void RegistrarPublicada(Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora)
+    {
+        EnsureClaimAtivo(claimId);
         GuildId = Normalize(guildId);
         ChannelId = Normalize(channelId);
         MessageId = string.IsNullOrWhiteSpace(messageId) ? throw new ArgumentException(MessageCodes.FieldRequired, nameof(messageId)) : messageId.Trim();
         Status = DraftMontagemPublicacaoDiscordStatus.Publicada;
         UltimoErroCodigo = null;
-        PublicadaEm = DateTimeOffset.UtcNow;
-        UltimaTentativaEm = PublicadaEm.Value;
+        PublicadaEm = agora;
+        UltimaTentativaEm = agora;
+        ClaimExpiraEm = null;
     }
 
     public void RegistrarFalha(string? guildId, string? channelId, string? erroCodigo)
     {
+        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+    }
+
+    public void RegistrarFalha(Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora)
+    {
+        EnsureClaimAtivo(claimId);
         GuildId = Normalize(guildId);
         ChannelId = Normalize(channelId);
         Status = DraftMontagemPublicacaoDiscordStatus.Falha;
         UltimoErroCodigo = Normalize(erroCodigo);
-        UltimaTentativaEm = DateTimeOffset.UtcNow;
+        UltimaTentativaEm = agora;
+        ClaimExpiraEm = null;
     }
 
-    public void SolicitarRepublicacao()
+    public bool MarcarRequerReconciliacao(DateTimeOffset agora)
+    {
+        if (Status != DraftMontagemPublicacaoDiscordStatus.EmAndamento || ClaimExpiraEm is null || ClaimExpiraEm > agora)
+        {
+            return false;
+        }
+
+        Status = DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao;
+        ClaimExpiraEm = null;
+        return true;
+    }
+
+    public void SolicitarRepublicacao(DateTimeOffset agora)
     {
         Status = DraftMontagemPublicacaoDiscordStatus.Pendente;
         UltimoErroCodigo = null;
-        UltimaTentativaEm = DateTimeOffset.UtcNow;
+        ClaimId = null;
+        ClaimExpiraEm = null;
+        UltimaTentativaEm = agora;
+    }
+
+    private void EnsureClaimAtivo(Guid claimId)
+    {
+        if (Status != DraftMontagemPublicacaoDiscordStatus.EmAndamento || ClaimId != claimId)
+        {
+            throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+        }
     }
 
     private static string? Normalize(string? value)

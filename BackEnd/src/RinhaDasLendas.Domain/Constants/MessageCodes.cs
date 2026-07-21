@@ -159,6 +159,8 @@ public static class MessageCodes
     public const string DiscordConfigurationNotFound = "MV077";
     public const string DiscordChannelInvalid = "MV078";
     public const string BotInternalTokenInvalid = "MV079";
+    public const string DiscordPublicationNotPending = "MV080";
+    public const string DiscordPublicationClaimMismatch = "MV081";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
     public const string PresenceConfirmed = "MSIS025";

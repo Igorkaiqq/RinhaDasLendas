@@ -90,40 +90,94 @@ public sealed class DraftMontagem
 
     public void ConfigurarPublicacaoDiscord(string? guildId, string? messageId)
     {
-        DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
-        DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
         if (!string.IsNullOrWhiteSpace(messageId))
         {
-            RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, guildId, null, messageId);
+            throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
+
+        DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
+        DiscordPresenceMessageId = null;
         Touch();
     }
 
     public void RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string messageId)
     {
+        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+    }
+
+    public void IniciarTentativaPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        string? guildId,
+        string? channelId,
+        Guid claimId,
+        DateTimeOffset expiraEm,
+        DateTimeOffset agora)
+    {
         var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
-        publicacao.RegistrarPublicada(guildId, channelId, messageId);
+        publicacao.IniciarTentativa(claimId, expiraEm, agora);
+        Touch(agora);
+    }
+
+    public void RegistrarPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string messageId,
+        DateTimeOffset agora)
+    {
+        var publicacao = ObterPublicacaoDiscord(tipo);
+        publicacao.RegistrarPublicada(claimId, guildId, channelId, messageId, agora);
         if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
         {
             DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
             DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
         }
-        Touch();
+        Touch(agora);
     }
 
     public void RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string? erroCodigo)
     {
-        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
-        publicacao.RegistrarFalha(guildId, channelId, erroCodigo);
-        Touch();
+        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
     }
 
-    public void SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, Guid responsavelUsuarioId, string? motivo)
+    public void RegistrarFalhaPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string? erroCodigo,
+        DateTimeOffset agora)
+    {
+        var publicacao = ObterPublicacaoDiscord(tipo);
+        publicacao.RegistrarFalha(claimId, guildId, channelId, erroCodigo, agora);
+        Touch(agora);
+    }
+
+    public bool MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo tipo, DateTimeOffset agora)
+    {
+        var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
+        if (publicacao is null || !publicacao.MarcarRequerReconciliacao(agora))
+        {
+            return false;
+        }
+
+        Touch(agora);
+        return true;
+    }
+
+    public void SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, Guid responsavelUsuarioId, string? motivo, DateTimeOffset agora)
     {
         var publicacao = ObterOuCriarPublicacaoDiscord(tipo, DiscordGuildId, null);
-        publicacao.SolicitarRepublicacao();
+        publicacao.SolicitarRepublicacao(agora);
         _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa($"RepublicacaoDiscord:{tipo}", responsavelUsuarioId, motivo));
-        Touch();
+        Touch(agora);
+    }
+
+    private DraftMontagemPublicacaoDiscord ObterPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        return _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo)
+            ?? throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
     }
 
     private DraftMontagemPublicacaoDiscord ObterOuCriarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId)
@@ -723,7 +777,12 @@ public sealed class DraftMontagem
 
     private void Touch()
     {
-        DataAtualizacao = DateTimeOffset.UtcNow;
+        Touch(DateTimeOffset.UtcNow);
+    }
+
+    private void Touch(DateTimeOffset agora)
+    {
+        DataAtualizacao = agora;
         VersaoEstado++;
     }
 }

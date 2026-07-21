@@ -45,4 +45,18 @@ public sealed class ResourceMessageProviderTests
 
         message.Should().Be($"[{MessageCodes.OperationSuccess}]");
     }
+
+    [Theory]
+    [InlineData(MessageCodes.DiscordPublicationNotPending, "pt-BR", "A publicação do Discord não está pendente")]
+    [InlineData(MessageCodes.DiscordPublicationNotPending, "en-US", "The Discord publication is not pending")]
+    [InlineData(MessageCodes.DiscordPublicationClaimMismatch, "pt-BR", "O claim da publicação do Discord é inválido")]
+    [InlineData(MessageCodes.DiscordPublicationClaimMismatch, "en-US", "The Discord publication claim is invalid")]
+    public void GetMessage_WithDiscordPublicationClaimCodes_ReturnsLocalizedText(string code, string culture, string expected)
+    {
+        var provider = new ResourceMessageProvider();
+
+        var message = provider.GetMessage(code, culture);
+
+        message.Should().Be(expected);
+    }
 }
