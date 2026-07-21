@@ -84,15 +84,6 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
     return
   }
 
-  if (interaction.commandName === DraftCommandNames.Cancel) {
-    await rinhaApi.cancelDraft(
-      interaction.options.getString(DraftOptionNames.DraftId, true),
-      interaction.options.getString(DraftOptionNames.Reason),
-    )
-    await interaction.reply({ content: t.draftCancelled, flags: MessageFlags.Ephemeral })
-    return
-  }
-
   if (interaction.commandName === DraftCommandNames.ClosePresence) {
     await rinhaApi.closePresence(interaction.options.getString(DraftOptionNames.DraftId, true))
     await interaction.reply({ content: t.presenceClosed, flags: MessageFlags.Ephemeral })
@@ -134,7 +125,6 @@ export function isDraftAdministrator(interaction: ChatInputCommandInteraction, c
 
 function isMutableDraftCommand(commandName: string) {
   return commandName === DraftCommandNames.Create
-    || commandName === DraftCommandNames.Cancel
     || commandName === DraftCommandNames.ClosePresence
     || commandName === DraftCommandNames.DefineCaptains
     || commandName === DraftCommandNames.DefinePickOrder
@@ -472,7 +462,6 @@ export function validatePresenceClosingTime(dayInput: string, timeInput: string,
 export type DraftInteractionErrorContext =
   | 'create'
   | 'list'
-  | 'cancel'
   | 'closePresence'
   | 'defineCaptains'
   | 'definePickOrder'
@@ -520,10 +509,6 @@ export function getDraftInteractionErrorMessage(error: unknown, context: DraftIn
     if (containsAny(message, 'ja encerrada', 'already closed', 'presenca encerrada')) return t.draftErrors.presenceAlreadyClosed
   }
 
-  if (context === 'cancel') {
-    if (containsAny(message, 'ja encerrado', 'ja finalizado', 'already closed', 'already finalized', 'cancelado')) return t.draftErrors.draftAlreadyClosed
-  }
-
   if (context === 'defineCaptains') {
     if (containsAny(message, 'duplicado', 'repetido', 'duplicate')) return t.draftErrors.duplicateCaptains
     if (containsAny(message, 'quantidade', 'count', 'number of captains')) return t.draftErrors.captainCountMismatch
@@ -557,7 +542,7 @@ function getDraftInteractionErrorMessageByCode(messageCode: string, context: Dra
     [MessageCodes.DraftMontagemCaptainsRequired]: context === 'definePickOrder' ? t.draftErrors.missingCaptains : t.draftErrors.captainCountMismatch,
     [MessageCodes.DraftMontagemCaptainsMustBePlayers]: t.draftErrors.captainNotConfirmed,
     [MessageCodes.DraftMontagemPickOrderInvalid]: t.draftErrors.invalidManualPickOrder,
-    [MessageCodes.DraftClosed]: context === 'cancel' ? t.draftErrors.draftAlreadyClosed : contextGenericMessage(context),
+    [MessageCodes.DraftClosed]: contextGenericMessage(context),
     [MessageCodes.DraftMontagemNotFound]: context === 'status' ? t.draftNotFoundMaybeFinished : t.draftNotFound,
   }
 
@@ -572,7 +557,6 @@ function getDraftCreatedMessage(ctaResult: 'sent' | 'not-configured' | 'failed')
 
 function getDraftCommandErrorContext(commandName: string): DraftInteractionErrorContext {
   if (commandName === DraftCommandNames.Create) return 'create'
-  if (commandName === DraftCommandNames.Cancel) return 'cancel'
   if (commandName === DraftCommandNames.ClosePresence) return 'closePresence'
   if (commandName === DraftCommandNames.DefineCaptains) return 'defineCaptains'
   if (commandName === DraftCommandNames.DefinePickOrder) return 'definePickOrder'
@@ -590,7 +574,6 @@ function contextGenericMessage(context: DraftInteractionErrorContext) {
   const messages: Record<DraftInteractionErrorContext, string> = {
     create: t.draftErrors.createFailed,
     list: t.draftErrors.listFailed,
-    cancel: t.draftErrors.cancelFailed,
     closePresence: t.draftErrors.closePresenceFailed,
     defineCaptains: t.draftErrors.defineCaptainsFailed,
     definePickOrder: t.draftErrors.definePickOrderFailed,

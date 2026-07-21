@@ -16,11 +16,6 @@ export const draftCommands = [
   new SlashCommandBuilder().setName(DraftCommandNames.Status).setDescription(t.commands.statusDescription),
   new SlashCommandBuilder().setName(DraftCommandNames.List).setDescription(t.commands.listDescription),
   mutableCommand(new SlashCommandBuilder())
-    .setName(DraftCommandNames.Cancel)
-    .setDescription(t.commands.cancelDescription)
-    .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true))
-    .addStringOption((option) => option.setName(DraftOptionNames.Reason).setDescription(t.commands.reasonOption).setRequired(false)),
-  mutableCommand(new SlashCommandBuilder())
     .setName(DraftCommandNames.ClosePresence)
     .setDescription(t.commands.closePresenceDescription)
     .addStringOption((option) => option.setName(DraftOptionNames.DraftId).setDescription(t.commands.draftIdOption).setRequired(true)),

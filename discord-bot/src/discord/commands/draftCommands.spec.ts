@@ -8,11 +8,13 @@ describe('draftCommands', () => {
   it('requires ManageGuild only for mutable commands', () => {
     const mutable = new Set([
       'draft-criar',
-      'draft-cancelar',
       'draft-encerrar-presenca',
       'draft-definir-capitaes',
       'draft-definir-ordem-escolha',
     ])
+    const expectedCommands = new Set([...mutable, 'draft-listar', 'draft-status'])
+
+    assert.deepEqual(new Set(draftCommands.map((command) => command.name)), expectedCommands)
 
     for (const command of draftCommands) {
       assert.equal(

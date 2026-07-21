@@ -347,7 +347,6 @@ function draftCommandInteraction(commandName: string) {
     [DraftOptionNames.Day]: '31/12/2099',
     [DraftOptionNames.Time]: '21:30',
     [DraftOptionNames.DraftId]: 'draft-1',
-    [DraftOptionNames.Reason]: 'motivo',
     [DraftOptionNames.CaptainIds]: 'captain-1,captain-2',
     [DraftOptionNames.Mode]: 'Manual',
   }
@@ -382,7 +381,6 @@ describe('botEnabled mutation guard', () => {
   it('blocks every command mutation before its mutable API call', async () => {
     const scenarios = [
       ['draft-criar', 'createDraft'],
-      ['draft-cancelar', 'cancelDraft'],
       ['draft-encerrar-presenca', 'closePresence'],
       ['draft-definir-capitaes', 'defineCaptains'],
       ['draft-definir-ordem-escolha', 'definePickOrder'],
@@ -442,7 +440,6 @@ describe('botEnabled mutation guard', () => {
     const mutationScenarios = [
       ...[
         ['draft-criar', 'createDraft'],
-        ['draft-cancelar', 'cancelDraft'],
         ['draft-encerrar-presenca', 'closePresence'],
         ['draft-definir-capitaes', 'defineCaptains'],
         ['draft-definir-ordem-escolha', 'definePickOrder'],
@@ -488,7 +485,6 @@ describe('botEnabled mutation guard', () => {
 
   it('passes the real draft option and command arguments to mutable APIs', async () => {
     const scenarios = [
-      { commandName: 'draft-cancelar', apiMethod: 'cancelDraft', expected: ['draft-1', 'motivo'] },
       { commandName: 'draft-encerrar-presenca', apiMethod: 'closePresence', expected: ['draft-1'] },
       { commandName: 'draft-definir-capitaes', apiMethod: 'defineCaptains', expected: ['draft-1', ['captain-1', 'captain-2']] },
       { commandName: 'draft-definir-ordem-escolha', apiMethod: 'definePickOrder', expected: ['draft-1', 'Manual', ['captain-1', 'captain-2']] },
@@ -524,19 +520,19 @@ describe('channel permission messages', () => {
   })
 })
 
-function cancelInteraction(options: {
+function mutableInteraction(options: {
   memberPermissions?: PermissionsBitField
   roleIds?: string[]
 }) {
   const replies: unknown[] = []
   const interaction = {
-    commandName: 'draft-cancelar',
+    commandName: 'draft-encerrar-presenca',
     id: 'interaction-1',
     replied: false,
     memberPermissions: options.memberPermissions ?? new PermissionsBitField(),
     member: { roles: { cache: new Map((options.roleIds ?? []).map((roleId) => [roleId, {}])) } },
     options: {
-      getString: (name: string) => name === DraftOptionNames.DraftId ? 'draft-1' : name === DraftOptionNames.Reason ? 'motivo' : null,
+      getString: (name: string) => name === DraftOptionNames.DraftId ? 'draft-1' : null,
     },
     reply: async (payload: unknown) => {
       replies.push(payload)
@@ -549,39 +545,39 @@ function cancelInteraction(options: {
 describe('handleDraftCommand authorization', () => {
   it('allows a member with ManageGuild to run a mutable command', async () => {
     mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
-    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
-    const { interaction } = cancelInteraction({
+    const closePresence = mock.method(rinhaApi, 'closePresence', async () => ({} as never))
+    const { interaction } = mutableInteraction({
       memberPermissions: new PermissionsBitField(PermissionFlagsBits.ManageGuild),
     })
 
     await handleDraftCommand(interaction)
 
-    assert.equal(cancelDraft.mock.callCount(), 1)
-    assert.deepEqual(cancelDraft.mock.calls[0]?.arguments, ['draft-1', 'motivo'])
+    assert.equal(closePresence.mock.callCount(), 1)
+    assert.deepEqual(closePresence.mock.calls[0]?.arguments, ['draft-1'])
   })
 
   it('allows a member with a configured draft administrator role', async () => {
     const previousRoleIds = env.DRAFT_ADMIN_ROLE_IDS
     env.DRAFT_ADMIN_ROLE_IDS = 'role-1, role-2'
     mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
-    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
-    const { interaction } = cancelInteraction({ roleIds: ['role-2'] })
+    const closePresence = mock.method(rinhaApi, 'closePresence', async () => ({} as never))
+    const { interaction } = mutableInteraction({ roleIds: ['role-2'] })
 
     try {
       await handleDraftCommand(interaction)
-      assert.equal(cancelDraft.mock.callCount(), 1)
+      assert.equal(closePresence.mock.callCount(), 1)
     } finally {
       env.DRAFT_ADMIN_ROLE_IDS = previousRoleIds
     }
   })
 
   it('denies a member without permission before calling the mutable API', async () => {
-    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
-    const { interaction, replies } = cancelInteraction({ roleIds: ['other-role'] })
+    const closePresence = mock.method(rinhaApi, 'closePresence', async () => ({} as never))
+    const { interaction, replies } = mutableInteraction({ roleIds: ['other-role'] })
 
     await handleDraftCommand(interaction)
 
-    assert.equal(cancelDraft.mock.callCount(), 0)
+    assert.equal(closePresence.mock.callCount(), 0)
     assert.deepEqual(replies, [{ content: t.draftAdministrationDenied, flags: MessageFlags.Ephemeral }])
   })
 })
@@ -643,7 +639,6 @@ describe('getDraftInteractionErrorMessage', () => {
       ['MV048', 'definePickOrder', t.draftErrors.missingCaptains],
       ['MV050', 'defineCaptains', t.draftErrors.captainNotConfirmed],
       ['MV076', 'definePickOrder', t.draftErrors.invalidManualPickOrder],
-      ['MV029', 'cancel', t.draftErrors.draftAlreadyClosed],
       ['ME035', 'status', t.draftNotFoundMaybeFinished],
     ] as const
 
@@ -660,7 +655,7 @@ describe('getDraftInteractionErrorMessage', () => {
   })
 
   it('maps not found errors to the draft not found message', () => {
-    const result = getDraftInteractionErrorMessage(new Error('404 draft not found'), 'cancel')
+    const result = getDraftInteractionErrorMessage(new Error('404 draft not found'), 'closePresence')
 
     assert.equal(result, 'Não encontrei esse draft. Confira o ID e tente novamente.')
   })

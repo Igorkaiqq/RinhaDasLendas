@@ -86,11 +86,6 @@ export const rinhaApi = {
       method: 'POST',
       body: JSON.stringify({ continuarComMenosDez: false, tamanhoEquipe: 5 }),
     }),
-  cancelDraft: (draftId: string, motivo?: string | null) =>
-    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/cancelar`, {
-      method: 'PATCH',
-      body: JSON.stringify({ motivo }),
-    }),
   defineCaptains: (draftId: string, capitaesIds: string[]) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/capitaes`, { method: 'POST', body: JSON.stringify({ capitaesIds }) }),
   definePickOrder: (draftId: string, modo: (typeof DraftPickOrderMode)[keyof typeof DraftPickOrderMode], capitaesIds: string[] = []) =>
