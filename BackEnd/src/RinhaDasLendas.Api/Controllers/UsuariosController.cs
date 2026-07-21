@@ -12,7 +12,7 @@ using RinhaDasLendas.Domain.Constants;
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = ApiAuthenticationDefaults.SchemeName)]
+[Authorize(Policy = ApiAuthenticationDefaults.AuthenticatedPolicyName)]
 [Route("api/v1/usuarios")]
 [Produces("application/json")]
 public sealed class UsuariosController(ISender sender, IMessageProvider messages, IDiscordIdentityLookupService discordIdentityLookup) : ControllerBase

@@ -144,6 +144,50 @@ public sealed class SecurityHardeningTests
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task RealBot_ShouldNotAuthorizePlainJwtEndpoints()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+
+        var authResponse = await client.GetAsync("/api/v1/auth/me");
+        var jogadoresResponse = await client.GetAsync("/api/v1/jogadores");
+        var draftsResponse = await client.GetAsync("/api/v1/drafts");
+
+        authResponse.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
+        jogadoresResponse.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
+        draftsResponse.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task RealJwtBearer_ShouldContinueAuthorizingPlainJwtEndpoints()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+
+        var authResponse = await client.GetAsync("/api/v1/auth/me");
+        var jogadoresResponse = await client.GetAsync("/api/v1/jogadores");
+        var draftsResponse = await client.GetAsync("/api/v1/drafts");
+
+        authResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        jogadoresResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        draftsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task RealBot_ShouldContinueAuthorizingMixedEndpoint()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+
+        var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     [Theory]
     [InlineData("PermitLimit")]
     [InlineData("WindowSeconds")]

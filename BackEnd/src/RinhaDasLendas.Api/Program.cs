@@ -79,6 +79,7 @@ else
             ValidIssuer = jwtSection.GetValue<string>("Issuer"),
             ValidAudience = jwtSection.GetValue<string>("Audience"),
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            AuthenticationType = JwtBearerDefaults.AuthenticationScheme,
             ClockSkew = TimeSpan.FromSeconds(30),
         };
         options.Events = new JwtBearerEvents
@@ -107,6 +108,7 @@ builder.Services.AddAuthorization(options =>
     if (builder.Environment.IsEnvironment("Testing"))
     {
         options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAssertion(_ => true).Build();
+        options.AddPolicy(ApiAuthenticationDefaults.AuthenticatedPolicyName, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageRoles, policy => policy.RequireAssertion(_ => true));
@@ -121,6 +123,14 @@ builder.Services.AddAuthorization(options =>
     }
     else
     {
+        options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context => context.User.Identities.Any(identity =>
+                identity.IsAuthenticated
+                && identity.AuthenticationType == JwtBearerDefaults.AuthenticationScheme))
+            .Build();
+        options.AddPolicy(ApiAuthenticationDefaults.AuthenticatedPolicyName, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAuthenticatedUser());
         options.AddPolicy(AuthPermissions.CanViewUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanManageUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageRoles, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
