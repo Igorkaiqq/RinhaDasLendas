@@ -302,9 +302,9 @@ function formatDraftLine(draft: DraftMontagem) {
   return `${draft.nome}: ${formatDraftStatus(draft.status)} (${draft.presencas.filter((presence) => presence.status === DraftPresenceStatus.Confirmed).length} ${t.confirmedCount})`
 }
 
-export function parsePresenceClosingTime(dayInput: string, timeInput: string) {
-  const result = validatePresenceClosingTime(dayInput, timeInput)
-  return result.ok ? result.value : null
+export function parsePresenceClosingTime(dayInput: string, timeInput: string, now = new Date()) {
+  const validation = validatePresenceClosingTime(dayInput, timeInput, now)
+  return validation.ok ? validation.value : null
 }
 
 type PresenceClosingTimeValidation =

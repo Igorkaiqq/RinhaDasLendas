@@ -6,7 +6,11 @@ import { RinhaApiError } from '../../shared/api/rinhaApi.js'
 
 describe('parsePresenceClosingTime', () => {
   it('interprets the informed time as Brasilia time', () => {
-    const result = parsePresenceClosingTime('11/07/2026', '19:30')
+    const result = parsePresenceClosingTime(
+      '11/07/2026',
+      '19:30',
+      new Date('2026-07-10T12:00:00.000Z'),
+    )
 
     assert.equal(result, '2026-07-11T22:30:00.000Z')
   })
