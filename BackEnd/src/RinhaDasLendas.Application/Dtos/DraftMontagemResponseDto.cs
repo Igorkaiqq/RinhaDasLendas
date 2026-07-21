@@ -30,6 +30,8 @@ public sealed record DraftMontagemResponseDto(
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Reservas,
     IReadOnlyCollection<DraftMontagemEscolhaResponseDto> Escolhas,
     IReadOnlyCollection<DraftMontagemSubstituicaoResponseDto> Substituicoes,
+    IReadOnlyCollection<DraftMontagemPublicacaoDiscordResponseDto> PublicacoesDiscord,
+    IReadOnlyCollection<DraftMontagemAcaoAdministrativaResponseDto> AcoesAdministrativas,
     string? MotivoCancelamento,
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao)
@@ -64,8 +66,44 @@ public sealed record DraftMontagemResponseDto(
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             montagem.Escolhas.OrderBy(escolha => escolha.Sequencia).Select(DraftMontagemEscolhaResponseDto.FromEntity).ToList(),
             montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoResponseDto.FromEntity).ToList(),
+            montagem.PublicacoesDiscord.OrderBy(publicacao => publicacao.Tipo).Select(DraftMontagemPublicacaoDiscordResponseDto.FromEntity).ToList(),
+            montagem.AcoesAdministrativas.OrderBy(acao => acao.RegistradoEm).Select(DraftMontagemAcaoAdministrativaResponseDto.FromEntity).ToList(),
             montagem.MotivoCancelamento,
             montagem.DataCadastro,
             montagem.DataAtualizacao);
+    }
+}
+
+public sealed record DraftMontagemAcaoAdministrativaResponseDto(Guid Id, string Tipo, Guid ResponsavelUsuarioId, Guid? JogadorAlvoId, string? Motivo, DateTimeOffset RegistradoEm)
+{
+    public static DraftMontagemAcaoAdministrativaResponseDto FromEntity(DraftMontagemAcaoAdministrativa acao)
+    {
+        return new DraftMontagemAcaoAdministrativaResponseDto(acao.Id, acao.Tipo, acao.ResponsavelUsuarioId, acao.JogadorAlvoId, acao.Motivo, acao.RegistradoEm);
+    }
+}
+
+public sealed record DraftMontagemPublicacaoDiscordResponseDto(
+    Guid Id,
+    string Tipo,
+    string Status,
+    string? GuildId,
+    string? ChannelId,
+    string? MessageId,
+    string? UltimoErroCodigo,
+    DateTimeOffset? PublicadaEm,
+    DateTimeOffset UltimaTentativaEm)
+{
+    public static DraftMontagemPublicacaoDiscordResponseDto FromEntity(DraftMontagemPublicacaoDiscord publicacao)
+    {
+        return new DraftMontagemPublicacaoDiscordResponseDto(
+            publicacao.Id,
+            publicacao.Tipo.ToString(),
+            publicacao.Status.ToString(),
+            publicacao.GuildId,
+            publicacao.ChannelId,
+            publicacao.MessageId,
+            publicacao.UltimoErroCodigo,
+            publicacao.PublicadaEm,
+            publicacao.UltimaTentativaEm);
     }
 }

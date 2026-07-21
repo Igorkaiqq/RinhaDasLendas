@@ -13,7 +13,9 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class CancelarPresencaDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     ICurrentUser currentUser,
-    IDiscordIdentityLookupService discordIdentityLookup) : IRequestHandler<CancelarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDiscordIdentityLookupService discordIdentityLookup,
+    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemMetrics metrics) : IRequestHandler<CancelarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(CancelarPresencaDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -27,6 +29,8 @@ public sealed class CancelarPresencaDraftMontagemCommandHandler(
         montagem.CancelarPresenca(usuarioId);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
+        metrics.RecordPresenceCancelled(command.Id, string.IsNullOrWhiteSpace(command.Request.DiscordUserId) ? "Web" : "Discord");
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 

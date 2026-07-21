@@ -3,6 +3,18 @@ import { DraftPresenceOrigin, DraftPickOrderMode } from '../constants/draftConst
 import { t } from '../messages/index.js'
 import type { DiscordConfiguration, DiscordUserLink, DraftMontagem } from './types.js'
 
+interface ApiErrorResponse {
+  messageCode?: string
+  message?: string
+  errors?: string[]
+}
+
+export class RinhaApiError extends Error {
+  constructor(public readonly messageCode: string | undefined, message: string, public readonly status: number) {
+    super(message)
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(new URL(path, env.RINHA_API_BASE_URL), {
     ...init,
@@ -19,10 +31,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       throw new Error(t.unauthorizedApi)
     }
 
-    throw new Error(body || response.statusText)
+    throw parseApiError(body, response.statusText, response.status)
   }
 
   return response.json() as Promise<T>
+}
+
+export function parseApiError(body: string, statusText: string, status: number) {
+  try {
+    const parsed = JSON.parse(body) as ApiErrorResponse
+    const message = parsed.message || parsed.errors?.[0] || statusText
+    return new RinhaApiError(parsed.messageCode, message, status)
+  } catch {
+    return new RinhaApiError(undefined, body || statusText, status)
+  }
 }
 
 export const rinhaApi = {
@@ -44,8 +66,13 @@ export const rinhaApi = {
       method: 'POST',
       body: JSON.stringify({ discordUserId }),
     }),
-  registerDiscordPublication: (draftId: string, payload: { discordGuildId?: string | null; discordPresenceMessageId: string }) =>
+  registerDiscordPublication: (draftId: string, payload: { discordGuildId?: string | null; discordPresenceMessageId: string; tipo?: string; discordChannelId?: string | null }) =>
     request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/publicacao`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  registerDiscordPublicationFailure: (draftId: string, payload: { tipo: string; discordGuildId?: string | null; discordChannelId?: string | null; erroCodigo?: string | null }) =>
+    request<DraftMontagem>(`/api/v1/draft-montagens/${draftId}/discord/publicacao/falha`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

@@ -143,6 +143,68 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("usuario_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DiscordServerConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AdminChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("admin_channel_id");
+
+                    b.Property<bool>("BotEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("bot_enabled");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DraftChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("draft_channel_id");
+
+                    b.Property<string>("GuildId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("guild_id");
+
+                    b.Property<string>("MatchResultChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("match_result_channel_id");
+
+                    b.Property<string>("NewsChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("news_channel_id");
+
+                    b.Property<string>("PresenceChannelId")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("presence_channel_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId")
+                        .IsUnique();
+
+                    b.ToTable("discord_server_configurations", (string)null);
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftEscolha", b =>
                 {
                     b.Property<Guid>("Id")
@@ -210,10 +272,6 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_cadastro");
 
-                    b.Property<int>("DuracaoTurnoSegundos")
-                        .HasColumnType("integer")
-                        .HasColumnName("duracao_turno_segundos");
-
                     b.Property<string>("DiscordGuildId")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
@@ -223,6 +281,10 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("discord_presence_message_id");
+
+                    b.Property<int>("DuracaoTurnoSegundos")
+                        .HasColumnType("integer")
+                        .HasColumnName("duracao_turno_segundos");
 
                     b.Property<DateTimeOffset?>("HorarioEncerramentoPresenca")
                         .HasColumnType("timestamp with time zone")
@@ -315,6 +377,50 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("Status", "Modo", "TurnoExpiraEm");
 
                     b.ToTable("draft_montagens", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemAcaoAdministrativa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<Guid?>("JogadorAlvoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_alvo_id");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo");
+
+                    b.Property<DateTimeOffset>("RegistradoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registrado_em");
+
+                    b.Property<Guid>("ResponsavelUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsavel_usuario_id");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DraftMontagemId");
+
+                    b.HasIndex("JogadorAlvoId");
+
+                    b.HasIndex("ResponsavelUsuarioId");
+
+                    b.ToTable("draft_montagem_acoes_administrativas", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemEscolha", b =>
@@ -508,44 +614,64 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("draft_montagem_presencas", (string)null);
                 });
 
-            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemPublicacaoDiscord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid?>("CapitaoId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("capitao_id");
-
-                    b.Property<string>("Cor")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("cor");
+                    b.Property<string>("ChannelId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("channel_id");
 
                     b.Property<Guid>("DraftMontagemId")
                         .HasColumnType("uuid")
                         .HasColumnName("draft_montagem_id");
 
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("nome");
+                    b.Property<string>("GuildId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("guild_id");
 
-                    b.Property<int>("Ordem")
-                        .HasColumnType("integer")
-                        .HasColumnName("ordem");
+                    b.Property<string>("MessageId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("message_id");
+
+                    b.Property<DateTimeOffset?>("PublicadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("publicada_em");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("tipo");
+
+                    b.Property<DateTimeOffset>("UltimaTentativaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ultima_tentativa_em");
+
+                    b.Property<string>("UltimoErroCodigo")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("ultimo_erro_codigo");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CapitaoId");
+                    b.HasIndex("Status");
 
-                    b.HasIndex("DraftMontagemId", "Ordem")
+                    b.HasIndex("DraftMontagemId", "Tipo")
                         .IsUnique();
 
-                    b.ToTable("draft_montagem_times", (string)null);
+                    b.ToTable("draft_montagem_publicacoes_discord", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemSubstituicao", b =>
@@ -596,6 +722,46 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("TimeId");
 
                     b.ToTable("draft_montagem_substituicoes", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CapitaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("capitao_id");
+
+                    b.Property<string>("Cor")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cor");
+
+                    b.Property<Guid>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CapitaoId");
+
+                    b.HasIndex("DraftMontagemId", "Ordem")
+                        .IsUnique();
+
+                    b.ToTable("draft_montagem_times", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
@@ -713,68 +879,6 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("drafts", (string)null);
-                });
-
-            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DiscordServerConfiguration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AdminChannelId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("admin_channel_id");
-
-                    b.Property<bool>("BotEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("bot_enabled");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DraftChannelId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("draft_channel_id");
-
-                    b.Property<string>("GuildId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("guild_id");
-
-                    b.Property<string>("MatchResultChannelId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("match_result_channel_id");
-
-                    b.Property<string>("NewsChannelId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("news_channel_id");
-
-                    b.Property<string>("PresenceChannelId")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("presence_channel_id");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GuildId")
-                        .IsUnique();
-
-                    b.ToTable("discord_server_configurations", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Jogador", b =>
@@ -1230,73 +1334,6 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("auditoria_usuarios", (string)null);
                 });
 
-            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.RefreshToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CriadoEm")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("criado_em");
-
-                    b.Property<DateTimeOffset>("ExpiraEm")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expira_em");
-
-                    b.Property<Guid>("FamiliaId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("familia_id");
-
-                    b.Property<string>("IpCriacao")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("ip_criacao");
-
-                    b.Property<string>("IpRevogacao")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("ip_revogacao");
-
-                    b.Property<string>("MotivoRevogacao")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("motivo_revogacao");
-
-                    b.Property<DateTimeOffset?>("RevogadoEm")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("revogado_em");
-
-                    b.Property<Guid?>("SubstituidoPorTokenId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("substituido_por_token_id");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("token_hash");
-
-                    b.Property<string>("UserAgentCriacao")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("user_agent_criacao");
-
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("usuario_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FamiliaId");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("refresh_tokens", (string)null);
-                });
-
             modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1342,14 +1379,14 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("unlinked_at");
 
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("usuario_id");
-
                     b.Property<string>("Username")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("username");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
 
                     b.HasKey("Id");
 
@@ -1415,6 +1452,73 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("external_auth_states", (string)null);
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em");
+
+                    b.Property<Guid>("FamiliaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("familia_id");
+
+                    b.Property<string>("IpCriacao")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("ip_criacao");
+
+                    b.Property<string>("IpRevogacao")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("ip_revogacao");
+
+                    b.Property<string>("MotivoRevogacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("motivo_revogacao");
+
+                    b.Property<DateTimeOffset?>("RevogadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revogado_em");
+
+                    b.Property<Guid?>("SubstituidoPorTokenId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("substituido_por_token_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token_hash");
+
+                    b.Property<string>("UserAgentCriacao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent_criacao");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamiliaId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.VinculoDiscord", b =>
@@ -1525,23 +1629,6 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAccount", b =>
-                {
-                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAuthState", b =>
-                {
-                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade);
-                });
-
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftEscolha", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Capitao")
@@ -1565,6 +1652,26 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Capitao");
 
                     b.Navigation("Jogador");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemAcaoAdministrativa", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany("AcoesAdministrativas")
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                        .WithMany()
+                        .HasForeignKey("JogadorAlvoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsavelUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemEscolha", b =>
@@ -1642,15 +1749,10 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Jogador");
                 });
 
-            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemPublicacaoDiscord", b =>
                 {
-                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
-                        .WithMany()
-                        .HasForeignKey("CapitaoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
-                        .WithMany("Times")
+                        .WithMany("PublicacoesDiscord")
                         .HasForeignKey("DraftMontagemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1691,6 +1793,20 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("JogadorSaiu");
 
                     b.Navigation("ReservaEntrou");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemTime", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                        .WithMany()
+                        .HasForeignKey("CapitaoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany("Times")
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftParticipante", b =>
@@ -1767,13 +1883,34 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Jogador");
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAccount", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAuthState", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagem", b =>
                 {
+                    b.Navigation("AcoesAdministrativas");
+
                     b.Navigation("Escolhas");
 
                     b.Navigation("Participantes");
 
                     b.Navigation("Presencas");
+
+                    b.Navigation("PublicacoesDiscord");
 
                     b.Navigation("Substituicoes");
 

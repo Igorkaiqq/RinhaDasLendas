@@ -18,6 +18,8 @@
     "joinTournament": "Join Tournament",
     "joinTournamentSoon": "Tournament soon",
     "arena": "Arena",
+    "operations": "Operations",
+    "account": "Account",
     "soon": "Soon",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
@@ -365,6 +367,16 @@
     "title": "Player Draft",
     "subtitle": "Build teams with captains, pick order, and transparent history.",
     "visualSubtitle": "Build teams visually with captains, reserves, routes, and persisted layout.",
+    "rail": {
+      "label": "Draft flow",
+      "presenceOpen": "Presence open",
+      "presenceClosed": "Presence closed",
+      "captains": "Captains",
+      "order": "Order",
+      "picking": "Picks",
+      "finished": "Finished",
+      "discord": "Discord"
+    },
     "create": "Create Draft",
     "createWithIcon": "+ Create Draft",
     "created": "Draft {name} created.",
@@ -379,7 +391,10 @@
     "noSelectionTitle": "No draft selected",
     "noSelectionDescription": "Create or select a draft to build the teams.",
     "cardSummary": "{teams} teams · {reserves} reserves",
+    "rinhaDate": "Rinha: {date}",
+    "noRinhaDate": "Date not informed",
     "cancelReason": "Draft canceled",
+    "cancelReasonPrompt": "Enter the reason for cancelling this draft.",
     "metrics": { "visible": "{total} drafts" },
     "messages": {
       "layoutSaved": "Draft layout saved.",
@@ -402,7 +417,8 @@
     },
     "errors": {
       "create": "Could not create draft.",
-      "action": "Could not complete the action."
+      "action": "Could not complete the action.",
+      "linkNotFound": "I could not find the draft from this link. Check if it still exists or choose another one from the list."
     },
     "presence": {
       "eyebrow": "Presence list",
@@ -418,9 +434,74 @@
       "drawOrder": "Draw pick order",
       "confirmed": "Presence confirmed.",
       "cancelled": "Presence cancelled.",
+      "manualPlayer": "Add player",
+      "searchPlayer": "Search eligible player",
+      "selectPlayer": "Select a player",
+      "addManual": "Add presence",
+      "removeManual": "Remove",
+      "removeManualReason": "Presence removed manually",
+      "removeManualReasonPrompt": "Enter the reason for removing this presence.",
+      "manualAdded": "Presence added manually.",
+      "manualRemoved": "Presence removed manually.",
       "closed": "Presence list closed.",
       "captainsDefined": "Captains defined.",
       "orderDefined": "Pick order defined."
+    },
+    "presenceOrigin": {
+      "Web": "Site",
+      "Discord": "Discord",
+      "Manual": "Manual"
+    },
+    "publication": {
+      "statusLabel": "Discord publication status",
+      "presence": "Discord presence: {status}",
+      "finalTeams": "Discord teams: {status}",
+      "status": {
+        "Pendente": "pending",
+        "Publicada": "published",
+        "Falha": "failed",
+        "Ignorada": "skipped"
+      },
+      "republishPresence": "Republish presence",
+      "republishFinalTeams": "Republish teams",
+      "republishReason": "Republish requested",
+      "republishReasonPrompt": "Enter the reason for republishing.",
+      "republishRequested": "Republish requested. The bot will publish again on the next processing run."
+    },
+    "reasonDialog": {
+      "administrativeKicker": "Administrative action",
+      "discordKicker": "Discord publication",
+      "reasonLabel": "Reason",
+      "reasonRequired": "Enter a reason to continue.",
+      "back": "Back",
+      "currentStatus": "Current status: {status}",
+      "affectedPlayer": "Affected player: {name}",
+      "cancelDraft": {
+        "title": "Cancel draft",
+        "description": "The draft will be canceled and will no longer appear in the default list.",
+        "defaultReason": "Draft canceled",
+        "confirm": "Cancel draft"
+      },
+      "removeManualPresence": {
+        "title": "Remove presence",
+        "description": "The player will be removed from this draft's presence list.",
+        "defaultReason": "Presence removed manually",
+        "confirm": "Remove presence"
+      },
+      "republishPresence": {
+        "title": "Republish presence list",
+        "description": "A new presence list message will be requested from the bot.",
+        "defaultReason": "Republish requested",
+        "confirm": "Republish presence",
+        "context": "Presence list"
+      },
+      "republishTeams": {
+        "title": "Republish teams",
+        "description": "A new message with the defined teams will be requested from the bot.",
+        "defaultReason": "Republish requested",
+        "confirm": "Republish teams",
+        "context": "Defined teams"
+      }
     },
     "teams": {
       "teamA": "Team A",

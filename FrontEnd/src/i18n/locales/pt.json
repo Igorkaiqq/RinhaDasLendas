@@ -18,6 +18,8 @@
     "joinTournament": "Entrar no Torneio",
     "joinTournamentSoon": "Torneio em breve",
     "arena": "Arena",
+    "operations": "Operações",
+    "account": "Conta",
     "soon": "Em breve",
     "expandSidebar": "Expandir menu lateral",
     "collapseSidebar": "Minimizar menu lateral",
@@ -365,6 +367,16 @@
     "title": "Draft de Jogadores",
     "subtitle": "Monte os times com capitães, ordem de picks e histórico transparente.",
     "visualSubtitle": "Monte os times visualmente com capitães, reservas, rotas e layout persistente.",
+    "rail": {
+      "label": "Fluxo do draft",
+      "presenceOpen": "Presença aberta",
+      "presenceClosed": "Presença encerrada",
+      "captains": "Capitães",
+      "order": "Ordem",
+      "picking": "Escolhas",
+      "finished": "Finalizado",
+      "discord": "Discord"
+    },
     "create": "Criar Draft",
     "createWithIcon": "+ Criar Draft",
     "created": "Draft {name} criado.",
@@ -379,7 +391,10 @@
     "noSelectionTitle": "Nenhum draft selecionado",
     "noSelectionDescription": "Crie ou selecione um draft para montar os times.",
     "cardSummary": "{teams} times · {reserves} reservas",
+    "rinhaDate": "Rinha: {date}",
+    "noRinhaDate": "Data não informada",
     "cancelReason": "Draft cancelado",
+    "cancelReasonPrompt": "Informe o motivo do cancelamento do draft.",
     "metrics": { "visible": "{total} drafts" },
     "messages": {
       "layoutSaved": "Layout do draft salvo.",
@@ -402,7 +417,8 @@
     },
     "errors": {
       "create": "Não foi possível criar o draft.",
-      "action": "Não foi possível concluir a ação."
+      "action": "Não foi possível concluir a ação.",
+      "linkNotFound": "Não encontrei o draft indicado pelo link. Confira se ele ainda existe ou escolha outro na lista."
     },
     "presence": {
       "eyebrow": "Lista de presença",
@@ -418,9 +434,74 @@
       "drawOrder": "Sortear ordem de escolha",
       "confirmed": "Presença confirmada.",
       "cancelled": "Presença cancelada.",
+      "manualPlayer": "Adicionar jogador",
+      "searchPlayer": "Buscar jogador elegível",
+      "selectPlayer": "Selecione um jogador",
+      "addManual": "Adicionar presença",
+      "removeManual": "Remover",
+      "removeManualReason": "Presença removida manualmente",
+      "removeManualReasonPrompt": "Informe o motivo da remoção desta presença.",
+      "manualAdded": "Presença adicionada manualmente.",
+      "manualRemoved": "Presença removida manualmente.",
       "closed": "Lista de presença encerrada.",
       "captainsDefined": "Capitães definidos.",
       "orderDefined": "Ordem de escolha definida."
+    },
+    "presenceOrigin": {
+      "Web": "Site",
+      "Discord": "Discord",
+      "Manual": "Manual"
+    },
+    "publication": {
+      "statusLabel": "Status de publicação no Discord",
+      "presence": "Presença no Discord: {status}",
+      "finalTeams": "Times no Discord: {status}",
+      "status": {
+        "Pendente": "pendente",
+        "Publicada": "publicada",
+        "Falha": "falhou",
+        "Ignorada": "ignorada"
+      },
+      "republishPresence": "Republicar presença",
+      "republishFinalTeams": "Republicar times",
+      "republishReason": "Republicação solicitada",
+      "republishReasonPrompt": "Informe o motivo da republicação.",
+      "republishRequested": "Republicação solicitada. O bot publicará novamente no próximo processamento."
+    },
+    "reasonDialog": {
+      "administrativeKicker": "Ação administrativa",
+      "discordKicker": "Publicação no Discord",
+      "reasonLabel": "Motivo",
+      "reasonRequired": "Informe um motivo para continuar.",
+      "back": "Voltar",
+      "currentStatus": "Status atual: {status}",
+      "affectedPlayer": "Jogador afetado: {name}",
+      "cancelDraft": {
+        "title": "Cancelar draft",
+        "description": "O draft será cancelado e deixará de aparecer na listagem padrão.",
+        "defaultReason": "Draft cancelado",
+        "confirm": "Cancelar draft"
+      },
+      "removeManualPresence": {
+        "title": "Remover presença",
+        "description": "O jogador será removido da lista de presença deste draft.",
+        "defaultReason": "Presença removida manualmente",
+        "confirm": "Remover presença"
+      },
+      "republishPresence": {
+        "title": "Republicar lista de presença",
+        "description": "Uma nova mensagem da lista de presença será solicitada ao bot.",
+        "defaultReason": "Republicação solicitada",
+        "confirm": "Republicar presença",
+        "context": "Lista de presença"
+      },
+      "republishTeams": {
+        "title": "Republicar times",
+        "description": "Uma nova mensagem dos times definidos será solicitada ao bot.",
+        "defaultReason": "Republicação solicitada",
+        "confirm": "Republicar times",
+        "context": "Times definidos"
+      }
     },
     "teams": {
       "teamA": "Time A",

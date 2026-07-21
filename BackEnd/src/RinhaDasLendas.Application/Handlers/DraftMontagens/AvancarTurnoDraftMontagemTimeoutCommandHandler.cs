@@ -12,7 +12,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class AvancarTurnoDraftMontagemTimeoutCommandHandler(
     IDraftMontagemRepository repository,
     ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<AvancarTurnoDraftMontagemTimeoutCommand, DraftMontagemRealtimeStateDto?>
+    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemMetrics metrics) : IRequestHandler<AvancarTurnoDraftMontagemTimeoutCommand, DraftMontagemRealtimeStateDto?>
 {
     public async Task<DraftMontagemRealtimeStateDto?> Handle(AvancarTurnoDraftMontagemTimeoutCommand command, CancellationToken cancellationToken)
     {
@@ -32,6 +33,7 @@ public sealed class AvancarTurnoDraftMontagemTimeoutCommandHandler(
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         var state = await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, now, cancellationToken);
         await notifier.StateUpdatedAsync(command.Id, state, cancellationToken);
+        metrics.RecordDraftTimeout(command.Id);
         return state;
     }
 }

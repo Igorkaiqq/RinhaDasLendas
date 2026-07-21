@@ -14,7 +14,9 @@ public sealed class ConfirmarPresencaDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     ICurrentUser currentUser,
     IDiscordIdentityLookupService discordIdentityLookup,
-    IValidator<ConfirmarPresencaDraftMontagemRequestDto> validator) : IRequestHandler<ConfirmarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
+    IValidator<ConfirmarPresencaDraftMontagemRequestDto> validator,
+    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemMetrics metrics) : IRequestHandler<ConfirmarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(ConfirmarPresencaDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -30,6 +32,8 @@ public sealed class ConfirmarPresencaDraftMontagemCommandHandler(
         montagem.ConfirmarPresenca(usuarioId, jogadorId, discordUserId, origem);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
+        metrics.RecordPresenceConfirmed(command.Id, origem.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 

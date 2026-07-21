@@ -20,9 +20,9 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
 {
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResponseDto<DraftMontagemResumoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] string? status = null, [FromQuery] bool includeCancelled = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var montagens = await sender.Send(new GetDraftMontagensQuery(search, status, page, pageSize), cancellationToken);
+        var montagens = await sender.Send(new GetDraftMontagensQuery(search, status, includeCancelled, page, pageSize), cancellationToken);
         return Ok(montagens);
     }
 
@@ -93,6 +93,34 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
         return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
+    [HttpPost("{id:guid}/presencas/manual")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddManualPresence([FromRoute] Guid id, [FromBody] AdicionarPresencaManualDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new AdicionarPresencaManualDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpDelete("{id:guid}/presencas/{jogadorId:guid}")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveManualPresence([FromRoute] Guid id, [FromRoute] Guid jogadorId, [FromBody] RemoverPresencaManualDraftMontagemRequestDto? request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new RemoverPresencaManualDraftMontagemCommand(id, new RemoverPresencaManualDraftMontagemRequestDto(jogadorId, request?.Motivo)), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpGet("{id:guid}/presencas/elegiveis")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(PaginatedResponseDto<DraftMontagemJogadorElegivelPresencaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EligibleManualPresencePlayers([FromRoute] Guid id, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        return Ok(await sender.Send(new GetJogadoresElegiveisPresencaDraftMontagemQuery(id, search, page, pageSize), cancellationToken));
+    }
+
     [HttpPost("{id:guid}/discord/presencas/confirmar")]
     [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
@@ -150,6 +178,26 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> RegisterDiscordPublication([FromRoute] Guid id, [FromBody] RegistrarPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new RegistrarPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpPost("{id:guid}/discord/publicacao/falha")]
+    [Authorize(Policy = AuthPermissions.CanUseDiscordBotApi)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RegisterDiscordPublicationFailure([FromRoute] Guid id, [FromBody] RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new RegistrarFalhaPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
+    [HttpPost("{id:guid}/discord/publicacoes/republicar")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RepublishDiscordPublication([FromRoute] Guid id, [FromBody] RepublicarPublicacaoDiscordDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new RepublicarPublicacaoDiscordDraftMontagemCommand(id, request), cancellationToken);
         return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 

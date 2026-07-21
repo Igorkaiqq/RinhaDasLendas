@@ -473,6 +473,6 @@ Do not create new design tokens unless explicitly approved.
 
 <!-- SPECKIT START -->
 
-Implementation Plan: specs/013-integracao-discord/plan.md
+Implementation Plan: specs/017-robustecer-drafts-discord-jogadores/plan.md
 
 <!-- SPECKIT END -->

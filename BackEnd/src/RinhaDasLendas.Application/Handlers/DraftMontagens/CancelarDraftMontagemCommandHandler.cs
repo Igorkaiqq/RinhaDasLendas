@@ -22,7 +22,7 @@ public sealed class CancelarDraftMontagemCommandHandler(
             return null;
         }
 
-        montagem.Cancelar(command.Request.Motivo);
+        montagem.Cancelar(command.Request.Motivo, currentUser.UserId);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);

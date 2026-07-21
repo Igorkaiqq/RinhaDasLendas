@@ -107,11 +107,13 @@ public sealed class DraftMontagemTests
     public void Deve_cancelar_montagem_com_presenca_aberta()
     {
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var responsavelId = Guid.NewGuid();
 
-        montagem.Cancelar("sem jogadores");
+        montagem.Cancelar("sem jogadores", responsavelId);
 
         montagem.Status.Should().Be(DraftMontagemStatus.Cancelada);
         montagem.MotivoCancelamento.Should().Be("sem jogadores");
+        montagem.AcoesAdministrativas.Should().ContainSingle(acao => acao.ResponsavelUsuarioId == responsavelId && acao.Motivo == "sem jogadores");
     }
 
     [Fact]
@@ -124,6 +126,99 @@ public sealed class DraftMontagemTests
         var act = () => montagem.Cancelar("encerrar");
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+    }
+
+    [Fact]
+    public void Deve_adicionar_presenca_manual_em_presenca_aberta()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var usuarioId = Guid.NewGuid();
+        var jogadorId = Guid.NewGuid();
+
+        var presenca = montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+
+        presenca.UsuarioId.Should().Be(usuarioId);
+        presenca.JogadorId.Should().Be(jogadorId);
+        presenca.OrigemConfirmacao.Should().Be(DraftMontagemPresencaOrigem.Manual);
+        presenca.Confirmada.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Deve_impedir_presenca_manual_duplicada()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var usuarioId = Guid.NewGuid();
+        var jogadorId = Guid.NewGuid();
+        montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+
+        var act = () => montagem.AdicionarPresencaManual(usuarioId, jogadorId);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PlayerAlreadyInQueue);
+    }
+
+    [Fact]
+    public void Deve_remover_presenca_manual_em_presenca_aberta()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var jogadorId = Guid.NewGuid();
+        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId);
+
+        montagem.RemoverPresencaManual(jogadorId);
+
+        montagem.Presencas.Should().ContainSingle().Which.Confirmada.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Deve_auditar_remocao_manual_de_presenca_com_jogador_alvo()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var jogadorId = Guid.NewGuid();
+        var responsavelId = Guid.NewGuid();
+        montagem.AdicionarPresencaManual(Guid.NewGuid(), jogadorId);
+
+        montagem.RemoverPresencaManual(jogadorId, responsavelId, "não poderá jogar");
+
+        montagem.AcoesAdministrativas.Should().ContainSingle(acao =>
+            acao.Tipo == "RemocaoPresencaManual"
+            && acao.ResponsavelUsuarioId == responsavelId
+            && acao.JogadorAlvoId == jogadorId
+            && acao.Motivo == "não poderá jogar");
+    }
+
+    [Fact]
+    public void Deve_registrar_estado_de_publicacao_discord_por_tipo()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+
+        montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal-presenca", "mensagem-presenca");
+        montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, "guild", "canal-draft", "MissingPermissions");
+
+        montagem.PublicacoesDiscord.Should().ContainSingle(item =>
+            item.Tipo == DraftMontagemPublicacaoDiscordTipo.Presenca
+            && item.Status == DraftMontagemPublicacaoDiscordStatus.Publicada
+            && item.MessageId == "mensagem-presenca");
+        montagem.PublicacoesDiscord.Should().ContainSingle(item =>
+            item.Tipo == DraftMontagemPublicacaoDiscordTipo.TimesDefinidos
+            && item.Status == DraftMontagemPublicacaoDiscordStatus.Falha
+            && item.UltimoErroCodigo == "MissingPermissions");
+    }
+
+    [Fact]
+    public void Deve_solicitar_republicacao_discord_com_auditoria()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var responsavelId = Guid.NewGuid();
+        montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, "guild", "canal", "MissingPermissions");
+
+        montagem.SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, responsavelId, "permissão corrigida");
+
+        montagem.PublicacoesDiscord.Should().ContainSingle(item =>
+            item.Tipo == DraftMontagemPublicacaoDiscordTipo.TimesDefinidos
+            && item.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
+            && item.UltimoErroCodigo == null);
+        montagem.AcoesAdministrativas.Should().ContainSingle(acao =>
+            acao.ResponsavelUsuarioId == responsavelId
+            && acao.Motivo == "permissão corrigida");
     }
 
 }

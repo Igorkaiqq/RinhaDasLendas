@@ -16,5 +16,6 @@ public sealed record DraftMontagemResumoDto(
     string? DiscordPresenceMessageId,
     string? OrdemEscolhaModo,
     bool PresencaContinuadaManualmente,
+    DateTimeOffset? DataRinha,
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao);

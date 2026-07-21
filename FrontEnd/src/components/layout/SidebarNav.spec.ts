@@ -18,8 +18,8 @@ vi.mock('vue-router', () => ({
         default: '',
       },
     },
-    setup(props, { slots }) {
-      return () => h('a', { href: props.to, title: props.title }, slots.default?.())
+    setup(props, { slots, attrs }) {
+      return () => h('a', { ...attrs, href: props.to, title: props.title }, slots.default?.())
     },
   }),
   useRoute: () => ({ name: 'players' }),
@@ -51,6 +51,7 @@ describe('SidebarNav', () => {
     })
 
     expect(wrapper.text()).toContain('Jogadores')
+    expect(wrapper.find('.sidebar__item--active').text()).toContain('Jogadores')
     expect(wrapper.attributes('aria-label')).toBe('Navegação principal')
   })
 })

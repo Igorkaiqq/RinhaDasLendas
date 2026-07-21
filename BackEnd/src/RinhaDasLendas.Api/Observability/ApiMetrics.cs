@@ -8,6 +8,7 @@ public sealed class ApiMetrics
     private readonly Counter<long> botAuthFailures;
     private readonly Counter<long> rateLimitedRequests;
     private readonly Counter<long> stuckDrafts;
+    private readonly Counter<long> draftActions;
 
     public ApiMetrics(IMeterFactory meterFactory)
     {
@@ -16,6 +17,7 @@ public sealed class ApiMetrics
         botAuthFailures = meter.CreateCounter<long>("rinha_bot_auth_failures_total");
         rateLimitedRequests = meter.CreateCounter<long>("rinha_rate_limited_requests_total");
         stuckDrafts = meter.CreateCounter<long>("rinha_stuck_drafts_total");
+        draftActions = meter.CreateCounter<long>("rinha_draft_actions_total");
     }
 
     public void RecordAuthFailure(string scheme) => authFailures.Add(1, new KeyValuePair<string, object?>("scheme", scheme));
@@ -25,4 +27,15 @@ public sealed class ApiMetrics
     public void RecordRateLimitedRequest(string path) => rateLimitedRequests.Add(1, new KeyValuePair<string, object?>("path", path));
 
     public void RecordStuckDraft(Guid draftId) => stuckDrafts.Add(1, new KeyValuePair<string, object?>("draft_id", draftId.ToString()));
+
+    public void RecordDraftAction(Guid draftId, string action, params KeyValuePair<string, object?>[] tags)
+    {
+        var allTags = new List<KeyValuePair<string, object?>>(tags.Length + 2)
+        {
+            new("draft_id", draftId.ToString()),
+            new("action", action)
+        };
+        allTags.AddRange(tags);
+        draftActions.Add(1, allTags.ToArray());
+    }
 }

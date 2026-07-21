@@ -39,26 +39,26 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens.AsNoTracking())
-            .Where(montagem => montagem.Status != DraftMontagemStatus.Finalizada || montagem.DiscordGuildId != null)
-            .OrderByDescending(montagem => montagem.DataAtualizacao)
+            .Where(montagem => montagem.Status != DraftMontagemStatus.Cancelada && (montagem.Status != DraftMontagemStatus.Finalizada || montagem.DiscordGuildId != null))
+            .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataAtualizacao)
             .Take(50)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
-        return await IncludeMontagem(ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status))
-            .OrderByDescending(montagem => montagem.DataCadastro)
+        return await IncludeMontagem(ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled))
+            .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataCadastro)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
 
-    public Task<int> CountAsync(string? search, DraftMontagemStatus? status, CancellationToken cancellationToken)
+    public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken)
     {
-        return ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status).CountAsync(cancellationToken);
+        return ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled).CountAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken)
@@ -71,6 +71,22 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return dbContext.Jogadores
             .Include(jogador => jogador.Preferencias)
             .FirstOrDefaultAsync(jogador => jogador.UsuarioId == usuarioId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        return await ApplyEligibleManualPresenceFilters(draftMontagemId, search)
+            .OrderBy(jogador => jogador.NomeExibicao)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken)
+    {
+        return ApplyEligibleManualPresenceFilters(draftMontagemId, search).CountAsync(cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)
@@ -94,20 +110,44 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .Include(montagem => montagem.Substituicoes)
             .ThenInclude(substituicao => substituicao.JogadorSaiu)
             .Include(montagem => montagem.Substituicoes)
-            .ThenInclude(substituicao => substituicao.ReservaEntrou);
+            .ThenInclude(substituicao => substituicao.ReservaEntrou)
+            .Include(montagem => montagem.PublicacoesDiscord)
+            .Include(montagem => montagem.AcoesAdministrativas);
     }
 
-    private static IQueryable<DraftMontagem> ApplyFilters(IQueryable<DraftMontagem> query, string? search, DraftMontagemStatus? status)
+    private static IQueryable<DraftMontagem> ApplyFilters(IQueryable<DraftMontagem> query, string? search, DraftMontagemStatus? status, bool includeCancelled)
     {
         if (status is not null)
         {
             query = query.Where(montagem => montagem.Status == status);
+        }
+        else if (!includeCancelled)
+        {
+            query = query.Where(montagem => montagem.Status != DraftMontagemStatus.Cancelada);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var normalized = search.Trim().ToUpperInvariant();
             query = query.Where(montagem => montagem.Nome.ToUpper().Contains(normalized));
+        }
+
+        return query;
+    }
+
+    private IQueryable<Jogador> ApplyEligibleManualPresenceFilters(Guid draftMontagemId, string? search)
+    {
+        var confirmed = dbContext.DraftMontagemPresencas
+            .Where(presenca => presenca.DraftMontagemId == draftMontagemId && presenca.Status == DraftMontagemPresencaStatus.Confirmada)
+            .Select(presenca => presenca.JogadorId);
+
+        var query = dbContext.Jogadores.AsNoTracking()
+            .Where(jogador => jogador.Status == JogadorStatus.Ativo && jogador.UsuarioId != null && !confirmed.Contains(jogador.Id));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(jogador => jogador.NomeExibicao.ToUpper().Contains(normalized));
         }
 
         return query;

@@ -6,6 +6,7 @@ import type {
   DraftMontagem,
   DraftMontagemLayoutPayload,
   DraftMontagemOrdemEscolhaModo,
+  DraftMontagemPublicacaoDiscordTipo,
   DraftMontagemPayload,
   DraftMontagemRealtimeState,
   DraftMontagemResumo,
@@ -14,11 +15,20 @@ import type {
 
 import { api } from './api'
 import { getMessage } from './messageService'
+import type { Player } from './players'
 
 interface PaginatedDraftMontagens {
   page: number
   pageSize: number
   items: DraftMontagemResumo[]
+  totalItems: number
+  totalPages: number
+}
+
+interface PaginatedEligiblePlayers {
+  page: number
+  pageSize: number
+  items: Pick<Player, 'id' | 'nomeExibicao'>[]
   totalItems: number
   totalPages: number
 }
@@ -35,7 +45,7 @@ export class DraftMontagemServiceError extends Error {
   }
 }
 
-export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | '' } = {}): Promise<DraftMontagemResumo[]> {
+export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | ''; includeCancelled?: boolean } = {}): Promise<DraftMontagemResumo[]> {
   try {
     const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
       params: { ...filters, page: 1, pageSize: 100 },
@@ -85,6 +95,42 @@ export async function confirmDraftMontagemPresence(id: string): Promise<DraftMon
 export async function cancelDraftMontagemPresence(id: string): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/cancelar`, {})
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function addManualDraftMontagemPresence(id: string, jogadorId: string): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/manual`, { jogadorId })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function removeManualDraftMontagemPresence(id: string, jogadorId: string, motivo: string | null = null): Promise<DraftMontagem> {
+  try {
+    const response = await api.delete<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/${jogadorId}`, { data: { motivo } })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function listEligibleManualPresencePlayers(id: string, search = '', page = 1, pageSize = 20): Promise<Pick<Player, 'id' | 'nomeExibicao'>[]> {
+  try {
+    const response = await api.get<PaginatedEligiblePlayers>(`/api/v1/draft-montagens/${id}/presencas/elegiveis`, { params: { search, page, pageSize } })
+    return response.data.items
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function republishDraftMontagemDiscordPublication(id: string, tipo: DraftMontagemPublicacaoDiscordTipo, motivo: string | null = null): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/discord/publicacoes/republicar`, { tipo, motivo })
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)

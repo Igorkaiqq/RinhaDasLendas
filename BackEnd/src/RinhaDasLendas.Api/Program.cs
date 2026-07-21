@@ -24,6 +24,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddSingleton<ApiMetrics>();
+builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();

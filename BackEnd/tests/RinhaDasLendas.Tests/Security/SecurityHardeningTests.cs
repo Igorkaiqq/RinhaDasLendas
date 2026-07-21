@@ -58,11 +58,15 @@ public sealed class SecurityHardeningTests
         jogadorB.VincularUsuario(userB);
         var montagem = new DraftMontagem("Draft", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         var repository = new InMemoryDraftMontagemRepository([montagem], [jogadorA, jogadorB]);
+        var notifier = new TestDraftMontagemRealtimeNotifier();
+        var metrics = new TestDraftMontagemMetrics();
         var handler = new ConfirmarPresencaDraftMontagemCommandHandler(
             repository,
             new TestCurrentUser(userA, [AuthRoles.Jogador]),
             new TestDiscordIdentityLookupService(),
-            new ConfirmarPresencaDraftMontagemValidator());
+            new ConfirmarPresencaDraftMontagemValidator(),
+            notifier,
+            metrics);
 
         await handler.Handle(new ConfirmarPresencaDraftMontagemCommand(
             montagem.Id,
@@ -70,6 +74,9 @@ public sealed class SecurityHardeningTests
 
         montagem.Presencas.Should().ContainSingle(presenca => presenca.UsuarioId == userA && presenca.JogadorId == jogadorA.Id);
         montagem.Presencas.Should().NotContain(presenca => presenca.UsuarioId == userB);
+        notifier.Calls.Should().Be(1);
+        notifier.LastDraftMontagemId.Should().Be(montagem.Id);
+        metrics.ConfirmedPresenceCalls.Should().Be(1);
     }
 
     [Fact]
@@ -82,7 +89,7 @@ public sealed class SecurityHardeningTests
         var montagem = new DraftMontagem("Draft", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         montagem.ConfirmarPresenca(userB, jogadorB.Id, null, DraftMontagemPresencaOrigem.Web);
         var repository = new InMemoryDraftMontagemRepository([montagem], [jogadorB]);
-        var handler = new CancelarPresencaDraftMontagemCommandHandler(repository, new TestCurrentUser(userA, [AuthRoles.Jogador]), new TestDiscordIdentityLookupService());
+        var handler = new CancelarPresencaDraftMontagemCommandHandler(repository, new TestCurrentUser(userA, [AuthRoles.Jogador]), new TestDiscordIdentityLookupService(), new TestDraftMontagemRealtimeNotifier(), new TestDraftMontagemMetrics());
 
         var act = () => handler.Handle(new CancelarPresencaDraftMontagemCommand(montagem.Id, new CancelarPresencaDraftMontagemRequestDto(userB, null)), CancellationToken.None);
 
@@ -143,6 +150,50 @@ public sealed class SecurityHardeningTests
         }
     }
 
+    private sealed class TestDraftMontagemRealtimeNotifier : IDraftMontagemRealtimeNotifier
+    {
+        public int Calls { get; private set; }
+
+        public Guid? LastDraftMontagemId { get; private set; }
+
+        public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
+        {
+            Calls++;
+            LastDraftMontagemId = draftMontagemId;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestDraftMontagemMetrics : IDraftMontagemMetrics
+    {
+        public int ConfirmedPresenceCalls { get; private set; }
+
+        public void RecordPresenceConfirmed(Guid draftMontagemId, string origin)
+        {
+            ConfirmedPresenceCalls++;
+        }
+
+        public void RecordPresenceCancelled(Guid draftMontagemId, string origin)
+        {
+        }
+
+        public void RecordPresenceClosed(Guid draftMontagemId)
+        {
+        }
+
+        public void RecordDiscordPublication(Guid draftMontagemId, string type, string status)
+        {
+        }
+
+        public void RecordPick(Guid draftMontagemId, string type)
+        {
+        }
+
+        public void RecordDraftTimeout(Guid draftMontagemId)
+        {
+        }
+    }
+
     private sealed class InMemoryDraftMontagemRepository(IReadOnlyCollection<DraftMontagem> montagens, IReadOnlyCollection<Jogador> jogadores) : IDraftMontagemRepository
     {
         public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -155,13 +206,17 @@ public sealed class SecurityHardeningTests
 
         public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
-        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
-        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, CancellationToken cancellationToken) => Task.FromResult(0);
+        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken) => Task.FromResult(0);
 
         public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Jogador>>(jogadores.Where(jogador => jogadoresIds.Contains(jogador.Id)).ToArray());
 
         public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => Task.FromResult(jogadores.FirstOrDefault(jogador => jogador.UsuarioId == usuarioId));
+
+        public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Jogador>>([]);
+
+        public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => Task.FromResult(0);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

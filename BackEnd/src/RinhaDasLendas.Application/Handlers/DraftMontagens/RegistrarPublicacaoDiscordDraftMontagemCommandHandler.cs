@@ -11,7 +11,8 @@ using RinhaDasLendas.Domain.Repositories;
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
-    IDraftMontagemRepository repository) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemRepository repository,
+    IDraftMontagemMetrics metrics) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -21,9 +22,13 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
             return null;
         }
 
-        montagem.ConfigurarPublicacaoDiscord(command.Request.DiscordGuildId ?? montagem.DiscordGuildId, command.Request.DiscordPresenceMessageId);
+        var tipo = string.IsNullOrWhiteSpace(command.Request.Tipo)
+            ? DraftMontagemPublicacaoDiscordTipo.Presenca
+            : Enum.Parse<DraftMontagemPublicacaoDiscordTipo>(command.Request.Tipo, true);
+        montagem.RegistrarPublicacaoDiscord(tipo, command.Request.DiscordGuildId ?? montagem.DiscordGuildId, command.Request.DiscordChannelId, command.Request.DiscordPresenceMessageId);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Publicada.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 }

@@ -3,6 +3,7 @@ import { RouterView } from 'vue-router'
 import { useRoute } from 'vue-router'
 
 import AppShell from '@/components/layout/AppShell.vue'
+import MesaToastHost from '@/components/layout/MesaToastHost.vue'
 
 const route = useRoute()
 </script>
@@ -12,4 +13,5 @@ const route = useRoute()
   <AppShell v-else>
     <RouterView />
   </AppShell>
+  <MesaToastHost />
 </template>

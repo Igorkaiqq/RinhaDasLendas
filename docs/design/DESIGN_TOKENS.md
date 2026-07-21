@@ -62,6 +62,20 @@ glow-secondary: "rgba(37, 99, 235, 0.22)"
 overlay: "rgba(5, 5, 8, 0.72)"
 ```
 
+### Mesa de Draft Extension
+
+```yaml
+rift-void: "#070A12"
+panel-smoke: "#101522"
+lane-slate: "#1B2433"
+spell-violet: "#7C3AED"
+summoner-blue: "#38BDF8"
+ban-gold: "#C8A24A"
+ban-gold-soft: "rgba(200, 162, 74, 0.14)"
+```
+
+`ban-gold` é um acento restrito a capitães, pick/ban, atenção de publicação e momentos decisivos. Não deve ser usado como cor genérica de destaque, hover ou decoração de fundo.
+
 ---
 
 # Typography
@@ -70,10 +84,10 @@ overlay: "rgba(5, 5, 8, 0.72)"
 
 ```yaml
 display:
-  Inter
+  Space Grotesk
 
 body:
-  Inter
+  Hanken Grotesk
 
 mono:
   JetBrains Mono
