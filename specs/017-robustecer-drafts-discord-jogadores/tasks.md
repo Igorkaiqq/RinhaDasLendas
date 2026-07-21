@@ -198,9 +198,9 @@
 ### Test determinism and Discord authorization
 
 - [x] T075 [P] [US7] Corrigir o teste dependente do calendário com relógio explícito em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`.
-- [ ] T076 [P] [US7] Adicionar testes falhos de permissão padrão dos comandos em `discord-bot/src/discord/commands/draftCommands.spec.ts`.
-- [ ] T077 [P] [US7] Adicionar testes falhos de autorização runtime por `ManageGuild` ou `DRAFT_ADMIN_ROLE_IDS` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`.
-- [ ] T078 [US7] Implementar autorização dos comandos mutáveis em `discord-bot/src/discord/commands/draftCommands.ts`, `discord-bot/src/modules/drafts/draftInteractions.ts` e configuração/mensagens do bot.
+- [x] T076 [P] [US7] Adicionar testes falhos de permissão padrão dos comandos em `discord-bot/src/discord/commands/draftCommands.spec.ts`.
+- [x] T077 [P] [US7] Adicionar testes falhos de autorização runtime por `ManageGuild` ou `DRAFT_ADMIN_ROLE_IDS` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`.
+- [x] T078 [US7] Implementar autorização dos comandos mutáveis em `discord-bot/src/discord/commands/draftCommands.ts`, `discord-bot/src/modules/drafts/draftInteractions.ts` e configuração/mensagens do bot.
 
 ### Internal token and rate limiting
 

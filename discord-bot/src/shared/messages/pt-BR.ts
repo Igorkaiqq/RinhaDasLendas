@@ -37,6 +37,7 @@ export const ptBR = {
   invalidDraftName: 'Informe um nome para a rinha. Exemplo: Rinha de sexta.',
   invalidPastClosingTime: 'Esse horário já passou. Informe uma data futura no horário de Brasília.',
   invalidCalendarDate: 'Essa data não existe. Confira o dia e o mês informados.',
+  draftAdministrationDenied: 'Você precisa da permissão Gerenciar Servidor ou de um cargo administrativo de drafts para usar este comando.',
   captainsDefined: 'Capitães definidos. Agora defina ou sorteie a ordem de escolha.',
   pickOrderDefined: 'Ordem de escolha definida. O draft está pronto para começar.',
   presenceConfirmed: 'Presença confirmada. Você entrou na lista da rinha.',

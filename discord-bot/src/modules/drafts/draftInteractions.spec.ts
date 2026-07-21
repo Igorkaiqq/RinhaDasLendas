@@ -1,8 +1,73 @@
-import { describe, it } from 'node:test'
+import { afterEach, describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
+import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
+import type { ChatInputCommandInteraction } from 'discord.js'
 
-import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, parsePresenceClosingTime, shouldPublishDiscordPublication, validatePresenceClosingTime } from './draftInteractions.js'
-import { RinhaApiError } from '../../shared/api/rinhaApi.js'
+import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, parsePresenceClosingTime, shouldPublishDiscordPublication, validatePresenceClosingTime } from './draftInteractions.js'
+import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
+import { env } from '../../config/env.js'
+import { t } from '../../shared/messages/index.js'
+
+afterEach(() => mock.restoreAll())
+
+function cancelInteraction(options: {
+  memberPermissions?: PermissionsBitField
+  roleIds?: string[]
+}) {
+  const replies: unknown[] = []
+  const interaction = {
+    commandName: 'draft-cancelar',
+    id: 'interaction-1',
+    replied: false,
+    memberPermissions: options.memberPermissions ?? new PermissionsBitField(),
+    member: { roles: { cache: new Map((options.roleIds ?? []).map((roleId) => [roleId, {}])) } },
+    options: {
+      getString: (name: string) => name === 'draft-id' ? 'draft-1' : null,
+    },
+    reply: async (payload: unknown) => {
+      replies.push(payload)
+    },
+  } as unknown as ChatInputCommandInteraction
+
+  return { interaction, replies }
+}
+
+describe('handleDraftCommand authorization', () => {
+  it('allows a member with ManageGuild to run a mutable command', async () => {
+    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
+    const { interaction } = cancelInteraction({
+      memberPermissions: new PermissionsBitField(PermissionFlagsBits.ManageGuild),
+    })
+
+    await handleDraftCommand(interaction)
+
+    assert.equal(cancelDraft.mock.callCount(), 1)
+  })
+
+  it('allows a member with a configured draft administrator role', async () => {
+    const previousRoleIds = env.DRAFT_ADMIN_ROLE_IDS
+    env.DRAFT_ADMIN_ROLE_IDS = 'role-1, role-2'
+    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
+    const { interaction } = cancelInteraction({ roleIds: ['role-2'] })
+
+    try {
+      await handleDraftCommand(interaction)
+      assert.equal(cancelDraft.mock.callCount(), 1)
+    } finally {
+      env.DRAFT_ADMIN_ROLE_IDS = previousRoleIds
+    }
+  })
+
+  it('denies a member without permission before calling the mutable API', async () => {
+    const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
+    const { interaction, replies } = cancelInteraction({ roleIds: ['other-role'] })
+
+    await handleDraftCommand(interaction)
+
+    assert.equal(cancelDraft.mock.callCount(), 0)
+    assert.deepEqual(replies, [{ content: t.draftAdministrationDenied, flags: MessageFlags.Ephemeral }])
+  })
+})
 
 describe('parsePresenceClosingTime', () => {
   it('interprets the informed time as Brasilia time', () => {

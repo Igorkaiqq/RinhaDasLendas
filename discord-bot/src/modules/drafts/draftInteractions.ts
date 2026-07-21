@@ -1,4 +1,4 @@
-import { MessageFlags, PermissionsBitField } from 'discord.js'
+import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
 import type { ButtonInteraction, ChatInputCommandInteraction, Client, User } from 'discord.js'
 import type { DraftMontagem } from '../../shared/api/types.js'
 import type { DiscordConfiguration } from '../../shared/api/types.js'
@@ -18,6 +18,11 @@ import {
 
 export async function handleDraftCommand(interaction: ChatInputCommandInteraction) {
   try {
+    if (isMutableDraftCommand(interaction.commandName) && !isDraftAdministrator(interaction, parseCommaSeparatedIds(env.DRAFT_ADMIN_ROLE_IDS))) {
+      await interaction.reply({ content: t.draftAdministrationDenied, flags: MessageFlags.Ephemeral })
+      return
+    }
+
     if (interaction.commandName === DraftCommandNames.Create) {
     const draftName = interaction.options.getString(DraftOptionNames.Name, true)
     if (!draftName.trim()) {
@@ -98,6 +103,23 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
       await interaction.reply({ content: getDraftInteractionErrorMessage(error, getDraftCommandErrorContext(interaction.commandName)), flags: MessageFlags.Ephemeral })
     }
   }
+}
+
+export function isDraftAdministrator(interaction: ChatInputCommandInteraction, configuredRoleIds: readonly string[]) {
+  if (interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return true
+  if (!interaction.member || !('roles' in interaction.member)) return false
+
+  const memberRoles = interaction.member.roles
+  const roleIds = Array.isArray(memberRoles) ? memberRoles : Array.from(memberRoles.cache.keys())
+  return configuredRoleIds.some((roleId) => roleIds.includes(roleId))
+}
+
+function isMutableDraftCommand(commandName: string) {
+  return commandName === DraftCommandNames.Create
+    || commandName === DraftCommandNames.Cancel
+    || commandName === DraftCommandNames.ClosePresence
+    || commandName === DraftCommandNames.DefineCaptains
+    || commandName === DraftCommandNames.DefinePickOrder
 }
 
 export async function handlePresenceButton(interaction: ButtonInteraction) {

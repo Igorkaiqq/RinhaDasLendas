@@ -37,6 +37,7 @@ export const enUS = {
   invalidDraftName: 'Enter a rinha name. Example: Friday rinha.',
   invalidPastClosingTime: 'This time has already passed. Enter a future date in Brasilia time.',
   invalidCalendarDate: 'This date does not exist. Check the day and month you entered.',
+  draftAdministrationDenied: 'You need the Manage Server permission or a draft administrator role to use this command.',
   captainsDefined: 'Captains defined. Now define or draw the pick order.',
   pickOrderDefined: 'Pick order defined. The draft is ready to start.',
   presenceConfirmed: 'Presence confirmed. You joined the rinha list.',
