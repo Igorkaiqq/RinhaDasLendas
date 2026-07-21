@@ -239,10 +239,10 @@
 
 ### Administrative validation and authorship
 
-- [ ] T099 [P] [US7] Adicionar testes falhos de validators para motivos nulo, vazio, whitespace e executor inválido.
-- [ ] T100 [US7] Exigir motivo e usuário atual válido em cancelamento, presença manual e republicação; auditar adição manual.
-- [ ] T101 [P] [US7] Adicionar testes falhos dos payloads de publicação para tipo, claim, obrigatoriedade e limites.
-- [ ] T102 [US7] Implementar validators de publicação e remover `Enum.Parse` sobre entrada não validada.
+- [x] T099 [P] [US7] Adicionar testes falhos de validators para motivos nulo, vazio, whitespace e executor inválido.
+- [x] T100 [US7] Exigir motivo e usuário atual válido em cancelamento, presença manual e republicação; auditar adição manual.
+- [x] T101 [P] [US7] Adicionar testes falhos dos payloads de publicação para tipo, claim, obrigatoriedade e limites.
+- [x] T102 [US7] Implementar validators de publicação e remover `Enum.Parse` sobre entrada não validada.
 
 ### Realtime, projections and metrics
 
