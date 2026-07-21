@@ -476,6 +476,91 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         (await factory.GetPublicationCountAsync(republication.DraftId)).Should().Be(0);
     }
 
+    [Fact]
+    public async Task ConsultasPublicas_NaoDevemExporAuditoriaOuDadosOperacionais()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedProjectionDraftAsync();
+        using var client = factory.CreatePlayerClient(fixture.PlayerUserId);
+
+        var detailResponse = await client.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}");
+        var listResponse = await client.GetAsync("/api/v1/draft-montagens?pageSize=100");
+        var realtimeResponse = await client.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}/realtime-state");
+
+        detailResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        realtimeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        AssertPublicProjection(await detailResponse.Content.ReadAsStringAsync());
+        AssertPublicProjection(await listResponse.Content.ReadAsStringAsync());
+        AssertPublicProjection(await realtimeResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task ConsultaAdministrativa_DeveExigirPermissaoERetornarAuditoriaEOperacaoCompletas()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedProjectionDraftAsync();
+        using var playerClient = factory.CreatePlayerClient(fixture.PlayerUserId);
+        using var adminClient = factory.CreateUserClient(fixture.AdminUserId);
+
+        var forbiddenResponse = await playerClient.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}/administracao");
+        var adminResponse = await adminClient.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}/administracao");
+
+        forbiddenResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        adminResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await adminResponse.Content.ReadAsStringAsync();
+        json.Should().Contain("acoesAdministrativas");
+        json.Should().Contain("responsavelUsuarioId");
+        json.Should().Contain("jogadorAlvoId");
+        json.Should().Contain("motivo");
+        json.Should().Contain("discordGuildId");
+        json.Should().Contain("discordPresenceMessageId");
+        json.Should().Contain("discordUserId");
+        json.Should().Contain("guildId");
+        json.Should().Contain("channelId");
+        json.Should().Contain("messageId");
+        json.Should().Contain("ultimoErroCodigo");
+        json.Should().Contain("claimId");
+    }
+
+    [Fact]
+    public async Task ConsultaDoBot_DeveRetornarSomenteContratoOperacionalCompativel()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedProjectionDraftAsync();
+        using var client = factory.CreateBotClient();
+
+        var response = await client.GetAsync("/api/v1/draft-montagens/ativos");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain(fixture.DraftId.ToString());
+        json.Should().Contain("discordPresenceMessageId");
+        json.Should().Contain("publicacoesDiscord");
+        json.Should().NotContain("acoesAdministrativas");
+        json.Should().NotContain("responsavelUsuarioId");
+        json.Should().NotContain("jogadorAlvoId");
+        json.Should().NotContain("discordUserId");
+        json.Should().NotContain("claimId");
+        json.Should().NotContain("ultimoErroCodigo");
+    }
+
+    private static void AssertPublicProjection(string json)
+    {
+        json.Should().NotContain("acoesAdministrativas");
+        json.Should().NotContain("motivoCancelamento");
+        json.Should().NotContain("responsavelUsuarioId");
+        json.Should().NotContain("jogadorAlvoId");
+        json.Should().NotContain("discordGuildId");
+        json.Should().NotContain("discordPresenceMessageId");
+        json.Should().NotContain("discordUserId");
+        json.Should().NotContain("guildId");
+        json.Should().NotContain("channelId");
+        json.Should().NotContain("messageId");
+        json.Should().NotContain("ultimoErroCodigo");
+        json.Should().NotContain("claimId");
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -564,7 +649,14 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public HttpClient CreateUserClient(Guid userId)
         {
             var client = CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId, AuthRoles.Admin));
+            return client;
+        }
+
+        public HttpClient CreatePlayerClient(Guid userId)
+        {
+            var client = CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId, AuthRoles.Jogador));
             return client;
         }
 
@@ -592,12 +684,12 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         public string CreateJwt(Guid userId)
         {
-            return CreateJwt((Guid?)userId);
+            return CreateJwt((Guid?)userId, AuthRoles.Admin);
         }
 
-        private string CreateJwt(Guid? userId)
+        private string CreateJwt(Guid? userId, string role = AuthRoles.Admin)
         {
-            var claims = new List<Claim> { new(ClaimTypes.Role, AuthRoles.Admin) };
+            var claims = new List<Claim> { new(ClaimTypes.Role, role) };
             if (userId.HasValue)
             {
                 claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
@@ -612,6 +704,59 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                     new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
                     SecurityAlgorithms.HmacSha256));
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task<(Guid DraftId, Guid AdminUserId, Guid PlayerUserId)> SeedProjectionDraftAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var adminUserId = Guid.NewGuid();
+            var playerUserId = Guid.NewGuid();
+            dbContext.Users.AddRange(
+                new ApplicationUser
+                {
+                    Id = adminUserId,
+                    Nome = "Administrador da projecao",
+                    UserName = $"projection-admin-{adminUserId:N}",
+                    NormalizedUserName = $"PROJECTION-ADMIN-{adminUserId:N}",
+                },
+                new ApplicationUser
+                {
+                    Id = playerUserId,
+                    Nome = "Jogador da projecao",
+                    UserName = $"projection-player-{playerUserId:N}",
+                    NormalizedUserName = $"PROJECTION-PLAYER-{playerUserId:N}",
+                });
+            var jogador = new Jogador(
+                "Jogador da projecao",
+                null,
+                "projection#1234",
+                null,
+                null,
+                null,
+                Elo.Ouro,
+                Divisao.II,
+                new[]
+                {
+                    new PreferenciaRota(Rota.Top, 1, false),
+                    new PreferenciaRota(Rota.Jungle, 2, false),
+                    new PreferenciaRota(Rota.Mid, 3, false),
+                    new PreferenciaRota(Rota.Adc, 4, false),
+                    new PreferenciaRota(Rota.Support, 5, false),
+                });
+            jogador.VincularUsuario(playerUserId);
+            var draft = new DraftMontagem("Draft de projecao", "observacao publica", 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfirmarPresenca(playerUserId, jogador.Id, "discord-user-secreto", DraftMontagemPresencaOrigem.Discord);
+            var claimId = Guid.NewGuid();
+            var now = DateTimeOffset.UtcNow;
+            draft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild-secreta", "channel-secreto", claimId, now.AddMinutes(5), now);
+            draft.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, claimId, "guild-secreta", "channel-secreto", "message-secreta", now.AddMinutes(1));
+            draft.SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, adminUserId, "motivo administrativo", now.AddMinutes(2), confirmarAusenciaPublicacao: true);
+            dbContext.Jogadores.Add(jogador);
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            return (draft.Id, adminUserId, playerUserId);
         }
 
         public async Task<(Guid DraftId, Guid ExecutorUserId, Guid TargetPlayerId)> SeedAdministrativeDraftAsync(bool confirmed = false)

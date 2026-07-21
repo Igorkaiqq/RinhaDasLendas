@@ -13,19 +13,21 @@ const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
   addManualDraftMontagemPresence: vi.fn(),
   getDraftMontagemById: vi.fn(),
+  getDraftMontagemAdminById: vi.fn(),
   getDraftMontagemRealtimeState: vi.fn(),
   listDraftMontagens: vi.fn(),
   listEligibleManualPresencePlayers: vi.fn(),
   removeManualDraftMontagemPresence: vi.fn(),
   republishDraftMontagemDiscordPublication: vi.fn(),
 }))
+const authMock = vi.hoisted(() => ({ canManageDrafts: true }))
 
 vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }))
 
 vi.mock('@/services/authState', () => ({
   useAuthState: () => ({
     user: ref({ id: 'organizador-1', jogadorId: null }),
-    hasPermission: () => true,
+    hasPermission: () => authMock.canManageDrafts,
   }),
 }))
 
@@ -37,7 +39,9 @@ vi.mock('@/services/players', () => ({
 vi.mock('@/services/draftMontagens', () => ({
   ...serviceMocks,
   DraftMontagemServiceError: class DraftMontagemServiceError extends Error {
-    errors: string[] = []
+    constructor(public errors: string[] = [], public status?: number) {
+      super(errors[0])
+    }
   },
   cancelDraftMontagemPresence: vi.fn(),
   closeDraftMontagemPresence: vi.fn(),
@@ -89,8 +93,8 @@ const montagem: DraftMontagem = {
   escolhas: [],
   substituicoes: [],
   publicacoesDiscord: [
-    { id: 'publicacao-1', tipo: 'Presenca', status: 'Falha', ultimaTentativaEm: '2026-07-19T12:00:00Z' },
-    { id: 'publicacao-2', tipo: 'TimesDefinidos', status: 'Publicada', ultimaTentativaEm: '2026-07-19T12:00:00Z' },
+    { tipo: 'Presenca', status: 'Falha', ultimaTentativaEm: '2026-07-19T12:00:00Z' },
+    { tipo: 'TimesDefinidos', status: 'Publicada', ultimaTentativaEm: '2026-07-19T12:00:00Z' },
   ],
   dataCadastro: '2026-07-19T12:00:00Z',
   dataAtualizacao: '2026-07-19T12:00:00Z',
@@ -151,7 +155,9 @@ async function confirmReasonAction(wrapper: VueWrapper, buttonText: string, reas
 describe('DraftsView reason actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authMock.canManageDrafts = true
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(montagem)
     serviceMocks.getDraftMontagemById.mockResolvedValue(montagem)
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem })
     serviceMocks.listEligibleManualPresencePlayers.mockResolvedValue([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
@@ -159,6 +165,35 @@ describe('DraftsView reason actions', () => {
     serviceMocks.cancelDraftMontagem.mockResolvedValue(montagem)
     serviceMocks.removeManualDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.republishDraftMontagemDiscordPublication.mockResolvedValue(montagem)
+  })
+
+  it('loads only the administrative endpoint when the user can manage drafts', async () => {
+    const wrapper = await mountView()
+
+    expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledWith('montagem-1')
+    expect(serviceMocks.getDraftMontagemById).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('loads only the public endpoint for a regular player', async () => {
+    authMock.canManageDrafts = false
+    const wrapper = await mountView()
+
+    expect(serviceMocks.getDraftMontagemById).toHaveBeenCalledWith('montagem-1')
+    expect(serviceMocks.getDraftMontagemAdminById).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('Republicar presença')
+    wrapper.unmount()
+  })
+
+  it('falls back to the public endpoint and hides admin actions after an administrative 403', async () => {
+    const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
+    serviceMocks.getDraftMontagemAdminById.mockRejectedValueOnce(new ServiceError([], 403))
+    const wrapper = await mountView()
+
+    expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledWith('montagem-1')
+    expect(serviceMocks.getDraftMontagemById).toHaveBeenCalledWith('montagem-1')
+    expect(wrapper.text()).not.toContain('Republicar presença')
+    wrapper.unmount()
   })
 
   afterEach(() => {

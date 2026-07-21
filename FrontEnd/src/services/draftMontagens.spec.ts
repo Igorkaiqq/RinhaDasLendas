@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DraftMontagem } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, cancelDraftMontagem, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishDraftMontagemDiscordPublication } from './draftMontagens'
+import { addManualDraftMontagemPresence, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishDraftMontagemDiscordPublication } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -38,7 +38,6 @@ const montagem: DraftMontagem = {
   reservas: [],
   escolhas: [],
   substituicoes: [],
-  motivoCancelamento: null,
   dataCadastro: '2026-06-20T00:00:00Z',
   dataAtualizacao: '2026-06-20T00:00:00Z',
 }
@@ -67,6 +66,16 @@ describe('draftMontagens service', () => {
 
     expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1')
     expect(result).toBe(montagem)
+  })
+
+  it('loads the explicit administrative projection by id', async () => {
+    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], acoesAdministrativas: [], publicacoesDiscord: [] }
+    vi.mocked(api.get).mockResolvedValue({ data: adminMontagem })
+
+    const result = await getDraftMontagemAdminById('montagem-1')
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/administracao')
+    expect(result).toBe(adminMontagem)
   })
 
   it('cancels visual draft assembly with reason', async () => {

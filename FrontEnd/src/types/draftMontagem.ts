@@ -66,8 +66,6 @@ export interface DraftMontagem {
   turnoExpiraEm?: string | null
   duracaoTurnoSegundos: number
   horarioEncerramentoPresenca?: string | null
-  discordGuildId?: string | null
-  discordPresenceMessageId?: string | null
   ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
   presencas: DraftMontagemPresenca[]
@@ -77,22 +75,25 @@ export interface DraftMontagem {
   escolhas: DraftMontagemEscolha[]
   substituicoes: DraftMontagemSubstituicao[]
   publicacoesDiscord?: DraftMontagemPublicacaoDiscord[]
-  acoesAdministrativas?: DraftMontagemAcaoAdministrativa[]
-  motivoCancelamento?: string | null
   dataCadastro: string
   dataAtualizacao: string
 }
 
 export interface DraftMontagemPublicacaoDiscord {
-  id?: string
   tipo: DraftMontagemPublicacaoDiscordTipo
   status: DraftMontagemPublicacaoDiscordStatus
+  publicadaEm?: string | null
+  ultimaTentativaEm: string
+}
+
+export interface DraftMontagemAdminPublicacaoDiscord extends DraftMontagemPublicacaoDiscord {
+  id: string
   guildId?: string | null
   channelId?: string | null
   messageId?: string | null
   ultimoErroCodigo?: string | null
-  publicadaEm?: string | null
-  ultimaTentativaEm: string
+  claimId?: string | null
+  claimExpiraEm?: string | null
 }
 
 export interface DraftMontagemAcaoAdministrativa {
@@ -104,6 +105,25 @@ export interface DraftMontagemAcaoAdministrativa {
   registradoEm: string
 }
 
+export interface DraftMontagemAdminPresenca extends DraftMontagemPresenca {
+  discordUserId?: string | null
+}
+
+export interface DraftMontagemAdminSubstituicao extends DraftMontagemSubstituicao {
+  motivo?: string | null
+  responsavelUsuarioId: string
+}
+
+export interface DraftMontagemAdmin extends DraftMontagem {
+  discordGuildId?: string | null
+  discordPresenceMessageId?: string | null
+  presencas: DraftMontagemAdminPresenca[]
+  substituicoes: DraftMontagemAdminSubstituicao[]
+  publicacoesDiscord: DraftMontagemAdminPublicacaoDiscord[]
+  acoesAdministrativas: DraftMontagemAcaoAdministrativa[]
+  motivoCancelamento?: string | null
+}
+
 export interface DraftMontagemResumo {
   id: string
   nome: string
@@ -113,8 +133,6 @@ export interface DraftMontagemResumo {
   quantidadeTimes: number
   quantidadeReservas: number
   horarioEncerramentoPresenca?: string | null
-  discordGuildId?: string | null
-  discordPresenceMessageId?: string | null
   ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
   dataRinha?: string | null
@@ -127,7 +145,6 @@ export interface DraftMontagemPresenca {
   usuarioId: string
   jogadorId: string
   nomeExibicao: string
-  discordUserId?: string | null
   origemConfirmacao: DraftMontagemPresencaOrigem
   status: DraftMontagemPresencaStatus
   confirmadoEm: string
@@ -153,8 +170,6 @@ export interface DraftMontagemSubstituicao {
   reservaEntrouId: string
   jogadorSaiuNome?: string | null
   reservaEntrouNome?: string | null
-  motivo?: string | null
-  responsavelUsuarioId: string
   registradoEm: string
 }
 

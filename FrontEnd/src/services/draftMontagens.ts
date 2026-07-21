@@ -4,6 +4,7 @@ import { DraftMontagemPresencaOrigemValues } from '@/constants/draftMontagem'
 import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
+  DraftMontagemAdmin,
   DraftMontagemLayoutPayload,
   DraftMontagemManualPresencePayload,
   DraftMontagemOrdemEscolhaModo,
@@ -41,7 +42,7 @@ interface ApiErrorResponse {
 }
 
 export class DraftMontagemServiceError extends Error {
-  constructor(public readonly errors: string[]) {
+  constructor(public readonly errors: string[], public readonly status?: number) {
     super(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
 }
@@ -60,6 +61,15 @@ export async function listDraftMontagens(filters: { search?: string; status?: Dr
 export async function getDraftMontagemById(id: string): Promise<DraftMontagem> {
   try {
     const response = await api.get<DraftMontagem>(`/api/v1/draft-montagens/${id}`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function getDraftMontagemAdminById(id: string): Promise<DraftMontagemAdmin> {
+  try {
+    const response = await api.get<DraftMontagemAdmin>(`/api/v1/draft-montagens/${id}/administracao`)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -240,14 +250,14 @@ function toDraftMontagemServiceError(error: unknown): DraftMontagemServiceError 
   if (error instanceof AxiosError) {
     const data = error.response?.data as ApiErrorResponse | undefined
     if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      return new DraftMontagemServiceError(data.errors)
+      return new DraftMontagemServiceError(data.errors, error.response?.status)
     }
     if (data?.messageCode) {
-      return new DraftMontagemServiceError([getMessage(data.messageCode)])
+      return new DraftMontagemServiceError([getMessage(data.messageCode)], error.response?.status)
     }
 
     if (data?.message) {
-      return new DraftMontagemServiceError([data.message])
+      return new DraftMontagemServiceError([data.message], error.response?.status)
     }
   }
 

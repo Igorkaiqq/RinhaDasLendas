@@ -28,8 +28,6 @@ public sealed class GetDraftMontagensQueryHandler(IDraftMontagemRepository repos
                 montagem.QuantidadeTimes,
                 montagem.QuantidadeReservas,
                 montagem.HorarioEncerramentoPresenca,
-                montagem.DiscordGuildId,
-                montagem.DiscordPresenceMessageId,
                 montagem.OrdemEscolhaModo?.ToString(),
                 montagem.PresencaContinuadaManualmente,
                 montagem.HorarioEncerramentoPresenca,

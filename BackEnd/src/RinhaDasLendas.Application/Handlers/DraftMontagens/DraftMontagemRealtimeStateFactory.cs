@@ -24,6 +24,6 @@ public static class DraftMontagemRealtimeStateFactory
 
     public static DraftMontagemRealtimeStateDto Create(DraftMontagem montagem, DateTimeOffset now, bool canCurrentUserPick = false)
     {
-        return new DraftMontagemRealtimeStateDto(DraftMontagemPublicResponseDto.FromEntity(montagem), now, canCurrentUserPick);
+        return new DraftMontagemRealtimeStateDto(DraftMontagemResponseDto.FromEntity(montagem), now, canCurrentUserPick);
     }
 }

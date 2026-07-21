@@ -117,6 +117,6 @@ describe('DraftMontagemRealtimeConnection', () => {
 
     expect(handler).toHaveBeenCalledOnce()
     expect(handler).toHaveBeenCalledWith(state)
-    expect(JSON.stringify(handler.mock.calls[0]?.[0])).not.toMatch(/guildId|channelId|messageId|ultimoErroCodigo|claimId|responsavelUsuarioId|motivo/)
+    expect(JSON.stringify(handler.mock.calls[0]?.[0])).not.toMatch(/guildId|channelId|messageId|ultimoErroCodigo|claimId|responsavelUsuarioId|discordUserId|motivo/)
   })
 })

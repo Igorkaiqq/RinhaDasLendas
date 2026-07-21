@@ -28,6 +28,7 @@ import {
   drawDraftMontagemCaptains,
   finalizeDraftMontagem,
   getDraftMontagemById,
+  getDraftMontagemAdminById,
   getDraftMontagemRealtimeState,
   listEligibleManualPresencePlayers,
   listDraftMontagens,
@@ -63,10 +64,12 @@ const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
+const adminAccessDenied = ref(false)
 
 const captainSelection = ref<string[]>([])
 const statusOptions = DRAFT_MONTAGEM_STATUS_OPTIONS
-const canManageDrafts = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
+const hasDraftManagementPermission = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
+const canManageDrafts = computed(() => hasDraftManagementPermission.value && !adminAccessDenied.value)
 const currentUserId = computed(() => auth.user.value?.id ?? null)
 const currentAuthPlayerId = computed(() => auth.user.value?.jogadorId ?? null)
 const myPresence = computed(
@@ -146,7 +149,7 @@ async function openMontagem(id: string) {
   saving.value = true
   errors.value = []
   try {
-    selectedMontagem.value = await getDraftMontagemById(id)
+    selectedMontagem.value = await loadMontagemDetail(id)
     captainSelection.value = []
     await loadEligibleManualPresencePlayers()
     await connectRealtime(id)
@@ -154,6 +157,23 @@ async function openMontagem(id: string) {
     captureError(error)
   } finally {
     saving.value = false
+  }
+}
+
+async function loadMontagemDetail(id: string) {
+  if (!hasDraftManagementPermission.value || adminAccessDenied.value) {
+    return getDraftMontagemById(id)
+  }
+
+  try {
+    return await getDraftMontagemAdminById(id)
+  } catch (error) {
+    if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) {
+      throw error
+    }
+
+    adminAccessDenied.value = true
+    return getDraftMontagemById(id)
   }
 }
 

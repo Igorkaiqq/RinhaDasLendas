@@ -461,7 +461,7 @@ public sealed class DraftMontagemPublicationRealtimeTests
             agora.AddMinutes(2));
 
         var state = new DraftMontagemRealtimeStateDto(
-            DraftMontagemPublicResponseDto.FromEntity(montagem),
+            DraftMontagemResponseDto.FromEntity(montagem),
             agora,
             false);
         var json = JsonSerializer.Serialize(state, new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -470,6 +470,7 @@ public sealed class DraftMontagemPublicationRealtimeTests
         json.Should().NotContain("motivoCancelamento");
         json.Should().NotContain("discordGuildId");
         json.Should().NotContain("discordPresenceMessageId");
+        json.Should().NotContain("discordUserId");
         json.Should().NotContain("guildId");
         json.Should().NotContain("channelId");
         json.Should().NotContain("messageId");

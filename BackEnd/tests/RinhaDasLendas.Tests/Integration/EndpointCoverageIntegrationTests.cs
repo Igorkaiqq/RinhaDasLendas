@@ -604,6 +604,7 @@ public sealed class EndpointCoverageIntegrationTests
             EndpointKey.From("GET", "/api/v1/draft-montagens"),
             EndpointKey.From("GET", "/api/v1/draft-montagens/ativos"),
             EndpointKey.From("GET", "/api/v1/draft-montagens/{id}"),
+            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/administracao"),
             EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/realtime-state"),
             EndpointKey.From("POST", "/api/v1/draft-montagens"),
             EndpointKey.From("PUT", "/api/v1/draft-montagens/{id}/layout"),
