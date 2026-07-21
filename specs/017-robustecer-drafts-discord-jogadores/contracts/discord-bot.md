@@ -9,6 +9,8 @@
 - Mutating commands require `ManageGuild` or a role listed in `DRAFT_ADMIN_ROLE_IDS` before any API mutation.
 - Read-only status and list commands remain available under the current visibility rules.
 - Every mutating command and presence button checks `botEnabled` before mutation.
+- Draft cancellation is web-only. The bot does not register `/draft-cancelar` and does not call the administrative draft cancellation endpoint.
+- The four mutating slash commands are create draft, close presence, define captains and define pick order; their authorization requirements remain unchanged.
 
 ## Polling behavior
 

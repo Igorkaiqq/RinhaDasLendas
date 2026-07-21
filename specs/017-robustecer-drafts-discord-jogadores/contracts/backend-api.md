@@ -68,6 +68,12 @@ Expected outcomes:
 - Does not duplicate active publication when an existing message is still valid.
 - Records failed state with reason when Discord publication cannot be completed.
 
+## Draft cancellation
+
+- Draft cancellation remains an authenticated administrative web operation.
+- The Discord bot does not consume the draft cancellation endpoint.
+- Cancellation requires a valid administrative user identifier and a non-empty localized reason payload.
+
 ## Eligible manual presence search
 
 Administrators can search eligible players for a draft presence.

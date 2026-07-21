@@ -91,7 +91,7 @@ git commit -m "test: tornar data do bot determinística"
 - [ ] **Step 1: Testar permissões padrão serializadas**
 
 ```ts
-const mutable = new Set(['draft-criar', 'draft-cancelar', 'draft-encerrar-presenca', 'draft-definir-capitaes', 'draft-definir-ordem-escolha'])
+const mutable = new Set(['draft-criar', 'draft-encerrar-presenca', 'draft-definir-capitaes', 'draft-definir-ordem-escolha'])
 for (const command of draftCommands) {
   if (mutable.has(command.name)) assert.equal(command.default_member_permissions, PermissionFlagsBits.ManageGuild.toString())
   else assert.equal(command.default_member_permissions, undefined)
@@ -123,7 +123,7 @@ export function isDraftAdministrator(interaction: ChatInputCommandInteraction, c
 }
 ```
 
-Executar a guarda para os cinco comandos mutáveis antes de consultar configuração ou chamar a API. Responder com `t.draftAdministrationDenied` e `MessageFlags.Ephemeral`.
+Executar a guarda para os quatro comandos mutáveis antes de consultar configuração ou chamar a API. Responder com `t.draftAdministrationDenied` e `MessageFlags.Ephemeral`. O cancelamento de draft permanece exclusivo do site e `/draft-cancelar` não é registrado pelo bot.
 
 - [ ] **Step 5: Adicionar configuração e mensagens equivalentes**
 

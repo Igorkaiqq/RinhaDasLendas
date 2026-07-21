@@ -34,6 +34,12 @@ Administradores podem solicitar republicação pelo frontend. A ação:
 - registra ação administrativa com usuário responsável e motivo;
 - permite que o bot publique novamente e registre o novo `message_id`.
 
+## Cancelamento do draft
+
+O cancelamento administrativo do draft é exclusivo do site. O bot não registra o comando `/draft-cancelar` e não chama o endpoint de cancelamento do draft. O botão de cancelar presença no Discord continua disponível porque altera somente a presença do próprio jogador.
+
+No site, o cancelamento exige usuário administrativo autenticado e motivo não vazio, com no máximo 500 caracteres.
+
 ## Presença
 
 Presenças são idempotentes no domínio:
