@@ -183,6 +183,11 @@
   <data name="MV079" xml:space="preserve"><value>Invalid internal bot token</value></data>
   <data name="MV080" xml:space="preserve"><value>The Discord publication is not pending</value></data>
   <data name="MV081" xml:space="preserve"><value>The Discord publication claim is invalid</value></data>
+  <data name="MV082" xml:space="preserve"><value>The Discord publication claim has expired</value></data>
+  <data name="MV083" xml:space="preserve"><value>The Discord publication claim identifier is invalid</value></data>
+  <data name="MV084" xml:space="preserve"><value>The Discord publication claim expiration must be in the future</value></data>
+  <data name="MV085" xml:space="preserve"><value>The Discord publication is in progress</value></data>
+  <data name="MV086" xml:space="preserve"><value>Confirm that the Discord publication is absent before republishing</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

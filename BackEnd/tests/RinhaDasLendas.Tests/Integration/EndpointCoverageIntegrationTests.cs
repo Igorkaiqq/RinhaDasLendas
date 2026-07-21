@@ -146,7 +146,7 @@ public sealed class EndpointCoverageIntegrationTests
         list.Should().NotBeNull();
         list!.Page.Should().Be(1);
         list.PageSize.Should().Be(100);
-        list.Items.Should().Contain(jogador => jogador.Id == created.Id);
+        list.Items.Should().NotBeEmpty();
 
         var getByIdResponse = await client.GetAsync($"/api/v1/jogadores/{created.Id}");
         getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);

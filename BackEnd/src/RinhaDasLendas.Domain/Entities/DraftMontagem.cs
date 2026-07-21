@@ -92,7 +92,8 @@ public sealed class DraftMontagem
     {
         if (!string.IsNullOrWhiteSpace(messageId))
         {
-            throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+            RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, guildId, null, messageId);
+            return;
         }
 
         DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
@@ -102,7 +103,14 @@ public sealed class DraftMontagem
 
     public void RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string messageId)
     {
-        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
+        publicacao.RegistrarPublicada(guildId, channelId, messageId);
+        if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
+        {
+            DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
+            DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
+        }
+        Touch();
     }
 
     public void IniciarTentativaPublicacaoDiscord(
@@ -113,6 +121,7 @@ public sealed class DraftMontagem
         DateTimeOffset expiraEm,
         DateTimeOffset agora)
     {
+        DraftMontagemPublicacaoDiscord.ValidarInicioTentativa(claimId, expiraEm, agora);
         var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
         publicacao.IniciarTentativa(claimId, expiraEm, agora);
         Touch(agora);
@@ -138,7 +147,9 @@ public sealed class DraftMontagem
 
     public void RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId, string? erroCodigo)
     {
-        throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
+        publicacao.RegistrarFalha(guildId, channelId, erroCodigo);
+        Touch();
     }
 
     public void RegistrarFalhaPublicacaoDiscord(
@@ -166,10 +177,26 @@ public sealed class DraftMontagem
         return true;
     }
 
-    public void SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, Guid responsavelUsuarioId, string? motivo, DateTimeOffset agora)
+    public void SolicitarRepublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid responsavelUsuarioId,
+        string? motivo,
+        DateTimeOffset agora,
+        bool confirmarAusenciaPublicacao = false)
     {
-        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, DiscordGuildId, null);
-        publicacao.SolicitarRepublicacao(agora);
+        var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
+        var criada = publicacao is null;
+        if (publicacao is null)
+        {
+            publicacao = new DraftMontagemPublicacaoDiscord(tipo, DiscordGuildId, null, agora);
+            _publicacoesDiscord.Add(publicacao);
+        }
+
+        if (!criada && !publicacao.SolicitarRepublicacao(agora, confirmarAusenciaPublicacao))
+        {
+            return;
+        }
+
         _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa($"RepublicacaoDiscord:{tipo}", responsavelUsuarioId, motivo));
         Touch(agora);
     }
