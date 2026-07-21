@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
@@ -11,7 +12,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
-    IValidator<AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto> validator)
+    IValidator<AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto> validator,
+    IDraftMontagemRealtimeNotifier notifier)
     : IRequestHandler<AdquirirClaimPublicacaoDiscordDraftMontagemCommand, ClaimPublicacaoDiscordResponseDto?>
 {
     private static readonly TimeSpan ClaimDuration = TimeSpan.FromMinutes(5);
@@ -26,7 +28,12 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.FieldRequired);
         }
         var agora = DateTimeOffset.UtcNow;
-        await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+        var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+        await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(
+            expirados,
+            repository,
+            notifier,
+            cancellationToken);
         var claim = await repository.TryClaimPublicacaoDiscordAsync(
             command.Id,
             tipo,
@@ -34,6 +41,15 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
             agora.Add(ClaimDuration),
             agora,
             cancellationToken);
+        if (claim?.Adquirido == true)
+        {
+            await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(
+                [command.Id],
+                repository,
+                notifier,
+                cancellationToken);
+        }
+
         return claim is null ? null : ClaimPublicacaoDiscordResponseDto.FromModel(claim);
     }
 }

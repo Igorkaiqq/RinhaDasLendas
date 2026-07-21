@@ -13,7 +13,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<RegistrarFalhaPublicacaoDiscordDraftMontagemRequestDto> validator,
-    IDraftMontagemMetrics metrics) : IRequestHandler<RegistrarFalhaPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemMetrics metrics,
+    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<RegistrarFalhaPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarFalhaPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -34,7 +35,8 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
             cancellationToken);
         if (!updated)
         {
-            await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+            var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+            await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(expirados, repository, notifier, cancellationToken);
             if (await repository.GetByIdAsync(command.Id, cancellationToken) is null)
             {
                 return null;
@@ -43,8 +45,16 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
-        var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
+        var montagem = await repository.ReloadByIdAsync(command.Id, cancellationToken);
         metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Falha.ToString());
+        if (montagem is not null)
+        {
+            await notifier.StateUpdatedAsync(
+                command.Id,
+                DraftMontagemRealtimeStateFactory.Create(montagem, DateTimeOffset.UtcNow),
+                cancellationToken);
+        }
+
         return montagem is null ? null : DraftMontagemResponseDto.FromEntity(montagem);
     }
 }

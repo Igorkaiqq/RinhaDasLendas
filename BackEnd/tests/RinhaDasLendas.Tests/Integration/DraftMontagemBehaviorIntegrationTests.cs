@@ -851,7 +851,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         {
             await using var scope = Services.CreateAsyncScope();
             var repository = scope.ServiceProvider.GetRequiredService<RinhaDasLendas.Domain.Repositories.IDraftMontagemRepository>();
-            return await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+            return (await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None)).Count;
         }
 
         public async Task<string?> GetPublicationStatusAsync(Guid draftId)
@@ -1044,7 +1044,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public Task<DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryClaimPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, expiraEm, agora, cancellationToken);
         public Task<bool> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
         public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
-        public Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+        public Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
 
         public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {

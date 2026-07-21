@@ -4,6 +4,6 @@ using RinhaDasLendas.Domain.Enums;
 namespace RinhaDasLendas.Application.Dtos;
 
 public sealed record DraftMontagemRealtimeStateDto(
-    DraftMontagemResponseDto Montagem,
+    DraftMontagemPublicResponseDto Montagem,
     DateTimeOffset ServerNow,
     bool CanCurrentUserPick);

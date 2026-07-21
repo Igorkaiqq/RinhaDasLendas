@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { DraftMontagemRealtimeState } from '@/types/draftMontagem'
+
 const signalRMock = vi.hoisted(() => {
+  let stateUpdated: ((state: DraftMontagemRealtimeState) => void) | undefined
   const connection = {
-    on: vi.fn(),
+    on: vi.fn((event: string, handler: (state: DraftMontagemRealtimeState) => void) => {
+      if (event === 'DraftMontagemStateUpdated') stateUpdated = handler
+    }),
     onreconnected: vi.fn(),
     state: 'Connected',
     start: vi.fn().mockResolvedValue(undefined),
@@ -15,7 +20,11 @@ const signalRMock = vi.hoisted(() => {
     build: vi.fn(() => connection),
   }
 
-  return { connection, builder }
+  return {
+    connection,
+    builder,
+    emitStateUpdated: (state: DraftMontagemRealtimeState) => stateUpdated?.(state),
+  }
 })
 
 vi.mock('@microsoft/signalr', () => ({
@@ -72,5 +81,42 @@ describe('DraftMontagemRealtimeConnection', () => {
     await expect(connection.disconnect()).resolves.toBeUndefined()
     await connectingExpectation
     expect(signalRMock.connection.invoke).not.toHaveBeenCalledWith('JoinDraftMontagem', 'draft-1')
+  })
+
+  it('consumes a sanitized public reconciliation projection', async () => {
+    const state: DraftMontagemRealtimeState = {
+      montagem: {
+        id: 'draft-1',
+        nome: 'Rinha',
+        status: 'PresencaAberta',
+        modo: 'Manual',
+        tamanhoEquipe: 5,
+        quantidadeTimes: 0,
+        quantidadeReservas: 0,
+        criterioCapitaes: 'Manual',
+        duracaoTurnoSegundos: 30,
+        presencaContinuadaManualmente: false,
+        presencas: [],
+        times: [],
+        livres: [],
+        reservas: [],
+        escolhas: [],
+        substituicoes: [],
+        publicacoesDiscord: [{ tipo: 'Presenca', status: 'RequerReconciliacao', ultimaTentativaEm: '2026-07-21T12:00:00Z' }],
+        dataCadastro: '2026-07-21T11:00:00Z',
+        dataAtualizacao: '2026-07-21T12:00:00Z',
+      },
+      serverNow: '2026-07-21T12:00:01Z',
+      canCurrentUserPick: false,
+    }
+    const handler = vi.fn()
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+
+    await connection.connect(handler)
+    signalRMock.emitStateUpdated(state)
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(handler).toHaveBeenCalledWith(state)
+    expect(JSON.stringify(handler.mock.calls[0]?.[0])).not.toMatch(/guildId|channelId|messageId|ultimoErroCodigo|claimId|responsavelUsuarioId|motivo/)
   })
 })

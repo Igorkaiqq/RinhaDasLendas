@@ -561,7 +561,7 @@ public sealed class SecurityHardeningTests
 
         public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(false);
 
-        public Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(0);
+        public Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Guid>>([]);
 
         public Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {

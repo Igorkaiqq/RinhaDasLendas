@@ -244,21 +244,33 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return ExecuteTransitionAsync(sql, draftMontagemId, tipo, claimId, guildId, channelId, null, erroCodigo, agora, cancellationToken);
     }
 
-    public async Task<int> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken)
     {
         const string sql = """
-            UPDATE draft_montagem_publicacoes_discord
-            SET status = 'RequerReconciliacao',
-                claim_expira_em = NULL
-            WHERE status = 'EmAndamento'
-              AND claim_expira_em <= @agora
+            WITH updated AS (
+                UPDATE draft_montagem_publicacoes_discord
+                SET status = 'RequerReconciliacao',
+                    claim_expira_em = NULL
+                WHERE status = 'EmAndamento'
+                  AND claim_expira_em <= @agora
+                RETURNING draft_montagem_id
+            )
+            SELECT DISTINCT draft_montagem_id
+            FROM updated
             """;
 
         await using var command = dbContext.Database.GetDbConnection().CreateCommand();
         command.CommandText = sql;
         AddParameter(command, "agora", agora);
         await OpenConnectionAsync(cancellationToken);
-        return await command.ExecuteNonQueryAsync(cancellationToken);
+        var ids = new List<Guid>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            ids.Add(reader.GetGuid(0));
+        }
+
+        return ids;
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)

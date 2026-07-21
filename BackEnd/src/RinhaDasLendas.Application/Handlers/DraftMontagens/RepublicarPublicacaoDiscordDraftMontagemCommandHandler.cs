@@ -12,7 +12,8 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<RepublicarPublicacaoDiscordDraftMontagemRequestDto> validator,
     ICurrentUser currentUser,
-    IDraftMontagemMetrics metrics) : IRequestHandler<RepublicarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemMetrics metrics,
+    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<RepublicarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RepublicarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -26,7 +27,11 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemCommandHandler(
 
         montagem.SolicitarRepublicacaoDiscord(command.Request.Tipo, currentUserId, command.Request.Motivo, DateTimeOffset.UtcNow);
         await repository.SaveChangesAsync(cancellationToken);
-        var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        var updated = await repository.ReloadByIdAsync(command.Id, cancellationToken) ?? montagem;
+        await notifier.StateUpdatedAsync(
+            command.Id,
+            await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken),
+            cancellationToken);
         metrics.RecordDiscordPublication(command.Id, command.Request.Tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Pendente.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }

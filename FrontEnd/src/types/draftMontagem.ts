@@ -19,7 +19,7 @@ export type DraftMontagemOrdemEscolhaModo = (typeof DraftMontagemOrdemEscolhaMod
 export type DraftMontagemPresencaStatus = (typeof DraftMontagemPresencaStatusValues)[keyof typeof DraftMontagemPresencaStatusValues]
 export type DraftMontagemPresencaOrigem = (typeof DraftMontagemPresencaOrigemValues)[keyof typeof DraftMontagemPresencaOrigemValues]
 export type DraftMontagemPublicacaoDiscordTipo = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
-export type DraftMontagemPublicacaoDiscordStatus = 'Pendente' | 'Publicada' | 'Falha' | 'Ignorada'
+export type DraftMontagemPublicacaoDiscordStatus = 'Pendente' | 'EmAndamento' | 'Publicada' | 'Falha' | 'RequerReconciliacao' | 'Ignorada'
 
 export interface DraftMontagemParticipante {
   jogadorId: string
@@ -84,7 +84,7 @@ export interface DraftMontagem {
 }
 
 export interface DraftMontagemPublicacaoDiscord {
-  id: string
+  id?: string
   tipo: DraftMontagemPublicacaoDiscordTipo
   status: DraftMontagemPublicacaoDiscordStatus
   guildId?: string | null

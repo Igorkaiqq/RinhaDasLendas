@@ -1,4 +1,6 @@
 using RinhaDasLendas.Domain.Repositories;
+using RinhaDasLendas.Application.Handlers.DraftMontagens;
+using RinhaDasLendas.Application.Interfaces;
 
 namespace RinhaDasLendas.Api.Services;
 
@@ -16,16 +18,22 @@ public sealed class DraftMontagemPublicationReconciliationService(
     {
         using var scope = scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
-        var reconciled = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(
+        var notifier = scope.ServiceProvider.GetRequiredService<IDraftMontagemRealtimeNotifier>();
+        var reconciledIds = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(
             DateTimeOffset.UtcNow,
             cancellationToken);
+        await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(
+            reconciledIds,
+            repository,
+            notifier,
+            cancellationToken);
 
-        if (reconciled > 0)
+        if (reconciledIds.Count > 0)
         {
-            logger.LogInformation("Reconciled {Count} expired Discord publication claims", reconciled);
+            logger.LogInformation("Reconciled {Count} expired Discord publication claims", reconciledIds.Count);
         }
 
-        return reconciled;
+        return reconciledIds.Count;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
