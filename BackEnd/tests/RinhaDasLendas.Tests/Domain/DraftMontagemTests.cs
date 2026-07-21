@@ -623,6 +623,40 @@ public sealed class DraftMontagemTests
         montagem.DataAtualizacao.Should().Be(agora);
     }
 
+    [Fact]
+    public void Contrato_legado_nao_deve_publicar_estado_que_requer_reconciliacao()
+    {
+        var montagem = NovaMontagem();
+        var claimId = Guid.NewGuid();
+        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
+        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
+        montagem.MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo.Presenca, agora.AddMinutes(5));
+
+        var act = () => montagem.RegistrarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "mensagem");
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationRequiresReconciliation);
+        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
+        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao);
+        publicacao.ClaimId.Should().Be(claimId);
+    }
+
+    [Fact]
+    public void Contrato_legado_nao_deve_registrar_falha_em_estado_que_requer_reconciliacao()
+    {
+        var montagem = NovaMontagem();
+        var claimId = Guid.NewGuid();
+        var agora = new DateTimeOffset(2026, 7, 21, 13, 0, 0, TimeSpan.Zero);
+        montagem.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", claimId, agora.AddMinutes(5), agora);
+        montagem.MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo.Presenca, agora.AddMinutes(5));
+
+        var act = () => montagem.RegistrarFalhaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "canal", "Timeout");
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DiscordPublicationRequiresReconciliation);
+        var publicacao = montagem.PublicacoesDiscord.Should().ContainSingle().Subject;
+        publicacao.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao);
+        publicacao.ClaimId.Should().Be(claimId);
+    }
+
     private static DraftMontagem NovaMontagem()
     {
         return new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);

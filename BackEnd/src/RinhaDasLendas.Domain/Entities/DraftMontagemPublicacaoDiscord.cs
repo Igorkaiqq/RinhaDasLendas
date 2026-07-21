@@ -183,6 +183,11 @@ public sealed class DraftMontagemPublicacaoDiscord
         {
             throw new DomainException(MessageCodes.DiscordPublicationInProgress);
         }
+
+        if (Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao)
+        {
+            throw new DomainException(MessageCodes.DiscordPublicationRequiresReconciliation);
+        }
     }
 
     private static string? Normalize(string? value)

@@ -61,6 +61,8 @@ public sealed class ResourceMessageProviderTests
     [InlineData(MessageCodes.DiscordPublicationInProgress, "en-US", "The Discord publication is in progress")]
     [InlineData(MessageCodes.DiscordPublicationStillPublished, "pt-BR", "Confirme a ausência da publicação do Discord antes de republicar")]
     [InlineData(MessageCodes.DiscordPublicationStillPublished, "en-US", "Confirm that the Discord publication is absent before republishing")]
+    [InlineData(MessageCodes.DiscordPublicationRequiresReconciliation, "pt-BR", "A publicação do Discord requer reconciliação administrativa")]
+    [InlineData(MessageCodes.DiscordPublicationRequiresReconciliation, "en-US", "The Discord publication requires administrative reconciliation")]
     public void GetMessage_WithDiscordPublicationClaimCodes_ReturnsLocalizedText(string code, string culture, string expected)
     {
         var provider = new ResourceMessageProvider();

@@ -166,6 +166,7 @@ public static class MessageCodes
     public const string DiscordPublicationClaimExpirationInvalid = "MV084";
     public const string DiscordPublicationInProgress = "MV085";
     public const string DiscordPublicationStillPublished = "MV086";
+    public const string DiscordPublicationRequiresReconciliation = "MV087";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
     public const string PresenceConfirmed = "MSIS025";

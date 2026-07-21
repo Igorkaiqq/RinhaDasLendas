@@ -146,7 +146,20 @@ public sealed class EndpointCoverageIntegrationTests
         list.Should().NotBeNull();
         list!.Page.Should().Be(1);
         list.PageSize.Should().Be(100);
-        list.Items.Should().NotBeEmpty();
+        var jogadoresListados = list.Items.ToList();
+        for (var page = 2; ; page++)
+        {
+            var pageResponse = await client.GetAsync($"/api/v1/jogadores?page={page}&pageSize=100");
+            pageResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var pageResult = await pageResponse.Content.ReadFromJsonAsync<PaginatedResponseDto<JogadorResponseDto>>();
+            pageResult.Should().NotBeNull();
+            if (pageResult!.Items.Count == 0)
+            {
+                break;
+            }
+            jogadoresListados.AddRange(pageResult!.Items);
+        }
+        jogadoresListados.Should().Contain(jogador => jogador.Id == created.Id);
 
         var getByIdResponse = await client.GetAsync($"/api/v1/jogadores/{created.Id}");
         getByIdResponse.StatusCode.Should().Be(HttpStatusCode.OK);

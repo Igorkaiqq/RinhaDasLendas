@@ -188,6 +188,7 @@
   <data name="MV084" xml:space="preserve"><value>The Discord publication claim expiration must be in the future</value></data>
   <data name="MV085" xml:space="preserve"><value>The Discord publication is in progress</value></data>
   <data name="MV086" xml:space="preserve"><value>Confirm that the Discord publication is absent before republishing</value></data>
+  <data name="MV087" xml:space="preserve"><value>The Discord publication requires administrative reconciliation</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>
