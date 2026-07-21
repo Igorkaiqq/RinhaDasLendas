@@ -206,8 +206,8 @@
 
 - [x] T079 [P] [US7] Adicionar testes falhos de token ausente, curto, placeholder e comparação em tempo constante em `BackEnd/tests/RinhaDasLendas.Tests/Security/SecurityHardeningTests.cs`.
 - [x] T080 [US7] Implementar `InternalTokenSecurity` e validação de startup em produção na API, com recursos sincronizados.
-- [ ] T081 [P] [US7] Adicionar testes falhos de partições de bot, usuário e IP e resposta 429 localizada em testes de segurança HTTP.
-- [ ] T082 [US7] Implementar rate limiter particionado após autenticação em `BackEnd/src/RinhaDasLendas.Api/Program.cs` e helper focado da API.
+- [x] T081 [P] [US7] Adicionar testes falhos de partições de bot, usuário e IP e resposta 429 localizada em testes de segurança HTTP.
+- [x] T082 [US7] Implementar rate limiter particionado após autenticação em `BackEnd/src/RinhaDasLendas.Api/Program.cs` e helper focado da API.
 
 ### Structured errors
 

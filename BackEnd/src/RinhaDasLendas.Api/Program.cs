@@ -133,21 +133,29 @@ builder.Services.AddAuthorization(options =>
     }
 });
 builder.Services.AddHealthChecks();
+var apiRateLimitOptions = builder.Configuration
+    .GetSection(ApiRateLimitOptions.SectionName)
+    .Get<ApiRateLimitOptions>() ?? new ApiRateLimitOptions();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.OnRejected = (context, _) =>
+    options.OnRejected = (context, cancellationToken) =>
     {
         context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordRateLimitedRequest(context.HttpContext.Request.Path);
-        return ValueTask.CompletedTask;
+        var messages = context.HttpContext.RequestServices.GetRequiredService<IMessageProvider>();
+        return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(
+            ApiErrorResponse.FromCode(messages, MessageCodes.RateLimitExceeded),
+            cancellationToken));
     };
-    options.AddFixedWindowLimiter("api", limiterOptions =>
-    {
-        limiterOptions.PermitLimit = 120;
-        limiterOptions.Window = TimeSpan.FromMinutes(1);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 0;
-    });
+    options.AddPolicy("api", context => RateLimitPartition.GetFixedWindowLimiter(
+        ApiRateLimitPartition.GetPartitionKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = apiRateLimitOptions.PermitLimit,
+            Window = TimeSpan.FromSeconds(apiRateLimitOptions.WindowSeconds),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+        }));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -216,8 +224,8 @@ app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapHealthChecks("/health");
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 if (app.Environment.IsEnvironment("Testing"))
 {
     app.Use(async (context, next) =>

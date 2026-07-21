@@ -1,6 +1,9 @@
 using System.Net;
 using System.Diagnostics.Metrics;
+using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using FluentAssertions;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
@@ -12,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using RinhaDasLendas.Api.Observability;
+using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Commands.Jogadores;
@@ -31,6 +35,51 @@ namespace RinhaDasLendas.Tests.Security;
 
 public sealed class SecurityHardeningTests
 {
+    [Fact]
+    public void RateLimitPartition_ShouldUseBotIdentity()
+    {
+        var context = AuthenticatedContext("discord-bot");
+
+        ApiRateLimitPartition.GetPartitionKey(context).Should().Be("bot:discord-bot");
+    }
+
+    [Fact]
+    public void RateLimitPartition_ShouldUseAuthenticatedUserIdentity()
+    {
+        var userId = Guid.NewGuid().ToString();
+        var context = AuthenticatedContext(userId);
+
+        ApiRateLimitPartition.GetPartitionKey(context).Should().Be($"user:{userId}");
+    }
+
+    [Fact]
+    public void RateLimitPartition_ShouldUseAnonymousIpAddress()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.10");
+
+        ApiRateLimitPartition.GetPartitionKey(context).Should().Be("ip:203.0.113.10");
+    }
+
+    [Fact]
+    public async Task RateLimiter_ShouldReturnLocalizedApiError_WhenPartitionLimitIsExceeded()
+    {
+        using var factory = new RateLimitedApiFactory();
+        using var client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/v1/drafts", new { });
+        var response = await client.PostAsJsonAsync("/api/v1/drafts", new { });
+        using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var expected = ApiErrorResponse.FromCode(
+            new Infrastructure.Messages.ResourceMessageProvider(),
+            MessageCodes.RateLimitExceeded);
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        error.RootElement.GetProperty("messageCode").GetString().Should().Be(MessageCodes.RateLimitExceeded);
+        error.RootElement.GetProperty("message").GetString().Should().Be(expected.Message);
+        error.RootElement.GetProperty("errors").GetArrayLength().Should().Be(0);
+    }
+
     [Fact]
     public async Task UpdatePreferencias_ShouldRejectUserEditingAnotherPlayer()
     {
@@ -203,6 +252,15 @@ public sealed class SecurityHardeningTests
         return environment.Object;
     }
 
+    private static DefaultHttpContext AuthenticatedContext(string id)
+    {
+        var context = new DefaultHttpContext();
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, id)],
+            "Test"));
+        return context;
+    }
+
     private static UpdatePreferenciasRotasRequestDto ValidPreferencesRequest() => new([
         new("Top", 1, false),
         new("Jungle", 2, false),
@@ -304,5 +362,16 @@ public sealed class SecurityHardeningTests
         public BotInternalAuthOptions Get(string? name) => options;
 
         public IDisposable? OnChange(Action<BotInternalAuthOptions, string?> listener) => null;
+    }
+
+    private sealed class RateLimitedApiFactory : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder
+                .UseEnvironment("Testing")
+                .UseSetting("RateLimiting:Api:PermitLimit", "1")
+                .UseSetting("RateLimiting:Api:WindowSeconds", "60");
+        }
     }
 }
