@@ -234,8 +234,8 @@
 
 ### Bot guards and channel permissions
 
-- [ ] T097 [P] [US7] Adicionar testes falhos de `botEnabled=false` em todas as mutações e da matriz view/send/embed/mention.
-- [ ] T098 [US7] Centralizar a guarda `botEnabled`, tornar menção condicional e diferenciar erros localizados de permissão.
+- [x] T097 [P] [US7] Adicionar testes falhos de `botEnabled=false` em todas as mutações e da matriz view/send/embed/mention.
+- [x] T098 [US7] Centralizar a guarda `botEnabled`, tornar menção condicional e diferenciar erros localizados de permissão.
 
 ### Administrative validation and authorship
 

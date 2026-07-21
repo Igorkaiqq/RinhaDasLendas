@@ -1,14 +1,16 @@
 import { afterEach, describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
-import type { ChatInputCommandInteraction, Client } from 'discord.js'
+import type { ButtonInteraction, ChatInputCommandInteraction, Client } from 'discord.js'
 import type { DraftMontagem } from '../../shared/api/types.js'
 
-import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
+import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, handleDraftCommand, handlePresenceButton, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { env } from '../../config/env.js'
 import { logger } from '../../shared/logger.js'
 import { t } from '../../shared/messages/index.js'
+import { enUS } from '../../shared/messages/en-US.js'
+import { ptBR } from '../../shared/messages/pt-BR.js'
 
 const originalNotifyRoleId = env.DRAFT_NOTIFY_ROLE_ID
 
@@ -33,11 +35,17 @@ function pollingDraft(id: string, publicationStatus?: string): DraftMontagem {
 }
 
 function pollingClient(send: (options: unknown) => Promise<{ id: string }>) {
+  const permissions = new PermissionsBitField([
+    PermissionFlagsBits.ViewChannel,
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.EmbedLinks,
+    PermissionFlagsBits.MentionEveryone,
+  ])
   return {
     channels: {
-      fetch: async () => ({ isTextBased: () => true, send }),
+      fetch: async () => ({ isTextBased: () => true, send, permissionsFor: () => permissions }),
     },
-    user: null,
+    user: { id: 'bot-user' },
   } as unknown as Client
 }
 
@@ -45,6 +53,19 @@ function pollingClientWithChannelFailure() {
   return {
     channels: { fetch: async () => null },
     user: null,
+  } as unknown as Client
+}
+
+function pollingClientWithPermissions(permissions: PermissionsBitField | null, send: (options: unknown) => Promise<{ id: string }>) {
+  return {
+    channels: {
+      fetch: async () => ({
+        isTextBased: () => true,
+        send,
+        permissionsFor: () => permissions,
+      }),
+    },
+    user: { id: 'bot-user' },
   } as unknown as Client
 }
 
@@ -205,6 +226,175 @@ describe('runDraftPollingCycle', () => {
 
     assert.equal(send.mock.callCount(), 1)
   })
+
+  it('enforces the channel permission matrix before send', async () => {
+    const allPermissions = [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.EmbedLinks,
+      PermissionFlagsBits.MentionEveryone,
+    ]
+    const scenarios = [
+      { name: 'presence CTA without view', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.ViewChannel, errorCode: 'DiscordChannelViewPermissionError', blocked: true },
+      { name: 'presence CTA without send', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.SendMessages, errorCode: 'DiscordChannelSendPermissionError', blocked: true },
+      { name: 'presence CTA without embed', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.EmbedLinks, errorCode: 'DiscordChannelEmbedPermissionError', blocked: true },
+      { name: 'presence CTA without mention', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.MentionEveryone, errorCode: 'DiscordChannelMentionPermissionError', blocked: true },
+      { name: 'presence without role and without mention', type: 'Presenca', roleId: '', missing: PermissionFlagsBits.MentionEveryone, blocked: false },
+      { name: 'final teams without mention', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.MentionEveryone, blocked: false },
+      { name: 'final teams without view', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.ViewChannel, errorCode: 'DiscordChannelViewPermissionError', blocked: true },
+      { name: 'final teams without send', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.SendMessages, errorCode: 'DiscordChannelSendPermissionError', blocked: true },
+      { name: 'final teams without embed', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.EmbedLinks, errorCode: 'DiscordChannelEmbedPermissionError', blocked: true },
+    ] as const
+
+    for (const scenario of scenarios) {
+      mock.restoreAll()
+      env.DRAFT_NOTIFY_ROLE_ID = scenario.roleId
+      const draft = pollingDraft(scenario.name)
+      draft.status = scenario.type === 'Presenca' ? 'PresencaAberta' : 'Finalizada'
+      mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+      mock.method(rinhaApi, 'listActiveDrafts', async () => [draft])
+      mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+      mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+      const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => draft as never)
+      const send = mock.fn(async () => ({ id: 'message-1' }))
+      const granted = new PermissionsBitField(allPermissions.filter((permission) => permission !== scenario.missing))
+
+      await runDraftPollingCycle(pollingClientWithPermissions(granted, send))
+
+      assert.equal(send.mock.callCount(), scenario.blocked ? 0 : 1, scenario.name)
+      assert.equal(failure.mock.callCount(), scenario.blocked ? 1 : 0, scenario.name)
+      if (scenario.blocked) {
+        assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, scenario.errorCode, scenario.name)
+      }
+    }
+  })
+
+  it('fails safely before send when channel permissions cannot be resolved', async () => {
+    mockPollingApi([pollingDraft('draft-1')])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => pollingDraft('draft-1') as never)
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+
+    await runDraftPollingCycle(pollingClientWithPermissions(null, send))
+
+    assert.equal(send.mock.callCount(), 0)
+    assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'DiscordChannelViewPermissionError')
+  })
+})
+
+function draftCommandInteraction(commandName: string) {
+  const replies: unknown[] = []
+  const values: Record<string, string> = {
+    nome: 'Rinha segura',
+    dia: '31/12/2099',
+    horario: '21:30',
+    draft_id: 'draft-1',
+    motivo: 'motivo',
+    capitaes_ids: 'captain-1,captain-2',
+    modo: 'Manual',
+  }
+  const interaction = {
+    commandName,
+    id: 'interaction-1',
+    replied: false,
+    guildId: 'guild',
+    memberPermissions: new PermissionsBitField(PermissionFlagsBits.ManageGuild),
+    member: { roles: { cache: new Map() } },
+    options: { getString: (name: string) => values[name] ?? null },
+    reply: async (payload: unknown) => { replies.push(payload) },
+  } as unknown as ChatInputCommandInteraction
+
+  return { interaction, replies }
+}
+
+function presenceButtonInteraction(action: 'confirm' | 'cancel') {
+  const replies: unknown[] = []
+  const interaction = {
+    customId: `draft-presence:${action}:draft-1`,
+    id: 'interaction-1',
+    replied: false,
+    user: { id: 'discord-user' },
+    reply: async (payload: unknown) => { replies.push(payload) },
+  } as unknown as ButtonInteraction
+
+  return { interaction, replies }
+}
+
+describe('botEnabled mutation guard', () => {
+  it('blocks every command mutation before its mutable API call', async () => {
+    const scenarios = [
+      ['draft-criar', 'createDraft'],
+      ['draft-cancelar', 'cancelDraft'],
+      ['draft-encerrar-presenca', 'closePresence'],
+      ['draft-definir-capitaes', 'defineCaptains'],
+      ['draft-definir-ordem-escolha', 'definePickOrder'],
+    ] as const
+
+    for (const [commandName, apiMethod] of scenarios) {
+      mock.restoreAll()
+      mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: false }))
+      const mutation = mock.method(rinhaApi, apiMethod, async () => pollingDraft('draft-1') as never)
+      const { interaction, replies } = draftCommandInteraction(commandName)
+
+      await handleDraftCommand(interaction)
+
+      assert.equal(mutation.mock.callCount(), 0, commandName)
+      assert.deepEqual(replies, [{ content: t.integrationUnavailable, flags: MessageFlags.Ephemeral }], commandName)
+    }
+  })
+
+  it('blocks presence button mutations before link lookup or mutable API calls', async () => {
+    const scenarios = [
+      ['confirm', 'confirmPresence'],
+      ['cancel', 'cancelPresence'],
+    ] as const
+
+    for (const [action, apiMethod] of scenarios) {
+      mock.restoreAll()
+      mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: false }))
+      const getDiscordLink = mock.method(rinhaApi, 'getDiscordLink', async () => ({ vinculado: true, roles: [] }))
+      const mutation = mock.method(rinhaApi, apiMethod, async () => pollingDraft('draft-1') as never)
+      const { interaction, replies } = presenceButtonInteraction(action)
+
+      await handlePresenceButton(interaction)
+
+      assert.equal(getDiscordLink.mock.callCount(), 0, action)
+      assert.equal(mutation.mock.callCount(), 0, action)
+      assert.deepEqual(replies, [{ content: t.integrationUnavailable, flags: MessageFlags.Ephemeral }], action)
+    }
+  })
+
+  it('does not consult bot configuration for read-only commands and button', async () => {
+    const getConfiguration = mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: false }))
+    const listDrafts = mock.method(rinhaApi, 'listActiveDrafts', async () => [])
+
+    for (const commandName of ['draft-listar', 'draft-status']) {
+      const { interaction } = draftCommandInteraction(commandName)
+      await handleDraftCommand(interaction)
+    }
+    const { interaction } = presenceButtonInteraction('confirm')
+    ;(interaction as unknown as { customId: string }).customId = 'draft-presence:status:draft-1'
+    await handlePresenceButton(interaction)
+
+    assert.equal(getConfiguration.mock.callCount(), 0)
+    assert.equal(listDrafts.mock.callCount(), 3)
+  })
+})
+
+describe('channel permission messages', () => {
+  it('keeps distinct pt-BR and en-US guidance in parity', () => {
+    const scenarios = [
+      ['missingViewChannelPermission', 'não permite que o bot veja o canal. Libere Ver canal.', 'does not allow the bot to view the channel. Allow View Channel.'],
+      ['missingSendMessagesPermission', 'não permite que o bot envie mensagens. Libere Enviar mensagens.', 'does not allow the bot to send messages. Allow Send Messages.'],
+      ['missingEmbedLinksPermission', 'não permite que o bot incorpore links. Libere Incorporar links.', 'does not allow the bot to embed links. Allow Embed Links.'],
+      ['missingMentionRolePermission', 'não permite que o bot mencione o cargo configurado. Libere Mencionar @everyone, @here e todos os cargos.', 'does not allow the bot to mention the configured role. Allow Mention @everyone, @here, and All Roles.'],
+    ] as const
+
+    for (const [key, portuguese, english] of scenarios) {
+      assert.equal(ptBR[key], portuguese, key)
+      assert.equal(enUS[key], english, key)
+    }
+  })
 })
 
 function cancelInteraction(options: {
@@ -231,6 +421,7 @@ function cancelInteraction(options: {
 
 describe('handleDraftCommand authorization', () => {
   it('allows a member with ManageGuild to run a mutable command', async () => {
+    mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
     const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
     const { interaction } = cancelInteraction({
       memberPermissions: new PermissionsBitField(PermissionFlagsBits.ManageGuild),
@@ -244,6 +435,7 @@ describe('handleDraftCommand authorization', () => {
   it('allows a member with a configured draft administrator role', async () => {
     const previousRoleIds = env.DRAFT_ADMIN_ROLE_IDS
     env.DRAFT_ADMIN_ROLE_IDS = 'role-1, role-2'
+    mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
     const cancelDraft = mock.method(rinhaApi, 'cancelDraft', async () => ({} as never))
     const { interaction } = cancelInteraction({ roleIds: ['role-2'] })
 

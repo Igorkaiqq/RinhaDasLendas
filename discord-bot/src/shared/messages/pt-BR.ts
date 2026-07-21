@@ -64,6 +64,10 @@ export const ptBR = {
   confirmedCount: 'confirmados',
   inaccessibleChannel: 'não foi encontrado ou não é um canal de texto acessível pelo bot.',
   missingChannelPermissions: 'está sem permissão para o bot. Libere Ver canal, Enviar mensagens, Incorporar links e Mencionar cargos.',
+  missingViewChannelPermission: 'não permite que o bot veja o canal. Libere Ver canal.',
+  missingSendMessagesPermission: 'não permite que o bot envie mensagens. Libere Enviar mensagens.',
+  missingEmbedLinksPermission: 'não permite que o bot incorpore links. Libere Incorporar links.',
+  missingMentionRolePermission: 'não permite que o bot mencione o cargo configurado. Libere Mencionar @everyone, @here e todos os cargos.',
   presenceMessageFetchUnsupported: 'Canal de presença não suporta busca de mensagens.',
   unauthorizedApi: 'Unauthorized: verifique se RINHA_API_INTERNAL_TOKEN está igual no backend e no discord-bot, e reinicie a API após alterar o token.',
   draftErrors: {

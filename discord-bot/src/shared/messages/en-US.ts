@@ -64,6 +64,10 @@ export const enUS = {
   confirmedCount: 'confirmed',
   inaccessibleChannel: 'was not found or is not a text channel accessible by the bot.',
   missingChannelPermissions: 'is missing bot permissions. Allow View Channel, Send Messages, Embed Links and Mention Roles.',
+  missingViewChannelPermission: 'does not allow the bot to view the channel. Allow View Channel.',
+  missingSendMessagesPermission: 'does not allow the bot to send messages. Allow Send Messages.',
+  missingEmbedLinksPermission: 'does not allow the bot to embed links. Allow Embed Links.',
+  missingMentionRolePermission: 'does not allow the bot to mention the configured role. Allow Mention @everyone, @here, and All Roles.',
   presenceMessageFetchUnsupported: 'Presence channel does not support message fetching.',
   unauthorizedApi: 'Unauthorized: check that RINHA_API_INTERNAL_TOKEN matches in the backend and discord-bot, then restart the API after changing the token.',
   draftErrors: {

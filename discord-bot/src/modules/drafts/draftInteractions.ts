@@ -34,10 +34,13 @@ const MessageCodes = {
 
 export async function handleDraftCommand(interaction: ChatInputCommandInteraction) {
   try {
-    if (isMutableDraftCommand(interaction.commandName) && !isDraftAdministrator(interaction, parseCommaSeparatedIds(env.DRAFT_ADMIN_ROLE_IDS))) {
+    const mutable = isMutableDraftCommand(interaction.commandName)
+    if (mutable && !isDraftAdministrator(interaction, parseCommaSeparatedIds(env.DRAFT_ADMIN_ROLE_IDS))) {
       await interaction.reply({ content: t.draftAdministrationDenied, flags: MessageFlags.Ephemeral })
       return
     }
+
+    const configuration = mutable ? await getEnabledDiscordConfiguration() : null
 
     if (interaction.commandName === DraftCommandNames.Create) {
     const draftName = interaction.options.getString(DraftOptionNames.Name, true)
@@ -46,8 +49,6 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
       return
     }
 
-    const configuration = await rinhaApi.getDiscordConfiguration()
-    assertDiscordBotEnabled(configuration)
     const presenceClosingTimeValidation = validatePresenceClosingTime(
       interaction.options.getString(DraftOptionNames.Day, true),
       interaction.options.getString(DraftOptionNames.Time, true),
@@ -72,7 +73,7 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
     if (!claim.adquirido || !claim.claimId) {
       throw new Error('Discord publication claim was not acquired')
     }
-    const ctaResult = await publishClaimedDraft(interaction.client, configuration, { draft, tipo: 'Presenca' }, claim.claimId)
+    const ctaResult = await publishClaimedDraft(interaction.client, configuration!, { draft, tipo: 'Presenca' }, claim.claimId)
     await interaction.reply({ content: getDraftCreatedMessage(ctaResult), flags: MessageFlags.Ephemeral })
     return
   }
@@ -144,6 +145,10 @@ export async function handlePresenceButton(interaction: ButtonInteraction) {
   if (!draftId) return
 
   try {
+    if (action === PresenceButtonAction.Confirm || action === PresenceButtonAction.Cancel) {
+      await getEnabledDiscordConfiguration()
+    }
+
     if (action === PresenceButtonAction.Confirm) {
     const linked = await rinhaApi.getDiscordLink(interaction.user.id)
     if (!linked.vinculado) {
@@ -235,7 +240,10 @@ async function publishClaimedDraft(
   let sendPayload: unknown
 
   try {
-    channel = await getSendableChannel(client, channelId, channelLabel)
+    channel = await getSendableChannel(client, channelId, channelLabel, {
+      embed: true,
+      mentionRole: isPresence && Boolean(env.DRAFT_NOTIFY_ROLE_ID),
+    })
     sendPayload = isPresence
       ? { embeds: [presenceEmbed(candidate.draft)], components: [presenceButtons(candidate.draft.id)] }
       : { embeds: [finalTeamsEmbed(candidate.draft)] }
@@ -293,7 +301,7 @@ function logUnknownPublicationResult(candidate: PublicationCandidate, stage: 'se
 
 function getPublicationErrorCode(error: unknown) {
   if (error instanceof DiscordChannelAccessError) {
-    return 'DiscordChannelAccessError'
+    return error.name
   }
 
   if (error instanceof Error) {
@@ -311,22 +319,36 @@ async function updatePresenceMessage(interaction: ButtonInteraction, draft: Draf
 async function fetchPresenceMessage(client: Client, draft: DraftMontagem) {
   const configuration = await rinhaApi.getDiscordConfiguration()
   assertDiscordBotEnabled(configuration)
-  const channel = await getSendableChannel(client, configuration.presenceChannelId, t.channels.presence)
+  const channel = await getSendableChannel(client, configuration.presenceChannelId, t.channels.presence, { embed: true, mentionRole: false })
   if (!channel.messages) throw new Error(t.presenceMessageFetchUnsupported)
 
   return channel.messages.fetch(draft.discordPresenceMessageId!)
 }
 
 export class DiscordChannelAccessError extends Error {
-  constructor(public readonly userMessage: string) {
+  constructor(public readonly userMessage: string, code = 'DiscordChannelAccessError') {
     super(userMessage)
+    this.name = code
+  }
+}
+
+class DiscordBotDisabledError extends Error {
+  constructor() {
+    super(t.integrationUnavailable)
+    this.name = 'DiscordBotDisabledError'
   }
 }
 
 export function assertDiscordBotEnabled(configuration: DiscordConfiguration) {
   if (!configuration.botEnabled) {
-    throw new Error(t.integrationUnavailable)
+    throw new DiscordBotDisabledError()
   }
+}
+
+async function getEnabledDiscordConfiguration() {
+  const configuration = await rinhaApi.getDiscordConfiguration()
+  assertDiscordBotEnabled(configuration)
+  return configuration
 }
 
 type SendableTextChannel = {
@@ -350,7 +372,12 @@ async function sendDraftPresenceCta(channel: SendableTextChannel, draftId: strin
   }
 }
 
-async function getSendableChannel(client: Client, channelId: string, label: string) {
+export async function getSendableChannel(
+  client: Client,
+  channelId: string,
+  label: string,
+  requirements: { embed: boolean; mentionRole: boolean },
+) {
   const channel = await client.channels.fetch(channelId)
   if (!channel?.isTextBased() || !('send' in channel)) {
     throw new DiscordChannelAccessError(`${label} (${channelId}) ${t.inaccessibleChannel}`)
@@ -358,9 +385,15 @@ async function getSendableChannel(client: Client, channelId: string, label: stri
 
   const sendable = channel as SendableTextChannel
   const permissions = client.user && sendable.permissionsFor ? sendable.permissionsFor(client.user) : null
-  const required = [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.MentionEveryone]
-  if (permissions && !permissions.has(required)) {
-    throw new DiscordChannelAccessError(`${label} (${channelId}) ${t.missingChannelPermissions}`)
+  const permissionRequirements = [
+    { required: true, flag: PermissionsBitField.Flags.ViewChannel, code: 'DiscordChannelViewPermissionError', message: t.missingViewChannelPermission },
+    { required: true, flag: PermissionsBitField.Flags.SendMessages, code: 'DiscordChannelSendPermissionError', message: t.missingSendMessagesPermission },
+    { required: requirements.embed, flag: PermissionsBitField.Flags.EmbedLinks, code: 'DiscordChannelEmbedPermissionError', message: t.missingEmbedLinksPermission },
+    { required: requirements.mentionRole, flag: PermissionsBitField.Flags.MentionEveryone, code: 'DiscordChannelMentionPermissionError', message: t.missingMentionRolePermission },
+  ]
+  const missing = permissionRequirements.find((requirement) => requirement.required && !permissions?.has(requirement.flag))
+  if (missing) {
+    throw new DiscordChannelAccessError(`${label} (${channelId}) ${missing.message}`, missing.code)
   }
 
   return sendable
@@ -434,6 +467,10 @@ export type DraftInteractionErrorContext =
   | 'status'
 
 export function getDraftInteractionErrorMessage(error: unknown, context: DraftInteractionErrorContext) {
+  if (error instanceof DiscordBotDisabledError || error instanceof DiscordChannelAccessError) {
+    return error.message
+  }
+
   if (error instanceof RinhaApiError && error.messageCode) {
     const byCode = getDraftInteractionErrorMessageByCode(error.messageCode, context)
     if (byCode) return byCode
