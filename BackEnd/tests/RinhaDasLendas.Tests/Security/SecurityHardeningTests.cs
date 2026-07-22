@@ -525,6 +525,10 @@ public sealed class SecurityHardeningTests
         public void RecordDraftTimeout(Guid draftMontagemId)
         {
         }
+
+        public void RecordDraftCancelled(Guid draftMontagemId)
+        {
+        }
     }
 
     private sealed class InMemoryDraftMontagemRepository(IReadOnlyCollection<DraftMontagem> montagens, IReadOnlyCollection<Jogador> jogadores) : IDraftMontagemRepository

@@ -250,8 +250,8 @@
 - [x] T104 [US7] Emitir projeção pública atualizada via SignalR após persistência das mudanças.
 - [x] T105 [P] [US7] Adicionar testes falhos provando que GET/realtime comum não expõe auditoria ou IDs operacionais e que endpoint admin os retorna.
 - [x] T106 [US7] Separar DTOs público, administrativo e operacional do bot e adicionar query/endpoint `/{id}/administracao`.
-- [ ] T107 [P] [US7] Adicionar teste falho da métrica de cancelamento de draft.
-- [ ] T108 [US7] Implementar `RecordDraftCancelled` sem tags sensíveis e atualizar documentação operacional.
+- [x] T107 [P] [US7] Adicionar teste falho da métrica de cancelamento de draft.
+- [x] T108 [US7] Implementar `RecordDraftCancelled` sem tags sensíveis e atualizar documentação operacional.
 
 ### Behavioral coverage and final verification
 

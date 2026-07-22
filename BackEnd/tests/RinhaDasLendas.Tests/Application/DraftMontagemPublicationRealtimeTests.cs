@@ -33,7 +33,8 @@ public sealed class DraftMontagemPublicationRealtimeTests
             repository.Object,
             new CancelarDraftMontagemValidator(),
             new TestCurrentUser(Guid.NewGuid()),
-            notifier.Object);
+            notifier.Object,
+            Mock.Of<IDraftMontagemMetrics>());
 
         await handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),

@@ -8,4 +8,5 @@ public interface IDraftMontagemMetrics
     void RecordDiscordPublication(Guid draftMontagemId, string type, string status);
     void RecordPick(Guid draftMontagemId, string type);
     void RecordDraftTimeout(Guid draftMontagemId);
+    void RecordDraftCancelled(Guid draftMontagemId);
 }

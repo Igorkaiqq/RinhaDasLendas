@@ -84,7 +84,10 @@ A API registra métricas em `rinha_draft_actions_total` com tags por ação. Aç
 - `presence_closed`;
 - `discord_publication`;
 - `pick`;
-- `timeout`.
+- `timeout`;
+- `draft_cancelled`.
+
+O contador de cancelamento é incrementado somente após a persistência efetiva. Ele usa apenas as tags padrão `draft_id` e `action`; motivo, executor e identificadores do Discord não são enviados para a métrica. Tentativas repetidas rejeitadas pelo domínio e falhas de persistência não incrementam o contador.
 
 ## Validação Operacional
 

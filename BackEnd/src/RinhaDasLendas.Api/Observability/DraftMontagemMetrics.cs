@@ -15,4 +15,6 @@ public sealed class DraftMontagemMetrics(ApiMetrics metrics) : IDraftMontagemMet
     public void RecordPick(Guid draftMontagemId, string type) => metrics.RecordDraftAction(draftMontagemId, "pick", new KeyValuePair<string, object?>("type", type));
 
     public void RecordDraftTimeout(Guid draftMontagemId) => metrics.RecordDraftAction(draftMontagemId, "timeout");
+
+    public void RecordDraftCancelled(Guid draftMontagemId) => metrics.RecordDraftAction(draftMontagemId, "draft_cancelled");
 }

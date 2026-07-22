@@ -1275,6 +1275,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public void RecordDiscordPublication(Guid draftMontagemId, string type, string status) { }
         public void RecordPick(Guid draftMontagemId, string type) { }
         public void RecordDraftTimeout(Guid draftMontagemId) { }
+        public void RecordDraftCancelled(Guid draftMontagemId) { }
     }
 
     private sealed class CoordinatedDraftMontagemRepository(
