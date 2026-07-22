@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: 5432
     services:
       postgres:
         image: postgres:16-alpine

@@ -60,7 +60,37 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
         return client;
     }
 
+    internal HttpClient CreateMalformedJwtClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "malformed-token");
+        return client;
+    }
+
+    internal HttpClient CreateExpiredJwtClient(Guid userId, params string[] roles)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateJwt(userId, roles, DateTime.UtcNow.AddMinutes(-2)));
+        return client;
+    }
+
+    internal HttpClient CreateInvalidSignatureJwtClient(Guid userId, params string[] roles)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateJwt(userId, roles, DateTime.UtcNow.AddMinutes(5), "invalid-signing-key-with-at-least-thirty-two-characters"));
+        return client;
+    }
+
     internal static string CreateJwt(Guid? userId, params string[] roles)
+    {
+        return CreateJwt(userId, roles, DateTime.UtcNow.AddMinutes(5));
+    }
+
+    private static string CreateJwt(Guid? userId, string[] roles, DateTime expires, string key = JwtKey)
     {
         var claims = roles.Select(role => new Claim(ClaimTypes.Role, role)).ToList();
         if (userId.HasValue)
@@ -72,9 +102,9 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
             Issuer,
             Audience,
             claims,
-            expires: DateTime.UtcNow.AddMinutes(5),
+            expires: expires,
             signingCredentials: new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
                 SecurityAlgorithms.HmacSha256));
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
@@ -129,5 +159,5 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
     }
 
     private static string BuildAdminConnectionString() =>
-        $"Host={Environment.GetEnvironmentVariable("TEST_POSTGRES_HOST") ?? "postgres"};Port=5432;Database=postgres;Username=postgres;Password=postgres";
+        $"Host={Environment.GetEnvironmentVariable("TEST_POSTGRES_HOST") ?? "localhost"};Port={Environment.GetEnvironmentVariable("TEST_POSTGRES_PORT") ?? "5432"};Database=postgres;Username=postgres;Password=postgres";
 }

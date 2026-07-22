@@ -6,6 +6,9 @@ services:
     command: sleep infinity
     env_file:
       - .env
+    environment:
+      TEST_POSTGRES_HOST: postgres
+      TEST_POSTGRES_PORT: 5432
     volumes:
       - ..:/workspaces/RinhaDasLendas:cached
     depends_on:
