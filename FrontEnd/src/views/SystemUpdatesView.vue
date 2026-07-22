@@ -18,8 +18,7 @@ import type {
 
 const { locale, t } = useI18n()
 
-const categories: readonly (SystemUpdateCategory | 'all')[] = [
-  'all',
+const categories: readonly SystemUpdateCategory[] = [
   'feature',
   'improvement',
   'fix',
@@ -27,14 +26,14 @@ const categories: readonly (SystemUpdateCategory | 'all')[] = [
   'infrastructure',
 ]
 const query = ref('')
-const activeCategory = ref<SystemUpdateCategory | 'all'>('all')
+const activeCategories = ref<SystemUpdateCategory[]>([])
 const latest = getLatestSystemUpdate()
 
 const filteredUpdates = computed(() =>
-  filterSystemUpdates(SYSTEM_UPDATES, query.value, activeCategory.value, t),
+  filterSystemUpdates(SYSTEM_UPDATES, query.value, activeCategories.value, t),
 )
 const hasFilters = computed(
-  () => query.value.length > 0 || activeCategory.value !== 'all',
+  () => query.value.length > 0 || activeCategories.value.length > 0,
 )
 const groupedUpdates = computed(() =>
   Object.entries(
@@ -68,15 +67,15 @@ function formatMonth(month: string): string {
   }).format(new Date(`${month}-01T00:00:00Z`))
 }
 
-function categoryLabel(category: SystemUpdateCategory | 'all'): string {
-  return category === 'all'
-    ? t('updates.allCategories')
-    : t(`updates.categories.${category}`)
+function toggleCategory(category: SystemUpdateCategory) {
+  activeCategories.value = activeCategories.value.includes(category)
+    ? activeCategories.value.filter((active) => active !== category)
+    : [...activeCategories.value, category]
 }
 
 function clearFilters() {
   query.value = ''
-  activeCategory.value = 'all'
+  activeCategories.value = []
 }
 </script>
 
@@ -145,8 +144,10 @@ function clearFilters() {
         </label>
         <input
           id="system-updates-search"
+          name="system-updates-search"
           v-model="query"
           type="search"
+          autocomplete="off"
           class="h-11 w-full rounded-lg border border-input bg-background px-3 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           :placeholder="t('updates.searchPlaceholder')"
         />
@@ -158,20 +159,34 @@ function clearFilters() {
         :aria-label="t('updates.filterLabel')"
       >
         <button
+          type="button"
+          class="h-9 shrink-0 rounded-full border px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          :class="
+            activeCategories.length === 0
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+          "
+          :aria-pressed="activeCategories.length === 0"
+          data-category="all"
+          @click="activeCategories = []"
+        >
+          {{ t('updates.allCategories') }}
+        </button>
+        <button
           v-for="category in categories"
           :key="category"
           type="button"
           class="h-9 shrink-0 rounded-full border px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           :class="
-            activeCategory === category
+            activeCategories.includes(category)
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
           "
-          :aria-pressed="activeCategory === category"
+          :aria-pressed="activeCategories.includes(category)"
           :data-category="category"
-          @click="activeCategory = category"
+          @click="toggleCategory(category)"
         >
-          {{ categoryLabel(category) }}
+          {{ t(`updates.categories.${category}`) }}
         </button>
       </div>
 

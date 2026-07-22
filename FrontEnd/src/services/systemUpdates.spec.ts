@@ -85,7 +85,7 @@ describe('system updates', () => {
     )
   })
 
-  it('filters localized content without case or accent distinctions and combines category', () => {
+  it('filters localized content without case or accent distinctions and combines categories with OR', () => {
     const messages = pt as Record<string, unknown>
     const translate = (key: string) => {
       let current: unknown = messages
@@ -98,7 +98,7 @@ describe('system updates', () => {
       filterSystemUpdates(
         SYSTEM_UPDATES,
         'seguranca',
-        'security',
+        ['security'],
         translate,
       ).map(({ version }) => version),
     ).toContain('2026.07.1')
@@ -106,20 +106,23 @@ describe('system updates', () => {
       filterSystemUpdates(
         SYSTEM_UPDATES,
         'DISCORD',
-        'improvement',
+        ['improvement'],
         translate,
       )[0]?.version,
     ).toBe('2026.07.1')
-    expect(filterSystemUpdates(SYSTEM_UPDATES, '', 'all', translate)).toEqual(
-      SYSTEM_UPDATES,
-    )
     expect(
       filterSystemUpdates(
         SYSTEM_UPDATES,
-        'termo inexistente',
-        'all',
+        '',
+        ['fix', 'security'],
         translate,
-      ),
+      ).map(({ version }) => version),
+    ).toEqual(['2026.07.1', '2026.06.7', '2026.06.4'])
+    expect(filterSystemUpdates(SYSTEM_UPDATES, '', [], translate)).toEqual(
+      SYSTEM_UPDATES,
+    )
+    expect(
+      filterSystemUpdates(SYSTEM_UPDATES, 'termo inexistente', [], translate),
     ).toEqual([])
   })
 
@@ -151,6 +154,18 @@ describe('system updates', () => {
     expect(readLastSeenSystemUpdate(blockedStorage)).toBe('2026.07.2')
     expect(markLatestSystemUpdateSeen('2026.07.3', undefined)).toBe('2026.07.3')
     expect(readLastSeenSystemUpdate(undefined)).toBe('2026.07.3')
+  })
+
+  it('prefers the session version after reading an old persisted version and failing only on write', () => {
+    const storage = {
+      getItem: () => '2026.06.7',
+      setItem: () => {
+        throw new Error('write blocked')
+      },
+    }
+
+    expect(markLatestSystemUpdateSeen('2026.07.1', storage)).toBe('2026.07.1')
+    expect(readLastSeenSystemUpdate(storage)).toBe('2026.07.1')
   })
 
   it('uses the in-memory fallback when the global local storage getter throws', () => {

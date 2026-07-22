@@ -28,13 +28,16 @@ export function getLatestSystemUpdate(
 export function filterSystemUpdates(
   releases: readonly SystemUpdateRelease[],
   query: string,
-  category: SystemUpdateCategory | 'all',
+  categories: readonly SystemUpdateCategory[],
   translate: (key: string) => string,
 ): SystemUpdateRelease[] {
   const normalizedQuery = normalizeSearchText(query)
 
   return releases.filter((release) => {
-    if (category !== 'all' && !release.categories.includes(category))
+    if (
+      categories.length &&
+      !categories.some((category) => release.categories.includes(category))
+    )
       return false
     if (!normalizedQuery) return true
 
@@ -120,11 +123,11 @@ export function getSystemUpdateValidationErrors(
 export function readLastSeenSystemUpdate(
   storage?: Pick<Storage, 'getItem' | 'setItem'>,
 ): string | null {
+  if (inMemoryLastSeen !== null) return inMemoryLastSeen
+
   try {
     const resolvedStorage = storage ?? globalThis.localStorage
-    return (
-      resolvedStorage?.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? inMemoryLastSeen
-    )
+    return resolvedStorage?.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? null
   } catch {
     return inMemoryLastSeen
   }

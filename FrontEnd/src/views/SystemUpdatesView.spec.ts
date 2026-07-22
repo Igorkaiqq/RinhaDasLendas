@@ -99,21 +99,28 @@ describe('SystemUpdatesView', () => {
     expect(wrapper.findAll('li[data-system-update]')).toHaveLength(8)
   })
 
-  it('combines localized search and category filters and clears them', async () => {
+  it('combines localized search with multiple category filters using OR and clears them', async () => {
     const wrapper = mountView()
     const search = wrapper.get('input[type="search"]')
     const fixChip = wrapper.get('[data-category="fix"]')
+    const featureChip = wrapper.get('[data-category="feature"]')
+    const allChip = wrapper.get('[data-category="all"]')
 
     expect(wrapper.get('label[for="system-updates-search"]').text()).toBe(
       'Buscar atualizações',
     )
     expect(fixChip.attributes('aria-pressed')).toBe('false')
+    expect(featureChip.attributes('aria-pressed')).toBe('false')
+    expect(allChip.attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('[data-result-count]').text()).toBe('8 atualizações')
 
     await search.setValue('Discord')
     await fixChip.trigger('click')
+    await featureChip.trigger('click')
 
     expect(fixChip.attributes('aria-pressed')).toBe('true')
+    expect(featureChip.attributes('aria-pressed')).toBe('true')
+    expect(allChip.attributes('aria-pressed')).toBe('false')
     expect(wrapper.findAll('[data-system-update]').length).toBeGreaterThan(0)
     expect(
       wrapper
@@ -123,18 +130,44 @@ describe('SystemUpdatesView', () => {
         ),
     ).toBe(true)
     expect(
-      wrapper
-        .findAll('[data-system-update]')
-        .every((release) =>
-          release.attributes('data-categories')?.split(' ').includes('fix'),
-        ),
+      wrapper.findAll('[data-system-update]').every((release) => {
+        const categories = release.attributes('data-categories')?.split(' ')
+        return categories?.some((category) =>
+          ['fix', 'feature'].includes(category),
+        )
+      }),
     ).toBe(true)
+
+    await allChip.trigger('click')
+
+    expect(fixChip.attributes('aria-pressed')).toBe('false')
+    expect(featureChip.attributes('aria-pressed')).toBe('false')
+    expect(allChip.attributes('aria-pressed')).toBe('true')
+    expect((search.element as HTMLInputElement).value).toBe('Discord')
 
     await wrapper.get('[data-clear-filters]').trigger('click')
 
     expect((search.element as HTMLInputElement).value).toBe('')
     expect(fixChip.attributes('aria-pressed')).toBe('false')
     expect(wrapper.findAll('[data-system-update]')).toHaveLength(8)
+  })
+
+  it('configures the localized search field for deliberate text entry', async () => {
+    const wrapper = mountView()
+    const search = wrapper.get('input[type="search"]')
+
+    expect(search.attributes('name')).toBe('system-updates-search')
+    expect(search.attributes('autocomplete')).toBe('off')
+    expect(search.attributes('placeholder')).toBe(
+      'Busque por recurso ou melhoria…',
+    )
+
+    setLocale('en')
+    await nextTick()
+
+    expect(search.attributes('placeholder')).toBe(
+      'Search by feature or improvement…',
+    )
   })
 
   it('recalculates localized search results when the active locale changes', async () => {

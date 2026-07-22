@@ -172,7 +172,6 @@ export const SYSTEM_UPDATES = [
       {
         id: 'role-permissions',
         category: 'security',
-        link: AppRoutes.UsersAdmin,
       },
       {
         id: 'player-profile-link',

@@ -815,7 +815,7 @@
     "description": "Acompanhe novidades, melhorias e correções entregues para a comunidade.",
     "latest": "Última atualização",
     "searchLabel": "Buscar atualizações",
-    "searchPlaceholder": "Busque por recurso ou melhoria...",
+    "searchPlaceholder": "Busque por recurso ou melhoria…",
     "filterLabel": "Filtrar por categoria",
     "allCategories": "Todas",
     "resultCount": "{count} atualização | {count} atualizações",

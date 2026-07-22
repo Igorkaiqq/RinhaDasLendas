@@ -815,7 +815,7 @@
     "description": "Follow new features, improvements, and fixes delivered to the community.",
     "latest": "Latest update",
     "searchLabel": "Search updates",
-    "searchPlaceholder": "Search by feature or improvement...",
+    "searchPlaceholder": "Search by feature or improvement…",
     "filterLabel": "Filter by category",
     "allCategories": "All",
     "resultCount": "{count} update | {count} updates",

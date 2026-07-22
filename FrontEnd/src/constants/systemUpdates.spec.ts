@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
@@ -91,5 +92,13 @@ describe('system update registry', () => {
           categories.length && areas.length && details.length,
       ),
     ).toBe(true)
+  })
+
+  it('does not expose restricted routes through editorial links', () => {
+    const editorialLinks = SYSTEM_UPDATES.flatMap(({ details }) =>
+      details.flatMap(({ link }) => (link ? [link] : [])),
+    )
+
+    expect(editorialLinks).not.toContain(AppRoutes.UsersAdmin)
   })
 })
