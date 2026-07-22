@@ -11,6 +11,8 @@
     "draft": "Draft",
     "matches": "Matches",
     "stats": "Statistics",
+    "updates": "Updates",
+    "new": "New",
     "users": "Users",
     "settings": "Settings",
     "support": "Support",
@@ -158,6 +160,7 @@
     "forgotPassword": { "title": "Forgot password" },
     "resetPassword": { "title": "Reset password" },
     "profile": { "title": "Profile" },
+    "updates": { "title": "System updates" },
     "usersAdmin": { "title": "Users" },
     "forbidden": { "title": "Access denied" }
   },
@@ -805,6 +808,134 @@
     "title": "Delete {name}?",
     "description": "This action removes the player from temporary data. With the backend active, the action uses safe deactivation.",
     "confirm": "Confirm"
+  },
+  "updates": {
+    "eyebrow": "Product history",
+    "title": "System updates",
+    "description": "Follow new features, improvements, and fixes delivered to the community.",
+    "latest": "Latest update",
+    "searchLabel": "Search updates",
+    "searchPlaceholder": "Search by feature or improvement...",
+    "filterLabel": "Filter by category",
+    "allCategories": "All",
+    "resultCount": "{count} update | {count} updates",
+    "emptyTitle": "No updates found",
+    "emptyDescription": "Try another term or remove the selected filters.",
+    "clearFilters": "Clear filters",
+    "details": "View details",
+    "timelineLabel": "Update timeline",
+    "versionIndexLabel": "Version index",
+    "expandCategory": "Expand {category} details",
+    "collapseCategory": "Collapse {category} details",
+    "categories": {
+      "feature": "Feature",
+      "improvement": "Improvement",
+      "fix": "Fix",
+      "security": "Security",
+      "infrastructure": "Infrastructure"
+    },
+    "areas": {
+      "platform": "Platform",
+      "players": "Players",
+      "teams": "Teams",
+      "users": "Users",
+      "drafts": "Drafts",
+      "discord": "Discord",
+      "security": "Security",
+      "infrastructure": "Infrastructure"
+    },
+    "releases": {
+      "2026_07_1": {
+        "title": "More reliable drafts and Discord",
+        "summary": "Draft operations gained direct access, clearer confirmations, recoverable publications, and synchronized presence, along with stronger security and stability.",
+        "details": {
+          "discord-draft-deep-link": { "title": "Direct draft access from Discord", "description": "Invitation links now open the matching draft automatically, removing manual selection from the list." },
+          "invalid-draft-link-feedback": { "title": "Invalid link handling", "description": "When a draft does not exist or is unavailable, the page explains the problem while keeping other drafts accessible." },
+          "contextual-admin-confirmations": { "title": "Contextual admin confirmations", "description": "Cancellations, presence removals, and republications use integrated dialogs that explain context and impact before confirmation." },
+          "discord-publication-statuses": { "title": "Separate publication statuses", "description": "Administrators can distinguish the presence list, role mention call, and final team publication states in Discord." },
+          "individual-publication-recovery": { "title": "Individual failure recovery", "description": "Each failed publication can be recovered separately without repeating messages that were already delivered." },
+          "duplicate-message-protection": { "title": "Duplicate message protection", "description": "Publications remain unique even during bot restarts or simultaneous execution." },
+          "realtime-presence": { "title": "Realtime presence updates", "description": "Confirmations, cancellations, and admin changes appear for everyone viewing the draft, including after reconnection." },
+          "consistent-presence-operations": { "title": "More consistent presence operations", "description": "Repeated or simultaneous actions preserve one presence per player and return predictable outcomes." },
+          "eligible-player-search": { "title": "More accurate manual player search", "description": "Search only shows eligible, unconfirmed players and discards stale results when the context changes." },
+          "admin-action-audit": { "title": "More transparent admin actions", "description": "Cancellations, removals, manual additions, and republications record their reason and responsible user when applicable." },
+          "clear-bot-messages": { "title": "Clearer bot messages", "description": "Disabled configuration, invalid dates, and known failures receive specific guidance instead of generic responses." },
+          "discord-permission-diagnostics": { "title": "Discord permission diagnostics", "description": "The bot distinguishes channel access, message, embed, and mention problems to make configuration easier to correct." },
+          "independent-presence-call": { "title": "Independent presence call", "description": "The role mention call has its own state and recovery; a failure does not repeat or invalidate the main list." },
+          "resilient-publication-queue": { "title": "More reliable publication queue", "description": "Pending publications continue processing across many drafts and after isolated failures elsewhere in the cycle." },
+          "security-stability-hardening": { "title": "Internal security and stability hardening", "description": "Stronger access protection, validation, and operational isolation make the platform safer and more predictable without changing how it is used." }
+        }
+      },
+      "2026_06_7": {
+        "title": "Security and visual identity",
+        "summary": "The platform advanced its protection, release readiness, operational visibility, and brand consistency.",
+        "details": {
+          "security-baseline": { "title": "Stronger security baseline", "description": "Preventive controls and secure standards now better protect internal workflows." },
+          "deployment-readiness": { "title": "More predictable releases", "description": "Environment preparation and deployment checks reduce risk when shipping new versions." },
+          "operational-observability": { "title": "Greater operational visibility", "description": "Operational signals and records help identify failures and monitor application health." },
+          "visual-identity": { "title": "Consolidated visual identity", "description": "Screens and components gained a visual language that better reflects the competitive arena." }
+        }
+      },
+      "2026_06_6": {
+        "title": "Discord and presence confirmation",
+        "summary": "Linked accounts, shared presence, and team publication brought the workflow closer to the community channel.",
+        "details": {
+          "discord-account-link": { "title": "Linked Discord account", "description": "Users can link Discord without losing traditional platform access." },
+          "shared-presence-list": { "title": "Presence across Web and Discord", "description": "Confirmations and cancellations share the same official state across both channels." },
+          "presence-closing": { "title": "Organized presence closing", "description": "The list can close at the scheduled time and prepare teams and reserves with clear rules." },
+          "final-teams-publication": { "title": "Teams published to Discord", "description": "When the draft finishes, the community receives team rosters in the configured channel." }
+        }
+      },
+      "2026_06_5": {
+        "title": "Realtime draft",
+        "summary": "Captains and participants can follow picks, turns, and the official draft state without refreshing the page.",
+        "details": {
+          "synchronized-picks": { "title": "Synchronized picks", "description": "Each valid pick updates teams, available players, and history for every connected participant." },
+          "captain-turns": { "title": "Captain turns", "description": "Only the current captain can pick, keeping the order fair and auditable." },
+          "turn-timer": { "title": "Controlled turn timer", "description": "The clock keeps the draft moving and advances the turn when time expires." },
+          "reconnection-state": { "title": "State restored after reconnection", "description": "Returning viewers receive the current official state, including turn, teams, and previous picks." }
+        }
+      },
+      "2026_06_4": {
+        "title": "Accounts, permissions, and profiles",
+        "summary": "Authentication, access levels, and player links made participation safer and more personal.",
+        "details": {
+          "account-access": { "title": "Protected accounts and sessions", "description": "Registration, login, and sessions provide individual access to protected platform areas." },
+          "role-permissions": { "title": "Responsibility-based permissions", "description": "Roles control admin actions while the server remains the source of truth for permissions." },
+          "player-profile-link": { "title": "Account linked to player", "description": "Each participant completes and maintains game details before joining drafts." },
+          "account-recovery": { "title": "Account recovery", "description": "Password reset and change flows help users securely recover their own accounts." }
+        }
+      },
+      "2026_06_3": {
+        "title": "Visual team building",
+        "summary": "The draft began using registered players in a visual workspace with dynamic teams and reserves.",
+        "details": {
+          "registered-player-pool": { "title": "Registered draft players", "description": "Selection reuses the active roster and removes manual participant entry." },
+          "visual-team-building": { "title": "Visual team building", "description": "Players can be organized directly across areas and teams without duplication." },
+          "dynamic-teams-reserves": { "title": "Dynamic teams and reserves", "description": "Participant count determines teams, required captains, and reserve players." },
+          "player-details": { "title": "Player details during setup", "description": "Elo, roles, and game identities remain available without leaving the draft." }
+        }
+      },
+      "2026_06_2": {
+        "title": "Players, roles, and teams",
+        "summary": "Structured records replaced loose lists and created a reusable foundation for organizing the community.",
+        "details": {
+          "player-directory": { "title": "Player directory", "description": "Profiles gather identity, elo, and useful links for lookup and organization." },
+          "route-preferences": { "title": "Role preferences", "description": "Each player ranks the five roles and can indicate one role they prefer to avoid." },
+          "player-availability": { "title": "Preserved availability history", "description": "Inactive players remain in history while leaving new operational flows." },
+          "reusable-teams": { "title": "Reusable teams", "description": "Name, tag, captain, and roster remain saved for matches, drafts, and future lookup." }
+        }
+      },
+      "2026_06_1": {
+        "title": "Foundation and internationalization",
+        "summary": "Architecture standards, shared contracts, and bilingual catalogs established the platform foundation.",
+        "details": {
+          "architecture-foundation": { "title": "Architecture foundation", "description": "Clear layers and responsibilities prepared the application to grow with safe maintenance." },
+          "localized-interface": { "title": "Portuguese and English interface", "description": "Navigation, pages, and messages began using synchronized translation catalogs." },
+          "shared-standards": { "title": "Shared standards", "description": "Routes, constants, messages, and the development process gained verifiable conventions." }
+        }
+      }
+    }
   },
   "messages": {
     "MI001": "Loading information",

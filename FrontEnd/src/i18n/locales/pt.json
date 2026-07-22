@@ -11,6 +11,8 @@
     "draft": "Draft",
     "matches": "Partidas",
     "stats": "Estatísticas",
+    "updates": "Atualizações",
+    "new": "Novo",
     "users": "Usuários",
     "settings": "Configurações",
     "support": "Suporte",
@@ -158,6 +160,7 @@
     "forgotPassword": { "title": "Esqueci minha senha" },
     "resetPassword": { "title": "Redefinir senha" },
     "profile": { "title": "Perfil" },
+    "updates": { "title": "Atualizações do sistema" },
     "usersAdmin": { "title": "Usuários" },
     "forbidden": { "title": "Acesso negado" }
   },
@@ -805,6 +808,179 @@
     "title": "Excluir {name}?",
     "description": "Esta ação remove o jogador dos dados temporários. Com backend ativo, a ação usa a inativação segura.",
     "confirm": "Confirmar"
+  },
+  "updates": {
+    "eyebrow": "Histórico do produto",
+    "title": "Atualizações do sistema",
+    "description": "Acompanhe novidades, melhorias e correções entregues para a comunidade.",
+    "latest": "Última atualização",
+    "searchLabel": "Buscar atualizações",
+    "searchPlaceholder": "Busque por recurso ou melhoria...",
+    "filterLabel": "Filtrar por categoria",
+    "allCategories": "Todas",
+    "resultCount": "{count} atualização | {count} atualizações",
+    "emptyTitle": "Nenhuma atualização encontrada",
+    "emptyDescription": "Tente outro termo ou remova os filtros selecionados.",
+    "clearFilters": "Limpar filtros",
+    "details": "Ver detalhes",
+    "timelineLabel": "Linha do tempo de atualizações",
+    "versionIndexLabel": "Índice de versões",
+    "expandCategory": "Expandir detalhes de {category}",
+    "collapseCategory": "Recolher detalhes de {category}",
+    "categories": {
+      "feature": "Novidade",
+      "improvement": "Melhoria",
+      "fix": "Correção",
+      "security": "Segurança",
+      "infrastructure": "Infraestrutura"
+    },
+    "areas": {
+      "platform": "Plataforma",
+      "players": "Jogadores",
+      "teams": "Times",
+      "users": "Usuários",
+      "drafts": "Drafts",
+      "discord": "Discord",
+      "security": "Segurança",
+      "infrastructure": "Infraestrutura"
+    },
+    "releases": {
+      "2026_07_1": {
+        "title": "Drafts e Discord mais confiáveis",
+        "summary": "A operação de drafts ganhou acesso direto, confirmações mais claras, publicações recuperáveis e presença sincronizada, com reforços de segurança e estabilidade.",
+        "details": {
+          "discord-draft-deep-link": {
+            "title": "Acesso direto ao draft pelo Discord",
+            "description": "Links de convite agora abrem o draft correspondente automaticamente, eliminando a seleção manual na listagem."
+          },
+          "invalid-draft-link-feedback": {
+            "title": "Tratamento de links inválidos",
+            "description": "Quando o draft indicado não existe ou não está acessível, a página explica o problema e mantém os demais drafts disponíveis."
+          },
+          "contextual-admin-confirmations": {
+            "title": "Confirmações administrativas contextuais",
+            "description": "Cancelamentos, remoções de presença e republicações usam diálogos integrados que mostram o contexto e o impacto antes da confirmação."
+          },
+          "discord-publication-statuses": {
+            "title": "Status separados das publicações",
+            "description": "Administradores distinguem o estado da lista de presença, da chamada com menção e dos times publicados no Discord."
+          },
+          "individual-publication-recovery": {
+            "title": "Recuperação individual de falhas",
+            "description": "Cada publicação com falha pode ser recuperada separadamente, sem repetir mensagens que já foram enviadas com sucesso."
+          },
+          "duplicate-message-protection": {
+            "title": "Proteção contra mensagens duplicadas",
+            "description": "A publicação permanece única mesmo durante reinícios ou execuções simultâneas do bot."
+          },
+          "realtime-presence": {
+            "title": "Presença atualizada em tempo real",
+            "description": "Confirmações, cancelamentos e alterações administrativas aparecem para quem está com o draft aberto, inclusive após reconexão."
+          },
+          "consistent-presence-operations": {
+            "title": "Operações de presença mais consistentes",
+            "description": "Ações repetidas ou simultâneas mantêm uma única presença por jogador e retornam resultados previsíveis."
+          },
+          "eligible-player-search": {
+            "title": "Busca manual de jogadores mais precisa",
+            "description": "A busca mostra somente jogadores elegíveis e ainda não confirmados, descartando resultados antigos quando o contexto muda."
+          },
+          "admin-action-audit": {
+            "title": "Mais transparência nas ações administrativas",
+            "description": "Cancelamentos, remoções, adições manuais e republicações registram motivo e responsável quando aplicável."
+          },
+          "clear-bot-messages": {
+            "title": "Mensagens mais claras no bot",
+            "description": "Configuração desativada, datas inválidas e falhas conhecidas recebem orientações específicas em vez de respostas genéricas."
+          },
+          "discord-permission-diagnostics": {
+            "title": "Diagnóstico de permissões do Discord",
+            "description": "O bot diferencia problemas de acesso ao canal, envio de mensagens, embeds e menções para facilitar a correção da configuração."
+          },
+          "independent-presence-call": {
+            "title": "Chamada de presença independente",
+            "description": "A chamada com menção possui estado e recuperação próprios; uma falha nela não repete nem invalida a lista principal."
+          },
+          "resilient-publication-queue": {
+            "title": "Fila de publicações mais confiável",
+            "description": "Publicações pendentes continuam sendo processadas com muitos drafts e após falhas isoladas em outros itens do ciclo."
+          },
+          "security-stability-hardening": {
+            "title": "Reforços internos de segurança e estabilidade",
+            "description": "Novas proteções de acesso, validação e isolamento operacional tornam a plataforma mais segura e previsível sem alterar o fluxo de uso."
+          }
+        }
+      },
+      "2026_06_7": {
+        "title": "Segurança e identidade visual",
+        "summary": "A plataforma avançou em proteção, preparação de entrega, visibilidade operacional e consistência da marca.",
+        "details": {
+          "security-baseline": { "title": "Base de segurança fortalecida", "description": "Controles preventivos e padrões seguros passaram a proteger melhor os fluxos internos." },
+          "deployment-readiness": { "title": "Entregas mais previsíveis", "description": "A preparação de ambientes e verificações de implantação reduzem riscos durante novas versões." },
+          "operational-observability": { "title": "Mais visibilidade operacional", "description": "Sinais e registros de operação ajudam a identificar falhas e acompanhar a saúde da aplicação." },
+          "visual-identity": { "title": "Identidade visual consolidada", "description": "Telas e componentes receberam uma linguagem visual mais consistente com a arena competitiva." }
+        }
+      },
+      "2026_06_6": {
+        "title": "Discord e confirmação de presença",
+        "summary": "Contas vinculadas, presença compartilhada e publicação de times aproximaram o fluxo do canal da comunidade.",
+        "details": {
+          "discord-account-link": { "title": "Conta Discord vinculada", "description": "Usuários podem vincular o Discord sem perder o acesso tradicional à plataforma." },
+          "shared-presence-list": { "title": "Presença entre Web e Discord", "description": "Confirmações e cancelamentos usam o mesmo estado oficial nos dois canais." },
+          "presence-closing": { "title": "Encerramento organizado da presença", "description": "A lista pode ser encerrada no horário definido e prepara times e reservas com regras claras." },
+          "final-teams-publication": { "title": "Times publicados no Discord", "description": "Ao finalizar o draft, a comunidade recebe a composição dos times no canal configurado." }
+        }
+      },
+      "2026_06_5": {
+        "title": "Draft em tempo real",
+        "summary": "Capitães e participantes passaram a acompanhar escolhas, turnos e estado oficial do draft sem atualizar a página.",
+        "details": {
+          "synchronized-picks": { "title": "Escolhas sincronizadas", "description": "Cada escolha válida atualiza times, disponíveis e histórico para todos os participantes conectados." },
+          "captain-turns": { "title": "Turnos dos capitães", "description": "Somente o capitão da vez pode escolher, mantendo a ordem justa e auditável." },
+          "turn-timer": { "title": "Tempo controlado por turno", "description": "O relógio mantém o draft em movimento e avança a vez quando o prazo termina." },
+          "reconnection-state": { "title": "Retomada após reconexão", "description": "Quem retorna ao draft recebe o estado oficial atual, incluindo turno, times e escolhas anteriores." }
+        }
+      },
+      "2026_06_4": {
+        "title": "Contas, permissões e perfis",
+        "summary": "Autenticação, níveis de acesso e vínculo com jogador tornaram a participação mais segura e pessoal.",
+        "details": {
+          "account-access": { "title": "Contas e sessões protegidas", "description": "Cadastro, login e sessão permitem acesso individual às áreas protegidas da plataforma." },
+          "role-permissions": { "title": "Permissões por responsabilidade", "description": "Papéis controlam ações administrativas e mantêm o servidor como fonte de verdade das permissões." },
+          "player-profile-link": { "title": "Conta vinculada ao jogador", "description": "Cada participante completa e mantém seus dados de jogo antes de entrar nos drafts." },
+          "account-recovery": { "title": "Recuperação de acesso", "description": "Fluxos de redefinição e alteração de senha ajudam usuários a recuperar a própria conta com segurança." }
+        }
+      },
+      "2026_06_3": {
+        "title": "Montagem visual de times",
+        "summary": "O draft passou a usar jogadores cadastrados em uma organização visual com times dinâmicos e reservas.",
+        "details": {
+          "registered-player-pool": { "title": "Jogadores cadastrados no draft", "description": "A seleção reutiliza a base ativa e elimina a digitação manual de participantes." },
+          "visual-team-building": { "title": "Montagem visual", "description": "Jogadores podem ser organizados entre áreas e times de forma direta, sem duplicidades." },
+          "dynamic-teams-reserves": { "title": "Times e reservas dinâmicos", "description": "A quantidade de participantes determina os times, capitães necessários e jogadores de reserva." },
+          "player-details": { "title": "Detalhes durante a montagem", "description": "Elo, rotas e identidades de jogo ficam disponíveis sem abandonar o draft." }
+        }
+      },
+      "2026_06_2": {
+        "title": "Jogadores, rotas e times",
+        "summary": "Cadastros estruturados substituíram listas soltas e criaram uma base reutilizável para organizar a comunidade.",
+        "details": {
+          "player-directory": { "title": "Diretório de jogadores", "description": "Perfis reúnem identificação, elo e links úteis para consulta e organização." },
+          "route-preferences": { "title": "Preferências de rota", "description": "Cada jogador informa prioridades entre as cinco rotas e pode indicar uma rota que prefere evitar." },
+          "player-availability": { "title": "Disponibilidade preservada", "description": "Jogadores inativos permanecem no histórico, mas deixam de participar de novos fluxos." },
+          "reusable-teams": { "title": "Times reutilizáveis", "description": "Nome, tag, capitão e composição ficam salvos para partidas, drafts e consultas futuras." }
+        }
+      },
+      "2026_06_1": {
+        "title": "Fundação e internacionalização",
+        "summary": "Padrões arquiteturais, contratos compartilhados e catálogos bilíngues estabeleceram a base da plataforma.",
+        "details": {
+          "architecture-foundation": { "title": "Fundação arquitetural", "description": "Camadas e responsabilidades claras prepararam a aplicação para crescer com manutenção segura." },
+          "localized-interface": { "title": "Interface em português e inglês", "description": "Navegação, páginas e mensagens passaram a usar catálogos de tradução sincronizados." },
+          "shared-standards": { "title": "Padrões compartilhados", "description": "Rotas, constantes, mensagens e processo de desenvolvimento ganharam convenções verificáveis." }
+        }
+      }
+    }
   },
   "messages": {
     "MI001": "Carregando informações",
