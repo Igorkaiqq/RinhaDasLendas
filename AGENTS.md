@@ -472,7 +472,7 @@ Do not create new design tokens unless explicitly approved.
 # Current Feature Context
 
 <!-- SPECKIT START -->
-
-Implementation Plan: specs/017-robustecer-drafts-discord-jogadores/plan.md
-
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/019-historico-atualizacoes/plan.md
 <!-- SPECKIT END -->

@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-22
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: Página frontend autenticada para consultar, pesquisar e manter um histórico editorial localizado das atualizações do sistema.
 
