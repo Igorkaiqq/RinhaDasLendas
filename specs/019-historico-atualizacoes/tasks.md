@@ -60,12 +60,12 @@ description: "Tarefas de implementação do histórico de atualizações"
 
 **Purpose**: tornar o histórico descobrível e autenticado, com estado visualizado local e tolerante a falhas.
 
-- [ ] T014 [US1] Escrever e executar teste vermelho para nome e caminho `/atualizacoes` em `FrontEnd/src/constants/appRoutes.spec.ts`
-- [ ] T015 [US1] Escrever e executar teste vermelho da rota `requiresAuth`, sem restrição por papel, em `FrontEnd/src/router/index.spec.ts`
-- [ ] T016 [US3] Escrever e executar testes vermelhos do contrato `badge?: 'new'` e sua renderização localizada em `FrontEnd/src/components/layout/SidebarNav.spec.ts`, além da `ref` da última versão vista, inicialização pelo serviço de storage, `watch` da rota `AppRouteNames.Updates`, gravação de `2026.07.1`, remoção sem reload e fallback em `FrontEnd/src/components/layout/AppShell.spec.ts`
-- [ ] T017 [US1] Adicionar `Updates` a `AppRouteNames` e `/atualizacoes` a `AppRoutes` em `FrontEnd/src/constants/appRoutes.ts`, fazendo `FrontEnd/src/constants/appRoutes.spec.ts` passar
-- [ ] T018 [US1] Registrar `SystemUpdatesView` com `requiresAuth: true` e título localizado em `FrontEnd/src/router/index.ts`, fazendo `FrontEnd/src/router/index.spec.ts` passar
-- [ ] T019 [US3] Adicionar `badge?: 'new'` a `SidebarNavigationItem` em `FrontEnd/src/types/layout.ts`, manter a `ref` da última versão vista e o `watch` da rota Updates com o serviço de storage em `FrontEnd/src/components/layout/AppShell.vue`, e renderizar o badge localizado em `FrontEnd/src/components/layout/SidebarNav.vue`, fazendo `FrontEnd/src/components/layout/AppShell.spec.ts` e `FrontEnd/src/components/layout/SidebarNav.spec.ts` passar sem reload ou quebra quando o storage falhar
+- [X] T014 [US1] Escrever e executar teste vermelho para nome e caminho `/atualizacoes` em `FrontEnd/src/constants/appRoutes.spec.ts`
+- [X] T015 [US1] Escrever e executar teste vermelho da rota `requiresAuth`, sem restrição por papel, em `FrontEnd/src/router/index.spec.ts`
+- [X] T016 [US3] Escrever e executar testes vermelhos do contrato `badge?: 'new'` e sua renderização localizada em `FrontEnd/src/components/layout/SidebarNav.spec.ts`, além da `ref` da última versão vista, inicialização pelo serviço de storage, `watch` da rota `AppRouteNames.Updates`, gravação de `2026.07.1`, remoção sem reload e fallback em `FrontEnd/src/components/layout/AppShell.spec.ts`
+- [X] T017 [US1] Adicionar `Updates` a `AppRouteNames` e `/atualizacoes` a `AppRoutes` em `FrontEnd/src/constants/appRoutes.ts`, fazendo `FrontEnd/src/constants/appRoutes.spec.ts` passar
+- [X] T018 [US1] Registrar `SystemUpdatesView` com `requiresAuth: true` e título localizado em `FrontEnd/src/router/index.ts`, fazendo `FrontEnd/src/router/index.spec.ts` passar
+- [X] T019 [US3] Adicionar `badge?: 'new'` a `SidebarNavigationItem` em `FrontEnd/src/types/layout.ts`, manter a `ref` da última versão vista e o `watch` da rota Updates com o serviço de storage em `FrontEnd/src/components/layout/AppShell.vue`, e renderizar o badge localizado em `FrontEnd/src/components/layout/SidebarNav.vue`, fazendo `FrontEnd/src/components/layout/AppShell.spec.ts` e `FrontEnd/src/components/layout/SidebarNav.spec.ts` passar sem reload ou quebra quando o storage falhar
 
 **Checkpoint**: usuários autenticados encontram a rota em qualquer navegação e o badge reflete a visualização no navegador atual.
 

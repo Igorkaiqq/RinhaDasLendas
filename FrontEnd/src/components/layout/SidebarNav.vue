@@ -56,6 +56,9 @@ const { t } = useI18n()
         <span class="sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
         <span class="sidebar__label">{{ item.label }}</span>
         <span v-if="item.status === 'placeholder'" class="sidebar__status">{{ t('navigation.soon') }}</span>
+        <span v-if="item.badge === 'new'" class="sidebar__status sidebar__status--new">
+          {{ t('navigation.new') }}
+        </span>
       </RouterLink>
     </nav>
 

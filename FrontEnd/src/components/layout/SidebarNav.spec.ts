@@ -54,4 +54,32 @@ describe('SidebarNav', () => {
     expect(wrapper.find('.sidebar__item--active').text()).toContain('Jogadores')
     expect(wrapper.attributes('aria-label')).toBe('Navegação principal')
   })
+
+  it('renders a localized textual badge for a new update', () => {
+    const wrapper = mount(SidebarNav, {
+      global: {
+        plugins: [i18n],
+      },
+      props: {
+        collapsed: false,
+        items: [
+          {
+            id: 'updates',
+            label: i18n.global.t('navigation.updates'),
+            icon: 'UP',
+            routeName: 'updates',
+            path: '/atualizacoes',
+            status: 'available',
+            badge: 'new',
+          },
+        ],
+      },
+    })
+
+    const badge = wrapper.get('.sidebar__status--new')
+    const updateLink = wrapper.get('.sidebar__nav a')
+    expect(badge.text()).toBe('Novo')
+    expect(updateLink.text()).toContain('Atualizações')
+    expect(updateLink.text()).toContain('Novo')
+  })
 })
