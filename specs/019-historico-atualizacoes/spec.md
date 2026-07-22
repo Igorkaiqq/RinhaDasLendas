@@ -16,11 +16,11 @@ Como usuário autenticado, quero consultar atualizações em ordem cronológica 
 
 **Why this priority**: Consultar o histórico é o valor central da feature e entrega uma experiência útil mesmo sem busca, filtros ou indicador de conteúdo novo.
 
-**Independent Test**: Um usuário autenticado acessa `/atualizacoes`, identifica a release mais recente, percorre os oito marcos em ordem cronológica decrescente e expande os detalhes de cada categoria por mouse ou teclado.
+**Independent Test**: Um usuário autenticado acessa `/atualizacoes`, identifica `2026.07.1` como a release mais recente com exatamente 15 itens, percorre os oito marcos em ordem cronológica decrescente e expande os detalhes de cada categoria por mouse ou teclado.
 
 **Acceptance Scenarios**:
 
-1. **Given** um usuário autenticado, **When** ele acessa `/atualizacoes`, **Then** visualiza a release mais recente em destaque e os oito marcos históricos em ordem cronológica decrescente.
+1. **Given** um usuário autenticado, **When** ele acessa `/atualizacoes`, **Then** visualiza `2026.07.1` em destaque com exatamente 15 itens e os oito marcos históricos em ordem cronológica decrescente.
 2. **Given** uma atualização com detalhes agrupados, **When** o usuário aciona um grupo por mouse, teclado ou toque, **Then** o conteúdo correspondente é expandido e o estado do controle é comunicado de forma acessível.
 3. **Given** uma atualização com link para uma área relacionada, **When** o usuário aciona o link, **Then** navega para uma rota interna válida sem recarregar a aplicação.
 4. **Given** qualquer tamanho de tela suportado, **When** o usuário consulta o histórico, **Then** consegue ler e operar cards, detalhes e links sem rolagem horizontal da página.
@@ -73,6 +73,7 @@ Como mantenedor, quero cadastrar releases em um contrato tipado e localizado, pa
 1. **Given** uma nova release válida e localizada, **When** o mantenedor executa as validações documentadas, **Then** o registro é aceito e a release mais recente é determinada sem configuração duplicada.
 2. **Given** ID ou versão duplicada, data ou versão inválida, categoria ou área desconhecida, tradução ausente ou link interno inválido, **When** as validações são executadas, **Then** a entrega falha com indicação objetiva da inconsistência.
 3. **Given** uma mudança visível ao usuário, **When** o mantenedor segue o checklist da feature, **Then** ele revisa explicitamente a necessidade de atualizar o histórico.
+4. **Given** o item de reforços internos de segurança e estabilidade, **When** o conteúdo localizado é validado, **Then** ele descreve benefícios em linguagem clara sem expor tokens, endpoints ou detalhes sensíveis.
 
 ### Edge Cases
 
@@ -90,8 +91,8 @@ Como mantenedor, quero cadastrar releases em um contrato tipado e localizado, pa
 ### Functional Requirements
 
 - **FR-001**: O sistema MUST disponibilizar `/atualizacoes` somente para usuários autenticados, sem restrição adicional por papel.
-- **FR-002**: O sistema MUST apresentar exatamente oito marcos históricos iniciais coerentes com as grandes entregas aprovadas, sem gerar entradas automaticamente por commit.
-- **FR-003**: A release mais recente MUST detalhar individualmente os 15 itens de confiabilidade operacional definidos no design aprovado e destacar acesso direto, modais contextuais, status de publicação, recuperação individual, presença em tempo real e busca manual.
+- **FR-002**: O sistema MUST apresentar exatamente oito marcos históricos iniciais com os IDs estáveis `platform-foundation`, `players-teams`, `users-auth-rbac`, `visual-draft`, `realtime-draft`, `discord-presence`, `security-deploy-identity` e `drafts-discord-reliability`, coerentes com as grandes entregas aprovadas e sem gerar entradas automaticamente por commit.
+- **FR-003**: A release mais recente MUST ser explicitamente `2026.07.1`, usar o ID `drafts-discord-reliability` e conter exatamente os 15 itens estáveis `discord-draft-deep-link`, `invalid-draft-link-feedback`, `contextual-admin-confirmations`, `discord-publication-statuses`, `individual-publication-recovery`, `duplicate-message-protection`, `realtime-presence`, `consistent-presence-operations`, `eligible-player-search`, `admin-action-audit`, `clear-bot-messages`, `discord-permission-diagnostics`, `independent-presence-call`, `resilient-publication-queue` e `security-stability-hardening`; MUST destacar acesso direto, modais contextuais, status de publicação, recuperação individual, presença em tempo real e busca manual, e MUST resumir o item de segurança em linguagem clara sem expor tokens, endpoints ou detalhes sensíveis.
 - **FR-004**: Cada release MUST possuir ID estável, versão única no formato `AAAA.MM.N`, data de publicação ISO válida, título, resumo, pelo menos uma categoria, pelo menos uma área afetada e pelo menos um detalhe.
 - **FR-005**: O sistema MUST reconhecer somente as categorias `feature`, `improvement`, `fix`, `security` e `infrastructure`; uma release MAY reunir várias categorias, e cada detalhe MUST pertencer a exatamente uma delas.
 - **FR-006**: O sistema MUST reconhecer como áreas iniciais plataforma, jogadores, times, usuários, drafts, Discord, segurança e infraestrutura, todas identificadas por valores controlados e rótulos localizados.
@@ -122,14 +123,14 @@ Como mantenedor, quero cadastrar releases em um contrato tipado e localizado, pa
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% dos usuários autenticados conseguem abrir `/atualizacoes` e identificar a release mais recente, sua versão e data em até 10 segundos.
-- **SC-002**: Os oito marcos históricos aparecem em ordem cronológica decrescente, e a release mais recente apresenta os 15 detalhes aprovados individualmente.
-- **SC-003**: Em testes de tarefa, pelo menos 90% dos usuários localizam uma atualização por busca e categoria em até 30 segundos e restauram o histórico em uma única ação.
+- **SC-001**: 100% dos cenários automatizados de acesso confirmam que `/atualizacoes` exige autenticação e apresenta `2026.07.1`, com versão e data derivadas do registro, no hero.
+- **SC-002**: Os oito marcos históricos com IDs estáveis aparecem em ordem cronológica decrescente, e `2026.07.1` apresenta exatamente os 15 itens estáveis aprovados.
+- **SC-003**: 100% da matriz automatizada de busca em português e inglês encontra termos de título, resumo e detalhes, combina texto com categorias e restaura o catálogo completo ao limpar os filtros.
 - **SC-004**: 100% das funções interativas da página podem ser operadas por teclado e toque, sem ações inacessíveis ou overflow horizontal nas larguras suportadas.
 - **SC-005**: O indicador de conteúdo novo aparece em 100% dos cenários com versão ausente ou divergente e desaparece sem recarga ao abrir a página, inclusive com fallback funcional quando o armazenamento local falha.
 - **SC-006**: As validações detectam 100% dos casos exercitados de IDs ou versões duplicados, formatos inválidos, desordem cronológica, classificações desconhecidas, traduções ausentes e links internos inválidos.
 - **SC-007**: Português e inglês apresentam a mesma estrutura editorial e todos os controles, estados e conteúdos sem texto visível fora dos catálogos de tradução.
-- **SC-008**: Um mantenedor consegue adicionar e validar uma release seguindo somente o guia em até 15 minutos, sem alterar backend ou consultar commits para gerar conteúdo.
+- **SC-008**: O guia de manutenção contém os sete passos obrigatórios de versionamento, registro, traduções, classificação, links, validações e commit, e sua verificação confirma que nenhuma etapa exige backend ou geração por commits.
 
 ## Assumptions
 
@@ -137,6 +138,7 @@ Como mantenedor, quero cadastrar releases em um contrato tipado e localizado, pa
 - O histórico inicial será curado a partir do design aprovado e das fontes já versionadas no repositório.
 - O registro será entregue junto da aplicação; não haverá carregamento de rede, painel administrativo ou persistência no backend nesta versão.
 - O indicador Novo representa apenas o navegador atual e usa a chave `rinha:last-seen-system-update`.
+- A release `2026.07.1` é a mais recente do catálogo inicial e permanece associada ao marco `drafts-discord-reliability` e aos seus 15 itens estáveis.
 - Datas editoriais seguem o histórico real disponível, e a versão mensal identifica uma entrega editorial, não uma feature ou commit individual.
 
 ## Out of Scope

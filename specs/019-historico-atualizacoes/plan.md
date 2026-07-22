@@ -6,7 +6,7 @@
 
 ## Summary
 
-Criar uma página autenticada e responsiva em `/atualizacoes` que apresenta oito releases editoriais compiladas, permite consultar detalhes, pesquisar conteúdo localizado, combinar filtros por categoria e perceber uma release ainda não visualizada por um badge local. O conteúdo estrutural ficará em um registro TypeScript imutável, os textos ficarão nos catálogos de i18n, e operações puras concentrarão ordenação, busca, validação de links e acesso seguro ao estado visualizado. A feature não adiciona backend, banco, endpoint ou geração baseada em commits.
+Criar uma página autenticada e responsiva em `/atualizacoes` que apresenta oito releases editoriais compiladas, com `2026.07.1` explicitamente definida como a mais recente e composta por exatamente 15 itens, permite consultar detalhes, pesquisar conteúdo localizado, combinar filtros por categoria e perceber uma release ainda não visualizada por um badge local. O conteúdo estrutural ficará em um registro TypeScript imutável, os textos ficarão nos catálogos de i18n, e operações puras concentrarão ordenação, busca e validação de links, enquanto uma fronteira de storage protegerá o estado visualizado. A feature não adiciona backend, banco, endpoint ou geração baseada em commits.
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ Criar uma página autenticada e responsiva em `/atualizacoes` que apresenta oito
 
 **Constraints**: rota autenticada; conteúdo equivalente em português e inglês; operação completa por teclado e toque; sem overflow horizontal; uso exclusivo dos tokens e componentes existentes; falhas de `localStorage` não podem interromper a interface
 
-**Scale/Scope**: oito marcos iniciais, 15 detalhes na release mais recente, cinco categorias fechadas, oito áreas tipadas e um guia de manutenção
+**Scale/Scope**: oito marcos iniciais com IDs estáveis, `2026.07.1` como release mais recente com exatamente 15 itens estáveis, cinco categorias fechadas, oito áreas tipadas e um guia de manutenção
 
 ## Constitution Check
 
@@ -49,20 +49,52 @@ Criar uma página autenticada e responsiva em `/atualizacoes` que apresenta oito
 
 - Declarar categorias, áreas, links e releases em `FrontEnd/src/types/systemUpdate.ts`.
 - Armazenar a coleção imutável em `FrontEnd/src/constants/systemUpdates.ts`, contendo apenas IDs, versões, datas, classificações, áreas, destaque, chaves i18n e links internos opcionais.
-- Cadastrar os oito marcos aprovados e os 15 detalhes individualizados da release mais recente; não produzir uma entrada por commit.
+- Cadastrar os oito marcos aprovados e os 15 itens individualizados de `2026.07.1`; não produzir uma entrada por commit.
 - Usar versão editorial `AAAA.MM.N`, com sufixo mensal sequencial, e data ISO coerente com o histórico real.
 - Manter títulos, resumos, descrições, categorias, áreas e rótulos exclusivamente em `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`.
+- Resumir `security-stability-hardening` como benefício de segurança e estabilidade em linguagem clara, sem tokens, endpoints ou detalhes sensíveis, com teste de conteúdo nos dois catálogos.
+
+#### IDs Estáveis Dos Marcos
+
+1. `platform-foundation`: fundação da plataforma, arquitetura e internacionalização.
+2. `players-teams`: jogadores, preferências de rota e times.
+3. `users-auth-rbac`: usuários, autenticação, RBAC e vínculo com jogador.
+4. `visual-draft`: draft visual e montagem de times.
+5. `realtime-draft`: draft em tempo real, turnos, picks e reconexão.
+6. `discord-presence`: Discord, vínculo de contas e confirmação de presença.
+7. `security-deploy-identity`: segurança, deploy, observabilidade e identidade visual.
+8. `drafts-discord-reliability`: confiabilidade operacional de drafts e Discord, versão `2026.07.1`.
+
+#### IDs Estáveis Dos Itens De `2026.07.1`
+
+1. `discord-draft-deep-link`
+2. `invalid-draft-link-feedback`
+3. `contextual-admin-confirmations`
+4. `discord-publication-statuses`
+5. `individual-publication-recovery`
+6. `duplicate-message-protection`
+7. `realtime-presence`
+8. `consistent-presence-operations`
+9. `eligible-player-search`
+10. `admin-action-audit`
+11. `clear-bot-messages`
+12. `discord-permission-diagnostics`
+13. `independent-presence-call`
+14. `resilient-publication-queue`
+15. `security-stability-hardening`
 
 ### Operações E Estado Local
 
 - Concentrar em `FrontEnd/src/services/systemUpdates.ts` funções puras de ordenação, identificação da release mais recente, agrupamento temporal, normalização de texto, busca localizada, combinação de categorias e validação de links internos.
 - Ler e gravar `rinha:last-seen-system-update` por uma fronteira protegida que captura indisponibilidade ou exceções de `localStorage` e preserva estado em memória durante a sessão.
-- Derivar o badge da comparação entre a versão mais recente do registro e a versão visualizada; ao abrir a view, registrar a versão e refletir a remoção sem recarga.
+- Manter em `FrontEnd/src/components/layout/AppShell.vue` uma `ref` com a última versão vista, inicializada pelo serviço de storage, e derivar o badge da comparação dessa `ref` com `2026.07.1`, obtida como a versão mais recente do registro.
+- Observar em `AppShell.vue` a rota `AppRouteNames.Updates`; ao entrar nela, gravar `2026.07.1` pelo serviço de storage e atualizar a `ref` no mesmo ciclo reativo, removendo o badge sem reload. Se o storage falhar, o serviço mantém o fallback em memória e a `ref` continua sendo atualizada.
 - Recalcular resultados com o conteúdo do idioma ativo, incluindo título, resumo e detalhes, sem manter índice textual duplicado.
 
 ### Interface E Acessibilidade
 
 - Registrar `AppRoutes.Updates` e `AppRouteNames.Updates`, criar a rota com `requiresAuth: true` e expor Atualizações na navegação desktop e mobile existente.
+- Ampliar `SidebarNavigationItem` em `FrontEnd/src/types/layout.ts` com o contrato opcional `badge?: 'new'`; `AppShell.vue` atribui esse valor ao item Atualizações enquanto houver conteúdo não visualizado, e `SidebarNav.vue` apenas o renderiza com rótulo localizado.
 - Compor a página em `FrontEnd/src/views/SystemUpdatesView.vue`; manter o card editorial em `FrontEnd/src/components/updates/SystemUpdateCard.vue` e extrair outros componentes apenas se a composição deixar de ser pequena e legível.
 - Reutilizar componentes e tokens documentados em `docs/design/DESIGN_SYSTEM.md`, `docs/design/DESIGN_TOKENS.md` e `docs/design/UI_GUIDELINES.md`; não criar novos tokens.
 - Renderizar timeline como lista semântica, datas com `time`, detalhes com botões que exponham `aria-expanded`, filtros com estado selecionado e badge com texto localizado.
@@ -93,6 +125,8 @@ FrontEnd/
 ├── src/
 │   ├── components/
 │   │   ├── layout/
+│   │   │   ├── AppShell.vue
+│   │   │   ├── AppShell.spec.ts
 │   │   │   ├── SidebarNav.vue
 │   │   │   └── SidebarNav.spec.ts
 │   │   └── updates/
@@ -114,6 +148,7 @@ FrontEnd/
 │   │   ├── systemUpdates.ts
 │   │   └── systemUpdates.spec.ts
 │   ├── types/
+│   │   ├── layout.ts
 │   │   └── systemUpdate.ts
 │   └── views/
 │       ├── SystemUpdatesView.vue
@@ -132,7 +167,7 @@ docs/
 ## Verification Strategy
 
 1. Executar testes unitários do registro e do serviço para contrato, ordenação, busca, filtros, links e fallback do storage.
-2. Executar testes de componentes para card, rota, navegação, badge, hero, timeline, filtros, expansão e estado vazio.
+2. Executar testes de componentes para card, rota, navegação, contrato `badge?: 'new'`, `ref` e `watch` reativos no `AppShell`, hero, timeline, filtros, expansão e estado vazio.
 3. Executar os testes de i18n para paridade estrutural, existência de todas as chaves e ausência de texto editorial no registro.
 4. Executar a suíte frontend completa e o build de produção.
 5. Validar manualmente `/atualizacoes` autenticado em português e inglês, por mouse, teclado e toque, em viewport desktop e mobile.

@@ -13,6 +13,12 @@ description: "Tarefas de implementação do histórico de atualizações"
 
 **Organization**: as tarefas seguem os seis incrementos aprovados e mantêm rastreabilidade para as quatro histórias de usuário.
 
+## Stable Content IDs
+
+**Marcos**: `platform-foundation`, `players-teams`, `users-auth-rbac`, `visual-draft`, `realtime-draft`, `discord-presence`, `security-deploy-identity`, `drafts-discord-reliability`.
+
+**Itens de `2026.07.1`**: `discord-draft-deep-link`, `invalid-draft-link-feedback`, `contextual-admin-confirmations`, `discord-publication-statuses`, `individual-publication-recovery`, `duplicate-message-protection`, `realtime-presence`, `consistent-presence-operations`, `eligible-player-search`, `admin-action-audit`, `clear-bot-messages`, `discord-permission-diagnostics`, `independent-presence-call`, `resilient-publication-queue`, `security-stability-hardening`.
+
 ## Format: `[ID] [P?] [Story?] Description`
 
 - **[P]**: somente traduções ou documentação em arquivos distintos e sem dependência de edição concorrente.
@@ -24,7 +30,7 @@ description: "Tarefas de implementação do histórico de atualizações"
 **Purpose**: estabelecer o contrato tipado e testes inicialmente vermelhos que bloqueiam o registro e suas operações.
 
 - [ ] T001 Criar os tipos fechados de categoria, área, detalhe, link e release em `FrontEnd/src/types/systemUpdate.ts`
-- [ ] T002 [US4] Escrever e executar testes vermelhos do contrato do registro para IDs e versões únicos, formato `AAAA.MM.N`, datas ISO, ordem decrescente, oito releases, 15 detalhes recentes, categorias, áreas, detalhes e links internos em `FrontEnd/src/constants/systemUpdates.spec.ts`
+- [ ] T002 [US4] Escrever e executar testes vermelhos do contrato do registro para IDs e versões únicos, formato `AAAA.MM.N`, datas ISO, ordem decrescente, os oito IDs estáveis desta lista, `drafts-discord-reliability` como `2026.07.1`, exatamente os 15 IDs estáveis desta release, categorias, áreas, detalhes e links internos em `FrontEnd/src/constants/systemUpdates.spec.ts`
 - [ ] T003 [US1] Escrever e executar testes vermelhos das operações de ordenação, release mais recente, agrupamento temporal e validação de links em `FrontEnd/src/services/systemUpdates.spec.ts`
 - [ ] T004 [US2] Acrescentar e executar testes vermelhos de normalização localizada sem distinção de caixa ou acentuação, busca em título, resumo e detalhes, combinação de categorias e limpeza lógica em `FrontEnd/src/services/systemUpdates.spec.ts`
 - [ ] T005 [US3] Acrescentar e executar testes vermelhos de leitura, gravação, versão divergente e fallback em memória quando `localStorage` lança erro ou está indisponível em `FrontEnd/src/services/systemUpdates.spec.ts`
@@ -37,11 +43,11 @@ description: "Tarefas de implementação do histórico de atualizações"
 
 **Purpose**: entregar o catálogo inicial completo, operações puras e paridade localizada verificável.
 
-- [ ] T006 [US4] Implementar a coleção imutável com oito marcos, versões e datas históricas coerentes, cinco categorias, oito áreas, links internos e os 15 detalhes individualizados da release mais recente em `FrontEnd/src/constants/systemUpdates.ts`, fazendo `FrontEnd/src/constants/systemUpdates.spec.ts` passar
+- [ ] T006 [US4] Implementar a coleção imutável com os oito IDs estáveis, versões e datas históricas coerentes, cinco categorias, oito áreas e links internos, fixando `drafts-discord-reliability` como release mais recente `2026.07.1` com exatamente os 15 IDs estáveis listados em `FrontEnd/src/constants/systemUpdates.ts`, fazendo `FrontEnd/src/constants/systemUpdates.spec.ts` passar
 - [ ] T007 [US1] Implementar ordenação, release mais recente, agrupamento e validação contra `AppRoutes` em `FrontEnd/src/services/systemUpdates.ts`, fazendo os testes correspondentes de `FrontEnd/src/services/systemUpdates.spec.ts` passar
 - [ ] T008 [US2] Implementar normalização, busca sobre mensagens traduzidas e combinação de filtros em `FrontEnd/src/services/systemUpdates.ts`, fazendo os testes correspondentes de `FrontEnd/src/services/systemUpdates.spec.ts` passar
 - [ ] T009 [US3] Implementar leitura e gravação de `rinha:last-seen-system-update`, detecção de conteúdo novo e fallback da sessão em `FrontEnd/src/services/systemUpdates.ts`, fazendo os testes correspondentes de `FrontEnd/src/services/systemUpdates.spec.ts` passar
-- [ ] T010 [US4] Estender os testes de paridade para exigir todas as chaves de releases, detalhes, categorias, áreas, filtros, badge, estados e acessibilidade nos dois idiomas em `FrontEnd/src/i18n/i18n.spec.ts` e confirmar a falha antes dos catálogos
+- [ ] T010 [US4] Estender os testes de paridade para exigir chaves dos oito marcos e 15 itens estáveis, categorias, áreas, filtros, badge, estados e acessibilidade nos dois idiomas e para rejeitar tokens, endpoints, URLs ou detalhes sensíveis no resumo de `security-stability-hardening` em `FrontEnd/src/i18n/i18n.spec.ts`, confirmando a falha antes dos catálogos
 - [ ] T011 [P] [US4] Adicionar títulos, resumos, 15 detalhes recentes, demais marcos, categorias, áreas, filtros, badge, estados e nomes acessíveis em português com acentuação revisada em `FrontEnd/src/i18n/locales/pt.json`
 - [ ] T012 [P] [US4] Adicionar estrutura e conteúdo equivalentes em inglês em `FrontEnd/src/i18n/locales/en.json`
 - [ ] T013 [US4] Executar `npm test -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/i18n/i18n.spec.ts` em `FrontEnd/` e corrigir somente os arquivos desta fase até todos os contratos passarem
@@ -56,10 +62,10 @@ description: "Tarefas de implementação do histórico de atualizações"
 
 - [ ] T014 [US1] Escrever e executar teste vermelho para nome e caminho `/atualizacoes` em `FrontEnd/src/constants/appRoutes.spec.ts`
 - [ ] T015 [US1] Escrever e executar teste vermelho da rota `requiresAuth`, sem restrição por papel, em `FrontEnd/src/router/index.spec.ts`
-- [ ] T016 [US3] Escrever e executar testes vermelhos do item Atualizações na navegação desktop e mobile, badge localizado para versão ausente ou divergente, remoção sem recarga e fallback de storage em `FrontEnd/src/components/layout/SidebarNav.spec.ts`
+- [ ] T016 [US3] Escrever e executar testes vermelhos do contrato `badge?: 'new'` e sua renderização localizada em `FrontEnd/src/components/layout/SidebarNav.spec.ts`, além da `ref` da última versão vista, inicialização pelo serviço de storage, `watch` da rota `AppRouteNames.Updates`, gravação de `2026.07.1`, remoção sem reload e fallback em `FrontEnd/src/components/layout/AppShell.spec.ts`
 - [ ] T017 [US1] Adicionar `Updates` a `AppRouteNames` e `/atualizacoes` a `AppRoutes` em `FrontEnd/src/constants/appRoutes.ts`, fazendo `FrontEnd/src/constants/appRoutes.spec.ts` passar
 - [ ] T018 [US1] Registrar `SystemUpdatesView` com `requiresAuth: true` e título localizado em `FrontEnd/src/router/index.ts`, fazendo `FrontEnd/src/router/index.spec.ts` passar
-- [ ] T019 [US3] Integrar o item Atualizações e o badge reativo com a versão visualizada em `FrontEnd/src/components/layout/SidebarNav.vue`, fazendo `FrontEnd/src/components/layout/SidebarNav.spec.ts` passar sem interromper navegação quando o storage falhar
+- [ ] T019 [US3] Adicionar `badge?: 'new'` a `SidebarNavigationItem` em `FrontEnd/src/types/layout.ts`, manter a `ref` da última versão vista e o `watch` da rota Updates com o serviço de storage em `FrontEnd/src/components/layout/AppShell.vue`, e renderizar o badge localizado em `FrontEnd/src/components/layout/SidebarNav.vue`, fazendo `FrontEnd/src/components/layout/AppShell.spec.ts` e `FrontEnd/src/components/layout/SidebarNav.spec.ts` passar sem reload ou quebra quando o storage falhar
 
 **Checkpoint**: usuários autenticados encontram a rota em qualquer navegação e o badge reflete a visualização no navegador atual.
 
@@ -80,7 +86,7 @@ description: "Tarefas de implementação do histórico de atualizações"
 
 **Purpose**: compor a experiência principal e a localização rápida de mudanças.
 
-- [ ] T022 [US1] Escrever e executar testes vermelhos do hero da release mais recente, oito releases em ordem decrescente, agrupamento por ano e mês, índice lateral quando aplicável e registro da versão visualizada ao abrir em `FrontEnd/src/views/SystemUpdatesView.spec.ts`
+- [ ] T022 [US1] Escrever e executar testes vermelhos do hero com `2026.07.1` e seus 15 itens, oito IDs estáveis em ordem decrescente, agrupamento por ano e mês e índice lateral quando aplicável em `FrontEnd/src/views/SystemUpdatesView.spec.ts`
 - [ ] T023 [US2] Acrescentar e executar testes vermelhos de busca no idioma ativo, recálculo ao trocar idioma, chips combináveis, quantidade, limpeza e estado vazio localizado em `FrontEnd/src/views/SystemUpdatesView.spec.ts`
 - [ ] T024 [US1] Acrescentar e executar testes vermelhos de semântica de lista, foco e nomes acessíveis, filtros roláveis e ausência de ações inacessíveis nas composições desktop e mobile em `FrontEnd/src/views/SystemUpdatesView.spec.ts`
 - [ ] T025 [US1] Implementar hero, índice responsivo, timeline semântica e composição dos cards em `FrontEnd/src/views/SystemUpdatesView.vue`, fazendo os testes de consulta e acessibilidade em `FrontEnd/src/views/SystemUpdatesView.spec.ts` passar
@@ -98,7 +104,7 @@ description: "Tarefas de implementação do histórico de atualizações"
 - [ ] T028 [P] [US4] Adicionar a revisão explícita do histórico para mudanças visíveis em `docs/standards/FEATURE_CHECKLIST.md`
 - [ ] T029 Revisar responsividade e ajustar somente `FrontEnd/src/views/SystemUpdatesView.vue` e `FrontEnd/src/components/updates/SystemUpdateCard.vue` para uma coluna mobile, filtros roláveis, timeline à esquerda, largura disponível e ausência de overflow, preservando os testes escritos em T024
 - [ ] T030 Executar `npm test` e `npm run build` em `FrontEnd/` e corrigir falhas relacionadas à feature nos arquivos listados neste documento
-- [ ] T031 Auditar `FrontEnd/src/constants/systemUpdates.ts`, `FrontEnd/src/components/updates/SystemUpdateCard.vue` e `FrontEnd/src/views/SystemUpdatesView.vue` para confirmar ausência de texto visível hardcoded
+- [ ] T031 Auditar `FrontEnd/src/constants/systemUpdates.ts`, `FrontEnd/src/components/updates/SystemUpdateCard.vue`, `FrontEnd/src/views/SystemUpdatesView.vue` e os dois catálogos para confirmar ausência de texto visível hardcoded e que `security-stability-hardening` não expõe tokens, endpoints ou detalhes sensíveis
 - [ ] T032 Auditar sincronização de `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`, acentuação portuguesa, placeholders, botões, títulos, badges, estados vazios, nomes acessíveis e validações localizadas
 - [ ] T033 Validar manualmente `/atualizacoes` autenticado em português e inglês por mouse, teclado e toque, em desktop e mobile, confirmando foco visível, badge, expansão, links, busca, filtros, estado vazio e ausência de overflow
 - [ ] T034 Confirmar que nenhum arquivo de `BackEnd/`, migration, endpoint, painel administrativo, integração externa ou geração por commits foi adicionado e registrar o resultado da auditoria de internacionalização no relatório de implementação
@@ -184,6 +190,14 @@ T028: Atualizar docs/standards/FEATURE_CHECKLIST.md
 | FR-017 | T010-T013, T021, T025-T026, T031-T032 |
 | FR-018, FR-019 | T020-T025, T029, T033 |
 | FR-020 | T027-T028, T034 |
+| SC-001 | T015, T018, T022, T025 |
+| SC-002 | T002, T006, T022, T025 |
+| SC-003 | T004, T008, T023, T026 |
+| SC-004 | T020-T026, T029, T033 |
+| SC-005 | T005, T009, T016, T019 |
+| SC-006 | T002-T010, T013 |
+| SC-007 | T010-T013, T021, T025-T026, T031-T032 |
+| SC-008 | T027-T028, T034 |
 
 ## Notes
 
