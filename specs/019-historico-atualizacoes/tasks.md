@@ -155,7 +155,7 @@ description: "Tarefas de implementação do histórico de atualizações"
 T011: Traduzir o catálogo português em FrontEnd/src/i18n/locales/pt.json
 T012: Traduzir o catálogo inglês em FrontEnd/src/i18n/locales/en.json
 
-T027: Criar docs/guides/ATUALIZAR_HISTORICO.md
+T027: Criar `docs/standards/SYSTEM_UPDATES.md`
 T028: Atualizar docs/standards/FEATURE_CHECKLIST.md
 ```
 
