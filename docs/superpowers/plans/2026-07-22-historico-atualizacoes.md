@@ -183,11 +183,13 @@ export interface SystemUpdateRelease {
 export const SYSTEM_UPDATES: readonly SystemUpdateRelease[]
 export const LAST_SEEN_SYSTEM_UPDATE_KEY = 'rinha:last-seen-system-update'
 export function getLatestSystemUpdate(releases?: readonly SystemUpdateRelease[]): SystemUpdateRelease
-export function filterSystemUpdates(releases: readonly SystemUpdateRelease[], query: string, category: SystemUpdateCategory | 'all', translate: (key: string) => string): SystemUpdateRelease[]
+export function filterSystemUpdates(releases: readonly SystemUpdateRelease[], query: string, categories: readonly SystemUpdateCategory[], translate: (key: string) => string): SystemUpdateRelease[]
 export function getSystemUpdateValidationErrors(releases: readonly SystemUpdateRelease[], hasTranslation: (key: string) => boolean): string[]
 export function readLastSeenSystemUpdate(storage?: Pick<Storage, 'getItem' | 'setItem'>): string | null
 export function markLatestSystemUpdateSeen(version: string, storage?: Pick<Storage, 'getItem' | 'setItem'>): string
 ```
+
+Em `filterSystemUpdates`, uma coleção vazia de categorias representa todas as categorias. Quando houver duas ou mais categorias, uma release corresponde ao filtro se contiver pelo menos uma delas (OR); a busca textual continua combinada com o resultado das categorias.
 
 - [ ] **Step 1: Escrever os testes falhos do contrato**
 
@@ -219,11 +221,14 @@ describe('system updates', () => {
     expect(getSystemUpdateValidationErrors(SYSTEM_UPDATES, (key) => hasPath(pt, key) && hasPath(en, key))).toEqual([])
   })
 
-  it('filters localized content by normalized text and category', () => {
+  it('filters localized content by normalized text and categories with OR', () => {
     const translate = (key: string) => key === 'updates.releases.2026_07_1.details.directDraft.description'
       ? 'Abre diretamente o draft correto pelo Discord'
       : key
-    expect(filterSystemUpdates(SYSTEM_UPDATES, 'discord', 'improvement', translate)[0]?.version).toBe('2026.07.1')
+    expect(filterSystemUpdates(SYSTEM_UPDATES, 'discord', ['improvement'], translate)[0]?.version).toBe('2026.07.1')
+    expect(filterSystemUpdates(SYSTEM_UPDATES, '', ['fix', 'security'], translate).map(({ version }) => version))
+      .toEqual(['2026.07.1', '2026.06.7', '2026.06.4'])
+    expect(filterSystemUpdates(SYSTEM_UPDATES, '', [], translate)).toEqual(SYSTEM_UPDATES)
   })
 
   it('uses in-memory fallback when localStorage throws', () => {
@@ -284,26 +289,33 @@ export function getLatestSystemUpdate(releases: readonly SystemUpdateRelease[] =
 export function filterSystemUpdates(
   releases: readonly SystemUpdateRelease[],
   query: string,
-  category: SystemUpdateCategory | 'all',
+  categories: readonly SystemUpdateCategory[],
   translate: (key: string) => string,
 ) {
   const normalized = query.trim().toLocaleLowerCase()
   return releases.filter((release) => {
-    if (category !== 'all' && !release.categories.includes(category)) return false
+    if (categories.length && !categories.some((category) => release.categories.includes(category))) return false
     if (!normalized) return true
     return [release.titleKey, release.summaryKey, ...release.details.flatMap((detail) => [detail.titleKey, detail.descriptionKey])]
       .some((key) => translate(key).toLocaleLowerCase().includes(normalized))
   })
 }
 
-export function readLastSeenSystemUpdate(storage = globalThis.localStorage): string | null {
-  try { return storage.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? inMemoryLastSeen }
+export function readLastSeenSystemUpdate(storage?: Pick<Storage, 'getItem' | 'setItem'>): string | null {
+  if (inMemoryLastSeen !== null) return inMemoryLastSeen
+  try {
+    const resolvedStorage = storage ?? globalThis.localStorage
+    return resolvedStorage?.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? null
+  }
   catch { return inMemoryLastSeen }
 }
 
-export function markLatestSystemUpdateSeen(version: string, storage = globalThis.localStorage): string {
+export function markLatestSystemUpdateSeen(version: string, storage?: Pick<Storage, 'getItem' | 'setItem'>): string {
   inMemoryLastSeen = version
-  try { storage.setItem(LAST_SEEN_SYSTEM_UPDATE_KEY, version) } catch { /* session fallback already set */ }
+  try {
+    const resolvedStorage = storage ?? globalThis.localStorage
+    resolvedStorage?.setItem(LAST_SEEN_SYSTEM_UPDATE_KEY, version)
+  } catch { /* session fallback already set */ }
   return version
 }
 ```
@@ -371,7 +383,7 @@ Adicionar `navigation.updates`, `navigation.new`, `routes.updates.title` e a rai
     "description": "Acompanhe novidades, melhorias e correções entregues para a comunidade.",
     "latest": "Última atualização",
     "searchLabel": "Buscar atualizações",
-    "searchPlaceholder": "Busque por recurso ou melhoria...",
+    "searchPlaceholder": "Busque por recurso ou melhoria…",
     "filterLabel": "Filtrar por categoria",
     "allCategories": "Todas",
     "resultCount": "{count} atualização | {count} atualizações",
@@ -386,7 +398,7 @@ Adicionar `navigation.updates`, `navigation.new`, `routes.updates.title` e a rai
 }
 ```
 
-Em inglês, usar `Product history`, `System updates`, `Follow new features, improvements, and fixes delivered to the community.`, `Latest update`, `Search updates`, `Search by feature or improvement...`, `Filter by category`, `All`, `{count} update | {count} updates`, `No updates found`, `Try another term or remove the selected filters.`, `Clear filters` e `View details`.
+Em inglês, usar `Product history`, `System updates`, `Follow new features, improvements, and fixes delivered to the community.`, `Latest update`, `Search updates`, `Search by feature or improvement…`, `Filter by category`, `All`, `{count} update | {count} updates`, `No updates found`, `Try another term or remove the selected filters.`, `Clear filters` e `View details`.
 
 As categorias devem ser Novidade/Feature, Melhoria/Improvement, Correção/Fix, Segurança/Security e Infraestrutura/Infrastructure. As áreas devem traduzir os oito valores do contrato.
 
@@ -657,10 +669,13 @@ it('renders latest hero and eight timeline releases', () => {
   expect(wrapper.get('[data-latest-update]').text()).toContain('2026.07.1')
 })
 
-it('combines search and category filters and clears them', async () => {
+it('combines search and multiple category filters with OR and clears them', async () => {
   const wrapper = mountView()
   await wrapper.get('input[type="search"]').setValue('Discord')
   await wrapper.get('[data-category="fix"]').trigger('click')
+  await wrapper.get('[data-category="feature"]').trigger('click')
+  expect(wrapper.get('[data-category="fix"]').attributes('aria-pressed')).toBe('true')
+  expect(wrapper.get('[data-category="feature"]').attributes('aria-pressed')).toBe('true')
   expect(wrapper.findAll('[data-system-update]').length).toBeGreaterThan(0)
   await wrapper.get('[data-clear-filters]').trigger('click')
   expect(wrapper.findAll('[data-system-update]')).toHaveLength(8)
@@ -687,14 +702,20 @@ Usar somente estado local:
 
 ```ts
 const query = ref('')
-const activeCategory = ref<SystemUpdateCategory | 'all'>('all')
-const filteredUpdates = computed(() => filterSystemUpdates(SYSTEM_UPDATES, query.value, activeCategory.value, t))
+const activeCategories = ref<SystemUpdateCategory[]>([])
+const filteredUpdates = computed(() => filterSystemUpdates(SYSTEM_UPDATES, query.value, activeCategories.value, t))
 const latest = getLatestSystemUpdate()
 const groupedUpdates = computed(() => Object.entries(Object.groupBy(filteredUpdates.value, (release) => release.publishedAt.slice(0, 7))))
 
+function toggleCategory(category: SystemUpdateCategory) {
+  activeCategories.value = activeCategories.value.includes(category)
+    ? activeCategories.value.filter((active) => active !== category)
+    : [...activeCategories.value, category]
+}
+
 function clearFilters() {
   query.value = ''
-  activeCategory.value = 'all'
+  activeCategories.value = []
 }
 ```
 
@@ -717,7 +738,7 @@ O template deve conter:
 </PageFrame>
 ```
 
-Chips devem ser `<button type="button">` com `:aria-pressed`; busca deve ter `<label>` visível ou classe visualmente oculta já existente. A timeline deve usar `<ol>/<li>`, e cada card deve ter `:id="`update-${release.id}`"` e `data-system-update`.
+Cada chip de categoria deve ser um `<button type="button">` com `:aria-pressed` e toggle independente. O botão Todas usa `activeCategories.length === 0` como estado pressionado e limpa somente `activeCategories`, preservando a busca. A busca deve ter `<label>` visível ou classe visualmente oculta já existente. A timeline deve usar `<ol>/<li>`, e cada card deve ter `:id="`update-${release.id}`"` e `data-system-update`.
 
 - [ ] **Step 5: Executar o teste para confirmar GREEN**
 
