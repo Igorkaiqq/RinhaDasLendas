@@ -2,7 +2,10 @@ using System.Text.Json.Serialization;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -32,6 +35,15 @@ builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationMiddlewareResultHandler>();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { "pt-BR", "en-US" };
+    options.SetDefaultCulture("pt-BR")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    options.RequestCultureProviders = [new AcceptLanguageHeaderRequestCultureProvider()];
+});
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
 var startupMessages = new ResourceMessageProvider();
 var jwtKey = jwtSection.GetValue<string>("Key")
@@ -225,6 +237,7 @@ ValidateProductionConfiguration(app.Environment, app.Configuration, jwtKey);
 InternalTokenSecurity.ValidateProductionTokens(app.Environment, internalTokens, startupMessages);
 
 app.UseForwardedHeaders();
+app.UseRequestLocalization();
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
