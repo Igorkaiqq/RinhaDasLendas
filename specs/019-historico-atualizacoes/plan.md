@@ -104,7 +104,7 @@ Criar uma página autenticada e responsiva em `/atualizacoes` que apresenta oito
 
 - Validar IDs e versões únicos, formato de versão, datas ISO, ordem decrescente, presença de categoria, área e detalhe, conjuntos fechados, chaves nos dois catálogos e links pertencentes a `AppRoutes`.
 - Escrever cada teste de comportamento antes da implementação correspondente e confirmar a falha esperada antes de produzir o código.
-- Documentar o fluxo editorial em `docs/guides/ATUALIZAR_HISTORICO.md` e incluir a revisão do histórico em `docs/standards/FEATURE_CHECKLIST.md`.
+- Documentar o fluxo editorial em `docs/standards/SYSTEM_UPDATES.md` e incluir a revisão do histórico em `docs/standards/FEATURE_CHECKLIST.md`.
 - Executar testes frontend, build, auditoria de i18n, revisão de acentuação e validação responsiva por desktop e mobile antes de concluir.
 
 ## Project Structure
@@ -156,9 +156,8 @@ FrontEnd/
 └── package.json
 
 docs/
-├── guides/
-│   └── ATUALIZAR_HISTORICO.md
 └── standards/
+    ├── SYSTEM_UPDATES.md
     └── FEATURE_CHECKLIST.md
 ```
 
