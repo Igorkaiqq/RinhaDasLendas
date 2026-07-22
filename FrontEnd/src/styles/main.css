@@ -2934,6 +2934,19 @@ p {
     justify-content: center;
   }
 
+  .app-shell:not(.app-shell--collapsed) .sidebar__item:has(.sidebar__status--new) {
+    flex-direction: column;
+    gap: var(--space-xxs);
+    padding-top: var(--space-xxs);
+    padding-bottom: var(--space-xxs);
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar__status--new {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0;
+  }
+
   .app-shell:not(.app-shell--collapsed) .sidebar__nav,
   .app-shell:not(.app-shell--collapsed) .sidebar__footer {
     padding-right: var(--space-xs);
@@ -4279,6 +4292,15 @@ p {
   .app-shell--collapsed .sidebar__item.router-link-active {
     justify-content: flex-start;
     padding: 0 var(--space-sm);
+  }
+
+  .app-shell .sidebar__item:has(.sidebar__status--new) {
+    flex-direction: row;
+    gap: var(--space-sm);
+  }
+
+  .app-shell .sidebar__status--new {
+    display: inline-flex;
   }
 }
 
