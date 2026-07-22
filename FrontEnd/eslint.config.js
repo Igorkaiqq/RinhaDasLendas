@@ -19,14 +19,18 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      'src/components/drafts/visual/DraftVisualBoard.vue',
-      'src/views/DraftsView.vue',
-    ],
+    files: ['src/components/drafts/visual/DraftVisualBoard.vue'],
+    languageOptions: {
+      globals: {
+        AudioContext: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['src/views/DraftsView.vue'],
     languageOptions: {
       globals: {
         AbortController: 'readonly',
-        AudioContext: 'readonly',
       },
     },
   },
