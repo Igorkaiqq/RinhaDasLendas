@@ -246,7 +246,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             new { Tipo = "Presenca" });
 
         anonymousResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        userResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        userResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
         var completionResponse = await anonymousClient.PostAsJsonAsync(
             $"/api/v1/draft-montagens/{draftId}/discord/publicacao",

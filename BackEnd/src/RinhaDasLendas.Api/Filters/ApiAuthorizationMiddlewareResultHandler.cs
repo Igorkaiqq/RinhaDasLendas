@@ -23,13 +23,26 @@ public sealed class ApiAuthorizationMiddlewareResultHandler(IMessageProvider mes
             return;
         }
 
+        if (context.Response.HasStarted)
+        {
+            return;
+        }
+
         var messageCode = authorizeResult.Forbidden
             ? MessageCodes.AccessDenied
             : await ResolveChallengeMessageCodeAsync(context);
+        await _defaultHandler.HandleAsync(next, context, policy, authorizeResult);
+        if (context.Response.HasStarted || context.RequestAborted.IsCancellationRequested)
+        {
+            return;
+        }
+
         context.Response.StatusCode = authorizeResult.Forbidden
             ? StatusCodes.Status403Forbidden
             : StatusCodes.Status401Unauthorized;
-        await context.Response.WriteAsJsonAsync(ApiErrorResponse.FromCode(messages, messageCode));
+        await context.Response.WriteAsJsonAsync(
+            ApiErrorResponse.FromCode(messages, messageCode),
+            context.RequestAborted);
     }
 
     private static async Task<string> ResolveChallengeMessageCodeAsync(HttpContext context)

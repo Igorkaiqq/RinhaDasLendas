@@ -12,12 +12,12 @@ using RinhaDasLendas.Domain.Constants;
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = ApiAuthenticationDefaults.AuthenticatedPolicyName)]
 [Route("api/v1/draft-montagens")]
 [Produces("application/json")]
 public sealed class DraftMontagensController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpGet]
+    [Authorize]
     [ProducesResponseType(typeof(PaginatedResponseDto<DraftMontagemResumoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] string? status = null, [FromQuery] bool includeCancelled = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
@@ -26,6 +26,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -53,6 +54,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpGet("{id:guid}/realtime-state")]
+    [Authorize]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetRealtimeState([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -247,6 +249,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/picks")]
+    [Authorize]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
