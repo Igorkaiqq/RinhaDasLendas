@@ -118,12 +118,13 @@ export function getSystemUpdateValidationErrors(
 }
 
 export function readLastSeenSystemUpdate(
-  storage:
-    | Pick<Storage, 'getItem' | 'setItem'>
-    | undefined = globalThis.localStorage,
+  storage?: Pick<Storage, 'getItem' | 'setItem'>,
 ): string | null {
   try {
-    return storage?.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? inMemoryLastSeen
+    const resolvedStorage = storage ?? globalThis.localStorage
+    return (
+      resolvedStorage?.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY) ?? inMemoryLastSeen
+    )
   } catch {
     return inMemoryLastSeen
   }
@@ -131,13 +132,12 @@ export function readLastSeenSystemUpdate(
 
 export function markLatestSystemUpdateSeen(
   version: string,
-  storage:
-    | Pick<Storage, 'getItem' | 'setItem'>
-    | undefined = globalThis.localStorage,
+  storage?: Pick<Storage, 'getItem' | 'setItem'>,
 ): string {
   inMemoryLastSeen = version
   try {
-    storage?.setItem(LAST_SEEN_SYSTEM_UPDATE_KEY, version)
+    const resolvedStorage = storage ?? globalThis.localStorage
+    resolvedStorage?.setItem(LAST_SEEN_SYSTEM_UPDATE_KEY, version)
   } catch {
     // The session fallback was set before attempting persistent storage.
   }

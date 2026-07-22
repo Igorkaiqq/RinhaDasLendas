@@ -152,4 +152,30 @@ describe('system updates', () => {
     expect(markLatestSystemUpdateSeen('2026.07.3', undefined)).toBe('2026.07.3')
     expect(readLastSeenSystemUpdate(undefined)).toBe('2026.07.3')
   })
+
+  it('uses the in-memory fallback when the global local storage getter throws', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'localStorage',
+    )
+
+    try {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        get: () => {
+          throw new DOMException('blocked', 'SecurityError')
+        },
+      })
+
+      expect(() => markLatestSystemUpdateSeen('2026.07.4')).not.toThrow()
+      expect(() => readLastSeenSystemUpdate()).not.toThrow()
+      expect(readLastSeenSystemUpdate()).toBe('2026.07.4')
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, 'localStorage', originalDescriptor)
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage')
+      }
+    }
+  })
 })
