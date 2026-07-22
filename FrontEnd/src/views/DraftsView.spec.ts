@@ -105,6 +105,7 @@ const montagem: DraftMontagem = {
   substituicoes: [],
   publicacoesDiscord: [
     { tipo: 'Presenca', status: 'Falha' },
+    { tipo: 'ChamadaPresenca', status: 'Falha' },
     { tipo: 'TimesDefinidos', status: 'Publicada' },
   ],
   dataCadastro: '2026-07-19T12:00:00Z',
@@ -149,6 +150,14 @@ function adminProjection(status: DraftMontagemStatus = montagem.status, auditRea
     presencas: montagem.presencas,
     substituicoes: [],
     publicacoesDiscord: [
+      {
+        id: 'publicacao-cta-admin',
+        tipo: 'ChamadaPresenca',
+        status: 'Falha',
+        guildId: 'guild-admin',
+        channelId: 'channel-admin',
+        ultimaTentativaEm: '2026-07-19T12:00:00Z',
+      },
       {
         id: 'publicacao-admin',
         tipo: 'Presenca',
@@ -332,7 +341,7 @@ describe('DraftsView reason actions', () => {
 
     const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
     expect(selected.acoesAdministrativas).toEqual(updatedAdmin.acoesAdministrativas)
-    expect(selected.publicacoesDiscord[0]?.id).toBe('publicacao-admin')
+    expect(selected.publicacoesDiscord.find((publication) => publication.tipo === 'Presenca')?.id).toBe('publicacao-admin')
     wrapper.unmount()
   })
 
@@ -527,6 +536,83 @@ describe('DraftsView reason actions', () => {
 
     expect(serviceMocks.republishDraftMontagemDiscordPublication).toHaveBeenCalledWith('montagem-1', 'TimesDefinidos', 'mensagem dos times removida')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('republishes only the recoverable presence CTA with its current status and exact reason', async () => {
+    const wrapper = await mountView()
+
+    await openReasonDialog(wrapper, 'Republicar chamada')
+    expect(wrapper.text()).toContain('Status atual: falhou')
+    await wrapper.get('textarea').setValue('menção corrigida')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.republishDraftMontagemDiscordPublication).toHaveBeenCalledWith('montagem-1', 'ChamadaPresenca', 'menção corrigida')
+    wrapper.unmount()
+  })
+
+  it('hides the CTA republish action while its publication is not recoverable', async () => {
+    const projection = adminProjection()
+    projection.publicacoesDiscord = projection.publicacoesDiscord.map((publication) =>
+      publication.tipo === 'ChamadaPresenca' ? { ...publication, status: 'Publicada' } : publication,
+    )
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(projection)
+
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('Chamada no Discord: publicada')
+    expect(wrapper.text()).not.toContain('Republicar chamada')
+    wrapper.unmount()
+  })
+
+  it('keeps results from the newest manual presence search when it resolves first', async () => {
+    const wrapper = await mountView()
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    let resolveOld!: (value: Array<{ id: string; nomeExibicao: string }>) => void
+    let resolveNew!: (value: Array<{ id: string; nomeExibicao: string }>) => void
+    serviceMocks.listEligibleManualPresencePlayers
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveNew = resolve }))
+    const search = wrapper.findAll('input[type="search"]')[1]!
+
+    await search.setValue('a')
+    await search.setValue('ah')
+    resolveNew([{ id: 'new', nomeExibicao: 'Ahri atual' }])
+    await flushPromises()
+    resolveOld([{ id: 'old', nomeExibicao: 'Ashe antiga' }])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Ahri atual')
+    expect(wrapper.text()).not.toContain('Ashe antiga')
+    const oldSignal = serviceMocks.listEligibleManualPresencePlayers.mock.calls[0]?.[4] as AbortSignal | undefined
+    expect(oldSignal?.aborted).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('aborts and ignores a manual search from the previous draft generation', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection())
+    serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
+    const wrapper = await mountView()
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    let resolveOld!: (value: Array<{ id: string; nomeExibicao: string }>) => void
+    serviceMocks.listEligibleManualPresencePlayers.mockImplementation((id) => id === montagem.id
+      ? new Promise((resolve) => { resolveOld = resolve })
+      : Promise.resolve([{ id: 'b-player', nomeExibicao: 'Jogador B' }]))
+    const search = wrapper.findAll('input[type="search"]')[1]!
+
+    await search.setValue('jogador')
+    const lastSearchCall = serviceMocks.listEligibleManualPresencePlayers.mock.calls[serviceMocks.listEligibleManualPresencePlayers.mock.calls.length - 1]
+    const oldSignal = lastSearchCall?.[4] as AbortSignal | undefined
+    await wrapper.findAll('button').find((button) => button.text().includes('Rinha de segunda'))!.trigger('click')
+    await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe('montagem-2'))
+    resolveOld([{ id: 'a-player', nomeExibicao: 'Jogador A antigo' }])
+    await flushPromises()
+
+    expect(oldSignal?.aborted).toBe(true)
+    const manualPlayers = (wrapper.vm as unknown as { manualPresencePlayers: Array<{ nomeExibicao: string }> }).manualPresencePlayers
+    expect(manualPlayers.map((player) => player.nomeExibicao)).toEqual(['Jogador B'])
     wrapper.unmount()
   })
 

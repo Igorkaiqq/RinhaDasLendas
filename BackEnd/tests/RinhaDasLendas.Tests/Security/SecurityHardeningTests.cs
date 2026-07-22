@@ -843,6 +843,17 @@ public sealed class SecurityHardeningTests
         InternalTokenSecurity.FixedTimeEquals(provided, expected).Should().Be(result);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4096)]
+    public void HashToken_ShouldAlwaysProduceFixedSizeComparisonMaterial(int tokenLength)
+    {
+        var hash = InternalTokenSecurity.HashToken(new string('x', tokenLength));
+
+        hash.Should().HaveCount(32);
+    }
+
     [Fact]
     public void ProductionStartup_ShouldRejectDefaultJwtKey()
     {

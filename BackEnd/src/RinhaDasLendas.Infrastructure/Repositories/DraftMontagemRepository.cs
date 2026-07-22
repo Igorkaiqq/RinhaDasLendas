@@ -48,9 +48,12 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens.AsNoTracking())
-            .Where(montagem => montagem.Status != DraftMontagemStatus.Cancelada && (montagem.Status != DraftMontagemStatus.Finalizada || montagem.DiscordGuildId != null))
+            .Where(montagem => (montagem.Status != DraftMontagemStatus.Cancelada && montagem.Status != DraftMontagemStatus.Finalizada)
+                || montagem.PublicacoesDiscord.Any(publicacao =>
+                    publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
+                    || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento
+                    || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao))
             .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataAtualizacao)
-            .Take(50)
             .ToListAsync(cancellationToken);
     }
 

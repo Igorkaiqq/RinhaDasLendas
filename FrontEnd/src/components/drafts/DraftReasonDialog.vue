@@ -6,6 +6,7 @@ export type DraftReasonDialogAction =
   | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
+  | { type: 'republishPresenceCta'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
   | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
 </script>
 
@@ -30,11 +31,11 @@ const reason = ref('')
 const submitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
 const translationKey = computed(() => (props.action ? `drafts.reasonDialog.${props.action.type}` : ''))
-const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishTeams')
+const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishPresenceCta' || props.action?.type === 'republishTeams')
 const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
 const publicationStatus = computed(() => {
   const action = props.action
-  return action?.type === 'republishPresence' || action?.type === 'republishTeams' ? action.publicationStatus : null
+  return action?.type === 'republishPresence' || action?.type === 'republishPresenceCta' || action?.type === 'republishTeams' ? action.publicationStatus : null
 })
 const normalizedReasonLength = computed(() => reason.value.trim().length)
 const reasonTooLong = computed(() => normalizedReasonLength.value > 500)

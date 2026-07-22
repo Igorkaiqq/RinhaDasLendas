@@ -13,7 +13,7 @@ export interface DiscordUserLink {
   roles: string[]
 }
 
-export type DiscordPublicationType = 'Presenca' | 'TimesDefinidos'
+export type DiscordPublicationType = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
 
 export interface DiscordPublicationClaim {
   adquirido: boolean

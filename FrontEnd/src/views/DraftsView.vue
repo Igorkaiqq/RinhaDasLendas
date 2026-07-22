@@ -66,6 +66,8 @@ const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const adminAccessDenied = ref(false)
 let detailRequestVersion = 0
+let manualPresenceRequestVersion = 0
+let manualPresenceAbortController: AbortController | null = null
 let activeDraftId: string | null = null
 let activeDraftGeneration = 0
 
@@ -113,6 +115,7 @@ onUnmounted(async () => {
   activeDraftId = null
   activeDraftGeneration++
   detailRequestVersion = 0
+  manualPresenceAbortController?.abort()
   await disconnectRealtime()
 })
 
@@ -161,6 +164,9 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   const generation = ++activeDraftGeneration
   activeDraftId = id
   detailRequestVersion = 0
+  manualPresenceAbortController?.abort()
+  manualPresenceAbortController = null
+  manualPresenceRequestVersion++
   selectedMontagem.value = null
   pendingReasonAction.value = null
   captainSelection.value = []
@@ -268,13 +274,29 @@ function applyPublicMontagemState(montagem: DraftMontagem) {
 async function loadEligibleManualPresencePlayers() {
   const draftId = selectedMontagem.value?.id
   const generation = activeDraftGeneration
+  const search = manualPresenceSearch.value
+  const requestVersion = ++manualPresenceRequestVersion
+  manualPresenceAbortController?.abort()
   if (!draftId || !canManageDrafts.value) {
+    manualPresenceAbortController = null
     manualPresencePlayers.value = []
     return
   }
 
-  const players = await listEligibleManualPresencePlayers(draftId, manualPresenceSearch.value)
-  if (isActiveDraft(draftId, generation)) manualPresencePlayers.value = players
+  const controller = new AbortController()
+  manualPresenceAbortController = controller
+  try {
+    const players = await listEligibleManualPresencePlayers(draftId, search, 1, 20, controller.signal)
+    if (isActiveDraft(draftId, generation)
+      && manualPresenceRequestVersion === requestVersion
+      && manualPresenceSearch.value === search) {
+      manualPresencePlayers.value = players
+    }
+  } catch (error) {
+    if (!controller.signal.aborted) throw error
+  } finally {
+    if (manualPresenceAbortController === controller) manualPresenceAbortController = null
+  }
 }
 
 async function confirmPresence() {
@@ -563,14 +585,15 @@ function formatPresenceOrigin(origin: string) {
   return t(`drafts.presenceOrigin.${origin}`)
 }
 
-function publicationStatus(tipo: 'Presenca' | 'TimesDefinidos') {
+function publicationStatus(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
   return selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === tipo)?.status ?? 'Pendente'
 }
 
-function requestDiscordRepublish(tipo: 'Presenca' | 'TimesDefinidos') {
+function requestDiscordRepublish(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
   if (!selectedMontagem.value || !canManageDrafts.value) return
   const actions: Record<typeof tipo, DraftReasonDialogAction> = {
     Presenca: { type: 'republishPresence', publicationStatus: publicationStatus('Presenca') },
+    ChamadaPresenca: { type: 'republishPresenceCta', publicationStatus: publicationStatus('ChamadaPresenca') },
     TimesDefinidos: { type: 'republishTeams', publicationStatus: publicationStatus('TimesDefinidos') },
   }
   pendingReasonAction.value = actions[tipo]
@@ -603,7 +626,11 @@ async function confirmReasonAction(reason: string) {
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
     } else {
-      const tipo = action.type === 'republishPresence' ? 'Presenca' : 'TimesDefinidos'
+      const tipo = action.type === 'republishPresence'
+        ? 'Presenca'
+        : action.type === 'republishPresenceCta'
+          ? 'ChamadaPresenca'
+          : 'TimesDefinidos'
       const montagem = await republishDraftMontagemDiscordPublication(context.draftId, tipo, reason)
       if (!(await applyMutationProjection(context, montagem))) return
       notification.value = t('drafts.publication.republishRequested')
@@ -697,8 +724,10 @@ function captureError(error: unknown) {
           <p v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && confirmedPresences.length < 10" class="profile-inline-message">{{ t('drafts.presence.lessThanTen') }}</p>
           <div v-if="canManageDrafts" class="draft-hero-actions" :aria-label="t('drafts.publication.statusLabel')">
             <span class="team-status">{{ t('drafts.publication.presence', { status: t(`drafts.publication.status.${publicationStatus('Presenca')}`) }) }}</span>
+            <span class="team-status">{{ t('drafts.publication.presenceCta', { status: t(`drafts.publication.status.${publicationStatus('ChamadaPresenca')}`) }) }}</span>
             <span class="team-status">{{ t('drafts.publication.finalTeams', { status: t(`drafts.publication.status.${publicationStatus('TimesDefinidos')}`) }) }}</span>
             <button type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('Presenca')">{{ t('drafts.publication.republishPresence') }}</button>
+            <button v-if="['Falha', 'RequerReconciliacao'].includes(publicationStatus('ChamadaPresenca'))" type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('ChamadaPresenca')">{{ t('drafts.publication.republishPresenceCta') }}</button>
             <button type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('TimesDefinidos')">{{ t('drafts.publication.republishFinalTeams') }}</button>
           </div>
           <div v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" class="draft-hero-actions">

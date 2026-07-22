@@ -73,7 +73,8 @@ export async function handleDraftCommand(interaction: ChatInputCommandInteractio
     if (!claim.adquirido || !claim.claimId) {
       throw new Error('Discord publication claim was not acquired')
     }
-    const ctaResult = await publishClaimedDraft(interaction.client, configuration!, { draft, tipo: 'Presenca' }, claim.claimId)
+    await publishClaimedDraft(interaction.client, configuration!, { draft, tipo: 'Presenca' }, claim.claimId)
+    const ctaResult = await publishPresenceCta(interaction.client, configuration!, draft)
     await interaction.reply({ content: getDraftCreatedMessage(ctaResult), flags: MessageFlags.Ephemeral })
     return
   }
@@ -200,21 +201,24 @@ export async function runDraftPollingCycle(client: Client) {
 function publicationCandidates(drafts: DraftMontagem[]): PublicationCandidate[] {
   return drafts.flatMap((draft) => {
     const candidates: PublicationCandidate[] = []
-    if (draft.status === DraftMontagemStatus.PresenceOpen && canAttemptPublication(draft, 'Presenca')) {
+    if (canAttemptPublication(draft, 'Presenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
       candidates.push({ draft, tipo: 'Presenca' })
     }
-    if (draft.status === DraftMontagemStatus.Finalized && canAttemptPublication(draft, 'TimesDefinidos')) {
+    if (env.DRAFT_NOTIFY_ROLE_ID && canAttemptPublication(draft, 'ChamadaPresenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
+      candidates.push({ draft, tipo: 'ChamadaPresenca' })
+    }
+    if (canAttemptPublication(draft, 'TimesDefinidos', draft.status === DraftMontagemStatus.Finalized)) {
       candidates.push({ draft, tipo: 'TimesDefinidos' })
     }
     return candidates
   })
 }
 
-function canAttemptPublication(draft: DraftMontagem, tipo: DiscordPublicationType) {
+function canAttemptPublication(draft: DraftMontagem, tipo: DiscordPublicationType, applicableWhenMissing: boolean) {
   const publication = draft.publicacoesDiscord?.find((item) => item.tipo === tipo)
   if (publication) return publication.status === 'Pendente'
   if (tipo === 'Presenca' && draft.discordPresenceMessageId) return false
-  return true
+  return applicableWhenMissing
 }
 
 async function publishClaimedDraft(
@@ -222,21 +226,24 @@ async function publishClaimedDraft(
   configuration: DiscordConfiguration,
   candidate: PublicationCandidate,
   claimId: string,
-): Promise<'sent' | 'not-configured' | 'failed'> {
+): Promise<void> {
   const isPresence = candidate.tipo === 'Presenca'
-  const channelId = isPresence ? configuration.presenceChannelId : configuration.draftChannelId
-  const channelLabel = isPresence ? t.channels.presence : t.channels.draft
+  const isPresenceCta = candidate.tipo === 'ChamadaPresenca'
+  const channelId = isPresence || isPresenceCta ? configuration.presenceChannelId : configuration.draftChannelId
+  const channelLabel = isPresence || isPresenceCta ? t.channels.presence : t.channels.draft
   let channel: SendableTextChannel
   let sendPayload: unknown
 
   try {
     channel = await getSendableChannel(client, channelId, channelLabel, {
-      embed: true,
-      mentionRole: isPresence && Boolean(env.DRAFT_NOTIFY_ROLE_ID),
+      embed: !isPresenceCta,
+      mentionRole: isPresenceCta,
     })
     sendPayload = isPresence
       ? { embeds: [presenceEmbed(candidate.draft)], components: [presenceButtons(candidate.draft.id)] }
-      : { embeds: [finalTeamsEmbed(candidate.draft)] }
+      : isPresenceCta
+        ? { content: buildDraftPresenceCta(candidate.draft.id, env.DRAFT_NOTIFY_ROLE_ID, env.FRONTEND_PUBLIC_URL), allowedMentions: { roles: [env.DRAFT_NOTIFY_ROLE_ID] } }
+        : { embeds: [finalTeamsEmbed(candidate.draft)] }
   } catch (error) {
     await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
       tipo: candidate.tipo,
@@ -256,7 +263,6 @@ async function publishClaimedDraft(
     throw new DiscordPublicationResultUnknownError()
   }
 
-  const ctaResult = isPresence ? await sendDraftPresenceCta(channel, candidate.draft.id) : 'not-configured'
   try {
     await rinhaApi.registerDiscordPublication(candidate.draft.id, {
       tipo: candidate.tipo,
@@ -265,11 +271,26 @@ async function publishClaimedDraft(
       discordChannelId: channelId,
       messageId: message.id,
     })
-    logger.info(isPresence ? t.logs.siteDraftPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
-    return ctaResult
+    logger.info(isPresence ? t.logs.siteDraftPublished : isPresenceCta ? t.logs.presenceCtaPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
   } catch (error) {
     logUnknownPublicationResult(candidate, 'completion', error)
     throw new DiscordPublicationResultUnknownError()
+  }
+}
+
+async function publishPresenceCta(client: Client, configuration: DiscordConfiguration, draft: DraftMontagem): Promise<'sent' | 'not-configured' | 'failed'> {
+  if (!env.DRAFT_NOTIFY_ROLE_ID) {
+    logger.info(t.logs.ctaRoleNotConfigured, { draftId: draft.id })
+    return 'not-configured'
+  }
+
+  try {
+    const claim = await rinhaApi.claimDiscordPublication(draft.id, 'ChamadaPresenca')
+    if (!claim.adquirido || !claim.claimId) return 'failed'
+    await publishClaimedDraft(client, configuration, { draft, tipo: 'ChamadaPresenca' }, claim.claimId)
+    return 'sent'
+  } catch {
+    return 'failed'
   }
 }
 
@@ -345,21 +366,6 @@ type SendableTextChannel = {
   send: (options: unknown) => Promise<{ id: string }>
   messages?: { fetch: (messageId: string) => Promise<{ edit: (options: unknown) => Promise<unknown> }> }
   permissionsFor?: (user: User) => PermissionsBitField | null
-}
-
-async function sendDraftPresenceCta(channel: SendableTextChannel, draftId: string): Promise<'sent' | 'not-configured' | 'failed'> {
-  if (!env.DRAFT_NOTIFY_ROLE_ID) {
-    logger.info(t.logs.ctaRoleNotConfigured, { draftId })
-    return 'not-configured'
-  }
-
-  try {
-    await channel.send({ content: buildDraftPresenceCta(draftId, env.DRAFT_NOTIFY_ROLE_ID, env.FRONTEND_PUBLIC_URL), allowedMentions: { roles: [env.DRAFT_NOTIFY_ROLE_ID] } })
-    return 'sent'
-  } catch (error) {
-    logger.error(t.draftCreatedCtaFailed, error, { draftId })
-    return 'failed'
-  }
 }
 
 export async function getSendableChannel(

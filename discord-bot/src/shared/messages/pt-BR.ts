@@ -107,6 +107,7 @@ export const ptBR = {
     presencePublished: 'Presença publicada no Discord.',
     presencePublicationSkipped: 'Presença já publicada anteriormente; publicação duplicada ignorada.',
     siteDraftPublished: 'Uma lista criada pelo site foi publicada no Discord.',
+    presenceCtaPublished: 'Chamada de presença publicada.',
     finalTeamsPublished: 'Times definidos publicados.',
     finalTeamsPublishFailed: 'Não consegui publicar os times definidos. Verifique canal e permissões.',
     welcomeDmSent: 'DM de boas-vindas enviada.',

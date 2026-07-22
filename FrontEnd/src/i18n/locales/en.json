@@ -455,14 +455,18 @@
     "publication": {
       "statusLabel": "Discord publication status",
       "presence": "Discord presence: {status}",
+      "presenceCta": "Discord presence call: {status}",
       "finalTeams": "Discord teams: {status}",
       "status": {
         "Pendente": "pending",
+        "EmAndamento": "in progress",
         "Publicada": "published",
         "Falha": "failed",
+        "RequerReconciliacao": "requires reconciliation",
         "Ignorada": "skipped"
       },
       "republishPresence": "Republish presence",
+      "republishPresenceCta": "Republish presence call",
       "republishFinalTeams": "Republish teams",
       "republishReason": "Republish requested",
       "republishReasonPrompt": "Enter the reason for republishing.",
@@ -501,6 +505,13 @@
         "defaultReason": "Republish requested",
         "confirm": "Republish presence",
         "context": "Presence list"
+      },
+      "republishPresenceCta": {
+        "title": "Republish presence call",
+        "description": "A new role mention call will be requested from the bot without republishing the presence list.",
+        "defaultReason": "Presence call republish requested",
+        "confirm": "Republish presence call",
+        "context": "Presence call"
       },
       "republishTeams": {
         "title": "Republish teams",

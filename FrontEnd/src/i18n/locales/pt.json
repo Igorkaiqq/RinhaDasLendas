@@ -455,14 +455,18 @@
     "publication": {
       "statusLabel": "Status de publicação no Discord",
       "presence": "Presença no Discord: {status}",
+      "presenceCta": "Chamada no Discord: {status}",
       "finalTeams": "Times no Discord: {status}",
       "status": {
         "Pendente": "pendente",
+        "EmAndamento": "em andamento",
         "Publicada": "publicada",
         "Falha": "falhou",
+        "RequerReconciliacao": "requer reconciliação",
         "Ignorada": "ignorada"
       },
       "republishPresence": "Republicar presença",
+      "republishPresenceCta": "Republicar chamada",
       "republishFinalTeams": "Republicar times",
       "republishReason": "Republicação solicitada",
       "republishReasonPrompt": "Informe o motivo da republicação.",
@@ -501,6 +505,13 @@
         "defaultReason": "Republicação solicitada",
         "confirm": "Republicar presença",
         "context": "Lista de presença"
+      },
+      "republishPresenceCta": {
+        "title": "Republicar chamada de presença",
+        "description": "Uma nova chamada com menção do cargo será solicitada ao bot sem republicar a lista de presença.",
+        "defaultReason": "Republicação da chamada solicitada",
+        "confirm": "Republicar chamada",
+        "context": "Chamada de presença"
       },
       "republishTeams": {
         "title": "Republicar times",

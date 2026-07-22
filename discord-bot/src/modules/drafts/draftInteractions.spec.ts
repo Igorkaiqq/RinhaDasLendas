@@ -21,12 +21,12 @@ afterEach(() => {
   env.DRAFT_NOTIFY_ROLE_ID = originalNotifyRoleId
 })
 
-function pollingDraft(id: string, publicationStatus?: string): DraftMontagem {
+function pollingDraft(id: string, publicationStatus?: string, publicationType: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos' = 'Presenca'): DraftMontagem {
   return {
     id,
     nome: `Rinha ${id}`,
     status: 'PresencaAberta',
-    publicacoesDiscord: publicationStatus ? [{ tipo: 'Presenca', status: publicationStatus }] : [],
+    publicacoesDiscord: publicationStatus ? [{ tipo: publicationType, status: publicationStatus }] : [],
     presencas: [],
     times: [],
     reservas: [],
@@ -243,7 +243,7 @@ describe('runDraftPollingCycle', () => {
       { name: 'presence CTA without view', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.ViewChannel, errorCode: 'DiscordChannelViewPermissionError', blocked: true },
       { name: 'presence CTA without send', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.SendMessages, errorCode: 'DiscordChannelSendPermissionError', blocked: true },
       { name: 'presence CTA without embed', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.EmbedLinks, errorCode: 'DiscordChannelEmbedPermissionError', blocked: true },
-      { name: 'presence CTA without mention', type: 'Presenca', roleId: 'role-1', missing: PermissionFlagsBits.MentionEveryone, errorCode: 'DiscordChannelMentionPermissionError', blocked: true },
+      { name: 'presence embed without mention', type: 'Presenca', roleId: '', missing: PermissionFlagsBits.MentionEveryone, blocked: false },
       { name: 'presence without role and without mention', type: 'Presenca', roleId: '', missing: PermissionFlagsBits.MentionEveryone, blocked: false },
       { name: 'final teams without mention', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.MentionEveryone, blocked: false },
       { name: 'final teams without view', type: 'TimesDefinidos', roleId: 'role-1', missing: PermissionFlagsBits.ViewChannel, errorCode: 'DiscordChannelViewPermissionError', blocked: true },
@@ -256,6 +256,7 @@ describe('runDraftPollingCycle', () => {
       env.DRAFT_NOTIFY_ROLE_ID = scenario.roleId
       const draft = pollingDraft(scenario.name)
       draft.status = scenario.type === 'Presenca' ? 'PresencaAberta' : 'Finalizada'
+      if (scenario.type === 'Presenca') draft.publicacoesDiscord?.push({ tipo: 'ChamadaPresenca', status: 'Publicada' })
       mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
       mock.method(rinhaApi, 'listActiveDrafts', async () => [draft])
       mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
@@ -306,7 +307,8 @@ describe('runDraftPollingCycle', () => {
     const draft = pollingDraft('draft-1')
     mockPollingApi([draft])
     env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
-    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    let claimNumber = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: `claim-${++claimNumber}`, expiraEm: null, status: 'EmAndamento' }))
     const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
     const send = mock.fn(async (_options: unknown) => ({ id: `message-${send.mock.callCount() + 1}` }))
 
@@ -318,7 +320,84 @@ describe('runDraftPollingCycle', () => {
       content: buildDraftPresenceCta('draft-1', 'role-1', env.FRONTEND_PUBLIC_URL),
       allowedMentions: { roles: ['role-1'] },
     })
-    assert.equal(complete.mock.calls[0]?.arguments[1]?.messageId, 'message-1')
+    assert.deepEqual(complete.mock.calls.map((call) => [call.arguments[1]?.tipo, call.arguments[1]?.claimId, call.arguments[1]?.messageId]), [
+      ['Presenca', 'claim-1', 'message-1'],
+      ['ChamadaPresenca', 'claim-2', 'message-2'],
+    ])
+  })
+
+  it('completes the presence embed and fails only the CTA on a known pre-send error', async () => {
+    const draft = pollingDraft('draft-1')
+    mockPollingApi([draft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    let claimNumber = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: `claim-${++claimNumber}`, expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => draft as never)
+    const permissions = new PermissionsBitField([
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.EmbedLinks,
+    ])
+    const send = mock.fn(async () => ({ id: 'presence-message' }))
+
+    await runDraftPollingCycle(pollingClientWithPermissions(permissions, send))
+
+    assert.deepEqual(complete.mock.calls.map((call) => call.arguments[1]?.tipo), ['Presenca'])
+    assert.equal(complete.mock.calls[0]?.arguments[1]?.messageId, 'presence-message')
+    assert.equal(failure.mock.callCount(), 1)
+    assert.equal(failure.mock.calls[0]?.arguments[1]?.tipo, 'ChamadaPresenca')
+    assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'DiscordChannelMentionPermissionError')
+  })
+
+  it('recovers a pending CTA without sending the main presence embed again', async () => {
+    const draft = pollingDraft('draft-1', 'Pendente', 'ChamadaPresenca')
+    draft.status = 'Finalizada'
+    draft.publicacoesDiscord?.push({ tipo: 'Presenca', status: 'Publicada' })
+    draft.publicacoesDiscord?.push({ tipo: 'TimesDefinidos', status: 'Publicada' })
+    mockPollingApi([draft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cta', expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const send = mock.fn(async (_options: unknown) => ({ id: 'cta-message' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.deepEqual(claim.mock.calls.map((call) => call.arguments[1]), ['ChamadaPresenca'])
+    assert.equal(send.mock.callCount(), 1)
+    assert.equal('content' in (send.mock.calls[0]?.arguments[0] as object), true)
+    assert.equal('embeds' in (send.mock.calls[0]?.arguments[0] as object), false)
+    assert.equal(complete.mock.calls[0]?.arguments[1]?.tipo, 'ChamadaPresenca')
+  })
+
+  it('keeps only the CTA claim in progress when its send result is unknown', async () => {
+    const draft = pollingDraft('draft-1', 'Pendente', 'ChamadaPresenca')
+    draft.status = 'Finalizada'
+    draft.publicacoesDiscord?.push({ tipo: 'Presenca', status: 'Publicada' })
+    draft.publicacoesDiscord?.push({ tipo: 'TimesDefinidos', status: 'Publicada' })
+    mockPollingApi([draft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cta', expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => draft as never)
+
+    await runDraftPollingCycle(pollingClient(async () => { throw new Error('unknown CTA send result') }))
+
+    assert.equal(complete.mock.callCount(), 0)
+    assert.equal(failure.mock.callCount(), 0)
+  })
+
+  it('does not claim a CTA when no notification role is configured', async () => {
+    const draft = pollingDraft('draft-1', 'Pendente', 'ChamadaPresenca')
+    draft.publicacoesDiscord?.push({ tipo: 'Presenca', status: 'Publicada' })
+    mockPollingApi([draft])
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cta', expiraEm: null, status: 'EmAndamento' }))
+    const send = mock.fn(async () => ({ id: 'cta-message' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(claim.mock.callCount(), 0)
+    assert.equal(send.mock.callCount(), 0)
   })
 
   it('sends final teams once even when a notification role is configured', async () => {

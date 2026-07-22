@@ -131,9 +131,12 @@ export async function removeManualDraftMontagemPresence(id: string, jogadorId: s
   }
 }
 
-export async function listEligibleManualPresencePlayers(id: string, search = '', page = 1, pageSize = 20): Promise<Pick<Player, 'id' | 'nomeExibicao'>[]> {
+export async function listEligibleManualPresencePlayers(id: string, search = '', page = 1, pageSize = 20, signal?: AbortSignal): Promise<Pick<Player, 'id' | 'nomeExibicao'>[]> {
   try {
-    const response = await api.get<PaginatedEligiblePlayers>(`/api/v1/draft-montagens/${id}/presencas/elegiveis`, { params: { search, page, pageSize } })
+    const response = await api.get<PaginatedEligiblePlayers>(`/api/v1/draft-montagens/${id}/presencas/elegiveis`, {
+      params: { search, page, pageSize },
+      ...(signal ? { signal } : {}),
+    })
     return response.data.items
   } catch (error) {
     throw toDraftMontagemServiceError(error)

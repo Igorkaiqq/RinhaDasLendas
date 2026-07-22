@@ -107,6 +107,7 @@ export const enUS = {
     presencePublished: 'Presence published on Discord.',
     presencePublicationSkipped: 'Presence already published before; duplicate publication ignored.',
     siteDraftPublished: 'A list created through the site was published on Discord.',
+    presenceCtaPublished: 'Presence call published.',
     finalTeamsPublished: 'Defined teams published.',
     finalTeamsPublishFailed: 'Could not publish defined teams. Check channel and permissions.',
     welcomeDmSent: 'Welcome DM sent.',

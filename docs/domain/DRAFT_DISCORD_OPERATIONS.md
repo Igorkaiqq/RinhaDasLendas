@@ -15,16 +15,21 @@ Este documento descreve o comportamento operacional esperado para drafts visuais
 Cada draft pode ter estado persistido de publicação por tipo:
 
 - `Presenca`: mensagem de lista de presença.
+- `ChamadaPresenca`: CTA opcional com menção ao cargo configurado.
 - `TimesDefinidos`: publicação dos times finais.
 
 Estados possíveis:
 
 - `Pendente`: o bot deve publicar no próximo processamento.
+- `EmAndamento`: um claim exclusivo foi adquirido e o resultado ainda não foi concluído.
 - `Publicada`: há publicação registrada com `message_id`.
 - `Falha`: houve erro operacional na tentativa.
+- `RequerReconciliacao`: o envio ou a conclusão ficou incerto e exige ação administrativa.
 - `Ignorada`: publicação intencionalmente não executada.
 
-O bot usa o estado persistido para evitar duplicação após restart. Estado `Pendente` tem prioridade sobre o cache local e permite republicação operacional.
+O bot usa o estado persistido para evitar duplicação após restart. A listagem operacional não depende de guild, não limita o trabalho aos 50 drafts mais recentes e inclui publicações pendentes, em andamento ou que exigem reconciliação mesmo em drafts com status terminal. Histórico finalizado ou cancelado sem publicação acionável fica fora do polling.
+
+A mensagem principal `Presenca` e a CTA `ChamadaPresenca` possuem claims e resultados independentes. A primeira é concluída assim que o embed é registrado. A CTA só é candidata quando `DRAFT_NOTIFY_ROLE_ID` está configurado; falha conhecida antes do envio vira `Falha`, enquanto resultado incerto permanece `EmAndamento` até reconciliação. Recuperar a CTA não republica o embed principal.
 
 ## Republicação
 
@@ -33,6 +38,8 @@ Administradores podem solicitar republicação pelo frontend. A ação:
 - muda o estado da publicação para `Pendente`;
 - registra ação administrativa com usuário responsável e motivo;
 - permite que o bot publique novamente e registre o novo `message_id`.
+
+O frontend mostra os três tipos separadamente. A ação adicional de republicar somente a chamada aparece quando `ChamadaPresenca` está em `Falha` ou `RequerReconciliacao`; as ações existentes de presença e times permanecem inalteradas.
 
 ## Cancelamento do draft
 
@@ -56,6 +63,8 @@ O banco protege concorrência com índices únicos filtrados por `status = 'Conf
 ## Presença manual
 
 Administradores adicionam presença manual usando busca elegível no backend. A busca retorna jogadores ativos, vinculados a usuário e ainda não confirmados no draft.
+
+O frontend cancela a busca anterior ao iniciar outra e só aplica uma resposta quando draft, geração, termo e versão da requisição ainda correspondem ao contexto ativo.
 
 Ao remover presença manual, o frontend solicita motivo. O backend registra:
 

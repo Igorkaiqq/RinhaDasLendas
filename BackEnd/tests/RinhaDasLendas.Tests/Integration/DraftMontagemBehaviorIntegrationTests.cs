@@ -117,6 +117,50 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     }
 
     [Fact]
+    public async Task ListActiveForDiscordAsync_DeveIncluirTimesRepublicadosFinalizadosSemGuild()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var draftId = await factory.SeedTerminalDraftAsync(DraftMontagemStatus.Finalizada, withPendingTeamsPublication: true);
+
+        var drafts = await factory.ListActiveForDiscordAsync();
+
+        drafts.Select(draft => draft.Id).Should().Contain(draftId);
+    }
+
+    [Fact]
+    public async Task ListActiveForDiscordAsync_DeveIncluirPendenteAntigoAposMaisDeCinquentaRecentes()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var oldPendingDraftId = await factory.SeedOldPendingPublicationAfterRecentDraftsAsync(51);
+
+        var drafts = await factory.ListActiveForDiscordAsync();
+
+        drafts.Select(draft => draft.Id).Should().Contain(oldPendingDraftId);
+    }
+
+    [Fact]
+    public async Task ListActiveForDiscordAsync_NaoDeveIncluirHistoricoFinalizadoIrrelevante()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var draftId = await factory.SeedTerminalDraftAsync(DraftMontagemStatus.Finalizada, withPendingTeamsPublication: false);
+
+        var drafts = await factory.ListActiveForDiscordAsync();
+
+        drafts.Select(draft => draft.Id).Should().NotContain(draftId);
+    }
+
+    [Fact]
+    public async Task ListActiveForDiscordAsync_DeveIncluirPublicacaoAcionavelEmQualquerStatusTerminal()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var draftId = await factory.SeedTerminalDraftAsync(DraftMontagemStatus.Cancelada, withPendingTeamsPublication: true);
+
+        var drafts = await factory.ListActiveForDiscordAsync();
+
+        drafts.Select(draft => draft.Id).Should().Contain(draftId);
+    }
+
+    [Fact]
     public async Task DoisClaimsConcorrentes_DevemConcederExatamenteUmClaim()
     {
         await using var factory = new PostgreSqlComposeApiFactory();
@@ -992,6 +1036,58 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
             return draft.Id;
+        }
+
+        public async Task<Guid> SeedTerminalDraftAsync(DraftMontagemStatus status, bool withPendingTeamsPublication)
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var draft = new DraftMontagem("Draft finalizado operacional", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            if (withPendingTeamsPublication)
+            {
+                var responsibleUserId = Guid.NewGuid();
+                dbContext.Users.Add(new ApplicationUser
+                {
+                    Id = responsibleUserId,
+                    Nome = "Operador Discord",
+                    UserName = $"discord-operator-{responsibleUserId:N}",
+                    NormalizedUserName = $"DISCORD-OPERATOR-{responsibleUserId:N}",
+                });
+                draft.SolicitarRepublicacaoDiscord(
+                    DraftMontagemPublicacaoDiscordTipo.TimesDefinidos,
+                    responsibleUserId,
+                    "Republicar times",
+                    DateTimeOffset.UtcNow.AddDays(-2));
+            }
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE draft_montagens
+                SET status = {status.ToString()}, discord_guild_id = NULL, data_atualizacao = {DateTimeOffset.UtcNow.AddDays(-2)}
+                WHERE id = {draft.Id}
+                """);
+            return draft.Id;
+        }
+
+        public async Task<Guid> SeedOldPendingPublicationAfterRecentDraftsAsync(int recentDraftCount)
+        {
+            var oldPendingDraftId = await SeedTerminalDraftAsync(DraftMontagemStatus.Finalizada, withPendingTeamsPublication: true);
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var recentDrafts = Enumerable.Range(1, recentDraftCount)
+                .Select(index => new DraftMontagem($"Draft recente {index}", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []))
+                .ToArray();
+            dbContext.DraftMontagens.AddRange(recentDrafts);
+            await dbContext.SaveChangesAsync();
+            return oldPendingDraftId;
+        }
+
+        public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync()
+        {
+            await using var scope = Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>()
+                .ListActiveForDiscordAsync(CancellationToken.None);
         }
 
         public async Task ExpireClaimAsync(Guid draftId)

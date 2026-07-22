@@ -49,8 +49,10 @@ internal static class InternalTokenSecurity
 
     internal static bool FixedTimeEquals(string provided, string expected)
     {
-        var left = Encoding.UTF8.GetBytes(provided);
-        var right = Encoding.UTF8.GetBytes(expected);
-        return left.Length == right.Length && CryptographicOperations.FixedTimeEquals(left, right);
+        var left = HashToken(provided);
+        var right = HashToken(expected);
+        return CryptographicOperations.FixedTimeEquals(left, right);
     }
+
+    internal static byte[] HashToken(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
 }

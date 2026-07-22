@@ -25,6 +25,7 @@ describe('DraftReasonDialog', () => {
     ['addManualPresence', { type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'Adicionar presença'],
     ['removeManualPresence', { type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'Remover presença'],
     ['republishPresence', { type: 'republishPresence', publicationStatus: 'Falha' }, 'Republicar lista de presença'],
+    ['republishPresenceCta', { type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'Republicar chamada de presença'],
     ['republishTeams', { type: 'republishTeams', publicationStatus: 'Pendente' }, 'Republicar times'],
   ] as const)('renders the %s context', async (_, action, title) => {
     const wrapper = await mountDialog(action)
@@ -58,6 +59,7 @@ describe('DraftReasonDialog', () => {
       'Status atual: falhou',
     ],
     [{ type: 'republishTeams', publicationStatus: 'Pendente' }, 'Republicar times', 'Times definidos', 'Status atual: pendente'],
+    [{ type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'Republicar chamada de presença', 'Chamada de presença', 'Status atual: falhou'],
   ] as const)('renders localized publication type and status for %s', async (action, title, context, status) => {
     const wrapper = await mountDialog(action)
 
@@ -175,6 +177,7 @@ describe('DraftReasonDialog', () => {
     [{ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'default'],
     [{ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'destructive'],
     [{ type: 'republishPresence', publicationStatus: 'Falha' }, 'default'],
+    [{ type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'default'],
     [{ type: 'republishTeams', publicationStatus: 'Pendente' }, 'default'],
   ] as const)('uses the %s confirmation variant', async (action, variant) => {
     const wrapper = await mountDialog(action)
