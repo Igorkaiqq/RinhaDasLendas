@@ -40,6 +40,8 @@ Required publication summary fields:
 
 Public responses expose only publication type and status. Operational identifiers and errors are restricted to bot or administrator projections.
 
+The operational draft list returns every draft with a `Pendente` or `EmAndamento` publication of any supported type, including finalized drafts without a guild identifier. It also returns drafts whose current lifecycle makes a missing publication applicable. It has no fixed top-N cutoff and excludes finalized/cancelled history with no actionable publication.
+
 ## Publication claim
 
 `POST /api/v1/draft-montagens/{id}/discord/publicacoes/claim` is restricted to the internal bot scheme.
@@ -61,12 +63,13 @@ Rules:
 
 ## Republish operations
 
-Administrators can request republication of presence list or final teams for a draft.
+Administrators can request republication of presence list, presence CTA or final teams for a draft.
 
 Expected outcomes:
 - Returns updated draft/publication state.
 - Does not duplicate active publication when an existing message is still valid.
 - Records failed state with reason when Discord publication cannot be completed.
+- Republishing `ChamadaPresenca` changes only that publication and never resets `Presenca`.
 
 ## Draft cancellation
 
@@ -108,6 +111,6 @@ Realtime payloads use the public projection and never include administrative rea
 ## Authentication and throttling
 
 - Production startup rejects missing, placeholder or shorter-than-32-character internal tokens.
-- Internal token comparison is constant-time.
+- Internal token comparison hashes both UTF-8 inputs with SHA-256 and applies fixed-time comparison to the two fixed-size hashes without branching on original input length.
 - API throttling is partitioned by bot identity, authenticated user or anonymous IP.
 - Authentication, authorization and rate-limit failures use localized `ApiErrorResponse` bodies.

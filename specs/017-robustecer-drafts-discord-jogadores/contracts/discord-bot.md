@@ -21,6 +21,11 @@
 - Bot completes or fails publication with the same claim identifier.
 - Bot never republishes a state that requires reconciliation.
 - Failure of one draft does not stop the remaining drafts in the polling cycle.
+- Presence embed/buttons use publication type `Presenca`; the optional role CTA uses the independent type `ChamadaPresenca`.
+- `Presenca` completes immediately after its own message is sent, independently of CTA outcome.
+- The bot considers `ChamadaPresenca` only when `DRAFT_NOTIFY_ROLE_ID` is configured and acquires its claim before sending.
+- Known pre-send CTA failures are registered as `Falha`; send or completion uncertainty remains `EmAndamento` until backend reconciliation.
+- Polling and recovery of `ChamadaPresenca` never resend the `Presenca` embed.
 
 ## Permission behavior
 
@@ -33,3 +38,4 @@
 
 - Bot can publish when backend/admin requests republish.
 - Republish updates backend state with new channel/message identifiers or failure details.
+- CTA-only recovery claims, sends and completes only `ChamadaPresenca`.

@@ -7,16 +7,19 @@
 
 ## Publication status
 
-- Draft detail displays Discord publication state for presence and final teams.
+- Draft detail displays Discord publication state for presence, presence CTA and final teams.
 - Administrators can request republish when state is failed, missing or stale.
 - Reconciliation-required state is visible to administrators and cannot trigger automatic resend.
 - Operational Discord identifiers, errors and audit reasons are loaded only from the administrative endpoint.
+- Administrators have an explicit CTA-only republication action when `ChamadaPresenca` is in a recoverable state; the existing presence and final-team actions remain unchanged.
 
 ## Manual presence search
 
 - Manual presence selector searches eligible players from the backend.
 - It does not require loading every player in the system.
 - It excludes players already confirmed in the selected draft.
+- Each request is tied to the active draft, draft generation, normalized current term and monotonically increasing request version.
+- Starting a newer search aborts the previous request when supported; responses that are no longer current are ignored even if cancellation races.
 
 ## Administrative reasons
 

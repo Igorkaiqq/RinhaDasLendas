@@ -119,6 +119,9 @@ Como administrador, quero que comandos, publicações e presenças tenham autori
 3. **Given** um envio cujo resultado ficou desconhecido após queda do bot, **When** o claim deixa de estar ativo, **Then** a publicação exige reconciliação administrativa e não é reenviada automaticamente.
 4. **Given** confirmações ou cancelamentos repetidos ou concorrentes, **When** o estado desejado já foi alcançado, **Then** todas as chamadas terminam sem erro interno e existe uma única presença efetiva.
 5. **Given** um usuário comum autenticado, **When** consulta um draft, **Then** não recebe motivos de auditoria nem identificadores operacionais do Discord.
+6. **Given** uma publicação pendente ou em andamento de presença, chamada de presença ou times, **When** o bot lista o trabalho operacional, **Then** ela é retornada sem depender de guild, status final ou posição entre os 50 drafts mais recentes.
+7. **Given** a mensagem principal de presença foi publicada, **When** a chamada de presença falha, **Then** a publicação principal permanece concluída e somente a chamada fica recuperável.
+8. **Given** duas buscas manuais se sobrepõem ou o administrador troca de draft, **When** uma resposta antiga chega por último, **Then** ela não substitui os resultados da busca e do draft atuais.
 
 ---
 
@@ -183,6 +186,11 @@ Como administrador, quero que comandos, publicações e presenças tenham autori
 - **FR-037**: Respostas comuns e realtime MUST NOT expor motivos administrativos, executor, códigos de falha ou identificadores operacionais do Discord.
 - **FR-038**: Cancelamento de draft MUST registrar métrica estruturada sem dados pessoais, motivos ou segredos.
 - **FR-039**: Cobertura de endpoint MUST exigir requisição comportamental com assertivas de status, resposta e persistência; listas estáticas não contam como cobertura.
+- **FR-040**: A listagem operacional do bot MUST retornar todo draft que possua publicação `Pendente` ou `EmAndamento`, além dos drafts ainda candidatos a uma publicação aplicável, sem depender de `DiscordGuildId` e sem limite arbitrário que cause starvation; histórico finalizado sem ação MUST ser excluído.
+- **FR-041**: A chamada com menção de cargo MUST ser uma publicação `ChamadaPresenca` independente da publicação principal `Presenca`, com claim, conclusão, falha e reconciliação próprios.
+- **FR-042**: `ChamadaPresenca` MUST ser candidata somente quando `DRAFT_NOTIFY_ROLE_ID` estiver configurado; sua recuperação MUST NOT republicar a mensagem principal de presença.
+- **FR-043**: A busca manual de jogadores MUST descartar respostas que não correspondam simultaneamente ao draft ativo, geração ativa, termo atual e versão mais recente da requisição, cancelando a requisição anterior quando possível.
+- **FR-044**: A comparação do token interno MUST aplicar SHA-256 aos dois valores UTF-8 e comparar os hashes de tamanho fixo com `FixedTimeEquals`, sem decisão antecipada pelo comprimento original.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -213,6 +221,9 @@ Como administrador, quero que comandos, publicações e presenças tenham autori
 - **SC-015**: Saturar o limite de um cliente não reduz a cota de um usuário, bot ou IP diferente.
 - **SC-016**: 100% dos endpoints críticos novos possuem testes negativos de autenticação, autorização, esquema incorreto e payload inválido.
 - **SC-017**: Testes e builds de backend, frontend e bot aprovam com relógio determinístico e catálogos localizados sincronizados.
+- **SC-018**: Nenhuma publicação acionável sofre starvation por guild ausente, status finalizado ou volume superior a 50 drafts, e nenhum histórico finalizado irrelevante entra no polling.
+- **SC-019**: Falha ou resultado incerto da CTA altera somente `ChamadaPresenca`; recuperar a CTA produz no máximo uma CTA nova e nenhuma mensagem principal adicional.
+- **SC-020**: Respostas atrasadas de busca manual nunca substituem resultados de termo, geração ou draft mais recentes.
 
 ## Assumptions
 
