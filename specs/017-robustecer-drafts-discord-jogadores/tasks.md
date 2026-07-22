@@ -255,10 +255,10 @@
 
 ### Behavioral coverage and final verification
 
-- [ ] T109 [US7] Criar `SecurityApiFactory` com autenticação real e clientes anônimo, JWT e bot.
-- [ ] T110 [US7] Adicionar matriz HTTP comportamental para 401, 403, esquemas incorretos, payloads inválidos, auditoria, concorrência e claims.
-- [ ] T111 [US7] Consolidar as migrações não publicadas da feature em migração final com claims e auditoria.
-- [ ] T112 [US7] Executar testes/builds backend, frontend e bot, validar migrações, `git diff --check` e auditoria completa de internacionalização.
+- [x] T109 [US7] Criar `SecurityApiFactory` com autenticação real e clientes anônimo, JWT e bot.
+- [x] T110 [US7] Adicionar matriz HTTP comportamental para 401, 403, esquemas incorretos, payloads inválidos, auditoria, concorrência e claims.
+- [x] T111 [US7] Consolidar as migrações não publicadas da feature em migração final com claims e auditoria.
+- [x] T112 [US7] Executar testes/builds backend, frontend e bot, validar migrações, `git diff --check` e auditoria completa de internacionalização.
 
 **Checkpoint**: US7 atende FR-025 a FR-039 e SC-011 a SC-017 sem reabrir os incrementos funcionais já entregues.
 
