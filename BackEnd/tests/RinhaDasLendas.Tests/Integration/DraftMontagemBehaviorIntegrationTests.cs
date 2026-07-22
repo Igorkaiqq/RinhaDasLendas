@@ -1,22 +1,14 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using System.Collections.Concurrent;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using RinhaDasLendas.Api.Filters;
-using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
@@ -27,6 +19,7 @@ using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Repositories;
+using RinhaDasLendas.Tests.Infrastructure;
 
 namespace RinhaDasLendas.Tests.Integration;
 
@@ -243,8 +236,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         await using var factory = new PostgreSqlComposeApiFactory();
         var draftId = await factory.SeedPendingPublicationAsync();
         using var anonymousClient = factory.CreateClient();
-        using var userClient = factory.CreateClient();
-        userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateJwt());
+        using var userClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Admin);
 
         var anonymousResponse = await anonymousClient.PostAsJsonAsync(
             $"/api/v1/draft-montagens/{draftId}/discord/publicacoes/claim",
@@ -670,18 +662,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         return payload.RootElement.GetProperty("claimId").GetGuid();
     }
 
-    private sealed class PostgreSqlComposeApiFactory : WebApplicationFactory<Program>
+    private sealed class PostgreSqlComposeApiFactory : SecurityApiFactory
     {
-        private const string AdminConnection = "Host=postgres;Port=5432;Database=postgres;Username=postgres;Password=postgres";
-        private const string Issuer = "RinhaDasLendas.DraftBehaviorTests";
-        private const string Audience = "RinhaDasLendas.DraftBehaviorTests.Client";
-        private const string JwtKey = "draft-behavior-tests-jwt-key-with-at-least-thirty-two-characters";
-        private const string BotToken = "draft-behavior-tests-internal-token-with-at-least-thirty-two-characters";
-        private readonly string _databaseName = $"rinha_draft_behavior_{Guid.NewGuid():N}";
-        private readonly string _connectionString;
         private readonly PresenceConcurrencyCoordinator _presenceConcurrency = new();
         private readonly PresenceEffectCounter _presenceEffects = new();
-        private bool _databaseCreated;
 
         public IReadOnlyList<long> LoadedVersions => _presenceConcurrency.LoadedVersions;
         public IReadOnlyList<DraftMontagemSaveResultado> SaveResults => _presenceConcurrency.SaveResults;
@@ -690,77 +674,27 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public int PresenceCancelledEffects => _presenceEffects.PresenceCancelled;
         public int RealtimeEffects => _presenceEffects.Realtime;
 
-        public PostgreSqlComposeApiFactory()
-        {
-            _connectionString = $"Host=postgres;Port=5432;Database={_databaseName};Username=postgres;Password=postgres";
-            CreateDatabaseAsync().GetAwaiter().GetResult();
-        }
-
-        public HttpClient CreateBotClient()
-        {
-            var client = CreateClient();
-            client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, BotToken);
-            return client;
-        }
+        public PostgreSqlComposeApiFactory() : base(useIsolatedPostgreSql: true) { }
 
         public HttpClient CreateUserClient(Guid userId)
         {
-            var client = CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId, AuthRoles.Admin));
-            return client;
+            return CreateJwtClient(userId, AuthRoles.Admin);
         }
 
         public HttpClient CreatePlayerClient(Guid userId)
         {
-            var client = CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(userId, AuthRoles.Jogador));
-            return client;
+            return CreateJwtClient(userId, AuthRoles.Jogador);
         }
 
         public HttpClient CreateAdminClientWithoutNameIdentifier()
         {
-            var client = CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateJwt(null));
-            return client;
+            return CreateJwtClient(null, AuthRoles.Admin);
         }
 
         public void ArmPresenceConcurrency(Guid draftId)
         {
             _presenceConcurrency.Arm(draftId);
             _presenceEffects.Reset();
-        }
-
-        public string CreateJwt()
-        {
-            using var scope = Services.CreateScope();
-            var userId = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
-                .Select(user => user.Id)
-                .First();
-            return CreateJwt(userId);
-        }
-
-        public string CreateJwt(Guid userId)
-        {
-            return CreateJwt((Guid?)userId, AuthRoles.Admin);
-        }
-
-        private string CreateJwt(Guid? userId, string role = AuthRoles.Admin)
-        {
-            var claims = new List<Claim> { new(ClaimTypes.Role, role) };
-            if (userId.HasValue)
-            {
-                claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
-            }
-
-            var token = new JwtSecurityToken(
-                Issuer,
-                Audience,
-                claims,
-                expires: DateTime.UtcNow.AddMinutes(5),
-                signingCredentials: new SigningCredentials(
-                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
-                    SecurityAlgorithms.HmacSha256));
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         public async Task<(Guid DraftId, Guid AdminUserId, Guid PlayerUserId)> SeedProjectionDraftAsync()
@@ -1062,7 +996,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         public async Task ExpireClaimAsync(Guid draftId)
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
+            await using var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
             command.CommandText = """
@@ -1119,7 +1053,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
 
         public async Task<string?> GetPublicationStatusAsync(Guid draftId)
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
+            await using var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
             command.CommandText = """
@@ -1131,37 +1065,9 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return (string?)await command.ExecuteScalarAsync();
         }
 
-        public new async ValueTask DisposeAsync()
-        {
-            await base.DisposeAsync();
-            if (!_databaseCreated)
-            {
-                return;
-            }
-
-            await using var connection = new NpgsqlConnection(AdminConnection);
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"DROP DATABASE IF EXISTS \"{_databaseName}\" WITH (FORCE)";
-            await command.ExecuteNonQueryAsync();
-        }
-
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder
-                .UseEnvironment("IntegrationTesting")
-                .UseSetting("DiscordBot:InternalToken", BotToken)
-                .UseSetting("Authentication:Jwt:Issuer", Issuer)
-                .UseSetting("Authentication:Jwt:Audience", Audience)
-                .UseSetting("Authentication:Jwt:Key", JwtKey)
-                .UseSetting("ConnectionStrings:RinhaDasLendas", _connectionString)
-                .UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:RinhaDasLendas"] = _connectionString,
-                    ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                }));
+            base.ConfigureWebHost(builder);
             builder.ConfigureServices(services =>
             {
                 services.Replace(ServiceDescriptor.Scoped<IDraftMontagemRepository>(serviceProvider =>
@@ -1173,15 +1079,6 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             });
         }
 
-        private async Task CreateDatabaseAsync()
-        {
-            await using var connection = new NpgsqlConnection(AdminConnection);
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"CREATE DATABASE \"{_databaseName}\"";
-            await command.ExecuteNonQueryAsync();
-            _databaseCreated = true;
-        }
     }
 
     private sealed class PresenceConcurrencyCoordinator

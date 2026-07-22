@@ -1,9 +1,7 @@
 using System.Net;
 using System.Diagnostics.Metrics;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using FluentAssertions;
@@ -16,7 +14,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
@@ -32,7 +29,9 @@ using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
+using RinhaDasLendas.Tests.Infrastructure;
 using RinhaDasLendas.Tests.Jogadores;
+using ResourceMessageProvider = RinhaDasLendas.Infrastructure.Messages.ResourceMessageProvider;
 
 namespace RinhaDasLendas.Tests.Security;
 
@@ -101,8 +100,8 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(1);
         using var client = factory.CreateClient();
-        var firstUserToken = RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid());
-        var secondUserToken = RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid());
+        var firstUserToken = SecurityApiFactory.CreateJwt(Guid.NewGuid(), AuthRoles.Admin);
+        var secondUserToken = SecurityApiFactory.CreateJwt(Guid.NewGuid(), AuthRoles.Admin);
 
         client.DefaultRequestHeaders.Authorization = new("Bearer", firstUserToken);
         var firstUserResponse = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
@@ -121,7 +120,7 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(10);
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+        client.DefaultRequestHeaders.Authorization = new("Bearer", SecurityApiFactory.CreateJwt(Guid.NewGuid(), AuthRoles.Admin));
         client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, "invalid-internal-token");
 
         var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
@@ -134,7 +133,7 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(10);
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+        client.DefaultRequestHeaders.Authorization = new("Bearer", SecurityApiFactory.CreateJwt(Guid.NewGuid(), AuthRoles.Admin));
         client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, "invalid-internal-token");
 
         var response = await client.PostAsJsonAsync(
@@ -149,7 +148,7 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(100);
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, SecurityApiFactory.BotToken);
 
         var authResponse = await client.GetAsync("/api/v1/auth/me");
         var jogadoresResponse = await client.GetAsync("/api/v1/jogadores");
@@ -165,7 +164,7 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(100);
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", RealAuthenticationApiFactory.CreateJwt(Guid.NewGuid()));
+        client.DefaultRequestHeaders.Authorization = new("Bearer", SecurityApiFactory.CreateJwt(Guid.NewGuid(), AuthRoles.Admin));
 
         var authResponse = await client.GetAsync("/api/v1/auth/me");
         var jogadoresResponse = await client.GetAsync("/api/v1/jogadores");
@@ -181,11 +180,248 @@ public sealed class SecurityHardeningTests
     {
         using var factory = new RealAuthenticationApiFactory(100);
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, RateLimitedApiFactory.InternalToken);
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, SecurityApiFactory.BotToken);
 
         var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("pt-BR", "Falha na autenticação")]
+    [InlineData("en-US", "Authentication failed")]
+    public async Task AnonymousRequest_ShouldReturnLocalizedAuthenticationError(string language, string expectedMessage)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateAnonymousClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+
+        var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        await AssertApiErrorAsync(response, HttpStatusCode.Unauthorized, MessageCodes.AuthenticationFailed, expectedMessage);
+    }
+
+    [Theory]
+    [InlineData("pt-BR", "Acesso negado")]
+    [InlineData("en-US", "Access denied")]
+    public async Task PlayerRequest_ShouldReturnLocalizedForbiddenError(string language, string expectedMessage)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+
+        var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        await AssertApiErrorAsync(response, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, expectedMessage);
+    }
+
+    [Theory]
+    [InlineData(AuthRoles.Admin)]
+    [InlineData(AuthRoles.Moderador)]
+    [InlineData(AuthRoles.SuperAdmin)]
+    public async Task DraftManagers_ShouldReachAdministrativeEndpoint(string role)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), role);
+
+        var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData("pt-BR", "Token interno do bot inválido")]
+    [InlineData("en-US", "Invalid internal bot token")]
+    public async Task InvalidBotToken_ShouldReturnLocalizedSpecificError(string language, string expectedMessage)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateInvalidBotClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+
+        var response = await client.GetAsync("/api/v1/draft-montagens/ativos");
+
+        await AssertApiErrorAsync(response, HttpStatusCode.Unauthorized, MessageCodes.BotInternalTokenInvalid, expectedMessage);
+    }
+
+    [Fact]
+    public async Task WrongAuthenticationSchemes_ShouldNotCrossAuthorizeEndpoints()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var jwtClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Admin);
+        using var botClient = factory.CreateBotClient();
+
+        var jwtOnBotOnly = await jwtClient.GetAsync("/api/v1/draft-montagens/ativos");
+        var botOnAdminOnly = await botClient.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        await AssertApiErrorAsync(jwtOnBotOnly, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        await AssertApiErrorAsync(botOnAdminOnly, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+    }
+
+    [Fact]
+    public async Task JwtWithInvalidInternalHeader_ShouldReturnInternalTokenErrorWithoutDetails()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Admin);
+        client.DefaultRequestHeaders.Add(BotInternalAuthOptions.HeaderName, "invalid-internal-token");
+
+        var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        await AssertApiErrorAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            MessageCodes.BotInternalTokenInvalid,
+            "Token interno do bot inválido");
+        (await response.Content.ReadAsStringAsync()).Should().NotContain("invalid-internal-token");
+    }
+
+    [Fact]
+    public async Task RateLimitExceeded_ShouldHonorAcceptLanguageWithStandardShape()
+    {
+        using var factory = new RealAuthenticationApiFactory(1);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Admin);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US");
+
+        var firstResponse = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+        var limitedResponse = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        await AssertApiErrorAsync(
+            limitedResponse,
+            HttpStatusCode.TooManyRequests,
+            MessageCodes.RateLimitExceeded,
+            "Request limit exceeded. Try again later.");
+    }
+
+    [Fact]
+    public async Task Player_ShouldReachPublicDraftShapeButNotAdministrativeShape()
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+
+        var publicResponse = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}");
+        var administrativeResponse = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        publicResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        await AssertApiErrorAsync(
+            administrativeResponse,
+            HttpStatusCode.Forbidden,
+            MessageCodes.AccessDenied,
+            "Acesso negado");
+    }
+
+    [Theory]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/presencas/confirmar")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/presencas/cancelar")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/publicacoes/claim")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/publicacao")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/publicacao/falha")]
+    public async Task BotOnlyMutationFamily_ShouldRejectJwtAndAcceptBotScheme(string method, string route)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var jwtClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Admin);
+        using var botClient = factory.CreateBotClient();
+
+        var jwtResponse = await SendAsync(jwtClient, method, route);
+        var botResponse = await SendAsync(botClient, method, route);
+
+        await AssertApiErrorAsync(jwtResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        AssertNotAuthorizationFailure(botResponse);
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/administracao")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/iniciar-tempo-real")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/manual")]
+    [InlineData("DELETE", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/00000000-0000-0000-0000-000000000002")]
+    [InlineData("GET", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/elegiveis")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/discord/publicacoes/republicar")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/reservas/substituir")]
+    [InlineData("PUT", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/layout")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/capitaes/sortear")]
+    [InlineData("PATCH", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/finalizar")]
+    [InlineData("PATCH", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/cancelar")]
+    public async Task AdministrativeMutationFamily_ShouldRejectPlayerAndBot(string method, string route)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var playerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var botClient = factory.CreateBotClient();
+
+        var playerResponse = await SendAsync(playerClient, method, route);
+        var botResponse = await SendAsync(botClient, method, route);
+
+        await AssertApiErrorAsync(playerResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        await AssertApiErrorAsync(botResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+    }
+
+    [Theory]
+    [InlineData("POST", "/api/v1/draft-montagens")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/encerrar-presenca")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/capitaes")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/ordem-escolha")]
+    public async Task SharedMutationFamily_ShouldAllowManagersAndBotButRejectPlayer(string method, string route)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var playerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var managerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+        using var botClient = factory.CreateBotClient();
+
+        var playerResponse = await SendAsync(playerClient, method, route);
+        var managerResponse = await SendAsync(managerClient, method, route);
+        var botResponse = await SendAsync(botClient, method, route);
+
+        await AssertApiErrorAsync(playerResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        AssertNotAuthorizationFailure(managerResponse);
+        AssertNotAuthorizationFailure(botResponse);
+    }
+
+    [Theory]
+    [InlineData("/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/confirmar")]
+    [InlineData("/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/cancelar")]
+    public async Task PlayerPresenceMutationFamily_ShouldRequireJwtIdentity(string route)
+    {
+        using var factory = new RealAuthenticationApiFactory(100);
+        using var anonymousClient = factory.CreateAnonymousClient();
+        using var playerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var botClient = factory.CreateBotClient();
+
+        var anonymousResponse = await SendAsync(anonymousClient, "POST", route);
+        var playerResponse = await SendAsync(playerClient, "POST", route);
+        var botResponse = await SendAsync(botClient, "POST", route);
+
+        await AssertApiErrorAsync(anonymousResponse, HttpStatusCode.Unauthorized, MessageCodes.AuthenticationFailed, "Falha na autenticação");
+        AssertNotAuthorizationFailure(playerResponse);
+        await AssertApiErrorAsync(botResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+    }
+
+    private static Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string route)
+    {
+        var request = new HttpRequestMessage(new HttpMethod(method), route);
+        if (!string.Equals(method, "GET", StringComparison.Ordinal))
+        {
+            request.Content = JsonContent.Create(new { });
+        }
+
+        return client.SendAsync(request);
+    }
+
+    private static void AssertNotAuthorizationFailure(HttpResponseMessage response)
+    {
+        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    private static async Task AssertApiErrorAsync(
+        HttpResponseMessage response,
+        HttpStatusCode expectedStatus,
+        string expectedCode,
+        string expectedMessage)
+    {
+        response.StatusCode.Should().Be(expectedStatus);
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error.Should().NotBeNull();
+        error!.Message.Should().Be(expectedMessage);
+        error.MessageCode.Should().Be(expectedCode);
+        error.Errors.Should().BeEmpty();
     }
 
     [Theory]
@@ -198,7 +434,7 @@ public sealed class SecurityHardeningTests
         var action = () => factory.CreateClient();
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.RateLimitConfigurationInvalid));
+            .WithMessage(new ResourceMessageProvider().GetMessage(MessageCodes.RateLimitConfigurationInvalid));
     }
 
     [Fact]
@@ -211,7 +447,7 @@ public sealed class SecurityHardeningTests
         var response = await client.PostAsJsonAsync("/api/v1/drafts", new { });
         using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var expected = ApiErrorResponse.FromCode(
-            new Infrastructure.Messages.ResourceMessageProvider(),
+            new ResourceMessageProvider(),
             MessageCodes.RateLimitExceeded);
 
         response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
@@ -383,19 +619,19 @@ public sealed class SecurityHardeningTests
     [InlineData("change-me-generate-a-long-random-secret")]
     public void ProductionStartup_ShouldRejectUnsafeInternalToken(string token)
     {
-        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [token], new Infrastructure.Messages.ResourceMessageProvider());
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [token], new ResourceMessageProvider());
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
+            .WithMessage(new ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
     }
 
     [Fact]
     public void ProductionStartup_ShouldRejectMissingInternalToken()
     {
-        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [], new Infrastructure.Messages.ResourceMessageProvider());
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(ProductionEnvironment(), [], new ResourceMessageProvider());
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage(new Infrastructure.Messages.ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
+            .WithMessage(new ResourceMessageProvider().GetMessage(MessageCodes.BotInternalTokenNotSecurelyConfigured));
     }
 
     [Fact]
@@ -404,7 +640,7 @@ public sealed class SecurityHardeningTests
         var action = () => InternalTokenSecurity.ValidateProductionTokens(
             ProductionEnvironment(),
             ["a-strong-internal-token-with-32-characters"],
-            new Infrastructure.Messages.ResourceMessageProvider());
+            new ResourceMessageProvider());
 
         action.Should().NotThrow();
     }
@@ -418,7 +654,7 @@ public sealed class SecurityHardeningTests
         var environment = new Moq.Mock<IWebHostEnvironment>();
         environment.SetupGet(value => value.EnvironmentName).Returns(environmentName);
 
-        var action = () => InternalTokenSecurity.ValidateProductionTokens(environment.Object, [], new Infrastructure.Messages.ResourceMessageProvider());
+        var action = () => InternalTokenSecurity.ValidateProductionTokens(environment.Object, [], new ResourceMessageProvider());
 
         action.Should().NotThrow();
     }
@@ -610,36 +846,12 @@ public sealed class SecurityHardeningTests
         }
     }
 
-    private sealed class RealAuthenticationApiFactory(int permitLimit) : WebApplicationFactory<Program>
+    private sealed class RealAuthenticationApiFactory(int permitLimit) : SecurityApiFactory
     {
-        private const string Issuer = "RinhaDasLendas.SecurityTests";
-        private const string Audience = "RinhaDasLendas.SecurityTests.Client";
-        private const string JwtKey = "security-tests-jwt-key-with-at-least-thirty-two-characters";
-
-        public static string CreateJwt(Guid userId)
-        {
-            var token = new JwtSecurityToken(
-                Issuer,
-                Audience,
-                [
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim(ClaimTypes.Role, AuthRoles.Admin),
-                ],
-                expires: DateTime.UtcNow.AddMinutes(5),
-                signingCredentials: new SigningCredentials(
-                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
-                    SecurityAlgorithms.HmacSha256));
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             builder
-                .UseEnvironment("IntegrationTesting")
-                .UseSetting("Authentication:Jwt:Issuer", Issuer)
-                .UseSetting("Authentication:Jwt:Audience", Audience)
-                .UseSetting("Authentication:Jwt:Key", JwtKey)
-                .UseSetting("DiscordBot:InternalToken", RateLimitedApiFactory.InternalToken)
                 .UseSetting("RateLimiting:Api:PermitLimit", permitLimit.ToString())
                 .UseSetting("RateLimiting:Api:WindowSeconds", "60");
         }

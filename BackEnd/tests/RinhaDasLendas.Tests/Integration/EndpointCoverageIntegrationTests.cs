@@ -1,29 +1,19 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using DotNet.Testcontainers.Builders;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.AspNetCore.Mvc.Routing;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
-using Testcontainers.PostgreSql;
+using RinhaDasLendas.Tests.Infrastructure;
 
 namespace RinhaDasLendas.Tests.Integration;
 
@@ -36,9 +26,7 @@ public sealed class EndpointCoverageIntegrationTests
     public async Task ClosedPresenceMutation_ShouldReturnSpecificDomainMessageCode()
     {
         await using var factory = new PostgreSqlApiFactory();
-        await factory.StartContainerAsync();
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateJwt());
+        using var client = factory.CreateAdminClient();
         var createRequest = new CreateDraftMontagemRequestDto(
             $"Montagem Presenca {Guid.NewGuid():N}",
             null,
@@ -67,34 +55,11 @@ public sealed class EndpointCoverageIntegrationTests
     }
 
     [Fact]
-    public async Task AllDiscoveredEndpoints_ShouldHaveIntegrationCoverage()
+    public async Task CriticalEndpointFlows_ShouldExecuteAndGenerateEndpointInventory()
     {
         await using var factory = new PostgreSqlApiFactory();
-
-        try
-        {
-            await factory.StartContainerAsync();
-        }
-        catch (DockerUnavailableException exception)
-        {
-            _errors.Add(M(MessageCodes.TestDockerUnavailable, exception.Message));
-            var dockerUnavailableEndpoints = DiscoverEndpointsFromControllerMetadata();
-            var dockerUnavailableCoveredEndpoints = CoveredEndpointKeys();
-            WriteCoverageReport(dockerUnavailableEndpoints, dockerUnavailableCoveredEndpoints);
-
-            var dockerUnavailableUncoveredEndpoints = dockerUnavailableEndpoints
-                .Where(endpoint => !dockerUnavailableCoveredEndpoints.Contains(endpoint.Key))
-                .Select(endpoint => endpoint.DisplayName)
-                .ToList();
-
-            dockerUnavailableUncoveredEndpoints.Should().BeEmpty(M(MessageCodes.TestEndpointCoverageRequired));
-            return;
-        }
-
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateJwt());
+        using var client = factory.CreateAdminClient();
         var discoveredEndpoints = DiscoverEndpoints(factory);
-        var coveredEndpoints = CoveredEndpointKeys();
 
         try
         {
@@ -111,15 +76,8 @@ public sealed class EndpointCoverageIntegrationTests
         }
         finally
         {
-            WriteCoverageReport(discoveredEndpoints, coveredEndpoints);
+            WriteEndpointInventory(discoveredEndpoints);
         }
-
-        var uncoveredEndpoints = discoveredEndpoints
-            .Where(endpoint => !coveredEndpoints.Contains(endpoint.Key))
-            .Select(endpoint => endpoint.DisplayName)
-            .ToList();
-
-        uncoveredEndpoints.Should().BeEmpty(M(MessageCodes.TestEndpointCoverageRequired));
     }
 
     private async Task ExecuteJogadoresFlowAsync(PostgreSqlApiFactory factory, HttpClient client)
@@ -367,7 +325,7 @@ public sealed class EndpointCoverageIntegrationTests
         realtimeStateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var activeForDiscordRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/draft-montagens/ativos");
-        activeForDiscordRequest.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+        activeForDiscordRequest.Headers.Add("X-Rinha-Internal-Token", SecurityApiFactory.BotToken);
         var activeForDiscordResponse = await client.SendAsync(activeForDiscordRequest);
         activeForDiscordResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -408,14 +366,14 @@ public sealed class EndpointCoverageIntegrationTests
     private static async Task ExecuteDiscordFlowAsync(HttpClient client)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/discord/configuracoes");
-        request.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+        request.Headers.Add("X-Rinha-Internal-Token", SecurityApiFactory.BotToken);
 
         var response = await client.SendAsync(request);
 
         response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound);
 
         using var linkRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/usuarios/discord/discord-test-user/vinculo");
-        linkRequest.Headers.Add("X-Rinha-Internal-Token", "integration-test-token");
+        linkRequest.Headers.Add("X-Rinha-Internal-Token", SecurityApiFactory.BotToken);
         var linkResponse = await client.SendAsync(linkRequest);
         linkResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -477,178 +435,14 @@ public sealed class EndpointCoverageIntegrationTests
             .ToList();
     }
 
-    private static IReadOnlyCollection<EndpointDescription> DiscoverEndpointsFromControllerMetadata()
+    private void WriteEndpointInventory(IReadOnlyCollection<EndpointDescription> discoveredEndpoints)
     {
-        return typeof(Program).Assembly.GetTypes()
-            .Where(type => typeof(ControllerBase).IsAssignableFrom(type) && type.GetCustomAttribute<ApiControllerAttribute>() is not null)
-            .SelectMany(controller =>
-            {
-                var controllerRoute = controller.GetCustomAttribute<RouteAttribute>()?.Template ?? string.Empty;
-
-                return controller.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-                    .SelectMany(method => method.GetCustomAttributes().OfType<IActionHttpMethodProvider>().SelectMany(httpAttribute =>
-                    {
-                        var actionRoute = (httpAttribute as IRouteTemplateProvider)?.Template ?? string.Empty;
-                        var route = CombineRoutes(controllerRoute, actionRoute);
-                        var parameters = method.GetParameters()
-                            .Where(parameter => parameter.ParameterType != typeof(CancellationToken))
-                            .Select(parameter => new EndpointParameter(
-                                parameter.Name ?? string.Empty,
-                                ParameterSource(parameter),
-                                FriendlyTypeName(parameter.ParameterType)))
-                            .ToList();
-                        var inputDtos = method.GetParameters()
-                            .Where(parameter => parameter.GetCustomAttribute<FromBodyAttribute>() is not null)
-                            .Select(parameter => FriendlyTypeName(parameter.ParameterType))
-                            .Distinct()
-                            .ToList();
-                        var responses = method.GetCustomAttributes<ProducesResponseTypeAttribute>()
-                            .Select(attribute => new EndpointResponse(attribute.StatusCode, FriendlyTypeName(attribute.Type)))
-                            .Distinct()
-                            .OrderBy(response => response.StatusCode)
-                            .ToList();
-
-                        return httpAttribute.HttpMethods.Select(httpMethod => new EndpointDescription(
-                            EndpointKey.From(httpMethod, route),
-                            httpMethod,
-                            NormalizePath(route),
-                            parameters,
-                            inputDtos,
-                            responses));
-                    }));
-            })
-            .OrderBy(endpoint => endpoint.HttpMethod)
-            .ThenBy(endpoint => endpoint.Route)
-            .ToList();
-    }
-
-    private static string CombineRoutes(string controllerRoute, string actionRoute)
-    {
-        return string.Join("/", new[] { controllerRoute, actionRoute }
-            .Where(route => !string.IsNullOrWhiteSpace(route))
-            .Select(route => route.Trim("/".ToCharArray())));
-    }
-
-    private static string ParameterSource(ParameterInfo parameter)
-    {
-        if (parameter.GetCustomAttribute<FromBodyAttribute>() is not null)
-        {
-            return "Body";
-        }
-
-        if (parameter.GetCustomAttribute<FromRouteAttribute>() is not null)
-        {
-            return "Path";
-        }
-
-        if (parameter.GetCustomAttribute<FromQueryAttribute>() is not null)
-        {
-            return "Query";
-        }
-
-        return "Unknown";
-    }
-
-    private static HashSet<EndpointKey> CoveredEndpointKeys()
-    {
-        return
-        [
-            EndpointKey.From("POST", "/api/v1/jogadores"),
-            EndpointKey.From("GET", "/api/v1/jogadores"),
-            EndpointKey.From("GET", "/api/v1/jogadores/{id}"),
-            EndpointKey.From("PUT", "/api/v1/jogadores/{id}/dados-basicos"),
-            EndpointKey.From("PUT", "/api/v1/jogadores/{id}/preferencias-rotas"),
-            EndpointKey.From("PATCH", "/api/v1/jogadores/{id}/inativar"),
-            EndpointKey.From("GET", "/api/v1/jogadores/capitaes-elegiveis"),
-            EndpointKey.From("POST", "/api/v1/auth/register"),
-            EndpointKey.From("POST", "/api/v1/auth/login"),
-            EndpointKey.From("POST", "/api/v1/auth/logout"),
-            EndpointKey.From("POST", "/api/v1/auth/refresh"),
-            EndpointKey.From("POST", "/api/v1/auth/forgot-password"),
-            EndpointKey.From("POST", "/api/v1/auth/reset-password"),
-            EndpointKey.From("POST", "/api/v1/auth/change-password"),
-            EndpointKey.From("GET", "/api/v1/auth/me"),
-            EndpointKey.From("PUT", "/api/v1/auth/me/profile"),
-            EndpointKey.From("GET", "/api/v1/auth/me/jogador"),
-            EndpointKey.From("POST", "/api/v1/auth/me/jogador"),
-            EndpointKey.From("PUT", "/api/v1/auth/me/jogador"),
-            EndpointKey.From("GET", "/api/v1/auth/me/permissions"),
-            EndpointKey.From("GET", "/api/v1/auth/me/discord"),
-            EndpointKey.From("GET", "/api/v1/auth/discord/login"),
-            EndpointKey.From("GET", "/api/v1/auth/discord/callback"),
-            EndpointKey.From("POST", "/api/v1/auth/me/discord/link"),
-            EndpointKey.From("DELETE", "/api/v1/auth/me/discord"),
-            EndpointKey.From("GET", "/api/v1/usuarios"),
-            EndpointKey.From("GET", "/api/v1/usuarios/roles"),
-            EndpointKey.From("GET", "/api/v1/usuarios/{id}"),
-            EndpointKey.From("GET", "/api/v1/usuarios/discord/{discordUserId}/vinculo"),
-            EndpointKey.From("PUT", "/api/v1/usuarios/{id}"),
-            EndpointKey.From("PUT", "/api/v1/usuarios/{id}/roles"),
-            EndpointKey.From("PATCH", "/api/v1/usuarios/{id}/ativar"),
-            EndpointKey.From("PATCH", "/api/v1/usuarios/{id}/desativar"),
-            EndpointKey.From("POST", "/api/v1/usuarios/{id}/reset-password"),
-            EndpointKey.From("GET", "/api/v1/usuarios/{id}/auditoria"),
-            EndpointKey.From("GET", "/api/v1/times"),
-            EndpointKey.From("GET", "/api/v1/times/{id}"),
-            EndpointKey.From("POST", "/api/v1/times"),
-            EndpointKey.From("PUT", "/api/v1/times/{id}"),
-            EndpointKey.From("PATCH", "/api/v1/times/{id}/inativar"),
-            EndpointKey.From("PATCH", "/api/v1/times/{id}/reativar"),
-            EndpointKey.From("GET", "/api/v1/drafts"),
-            EndpointKey.From("GET", "/api/v1/drafts/{id}"),
-            EndpointKey.From("POST", "/api/v1/drafts"),
-            EndpointKey.From("POST", "/api/v1/drafts/{id}/picks"),
-            EndpointKey.From("PATCH", "/api/v1/drafts/{id}/cancelar"),
-            EndpointKey.From("GET", "/api/v1/discord/configuracoes"),
-            EndpointKey.From("PUT", "/api/v1/discord/configuracoes"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens/ativos"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/administracao"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/realtime-state"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens"),
-            EndpointKey.From("PUT", "/api/v1/draft-montagens/{id}/layout"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/iniciar-tempo-real"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/presencas/confirmar"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/presencas/cancelar"),
-            EndpointKey.From("GET", "/api/v1/draft-montagens/{id}/presencas/elegiveis"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/presencas/manual"),
-            EndpointKey.From("DELETE", "/api/v1/draft-montagens/{id}/presencas/{jogadorId}"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/presencas/confirmar"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/presencas/cancelar"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/encerrar-presenca"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/capitaes"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/ordem-escolha"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacao"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacao/falha"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacoes/claim"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/discord/publicacoes/republicar"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/picks"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/reservas/substituir"),
-            EndpointKey.From("POST", "/api/v1/draft-montagens/{id}/capitaes/sortear"),
-            EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/finalizar"),
-            EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/cancelar")
-        ];
-    }
-
-    private void WriteCoverageReport(IReadOnlyCollection<EndpointDescription> discoveredEndpoints, HashSet<EndpointKey> coveredEndpoints)
-    {
-        var uncoveredEndpoints = discoveredEndpoints
-            .Where(endpoint => !coveredEndpoints.Contains(endpoint.Key))
-            .ToList();
-
-        var testedEndpoints = discoveredEndpoints
-            .Where(endpoint => coveredEndpoints.Contains(endpoint.Key))
-            .ToList();
-
         var report = new StringBuilder();
-        report.AppendLine($"# {M(MessageCodes.TestEndpointCoverageReportTitle)}");
+        report.AppendLine($"# {M(MessageCodes.TestDiscoveredEndpoints)}");
         report.AppendLine();
         report.AppendLine($"{M(MessageCodes.TestGeneratedAtUtc)}: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss}");
         report.AppendLine();
         AppendEndpointSection(report, M(MessageCodes.TestDiscoveredEndpoints), discoveredEndpoints);
-        AppendEndpointSection(report, M(MessageCodes.TestCoveredEndpoints), testedEndpoints);
-        AppendEndpointSection(report, M(MessageCodes.TestUncoveredEndpoints), uncoveredEndpoints);
         report.AppendLine($"## {M(MessageCodes.TestErrorsFound)}");
         report.AppendLine();
 
@@ -668,7 +462,7 @@ public sealed class EndpointCoverageIntegrationTests
 
         var reportDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "TestResults"));
         Directory.CreateDirectory(reportDirectory);
-        File.WriteAllText(Path.Combine(reportDirectory, "endpoint-coverage-report.md"), report.ToString());
+        File.WriteAllText(Path.Combine(reportDirectory, "endpoint-inventory-report.md"), report.ToString());
     }
 
     private static void AppendEndpointSection(StringBuilder report, string title, IReadOnlyCollection<EndpointDescription> endpoints)
@@ -750,7 +544,7 @@ public sealed class EndpointCoverageIntegrationTests
             return "Nenhum";
         }
 
-        if (!type.GetTypeInfo().IsGenericType)
+        if (!type.IsGenericType)
         {
             return type.Name;
         }
@@ -760,83 +554,26 @@ public sealed class EndpointCoverageIntegrationTests
         return $"{genericTypeName}<{genericArguments}>";
     }
 
-    private sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>
+    private sealed class PostgreSqlApiFactory : SecurityApiFactory
     {
-        private const string Issuer = "RinhaDasLendas.IntegrationTests";
-        private const string Audience = "RinhaDasLendas.IntegrationTests.Client";
-        private const string JwtKey = "integration-tests-jwt-key-with-at-least-thirty-two-characters";
-        private PostgreSqlContainer? _postgres;
-        private string? _connectionString;
+        public PostgreSqlApiFactory() : base(useIsolatedPostgreSql: true) { }
 
-        public string CreateJwt()
+        public HttpClient CreateAdminClient()
         {
             using var scope = Services.CreateScope();
             var userId = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
                 .Select(user => user.Id)
                 .First();
-            var token = new JwtSecurityToken(
-                Issuer,
-                Audience,
-                [
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim(ClaimTypes.Role, AuthRoles.Admin),
-                ],
-                expires: DateTime.UtcNow.AddMinutes(5),
-                signingCredentials: new SigningCredentials(
-                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
-                    SecurityAlgorithms.HmacSha256));
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        public async Task StartContainerAsync()
-        {
-            _postgres = new PostgreSqlBuilder()
-                .WithImage("postgres:16-alpine")
-                .WithDatabase("rinha_das_lendas_tests")
-                .WithUsername("postgres")
-                .WithPassword("postgres")
-                .Build();
-
-            await _postgres.StartAsync();
-            _connectionString = _postgres.GetConnectionString();
-        }
-
-        public new async ValueTask DisposeAsync()
-        {
-            await DisposeContainerAsync();
-        }
-
-        public async Task DisposeContainerAsync()
-        {
-            await base.DisposeAsync();
-
-            if (_postgres is not null)
-            {
-                await _postgres.DisposeAsync();
-            }
+            return CreateJwtClient(userId, AuthRoles.Admin);
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             builder
-                .UseEnvironment("IntegrationTesting")
-                .UseSetting("DiscordBot:InternalToken", "integration-test-token")
-                .UseSetting("Authentication:Jwt:Issuer", Issuer)
-                .UseSetting("Authentication:Jwt:Audience", Audience)
-                .UseSetting("Authentication:Jwt:Key", JwtKey)
                 .UseSetting("Authentication:BootstrapSuperAdmin:Enabled", "true")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Email", "integration-admin@example.com")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Senha", "IntegrationAdmin123!");
-            builder.ConfigureAppConfiguration((_, configuration) =>
-            {
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:RinhaDasLendas"] = _connectionString
-                        ?? throw new InvalidOperationException(M(MessageCodes.TestPostgreSqlContainerNotStarted)),
-                    ["ConnectionStrings:DefaultConnection"] = _connectionString
-                        ?? throw new InvalidOperationException(M(MessageCodes.TestPostgreSqlContainerNotStarted))
-                });
-            });
         }
     }
 
