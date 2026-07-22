@@ -7,13 +7,15 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using RinhaDasLendas.Api.Filters;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
-using RinhaDasLendas.Infrastructure.Messages;
 
 namespace RinhaDasLendas.Tests.Security;
 
 public sealed class ApiAuthorizationMiddlewareResultHandlerTests
 {
+    private static readonly IMessageProvider Messages = new DeterministicMessageProvider();
+
     [Fact]
     public async Task Challenge_ShouldInvokeSelectedSchemeBeforeWritingStandardBody()
     {
@@ -27,7 +29,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             })
             .Returns(Task.CompletedTask);
         var context = CreateContext(authentication.Object);
-        var handler = new ApiAuthorizationMiddlewareResultHandler(new ResourceMessageProvider());
+        var handler = new ApiAuthorizationMiddlewareResultHandler(Messages);
 
         await handler.HandleAsync(
             _ => Task.CompletedTask,
@@ -40,7 +42,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             Times.Once);
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         context.Response.Headers.WWWAuthenticate.ToString().Should().Be("Probe realm=tests");
-        await AssertBodyAsync(context, MessageCodes.AuthenticationFailed, "Falha na autenticação");
+        await AssertBodyAsync(context, MessageCodes.AuthenticationFailed, $"test:{MessageCodes.AuthenticationFailed}");
     }
 
     [Fact]
@@ -52,7 +54,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             .Callback<HttpContext, string?, AuthenticationProperties?>((context, _, _) => context.Response.StatusCode = StatusCodes.Status403Forbidden)
             .Returns(Task.CompletedTask);
         var context = CreateContext(authentication.Object);
-        var handler = new ApiAuthorizationMiddlewareResultHandler(new ResourceMessageProvider());
+        var handler = new ApiAuthorizationMiddlewareResultHandler(Messages);
 
         await handler.HandleAsync(
             _ => Task.CompletedTask,
@@ -64,7 +66,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             service => service.ForbidAsync(context, "Probe", It.IsAny<AuthenticationProperties?>()),
             Times.Once);
         context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        await AssertBodyAsync(context, MessageCodes.AccessDenied, "Acesso negado");
+        await AssertBodyAsync(context, MessageCodes.AccessDenied, $"test:{MessageCodes.AccessDenied}");
     }
 
     [Fact]
@@ -74,7 +76,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
         var responseFeature = new StartedResponseFeature(started: true);
         var context = new DefaultHttpContext { RequestServices = Services(authentication.Object) };
         context.Features.Set<IHttpResponseFeature>(responseFeature);
-        var handler = new ApiAuthorizationMiddlewareResultHandler(new ResourceMessageProvider());
+        var handler = new ApiAuthorizationMiddlewareResultHandler(Messages);
 
         await handler.HandleAsync(
             _ => Task.CompletedTask,
@@ -101,7 +103,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             .Returns(Task.CompletedTask);
         var context = new DefaultHttpContext { RequestServices = Services(authentication.Object) };
         context.Features.Set<IHttpResponseFeature>(responseFeature);
-        var handler = new ApiAuthorizationMiddlewareResultHandler(new ResourceMessageProvider());
+        var handler = new ApiAuthorizationMiddlewareResultHandler(Messages);
 
         await handler.HandleAsync(
             _ => Task.CompletedTask,
@@ -123,7 +125,7 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
             .Returns(Task.CompletedTask);
         var context = CreateContext(authentication.Object);
         context.RequestAborted = new CancellationToken(canceled: true);
-        var handler = new ApiAuthorizationMiddlewareResultHandler(new ResourceMessageProvider());
+        var handler = new ApiAuthorizationMiddlewareResultHandler(Messages);
 
         await handler.HandleAsync(
             _ => Task.CompletedTask,
@@ -179,5 +181,11 @@ public sealed class ApiAuthorizationMiddlewareResultHandlerTests
         public void Start() => HasStarted = true;
         public void OnStarting(Func<object, Task> callback, object state) { }
         public void OnCompleted(Func<object, Task> callback, object state) { }
+    }
+
+    private sealed class DeterministicMessageProvider : IMessageProvider
+    {
+        public string GetMessage(string messageCode) => $"test:{messageCode}";
+        public string GetMessage(string messageCode, string cultureCode) => GetMessage(messageCode);
     }
 }
