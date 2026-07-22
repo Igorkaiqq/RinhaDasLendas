@@ -21,31 +21,65 @@ public sealed class DraftMontagemCancellationMetricsTests
     public async Task CancelamentoDeveRegistrarMetricaAposPersistenciaEAntesDaNotificacao()
     {
         var id = Guid.NewGuid();
-        var persisted = false;
-        var metricRecorded = false;
+        var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var metricRecorded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var montagem = CreateDraft();
         var repository = CreateRepository(id, montagem);
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => persisted = true)
-            .Returns(Task.CompletedTask);
-        var metrics = new Mock<IDraftMontagemMetrics>();
-        metrics.Setup(item => item.RecordDraftCancelled(id)).Callback(() =>
-        {
-            persisted.Should().BeTrue();
-            metricRecorded = true;
-        });
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+            .Returns(async () =>
+            {
+                saveStarted.SetResult();
+                await releaseSave.Task;
+            });
+        var metrics = new Mock<IDraftMontagemMetrics>(MockBehavior.Strict);
+        metrics.Setup(item => item.RecordDraftCancelled(id)).Callback(() => metricRecorded.SetResult());
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
         notifier.Setup(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
-            .Callback(() => metricRecorded.Should().BeTrue())
+            .Callback(() => metricRecorded.Task.IsCompletedSuccessfully.Should().BeTrue())
             .Returns(Task.CompletedTask);
         var handler = CreateHandler(repository.Object, notifier.Object, metrics.Object);
 
-        await handler.Handle(
+        var handlerTask = handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
             CancellationToken.None);
 
+        await saveStarted.Task;
+        handlerTask.IsCompleted.Should().BeFalse();
+        metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
+        notifier.Verify(item => item.StateUpdatedAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemRealtimeStateDto>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+
+        releaseSave.SetResult();
+        await handlerTask;
+
         metrics.Verify(item => item.RecordDraftCancelled(id), Times.Once);
         notifier.Verify(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task DraftInexistenteDeveRetornarNullSemPersistirRegistrarMetricaOuNotificar()
+    {
+        var id = Guid.NewGuid();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((DraftMontagem?)null);
+        var metrics = new Mock<IDraftMontagemMetrics>();
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var handler = CreateHandler(repository.Object, notifier.Object, metrics.Object);
+
+        var result = await handler.Handle(
+            new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
+            CancellationToken.None);
+
+        result.Should().BeNull();
+        repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
+        notifier.Verify(item => item.StateUpdatedAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemRealtimeStateDto>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
