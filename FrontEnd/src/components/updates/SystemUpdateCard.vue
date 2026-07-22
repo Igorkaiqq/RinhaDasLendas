@@ -46,7 +46,7 @@ const formattedDate = computed(() =>
     :data-update-id="release.id"
   >
     <Card :class="cn('w-full', latest && 'ring-primary/40')">
-      <CardHeader class="gap-4">
+      <CardHeader class="system-update-card__header gap-4">
         <div class="flex flex-wrap items-center gap-2 text-muted-foreground">
           <Badge v-if="latest" variant="secondary">{{ t('updates.latest') }}</Badge>
           <span class="font-mono text-xs text-foreground" translate="no">{{ release.version }}</span>

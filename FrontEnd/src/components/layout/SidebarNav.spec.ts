@@ -99,7 +99,7 @@ describe('SidebarNav', () => {
       /@media \(max-width: 760px\)[\s\S]*?\.app-shell \.sidebar__status--new\s*\{[^}]*display:\s*inline-flex;/,
     )
     expect(mainStyles).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.app-shell \.sidebar__item:has\(\.sidebar__status--new\)\s*\{[^}]*flex-direction:\s*row;/,
+      /@media \(max-width: 760px\)[\s\S]*?\.app-shell:not\(\.app-shell--collapsed\) \.sidebar__item:has\(\.sidebar__status--new\),\s*\.app-shell--collapsed \.sidebar__item:has\(\.sidebar__status--new\)\s*\{[^}]*flex-direction:\s*row;/,
     )
     expect(mainStyles).toMatch(
       /\.app-shell:not\(\.app-shell--collapsed\) \.sidebar__status,[\s\S]*?display:\s*none;/,

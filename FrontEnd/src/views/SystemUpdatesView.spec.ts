@@ -71,6 +71,8 @@ describe('SystemUpdatesView', () => {
 
   it('groups the semantic timeline and links every indexed version to its release', () => {
     const wrapper = mountView()
+    const hero = wrapper.get('[data-latest-update]')
+    const filters = wrapper.get('section[aria-label="Filtrar por categoria"]')
     const timeline = wrapper.get('ol.system-updates-timeline')
     const groups = timeline.findAll(':scope > [data-update-group]')
     const index = wrapper.get('nav.system-updates-index')
@@ -78,6 +80,8 @@ describe('SystemUpdatesView', () => {
     expect(timeline.attributes('aria-label')).toBe(
       'Linha do tempo de atualizações',
     )
+    expect(hero.classes()).toContain('system-updates-hero')
+    expect(filters.classes()).toContain('system-updates-filters')
     expect(timeline.attributes('role')).toBe('list')
     expect(groups).toHaveLength(2)
     expect(

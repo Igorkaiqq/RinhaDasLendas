@@ -34,6 +34,9 @@ describe('SystemUpdateCard', () => {
     const wrapper = mountCard()
 
     expect(wrapper.get('article').classes()).toContain('system-update-card--latest')
+    expect(wrapper.get('[data-slot="card-header"]').classes()).toContain(
+      'system-update-card__header',
+    )
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-22')
     expect(wrapper.get('time').text()).toBe('22 de julho de 2026')
     expect(wrapper.get('h2').text()).toBe('Drafts e Discord mais confiáveis')

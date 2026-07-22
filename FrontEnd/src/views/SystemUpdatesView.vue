@@ -90,7 +90,7 @@ function clearFilters() {
 
     <section
       data-latest-update
-      class="relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-6 shadow-sm sm:p-8"
+      class="system-updates-hero relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-6 shadow-sm sm:p-8"
     >
       <div class="relative flex max-w-4xl flex-col gap-5">
         <div class="flex flex-wrap items-center gap-3 text-muted-foreground">
@@ -133,7 +133,7 @@ function clearFilters() {
     </section>
 
     <section
-      class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-5"
+      class="system-updates-filters flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-5"
       :aria-label="t('updates.filterLabel')"
     >
       <div class="flex flex-col gap-2">
