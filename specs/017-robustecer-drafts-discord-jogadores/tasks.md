@@ -285,16 +285,16 @@
 
 **TDD Order**: Cada tarefa de teste MUST falhar pelo comportamento ausente antes da implementação correspondente. Commits novos em português; nenhum amend.
 
-- [ ] T113 [P] Adicionar testes falhos do repositório para publicação acionável sem guild, acima de 50 drafts e exclusão de histórico irrelevante.
-- [ ] T114 Corrigir `ListActiveForDiscordAsync` para listar integralmente trabalho acionável sem starvation.
-- [ ] T115 [P] Adicionar testes falhos do bot para sucesso do embed com falha da CTA, recuperação isolada, resultado desconhecido e cargo ausente.
-- [ ] T116 Implementar `ChamadaPresenca` como publicação independente com claim, conclusão, falha e reconciliação próprios.
-- [ ] T117 [P] Adicionar testes falhos de frontend para status/ação CTA e proteção de corrida da busca manual entre termos e drafts.
-- [ ] T118 Implementar ação administrativa CTA com modal/i18n e proteção da busca por AbortController, versão, draft, geração e termo.
-- [ ] T119 [P] Adicionar teste falho determinístico dos buffers fixos usados na comparação de token interno.
-- [ ] T120 Implementar SHA-256 dos dois tokens UTF-8 antes de `FixedTimeEquals`.
-- [ ] T121 Atualizar spec, contratos e documentação operacional para os quatro findings finais.
-- [ ] T122 Executar testes/builds completos, validação EF, auditorias de dependências, i18n, hardcodes, `git ls-files`, `git diff --check` e registrar `.superpowers/sdd/final-fixes-report.md` local ignorado.
+- [x] T113 [P] Adicionar testes falhos do repositório para publicação acionável sem guild, acima de 50 drafts e exclusão de histórico irrelevante.
+- [x] T114 Corrigir `ListActiveForDiscordAsync` para listar integralmente trabalho acionável sem starvation.
+- [x] T115 [P] Adicionar testes falhos do bot para sucesso do embed com falha da CTA, recuperação isolada, resultado desconhecido e cargo ausente.
+- [x] T116 Implementar `ChamadaPresenca` como publicação independente com claim, conclusão, falha e reconciliação próprios.
+- [x] T117 [P] Adicionar testes falhos de frontend para status/ação CTA e proteção de corrida da busca manual entre termos e drafts.
+- [x] T118 Implementar ação administrativa CTA com modal/i18n e proteção da busca por AbortController, versão, draft, geração e termo.
+- [x] T119 [P] Adicionar teste falho determinístico dos buffers fixos usados na comparação de token interno.
+- [x] T120 Implementar SHA-256 dos dois tokens UTF-8 antes de `FixedTimeEquals`.
+- [x] T121 Atualizar spec, contratos e documentação operacional para os quatro findings finais.
+- [x] T122 Executar testes/builds completos, validação EF, auditorias de dependências, i18n, hardcodes, `git ls-files`, `git diff --check` e registrar `.superpowers/sdd/final-fixes-report.md` local ignorado.
 
 ---
 
