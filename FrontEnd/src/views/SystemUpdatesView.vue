@@ -110,6 +110,7 @@ function clearFilters() {
             {{ t(latest.titleKey) }}
           </h2>
           <p
+            data-latest-summary
             class="max-w-3xl text-pretty leading-relaxed text-muted-foreground"
           >
             {{ t(latest.summaryKey) }}
@@ -117,12 +118,16 @@ function clearFilters() {
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <Badge v-for="category in latest.categories" :key="category">
-            {{ t(`updates.categories.${category}`) }}
-          </Badge>
-          <Badge v-for="area in latest.areas" :key="area" variant="outline">
-            {{ t(`updates.areas.${area}`) }}
-          </Badge>
+          <div data-latest-categories class="contents">
+            <Badge v-for="category in latest.categories" :key="category">
+              {{ t(`updates.categories.${category}`) }}
+            </Badge>
+          </div>
+          <div data-latest-areas class="contents">
+            <Badge v-for="area in latest.areas" :key="area" variant="outline">
+              {{ t(`updates.areas.${area}`) }}
+            </Badge>
+          </div>
         </div>
       </div>
     </section>
@@ -212,6 +217,7 @@ function clearFilters() {
 
       <ol
         class="system-updates-timeline flex min-w-0 list-none flex-col gap-10"
+        role="list"
         :aria-label="t('updates.timelineLabel')"
       >
         <li
@@ -227,12 +233,14 @@ function clearFilters() {
           </h2>
           <ol
             class="flex min-w-0 list-none flex-col gap-6 border-l border-border pl-4 sm:pl-6"
+            role="list"
           >
             <li
               v-for="release in releases"
               :id="`update-${release.id}`"
               :key="release.id"
               data-system-update
+              :data-categories="release.categories.join(' ')"
               class="relative min-w-0 scroll-mt-6 before:absolute before:-left-[1.29rem] before:top-6 before:size-2 before:rounded-full before:bg-primary sm:before:-left-[1.79rem]"
             >
               <SystemUpdateCard

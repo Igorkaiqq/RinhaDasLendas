@@ -48,16 +48,20 @@ describe('SystemUpdatesView', () => {
 
   it('renders the latest release hero and all releases in chronological order', () => {
     const wrapper = mountView()
+    const hero = wrapper.get('[data-latest-update]')
     const releases = wrapper.findAll('[data-system-update]')
 
     expect(wrapper.get('h1').text()).toBe('Atualizações do sistema')
-    expect(wrapper.get('[data-latest-update]').text()).toContain('2026.07.1')
-    expect(wrapper.get('[data-latest-update]').text()).toContain(
-      'Drafts e Discord mais confiáveis',
+    expect(hero.text()).toContain('2026.07.1')
+    expect(hero.text()).toContain('Drafts e Discord mais confiáveis')
+    expect(hero.get('[data-latest-summary]').text()).toBe(
+      'A operação de drafts ganhou acesso direto, confirmações mais claras, publicações recuperáveis e presença sincronizada, com reforços de segurança e estabilidade.',
     )
-    expect(
-      wrapper.get('[data-latest-update] time').attributes('datetime'),
-    ).toBe('2026-07-22')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Correção')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Segurança')
+    expect(hero.get('[data-latest-areas]').text()).toContain('Jogadores')
+    expect(hero.get('[data-latest-areas]').text()).toContain('Discord')
+    expect(hero.get('time').attributes('datetime')).toBe('2026-07-22')
     expect(releases).toHaveLength(8)
     expect(releases.map((release) => release.attributes('id'))).toEqual(
       SYSTEM_UPDATES.map((release) => `update-${release.id}`),
@@ -74,7 +78,13 @@ describe('SystemUpdatesView', () => {
     expect(timeline.attributes('aria-label')).toBe(
       'Linha do tempo de atualizações',
     )
+    expect(timeline.attributes('role')).toBe('list')
     expect(groups).toHaveLength(2)
+    expect(
+      groups.every(
+        (group) => group.get(':scope > ol').attributes('role') === 'list',
+      ),
+    ).toBe(true)
     expect(
       groups.map((group) => group.attributes('data-update-group')),
     ).toEqual(['2026-07', '2026-06'])
@@ -108,6 +118,13 @@ describe('SystemUpdatesView', () => {
           release.text().toLocaleLowerCase().includes('discord'),
         ),
     ).toBe(true)
+    expect(
+      wrapper
+        .findAll('[data-system-update]')
+        .every((release) =>
+          release.attributes('data-categories')?.split(' ').includes('fix'),
+        ),
+    ).toBe(true)
 
     await wrapper.get('[data-clear-filters]').trigger('click')
 
@@ -130,6 +147,23 @@ describe('SystemUpdatesView', () => {
     expect(wrapper.findAll('[data-system-update]')).toHaveLength(0)
     expect(wrapper.get('[data-result-count]').text()).toBe('0 updates')
     expect(wrapper.text()).toContain('No updates found')
+  })
+
+  it('uses the localized singular result count in both locales', async () => {
+    const wrapper = mountView()
+    const search = wrapper.get('input[type="search"]')
+
+    await search.setValue('Fundação')
+
+    expect(wrapper.findAll('[data-system-update]')).toHaveLength(1)
+    expect(wrapper.get('[data-result-count]').text()).toBe('1 atualização')
+
+    setLocale('en')
+    await search.setValue('Portuguese and English interface')
+    await nextTick()
+
+    expect(wrapper.findAll('[data-system-update]')).toHaveLength(1)
+    expect(wrapper.get('[data-result-count]').text()).toBe('1 update')
   })
 
   it('shows localized empty states that restore the complete timeline', async () => {
