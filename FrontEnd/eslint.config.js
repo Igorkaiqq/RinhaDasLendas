@@ -18,6 +18,35 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: [
+      'src/components/drafts/visual/DraftVisualBoard.vue',
+      'src/views/DraftsView.vue',
+    ],
+    languageOptions: {
+      globals: {
+        AbortController: 'readonly',
+        AudioContext: 'readonly',
+      },
+    },
+  },
+  {
+    files: [
+      'src/components/users/DiscordLinkSection.vue',
+      'src/views/LoginView.vue',
+      'src/views/RegisterView.vue',
+    ],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['src/components/ui/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
   prettier,
 )
-
