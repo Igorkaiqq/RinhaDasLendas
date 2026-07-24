@@ -12,6 +12,7 @@ public interface IAgendamentoPresencaRepository
     Task<IReadOnlyCollection<AgendamentoPresencaListItem>> ListAsync(bool includePaused, int page, int pageSize, CancellationToken ct);
     Task<int> CountAsync(bool includePaused, CancellationToken ct);
     Task<OcorrenciaAgendamentoPresenca?> GetLatestOccurrenceAsync(Guid agendaId, CancellationToken ct);
+    Task<OcorrenciaAgendamentoPresenca?> GetOccurrenceAsync(Guid agendaId, DateOnly localDate, CancellationToken ct);
     Task<IReadOnlyDictionary<Guid, OcorrenciaAgendamentoPresenca>> ListLatestOccurrencesAsync(
         IReadOnlyCollection<Guid> agendaIds,
         CancellationToken ct);

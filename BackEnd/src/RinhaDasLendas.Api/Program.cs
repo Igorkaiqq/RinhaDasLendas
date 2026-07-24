@@ -29,11 +29,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ApiMetrics>();
+builder.Services.AddSingleton<IAgendamentoPresencaMetrics, AgendamentoPresencaMetrics>();
 builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
 builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>();
+builder.Services.AddHostedService<AgendamentoPresencaExecutionService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

@@ -163,6 +163,18 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             .CountAsync(occurrence => occurrence.AgendamentoPresencaId == agendaId, ct);
     }
 
+    public Task<OcorrenciaAgendamentoPresenca?> GetOccurrenceAsync(
+        Guid agendaId,
+        DateOnly localDate,
+        CancellationToken ct)
+    {
+        return dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
+            .SingleOrDefaultAsync(
+                occurrence => occurrence.AgendamentoPresencaId == agendaId
+                    && occurrence.DataLocal == localDate,
+                ct);
+    }
+
     public async Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(
         DateOnly throughLocalDate,
         CancellationToken ct)
@@ -248,11 +260,11 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                            AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
                   AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= @now
                   AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > @now
-                RETURNING id, claim_id
+                RETURNING id, claim_id, status
             )
-            SELECT id, claim_id, TRUE FROM acquired
+            SELECT id, claim_id, TRUE, status FROM acquired
             UNION ALL
-            SELECT current.id, current.claim_id, FALSE
+            SELECT current.id, current.claim_id, FALSE, current.status
             FROM ocorrencias_agendamentos_presenca AS current
             WHERE current.agendamento_presenca_id = @agendaId
               AND current.data_local = @localDate
@@ -275,7 +287,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 result = new AgendamentoPresencaOcorrenciaClaim(
                     reader.GetGuid(0),
                     reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
-                    reader.GetBoolean(2));
+                    reader.GetBoolean(2),
+                    (OcorrenciaAgendamentoPresencaStatus)reader.GetInt16(3));
             }
         }
 

@@ -1026,6 +1026,7 @@ public sealed class EndpointCoverageIntegrationTests
         public Task<IReadOnlyCollection<AgendamentoPresencaListItem>> ListAsync(bool includePaused, int page, int pageSize, CancellationToken ct) => inner.ListAsync(includePaused, page, pageSize, ct);
         public Task<int> CountAsync(bool includePaused, CancellationToken ct) => inner.CountAsync(includePaused, ct);
         public Task<OcorrenciaAgendamentoPresenca?> GetLatestOccurrenceAsync(Guid agendaId, CancellationToken ct) => inner.GetLatestOccurrenceAsync(agendaId, ct);
+        public Task<OcorrenciaAgendamentoPresenca?> GetOccurrenceAsync(Guid agendaId, DateOnly localDate, CancellationToken ct) => inner.GetOccurrenceAsync(agendaId, localDate, ct);
         public Task<IReadOnlyDictionary<Guid, OcorrenciaAgendamentoPresenca>> ListLatestOccurrencesAsync(IReadOnlyCollection<Guid> agendaIds, CancellationToken ct) => inner.ListLatestOccurrencesAsync(agendaIds, ct);
         public Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListOccurrencesAsync(Guid agendaId, int page, int pageSize, CancellationToken ct) => inner.ListOccurrencesAsync(agendaId, page, pageSize, ct);
         public Task<int> CountOccurrencesAsync(Guid agendaId, CancellationToken ct) => inner.CountOccurrencesAsync(agendaId, ct);

@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Moq;
 using Npgsql;
 using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
 using RinhaDasLendas.Application.Dtos;
@@ -1162,6 +1163,83 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     }
 
     [Fact]
+    public async Task CiclosDoHandler_DevemCriarUmaOcorrenciaUmDraftEUmaPublicacaoPendente()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        Guid scheduleId;
+        await using (var seed = database.CreateContext())
+        {
+            var userId = await AddUserAsync(seed);
+            var schedule = CreateSchedule(userId);
+            seed.AgendamentosPresenca.Add(schedule);
+            await seed.SaveChangesAsync();
+            scheduleId = schedule.Id;
+        }
+
+        await using (var firstContext = database.CreateContext())
+        {
+            var first = CreateExecutionHandler(new AgendamentoPresencaRepository(firstContext));
+            var result = await first.Handle(new ProcessarAgendamentosPresencaDevidosCommand(Agora), CancellationToken.None);
+            result.Criadas.Should().Be(1);
+        }
+
+        await using (var secondContext = database.CreateContext())
+        {
+            var second = CreateExecutionHandler(new AgendamentoPresencaRepository(secondContext));
+            var result = await second.Handle(new ProcessarAgendamentosPresencaDevidosCommand(Agora.AddMinutes(1)), CancellationToken.None);
+            result.Criadas.Should().Be(0);
+        }
+
+        await using var assertion = database.CreateContext();
+        (await assertion.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(1);
+        (await assertion.DraftMontagens.AsNoTracking().CountAsync()).Should().Be(1);
+        (await assertion.DraftMontagemPublicacoesDiscord.AsNoTracking().CountAsync()).Should().Be(1);
+        var occurrence = await assertion.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        occurrence.AgendamentoPresencaId.Should().Be(scheduleId);
+        occurrence.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Criada);
+    }
+
+    [Fact]
+    public async Task BloqueadaComMarcadorAvancado_DeveSerRecuperadaPeloHandler()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        Guid scheduleId;
+        await using (var seed = database.CreateContext())
+        {
+            var userId = await AddUserAsync(seed);
+            var schedule = CreateSchedule(userId);
+            schedule.MarcarDataAvaliada(new DateOnly(2026, 7, 24), Agora);
+            seed.AgendamentosPresenca.Add(schedule);
+            await seed.SaveChangesAsync();
+            var repository = new AgendamentoPresencaRepository(seed);
+            (await repository.TryUpsertBlockedOccurrenceAsync(
+                schedule.Id,
+                new DateOnly(2026, 7, 24),
+                Agora,
+                Agora.AddHours(2),
+                MessageCodes.PresenceScheduleDiscordUnavailable,
+                Agora,
+                CancellationToken.None)).Should().BeTrue();
+            scheduleId = schedule.Id;
+        }
+
+        await using (var execution = database.CreateContext())
+        {
+            var handler = CreateExecutionHandler(new AgendamentoPresencaRepository(execution));
+            var result = await handler.Handle(
+                new ProcessarAgendamentosPresencaDevidosCommand(Agora.AddMinutes(30)), CancellationToken.None);
+            result.Criadas.Should().Be(1);
+        }
+
+        await using var assertion = database.CreateContext();
+        var occurrence = await assertion.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        occurrence.AgendamentoPresencaId.Should().Be(scheduleId);
+        occurrence.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Criada);
+        (await assertion.DraftMontagens.AsNoTracking().CountAsync()).Should().Be(1);
+        (await assertion.DraftMontagemPublicacoesDiscord.AsNoTracking().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
     public void Timezone_DeveConverterSaoPauloParaUtcESuaDataLocal()
     {
         IAgendamentoPresencaTimeZone timezone = new SaoPauloAgendamentoPresencaTimeZone();
@@ -1201,6 +1279,19 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         draft.ConfigurarEncerramentoPresenca(closure);
         draft.ConfigurarPublicacaoDiscord("guild-1", null);
         return draft;
+    }
+
+    private static ProcessarAgendamentosPresencaDevidosCommandHandler CreateExecutionHandler(
+        IAgendamentoPresencaRepository repository)
+    {
+        var discord = new Mock<IDiscordConfigurationService>();
+        discord.Setup(item => item.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new DiscordConfigurationDto(
+            Guid.NewGuid(), "guild-1", "presence-1", "news-1", "admin-1", "draft-1", "result-1", true));
+        return new ProcessarAgendamentosPresencaDevidosCommandHandler(
+            repository,
+            new SaoPauloAgendamentoPresencaTimeZone(),
+            discord.Object,
+            Mock.Of<IAgendamentoPresencaMetrics>());
     }
 
     private static Task<bool> ExecuteOccurrenceUpsertAsync(
