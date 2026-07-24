@@ -186,18 +186,20 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             """
             SELECT schedule.id AS "Value"
             FROM agendamentos_presenca AS schedule
+            CROSS JOIN LATERAL (
+                SELECT MIN(
+                    schedule.ultima_data_avaliada
+                    + (1 + MOD(
+                        configured_day.dia_semana::integer
+                        - EXTRACT(ISODOW FROM schedule.ultima_data_avaliada + 1)::integer
+                        + 7,
+                        7))::integer) AS next_date
+                FROM agendamentos_presenca_dias_semana AS configured_day
+                WHERE configured_day.agendamento_presenca_id = schedule.id
+            ) AS next_occurrence
             WHERE schedule.status = 0
-              AND EXISTS (
-                  SELECT 1
-                  FROM generate_series(
-                      schedule.ultima_data_avaliada + 1,
-                      (@now AT TIME ZONE 'America/Sao_Paulo')::date,
-                      interval '1 day') AS candidate_date
-                  INNER JOIN agendamentos_presenca_dias_semana AS configured_day
-                      ON configured_day.agendamento_presenca_id = schedule.id
-                     AND configured_day.dia_semana = EXTRACT(ISODOW FROM candidate_date)::smallint
-                  WHERE (candidate_date::date + schedule.horario_publicacao_local)
-                        AT TIME ZONE 'America/Sao_Paulo' <= @now)
+              AND (next_occurrence.next_date + schedule.horario_publicacao_local)
+                    AT TIME ZONE 'America/Sao_Paulo' <= @now
             ORDER BY
                 CASE WHEN CAST(@afterId AS uuid) IS NULL OR schedule.id > CAST(@afterId AS uuid) THEN 0 ELSE 1 END,
                 schedule.id
@@ -223,6 +225,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         Guid id,
         CancellationToken ct)
     {
+        dbContext.ChangeTracker.Clear();
         var schedule = await IncludeDays(dbContext.AgendamentosPresenca)
             .SingleOrDefaultAsync(item => item.Id == id, ct);
         return schedule is null
@@ -270,7 +273,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
 
         AgendamentoPresencaOcorrenciaClaim? result = null;
         const string sql = """
-            WITH acquired AS (
+            WITH db_time AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            ), acquired AS (
                 INSERT INTO ocorrencias_agendamentos_presenca
                     (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
                      encerramento_previsto_em, nome_snapshot, observacao_snapshot,
@@ -278,8 +283,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                      ultima_tentativa_em, criada_em, atualizada_em)
                 SELECT @occurrenceId, schedule.id, @localDate, @publicationAt,
                        @closureAt, schedule.nome, schedule.observacao,
-                       0, @claimId, @claimExpiresAt, @now, @now, @now
+                       0, @claimId, db_time.now + interval '5 minutes', @now, @now, @now
                 FROM agendamentos_presenca AS schedule
+                CROSS JOIN db_time
                 WHERE schedule.id = @agendaId
                   AND (
                       EXISTS (
@@ -296,8 +302,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                                 AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
                           AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
                           AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
-                          AND @now >= @publicationAt
-                          AND @now < @closureAt))
+                          AND db_time.now >= @publicationAt
+                          AND db_time.now < @closureAt))
                 ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
                 SET status = 0,
                     codigo_falha = NULL,
@@ -307,9 +313,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                     atualizada_em = EXCLUDED.atualizada_em
                 WHERE (ocorrencias_agendamentos_presenca.status = 1
                        OR (ocorrencias_agendamentos_presenca.status = 0
-                           AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
-                  AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= @now
-                  AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > @now
+                           AND ocorrencias_agendamentos_presenca.claim_expires_at <= (SELECT now FROM db_time)))
+                  AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= (SELECT now FROM db_time)
+                  AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > (SELECT now FROM db_time)
                 RETURNING id, claim_id, status, nome_snapshot, observacao_snapshot
             )
             SELECT id, claim_id, TRUE, status, nome_snapshot, observacao_snapshot FROM acquired
@@ -330,7 +336,6 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             AddParameter(command, "publicationAt", publicationAt);
             AddParameter(command, "closureAt", closureAt);
             AddParameter(command, "claimId", claimId);
-            AddParameter(command, "claimExpiresAt", claimExpiresAt);
             AddParameter(command, "now", now);
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
@@ -558,7 +563,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 WHERE id = @occurrenceId
                   AND status = 0
                   AND claim_id = @claimId
-                  AND claim_expires_at > @now
+                  AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
                 FOR UPDATE
                 """))
@@ -596,7 +601,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 WHERE id = @occurrenceId
                   AND status = 0
                   AND claim_id = @claimId
-                  AND claim_expires_at > @now
+                  AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
                 RETURNING TRUE
                 """))
@@ -675,6 +680,11 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         {
             dbContext.ChangeTracker.Clear();
             throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
+        catch
+        {
+            dbContext.ChangeTracker.Clear();
+            throw;
         }
     }
 

@@ -147,15 +147,15 @@ Estados `Criada`, `Perdida` e `Falha` são terminais para o scheduler. Claim div
 
 1. Advisory lock derivado de `AgendamentoPresencaId + DataLocal` serializa concorrentes cooperativos.
 2. `INSERT ... ON CONFLICT` e a constraint única garantem uma linha mesmo sob concorrência não cooperativa.
-3. Claim persistido identifica o vencedor e expira em cinco minutos.
-4. `TryCompleteWithDraftAsync` adquire lock, valida `OcorrenciaId + ClaimId` e `EncerramentoPrevistoEm > clock_timestamp()` no PostgreSQL, insere draft/publicação e atualiza a ocorrência para `Criada` em uma transação.
+3. Claim persistido identifica o vencedor e expira em `clock_timestamp() + interval '5 minutes'`, calculado após o advisory lock. Aquisição e retomada usam o mesmo relógio PostgreSQL para publicação, encerramento e expiração anterior.
+4. `TryCompleteWithDraftAsync` adquire lock, valida `OcorrenciaId + ClaimId`, `ClaimExpiresAt > clock_timestamp()` e `EncerramentoPrevistoEm > clock_timestamp()` no PostgreSQL, repete ambas as condições no CAS final, insere draft/publicação e atualiza a ocorrência para `Criada` em uma transação.
 5. Rollback deixa a ocorrência retomável e não expõe draft/publicação parcial.
 6. Para indisponibilidade de múltiplos dias, cada data após `UltimaDataAvaliada` é classificada antes do avanço; uma falha de persistência mantém o marcador anterior para repetição segura.
 7. Em todo ciclo, `ListBlockedAsync(agora)` seleciona ocorrências `Bloqueada` independentemente do marcador da agenda; cada item é mantido bloqueado, readquirido para criação ou marcado `Perdida` conforme configuração e encerramento.
 8. Horário inválido/ambíguo usa `TryUpsertFailedTimeZoneOccurrenceAsync`: o PostgreSQL valida atomicamente `xmin`, dia e horários observados e deriva `publicacao_prevista_em` e `encerramento_previsto_em` por `(data_local + horario_local) AT TIME ZONE 'America/Sao_Paulo'` exclusivamente para satisfazer a janela auditável non-null da ocorrência terminal `Falha/MV096`. Edição concorrente torna a escrita no-op não terminal, sem marcador; essa derivação nunca autoriza claim ou draft.
-9. Cada ciclo limita bloqueadas, agendas e datas por agenda por quantidade configurada, sem data mínima. `ListCandidatesAsync` exige ao menos uma data selecionada com publicação local `<= now`; cursor operacional circular por UUID continua após o último item avaliado e impede que futuras ou falhas persistentes ocupem permanentemente o lote.
+9. Cada ciclo limita bloqueadas, agendas e datas por agenda por quantidade configurada, sem data mínima. `ListCandidatesAsync` calcula somente a próxima data selecionada posterior ao marcador por aritmética ISO de 1-7 dias, sem `generate_series`, e exige publicação local `<= now`; o handler continua avançando o backlog em lotes e o cursor circular impede starvation.
 10. Ocorrência `Bloqueada` sem mudança é no-op: não altera `ultima_tentativa_em`/`atualizada_em` nem incrementa a métrica de novas bloqueadas.
-11. Cada agenda candidata é recarregada e rastreada isoladamente com seu `xmin` observado. `SaveChangesAsync` limpa internamente o estado rastreado antes de traduzir conflito de concorrência, sem operação de tracking no contrato Domain ou na Application.
+11. Cada agenda candidata é recarregada e rastreada isoladamente com seu `xmin` observado. `SaveChangesAsync` limpa internamente o estado rastreado em toda exceção antes de traduzir concorrência ou relançar a falha original, sem operação de tracking no contrato Domain ou na Application.
 
 ## Message Codes
 

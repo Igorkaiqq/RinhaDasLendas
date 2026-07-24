@@ -54,7 +54,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - Criar o agregado `AgendamentoPresenca`, as entidades `AgendamentoPresencaDiaSemana`, `OcorrenciaAgendamentoPresenca` e `HistoricoAgendamentoPresenca` e os enums `DiaSemanaIso`, `AgendamentoPresencaStatus`, `OcorrenciaAgendamentoPresencaStatus` e `AgendamentoPresencaAcao` exatamente como definidos em [data-model.md](./data-model.md).
 - Persistir dias em linhas próprias e proteger unicidade por `agendamento_presenca_id + dia_semana`; proteger ocorrências por `agendamento_presenca_id + data_local`.
 - Persistir todos os enums como `smallint`, aplicar índice `UNIQUE` parcial em `draft_montagem_id WHERE draft_montagem_id IS NOT NULL` e registrar auditoria somente em `campos_alterados varchar(200)` com nomes estáveis separados por vírgula, nunca valores.
-- Adicionar `claim_id` e `claim_expires_at` à ocorrência. `TryClaimOccurrenceAsync` usa claim de cinco minutos e permite retomada de processador interrompido enquanto a janela estiver aberta.
+- Adicionar `claim_id` e `claim_expires_at` à ocorrência. Após o advisory lock, `TryClaimOccurrenceAsync` usa `clock_timestamp()` do PostgreSQL para validar a janela e persistir expiração de cinco minutos a partir do relógio do banco.
 - Criar draft, publicação pendente e conclusão da ocorrência na mesma transação. Crash antes do commit não confirma estado; commit impede novo draft pela ocorrência única.
 - Capturar `NomeSnapshot`/`ObservacaoSnapshot` no `INSERT` atômico de qualquer ocorrência e usar exclusivamente esses snapshots em retomadas e drafts.
 - Exigir snapshots explícitos nas factories de ocorrência; normalizar e validar nome entre 3-100 caracteres e observação com até 500 caracteres no Domain.
@@ -72,10 +72,10 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - Persistir `Falha/MV096` idempotente antes do marcador. Como a janela é non-null, somente esse estado terminal usa a derivação determinística do PostgreSQL para registrar os instantes locais inválidos/ambíguos; ela nunca participa da elegibilidade de draft.
 - Obter `ISystemClock.UtcNow` novamente antes de cada classificação, claim, conclusão e marcador; um claim que cruza o encerramento vira `Perdida` com o mesmo instante em seu CAS.
 - Limitar por ciclo a quantidade de bloqueadas, agendas e datas por agenda, sem horizonte por idade. O marcador e a ordenação persistida fornecem continuação e progresso eventual.
-- Listar somente agendas com alguma data selecionada cuja publicação local já seja acionável. Propagar cursor de agenda entre ciclos pelo hosted service, com ordenação circular, para que falhas persistentes no início do lote não causem starvation.
+- Listar somente agendas cuja próxima data selecionada posterior ao marcador já tenha publicação acionável. Calcular essa data em no máximo sete dias por aritmética ISO sobre as linhas de dias, sem expandir o histórico. Propagar cursor de agenda entre ciclos pelo hosted service, com ordenação circular, para que falhas persistentes no início do lote não causem starvation.
 - Ao persistir `Falha/MV096`, comparar atomicamente `xmin`, dia e horários observados; configuração concorrente invalida a escrita e impede avanço do marcador.
-- Após adquirir o lock da ocorrência, validar o encerramento com `clock_timestamp()` do PostgreSQL antes de criar draft/publicação; o instante injetado continua sendo usado apenas nos timestamps persistidos.
-- Manter limpeza do change tracker encapsulada no repositório ao traduzir conflito de concorrência; Application recarrega cada candidata rastreada isoladamente e não controla tracking.
+- Após adquirir o lock da ocorrência, validar encerramento e expiração do claim com `clock_timestamp()` do PostgreSQL antes de criar draft/publicação e novamente no CAS final; o instante injetado continua sendo usado apenas nos timestamps persistidos.
+- Manter limpeza do change tracker encapsulada no repositório em toda exceção de persistência antes de traduzir concorrência ou relançar; Application recarrega cada candidata rastreada isoladamente e não controla tracking.
 - Exceção transitória ao consultar configuração Discord não equivale a configuração ausente: diagnosticar por porta segura, não criar `Bloqueada`, não avançar marcador e tentar novamente; datas já encerradas continuam classificáveis como `Perdida`.
 
 ### CQRS, API E Autorização

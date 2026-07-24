@@ -122,10 +122,15 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 - [X] T055G Escrever RED PostgreSQL para CAS de falha timezone contra `xmin`/configuração observada e conclusão aguardando lock além do encerramento.
 - [X] T055H Remover controle de tracking do contrato Domain/Application e tornar snapshots explícitos, normalizados e validados no Domain com teste de persistência.
 - [X] T055I Executar GREEN focado/PostgreSQL/backend/build/EF/i18n/diff, atualizar relatório e criar segundo commit sem amend. GREEN da segunda revisão em 2026-07-24: 104 testes focados de Domain/serviço e 66 testes PostgreSQL aprovados; suíte backend com 504 aprovados; build Release sem avisos/erros; script idempotente gerado e `has-pending-model-changes` sem drift; paridade i18n mantida em 778 chaves frontend e 218 resources backend; `git diff --check` aprovado.
+- [X] T055J Escrever RED PostgreSQL para aquisição/conclusão após espera em lock, expiração baseada no banco e recusa após encerramento/claim expirado.
+- [X] T055K Substituir expansão histórica por cálculo relacional da próxima data em 1-7 dias e limpar tracking em toda exceção de persistência, com regressões de décadas e falha não concorrencial.
+- [X] T055L Executar GREEN focado/PostgreSQL/backend/build/EF/i18n/diff, atualizar relatório e criar terceiro commit sem amend. GREEN da terceira revisão em 2026-07-24: cinco regressões RED/GREEN e 71 testes PostgreSQL aprovados; suíte backend com 509 aprovados; build Release sem avisos/erros; script idempotente gerado e `has-pending-model-changes` sem drift; ausência de `generate_series` no backend; paridade i18n mantida em 778 chaves frontend e 218 resources backend; `git diff --check` aprovado.
 
 RED da revisão confirmado em 2026-07-24: baseline de 478 testes aprovado; novos testes falharam na compilação com `CS0246` para `IAgendamentoPresencaDiagnostics` e `AgendamentoPresencaProcessingOptions`, portas ausentes que representam os requisitos rejeitados.
 
 RED da segunda revisão confirmado em 2026-07-24: snapshots aceitaram valores inválidos e sem normalização; contratos não possuíam cursor, versão/configuração observada ou recarga de candidata; Application ainda dependia de `DiscardTrackedChanges`; testes PostgreSQL expuseram seleção de futuras, ausência de CAS por `xmin` e conclusão baseada somente em `@now`.
+
+RED da terceira revisão confirmado em 2026-07-24: cinco testes PostgreSQL falharam porque aquisição/conclusão usavam `@now` após espera em locks, a expiração persistida vinha do chamador, `ListCandidatesAsync` executava `generate_series` histórico e falha `DbUpdateException` não concorrencial mantinha a primeira agenda dirty para o save seguinte.
 
 **Checkpoint**: US2/US3 preservam exactly-once e nenhuma ocorrência bloqueada fica invisível após o avanço do marcador.
 
