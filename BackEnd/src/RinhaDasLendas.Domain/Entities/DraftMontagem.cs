@@ -95,6 +95,29 @@ public sealed class DraftMontagem
         Touch();
     }
 
+    public DraftMontagemPublicacaoDiscord ConfigurarPublicacaoDiscordPendente(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        string? guildId,
+        string? channelId,
+        DateTimeOffset agora)
+    {
+        if (_publicacoesDiscord.Any(publicacao => publicacao.Tipo == tipo))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
+
+        var publicacao = new DraftMontagemPublicacaoDiscord(tipo, guildId, channelId, agora);
+        _publicacoesDiscord.Add(publicacao);
+        if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
+        {
+            DiscordGuildId = publicacao.GuildId;
+            DiscordPresenceMessageId = null;
+        }
+
+        Touch(agora);
+        return publicacao;
+    }
+
     public void IniciarTentativaPublicacaoDiscord(
         DraftMontagemPublicacaoDiscordTipo tipo,
         string? guildId,

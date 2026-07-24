@@ -614,10 +614,12 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             {
                 table.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_status", "status BETWEEN 0 AND 4");
                 table.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_janela", "encerramento_previsto_em > publicacao_prevista_em");
-                table.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_draft_criada", "status <> 2 OR draft_montagem_id IS NOT NULL");
+                table.HasCheckConstraint(
+                    "ck_ocorrencias_agendamentos_presenca_draft_criada",
+                    "(status = 2 AND draft_montagem_id IS NOT NULL) OR (status <> 2 AND draft_montagem_id IS NULL)");
                 table.HasCheckConstraint(
                     "ck_ocorrencias_agendamentos_presenca_claim",
-                    "(claim_id IS NULL AND claim_expires_at IS NULL) OR (claim_id IS NOT NULL AND claim_expires_at IS NOT NULL)");
+                    "(status = 0 AND claim_id IS NOT NULL AND claim_expires_at IS NOT NULL) OR (status <> 0 AND claim_id IS NULL AND claim_expires_at IS NULL)");
             });
             entity.HasKey(occurrence => occurrence.Id);
             entity.Property(occurrence => occurrence.Id).HasColumnName("id").ValueGeneratedNever();
@@ -646,7 +648,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
                     occurrence.ClaimExpiresAt,
                     occurrence.EncerramentoPrevistoEm,
                 })
-                .HasFilter("status = 1");
+                .HasFilter("status IN (0, 1)");
             entity.HasIndex(occurrence => new { occurrence.AgendamentoPresencaId, occurrence.DataLocal })
                 .IsDescending(false, true);
         });

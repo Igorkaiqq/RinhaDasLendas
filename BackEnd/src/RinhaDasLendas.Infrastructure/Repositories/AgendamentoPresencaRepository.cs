@@ -3,8 +3,10 @@ using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
+using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
@@ -21,7 +23,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
 
     public Task<AgendamentoPresenca?> GetByIdAsync(Guid id, bool tracking, CancellationToken ct)
     {
-        var query = IncludeAgenda(dbContext.AgendamentosPresenca);
+        var query = IncludeFullAgenda(dbContext.AgendamentosPresenca);
         if (!tracking)
         {
             query = query.AsNoTracking();
@@ -77,7 +79,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             return [];
         }
 
-        var schedules = await IncludeAgenda(dbContext.AgendamentosPresenca.AsNoTracking())
+        var schedules = await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
             .Where(schedule => ids.Contains(schedule.Id))
             .ToListAsync(ct);
         var positions = ids.Select((id, index) => (id, index)).ToDictionary(item => item.id, item => item.index);
@@ -118,7 +120,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateOnly throughLocalDate,
         CancellationToken ct)
     {
-        return await IncludeAgenda(dbContext.AgendamentosPresenca)
+        return await IncludeDays(dbContext.AgendamentosPresenca)
             .Where(schedule => schedule.Status == AgendamentoPresencaStatus.Ativo
                 && schedule.UltimaDataAvaliada < throughLocalDate)
             .OrderBy(schedule => schedule.UltimaDataAvaliada)
@@ -148,6 +150,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
+        ValidateClaim(claimId, claimExpiresAt, now);
         await OpenConnectionAsync(ct);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var dbTransaction = transaction.GetDbTransaction();
@@ -170,12 +173,15 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 FROM agendamentos_presenca AS schedule
                 WHERE schedule.id = @agendaId
                   AND schedule.status = 0
-                  AND @now >= @publicationAt
-                  AND @now < @closureAt
+                  AND (
+                      EXISTS (
+                          SELECT 1
+                          FROM ocorrencias_agendamentos_presenca AS existing
+                          WHERE existing.agendamento_presenca_id = @agendaId
+                            AND existing.data_local = @localDate)
+                      OR (@now >= @publicationAt AND @now < @closureAt))
                 ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
                 SET status = 0,
-                    publicacao_prevista_em = EXCLUDED.publicacao_prevista_em,
-                    encerramento_previsto_em = EXCLUDED.encerramento_previsto_em,
                     codigo_falha = NULL,
                     claim_id = EXCLUDED.claim_id,
                     claim_expires_at = EXCLUDED.claim_expires_at,
@@ -184,6 +190,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 WHERE (ocorrencias_agendamentos_presenca.status = 1
                        OR (ocorrencias_agendamentos_presenca.status = 0
                            AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
+                  AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= @now
                   AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > @now
                   AND EXISTS (
                       SELECT 1 FROM agendamentos_presenca AS current_schedule
@@ -212,7 +219,10 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
             {
-                result = new AgendamentoPresencaOcorrenciaClaim(reader.GetGuid(0), reader.GetGuid(1), reader.GetBoolean(2));
+                result = new AgendamentoPresencaOcorrenciaClaim(
+                    reader.GetGuid(0),
+                    reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
+                    reader.GetBoolean(2));
             }
         }
 
@@ -229,6 +239,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
+        ValidateCode(code, MessageCodes.PresenceScheduleDiscordUnavailable);
         const string sql = """
             INSERT INTO ocorrencias_agendamentos_presenca
                 (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
@@ -257,6 +268,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
+        ValidateCode(code, MessageCodes.PresenceScheduleWindowExpired);
         const string sql = """
             INSERT INTO ocorrencias_agendamentos_presenca
                 (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
@@ -314,21 +326,13 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 return false;
             }
 
+            draft.ConfigurarPublicacaoDiscordPendente(
+                DraftMontagemPublicacaoDiscordTipo.Presenca,
+                draft.DiscordGuildId,
+                null,
+                now);
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync(ct);
-
-            await using (var publicationCommand = CreateCommand(transaction.GetDbTransaction(), """
-                INSERT INTO draft_montagem_publicacoes_discord
-                    (id, draft_montagem_id, tipo, status, guild_id, ultima_tentativa_em)
-                VALUES (@id, @draftId, 'Presenca', 'Pendente', @guildId, @now)
-                """))
-            {
-                AddParameter(publicationCommand, "id", Guid.NewGuid());
-                AddParameter(publicationCommand, "draftId", draft.Id);
-                AddParameter(publicationCommand, "guildId", draft.DiscordGuildId);
-                AddParameter(publicationCommand, "now", now);
-                await publicationCommand.ExecuteNonQueryAsync(ct);
-            }
 
             bool updated;
             await using (var updateCommand = CreateCommand(transaction.GetDbTransaction(), """
@@ -364,11 +368,16 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             await transaction.CommitAsync(ct);
             return true;
         }
-        catch (Exception exception) when (IsPersistenceConflict(exception))
+        catch (Exception exception)
         {
-            await transaction.RollbackAsync(ct);
+            await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            return false;
+            if (IsPersistenceConflict(exception))
+            {
+                return false;
+            }
+
+            throw;
         }
     }
 
@@ -379,6 +388,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
+        ValidateCode(code, MessageCodes.PresenceScheduleTimeZoneInvalid);
         const string sql = """
             UPDATE ocorrencias_agendamentos_presenca
             SET status = 4,
@@ -408,12 +418,17 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return dbContext.SaveChangesAsync(ct);
     }
 
-    private static IQueryable<AgendamentoPresenca> IncludeAgenda(IQueryable<AgendamentoPresenca> query)
+    private static IQueryable<AgendamentoPresenca> IncludeFullAgenda(IQueryable<AgendamentoPresenca> query)
     {
         return query.AsSplitQuery()
             .Include(schedule => schedule.DiasSemana)
             .Include(schedule => schedule.Ocorrencias)
             .Include(schedule => schedule.Historicos);
+    }
+
+    private static IQueryable<AgendamentoPresenca> IncludeDays(IQueryable<AgendamentoPresenca> query)
+    {
+        return query.Include(schedule => schedule.DiasSemana);
     }
 
     private async Task<bool> ExecuteBooleanAsync(
@@ -467,8 +482,28 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
     {
         var postgres = exception as PostgresException
             ?? (exception as DbUpdateException)?.InnerException as PostgresException;
-        return postgres?.SqlState is PostgresErrorCodes.UniqueViolation
-            or PostgresErrorCodes.ForeignKeyViolation
-            or PostgresErrorCodes.CheckViolation;
+        return postgres?.SqlState == PostgresErrorCodes.UniqueViolation;
+    }
+
+    private static void ValidateClaim(Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset now)
+    {
+        if (claimId == Guid.Empty
+            || TruncateToPostgreSqlPrecision(claimExpiresAt) != TruncateToPostgreSqlPrecision(now.AddMinutes(5)))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
+    }
+
+    private static DateTimeOffset TruncateToPostgreSqlPrecision(DateTimeOffset value)
+    {
+        return new DateTimeOffset(value.Ticks - (value.Ticks % 10), value.Offset);
+    }
+
+    private static void ValidateCode(string code, string expected)
+    {
+        if (!string.Equals(code?.Trim(), expected, StringComparison.Ordinal))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
     }
 }

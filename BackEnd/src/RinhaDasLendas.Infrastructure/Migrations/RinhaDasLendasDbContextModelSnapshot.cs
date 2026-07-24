@@ -1162,13 +1162,13 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsDescending(false, true);
 
                     b.HasIndex("Status", "ClaimExpiresAt", "EncerramentoPrevistoEm")
-                        .HasFilter("status = 1");
+                        .HasFilter("status IN (0, 1)");
 
                     b.ToTable("ocorrencias_agendamentos_presenca", null, t =>
                         {
-                            t.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_claim", "(claim_id IS NULL AND claim_expires_at IS NULL) OR (claim_id IS NOT NULL AND claim_expires_at IS NOT NULL)");
+                            t.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_claim", "(status = 0 AND claim_id IS NOT NULL AND claim_expires_at IS NOT NULL) OR (status <> 0 AND claim_id IS NULL AND claim_expires_at IS NULL)");
 
-                            t.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_draft_criada", "status <> 2 OR draft_montagem_id IS NOT NULL");
+                            t.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_draft_criada", "(status = 2 AND draft_montagem_id IS NOT NULL) OR (status <> 2 AND draft_montagem_id IS NULL)");
 
                             t.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_janela", "encerramento_previsto_em > publicacao_prevista_em");
 

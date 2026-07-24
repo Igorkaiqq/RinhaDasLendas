@@ -111,8 +111,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ocorrencias_agendamentos_presenca", x => x.id);
-                    table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_claim", "(claim_id IS NULL AND claim_expires_at IS NULL) OR (claim_id IS NOT NULL AND claim_expires_at IS NOT NULL)");
-                    table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_draft_criada", "status <> 2 OR draft_montagem_id IS NOT NULL");
+                    table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_claim", "(status = 0 AND claim_id IS NOT NULL AND claim_expires_at IS NOT NULL) OR (status <> 0 AND claim_id IS NULL AND claim_expires_at IS NULL)");
+                    table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_draft_criada", "(status = 2 AND draft_montagem_id IS NOT NULL) OR (status <> 2 AND draft_montagem_id IS NULL)");
                     table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_janela", "encerramento_previsto_em > publicacao_prevista_em");
                     table.CheckConstraint("ck_ocorrencias_agendamentos_presenca_status", "status BETWEEN 0 AND 4");
                     table.ForeignKey(
@@ -168,7 +168,7 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                 name: "IX_ocorrencias_agendamentos_presenca_status_claim_expires_at_e~",
                 table: "ocorrencias_agendamentos_presenca",
                 columns: new[] { "status", "claim_expires_at", "encerramento_previsto_em" },
-                filter: "status = 1");
+                filter: "status IN (0, 1)");
         }
 
         /// <inheritdoc />
