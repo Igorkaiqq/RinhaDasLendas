@@ -220,9 +220,18 @@ docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet test /work
 docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet build /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
 ```
 
-3. Run EF Core commands through the same `app` service and use paths under `/workspaces/RinhaDasLendas`.
-4. If Docker is unavailable in WSL, do not report that the project lacks .NET. Report that Docker Desktop WSL integration or the devcontainer is not active, and request that environment before backend implementation or verification.
-5. Frontend and Discord bot npm commands may run from the host when Node.js is available; backend verification still uses the devcontainer unless the current shell already has `dotnet`.
+3. If the Linux `docker` command is unavailable, try Docker Desktop's Windows CLI with `docker.exe` before reporting a blocker. The VS Code devcontainer project uses these stable names:
+
+```bash
+docker.exe start rinhadaslendas_devcontainer-app-1
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet build /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+```
+
+4. Before creating containers, inspect existing devcontainer containers with `docker.exe ps -a --filter "label=com.docker.compose.project=rinhadaslendas_devcontainer"`. Reuse/start them to avoid port conflicts and duplicate PostgreSQL volumes.
+5. Run EF Core commands through the same `app` container and use paths under `/workspaces/RinhaDasLendas`.
+6. Only report the backend environment as blocked after `dotnet`, `docker`, and `docker.exe` have all been checked. If none is available, request Docker Desktop WSL integration or an active devcontainer.
+7. Frontend and Discord bot npm commands may run from the host when Node.js is available; backend verification still uses the devcontainer unless the current shell already has `dotnet`.
 
 ---
 
