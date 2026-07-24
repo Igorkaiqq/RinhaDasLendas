@@ -90,7 +90,7 @@ function deferred() {
 }
 
 describe('runDraftPollingCycle', () => {
-  it('publishes a scheduled pending presence through the existing polling contract only once', async () => {
+  it('publishes scheduled presence and creates the missing CTA through the existing protocol only once', async () => {
     const backendResponses: DraftMontagemDiscordOperationalDto[][] = [
       [{
         id: 'scheduled-draft',
@@ -98,10 +98,7 @@ describe('runDraftPollingCycle', () => {
         status: 'PresencaAberta',
         horarioEncerramentoPresenca: '2026-07-24T23:00:00Z',
         discordPresenceMessageId: null,
-        publicacoesDiscord: [
-          { tipo: 'Presenca', status: 'Pendente' },
-          { tipo: 'ChamadaPresenca', status: 'Pendente' },
-        ],
+        publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }],
         presencas: [],
         times: [],
         reservas: [],
@@ -137,7 +134,6 @@ describe('runDraftPollingCycle', () => {
 
     assert.deepEqual(backendResponses[0]![0]!.publicacoesDiscord, [
       { tipo: 'Presenca', status: 'Pendente' },
-      { tipo: 'ChamadaPresenca', status: 'Pendente' },
     ])
     await runDraftPollingCycle(client)
     await runDraftPollingCycle(client)
