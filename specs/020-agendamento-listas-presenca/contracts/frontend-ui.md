@@ -65,7 +65,7 @@ export function archivePresenceSchedule(id: string): Promise<void>
 - Horários são serializados como `HH:mm`.
 - Erros preservam `messageCode`; `403` e `500` nunca são convertidos silenciosamente em lista vazia.
 - Status arquivado não integra `PresenceScheduleStatus` porque agendas arquivadas deixam a coleção normal.
-- Listagens preservam `page`, `pageSize`, `totalItems` e `totalPages`; carregar mais concatena itens sem duplicação e mantém a ordem do backend.
+- Listagens preservam `page`, `pageSize`, `totalItems` e `totalPages`; carregar mais concatena itens sem duplicação e mantém exatamente a ordem `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` recebida do backend, sem reordenação no cliente.
 
 ## PresenceScheduleSection
 
@@ -75,7 +75,7 @@ export function archivePresenceSchedule(id: string): Promise<void>
 - Título localizado equivalente a `Listas de presença` e descrição curta.
 - Ação principal `Novo agendamento`.
 - Resumo de agendas ativas, próxima execução e fuso Brasília.
-- Cards não tabulares ordenados por próxima execução.
+- Cards não tabulares preservam `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, incluindo pausadas na porção de próxima execução nula.
 - Cada card mostra nome, observação quando presente, dias, intervalo, status, próxima execução e resultado recente.
 - Ações condicionais: `Ver histórico` em todas, editar e pausar em ativa, editar e reativar em pausada, excluir em ambas.
 - Quando `page < totalPages`, apresenta ação localizada para carregar mais agendas; a ação preserva cards atuais, anuncia loading e desaparece na última página.
@@ -149,7 +149,7 @@ Cor nunca é o único indicador; badge inclui texto localizado.
 
 - Visibilidade Jogador/Moderador/Admin e separação de `CanManageDrafts`/`CanManageUsers`.
 - Serviço: verbo, URL, `page`/`pageSize`, envelope `PaginatedResponse`, payload `HH:mm`, retorno, `messageCode` e propagação de erro.
-- Listagem paginada de agendas, carregar mais sem duplicação, ordenação, loading, erro, estado vazio, próxima execução e todos os status.
+- Listagem paginada de agendas em duas páginas com empate de próxima execução/nome e agendas pausadas, carregar mais sem duplicação ou omissão, ordenação por ID no desempate, loading, erro, vazio e status.
 - `Ver histórico`, chamada paginada de ocorrências, navegação entre páginas, loading, erro, vazio, região viva, foco e `Escape` no painel/modal.
 - Criar, editar, pausar, reativar e arquivar com confirmações.
 - Nome, observação, dias e janela inválidos; submissão única.

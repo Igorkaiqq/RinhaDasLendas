@@ -50,9 +50,11 @@ Para ambas as listagens, `page` inicia em `1`, `pageSize` usa default `20` e lim
 GET /api/v1/discord/agendamentos-presenca?page=1&pageSize=20
 ```
 
-- **200**: `PaginatedResponseDto<AgendamentoPresencaSummaryDto>` de não arquivados, ordenada por próxima execução e com última ocorrência; `TotalItems` vem de count com os mesmos filtros.
+- **200**: `PaginatedResponseDto<AgendamentoPresencaSummaryDto>` de não arquivados, incluindo pausados, ordenada obrigatoriamente por `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` e com última ocorrência; `TotalItems` vem de count com os mesmos filtros.
 - **400**: `page` ou `pageSize` inválido.
 - **401/403**: conforme autorização.
+
+O teste de contrato usa ao menos duas páginas com empate em `ProximaExecucaoEm` e `Nome`, além de agendas pausadas com próxima execução nula, e comprova que nenhum ID é duplicado ou omitido.
 
 ### Create Schedule
 
@@ -111,7 +113,7 @@ POST /api/v1/discord/agendamentos-presenca/{id}/reativar
 ```
 
 - **200**: `AgendamentoPresencaSummaryDto`; operação idempotente.
-- Reativação posterior ao horário previsto não recupera a ocorrência daquele dia.
+- Reativação exatamente no horário previsto mantém a ocorrência daquele dia elegível; somente `AtivadoEm > PublicacaoPrevistaEm` a bloqueia.
 - **404**: ausente ou arquivado.
 - **409**: concorrência conhecida.
 - **401/403**: conforme autorização.

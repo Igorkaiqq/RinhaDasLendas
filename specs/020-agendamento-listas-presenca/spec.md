@@ -59,6 +59,7 @@ Como organizador, quero que agendas permaneçam recuperáveis após indisponibil
 3. **Given** uma data selecionada cujo encerramento já passou, **When** ela é recuperada, **Then** a ocorrência é registrada como perdida e nenhum draft é criado.
 4. **Given** bot desativado ou configuração Discord incompleta, **When** a agenda vence, **Then** a ocorrência fica bloqueada sem draft e é reavaliada até ser criada dentro da janela ou marcada perdida após o encerramento.
 5. **Given** uma agenda reativada depois do horário de publicação, **When** o ciclo avalia a data da reativação, **Then** essa ocorrência não é recuperada porque a agenda não permaneceu ativa no horário previsto.
+6. **Given** uma agenda criada ou reativada exatamente no horário de publicação, **When** o ciclo avalia o mesmo dia, **Then** a ocorrência continua elegível porque somente ativação posterior ao horário previsto bloqueia a execução.
 
 ---
 
@@ -72,7 +73,7 @@ Como Moderador+, quero visualizar agendas, próxima execução e ocorrências re
 
 **Acceptance Scenarios**:
 
-1. **Given** agendas não arquivadas, **When** o Moderador abre a central, **Then** vê uma página de agendas ativas e pausadas, fuso de Brasília, próxima execução e resultado recente em ordem útil, com ação localizada para carregar mais quando houver outra página.
+1. **Given** agendas não arquivadas, **When** o Moderador abre a central, **Then** vê uma página de agendas ativas e pausadas ordenada por próxima execução ascendente com nulos por último, nome ascendente e ID ascendente, com ação localizada para carregar mais quando houver outra página.
 2. **Given** ocorrências de uma agenda, **When** o Moderador aciona `Ver histórico`, **Then** abre um painel ou modal acessível e paginado com data, janela, status, draft relacionado quando houver e mensagem localizada segura.
 3. **Given** nenhum agendamento, **When** a central é aberta, **Then** um estado vazio localizado orienta a criação da primeira agenda.
 4. **Given** viewport de 320px ou maior, **When** a central e os diálogos são operados por teclado ou toque, **Then** não há overflow obrigatório e foco, ações e confirmações permanecem acessíveis.
@@ -103,7 +104,8 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - Claim divergente não pode concluir ou falhar uma ocorrência; claim expirado pode ser retomado somente enquanto a janela estiver aberta.
 - Falha transitória antes da confirmação não avança indevidamente `UltimaDataAvaliada`; uma falha em uma agenda não interrompe as demais.
 - Uma ocorrência `Bloqueada` continua sendo reavaliada em todos os ciclos mesmo depois de `UltimaDataAvaliada` ter avançado além de sua data.
-- Ao criar ou reativar antes do horário local de publicação, o dia atual permanece elegível; ao criar ou reativar no horário ou depois dele, o dia atual não é recuperado.
+- Ao criar ou reativar antes ou exatamente no horário local de publicação, o dia atual permanece elegível; somente ativação posterior ao horário previsto impede a ocorrência do mesmo dia.
+- Duas páginas de agendas com empate de próxima execução e nome, incluindo agendas pausadas sem próxima execução, mantêm ordem total e não duplicam nem omitem itens.
 - Falha conhecida de publicação, resultado incerto e CTA seguem estados independentes do protocolo existente e nunca provocam novo draft.
 - Logs e métricas não incluem nome, observação, usuário, token, payload Discord, IDs de mensagem ou motivo administrativo livre.
 
@@ -129,7 +131,7 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **FR-016**: O sistema MUST interpretar horários com `America/Sao_Paulo`, persistir instantes calculados em UTC e MUST NOT usar deslocamento fixo como regra.
 - **FR-017**: O sistema MUST percorrer todas as datas posteriores a `UltimaDataAvaliada` até a data local atual, inclusive após indisponibilidade de múltiplos dias, sem horizonte arbitrário.
 - **FR-018**: `UltimaDataAvaliada` MUST avançar somente depois que todas as ocorrências esperadas da data forem confirmadas ou classificadas; data atual antes da publicação MUST permanecer pendente.
-- **FR-019**: Uma ocorrência atrasada MUST ser criada antes do encerramento somente quando a agenda permaneceu ativa no horário previsto; após o encerramento MUST ser perdida sem draft.
+- **FR-019**: Uma ocorrência atrasada MUST ser criada antes do encerramento quando a agenda estava ativa no horário previsto ou foi ativada exatamente nesse instante; somente `AtivadoEm > PublicacaoPrevistaEm` bloqueia a ocorrência do mesmo dia, e após o encerramento ela MUST ser perdida sem draft.
 - **FR-020**: A interface em `/configuracoes` MUST apresentar central responsiva com resumo, cards, próxima execução, resultado recente, paginação ou ação localizada para carregar mais agendas, estado vazio, formulário e confirmações para `CanManageDrafts`.
 - **FR-021**: Consultas MUST expor somente DTOs administrativos seguros e códigos públicos `messageCode`; claims, tokens, IDs de mensagem, payloads e falhas técnicas Discord MUST NOT ser retornados.
 - **FR-022**: Todos os textos visíveis do frontend MUST usar chaves equivalentes em `pt.json` e `en.json`, e todas as mensagens backend MUST usar recursos equivalentes em português e inglês.
@@ -137,7 +139,8 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **FR-024**: O sistema MUST registrar métricas de agendas avaliadas, ocorrências criadas, bloqueadas, perdidas, falhas, conflitos e duração sem dados pessoais ou sensíveis.
 - **FR-025**: A entrega MUST adicionar a release `2026.07.2` ao histórico localizado do produto, descrevendo agendamento, horários, gestão Moderador+, recuperação e proteção contra duplicidade em linguagem de usuário.
 - **FR-026**: A interface MUST oferecer a ação localizada `Ver histórico` e abrir um painel ou modal acessível que consome ocorrências paginadas, permite navegar entre páginas e preserva foco, teclado e leitura por tecnologia assistiva.
-- **FR-027**: Ao criar uma agenda, `UltimaDataAvaliada` MUST iniciar no dia local anterior quando o horário atual em `America/Sao_Paulo` for anterior ao horário de publicação, e na data local atual quando for igual ou posterior; ao reativar, MUST usar o maior valor entre o marcador existente e essa data calculada.
+- **FR-027**: Ao criar uma agenda, `UltimaDataAvaliada` MUST iniciar no dia local anterior quando o horário atual em `America/Sao_Paulo` for menor ou igual ao horário de publicação, e na data local atual somente quando for maior; ao reativar, MUST usar o maior valor entre o marcador existente e essa data calculada.
+- **FR-028**: A listagem paginada de agendas MUST aplicar a ordem total `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` no backend; query, repositório e frontend MUST preservar essa ordem, inclusive para agendas pausadas.
 
 ### Key Entities
 
@@ -161,7 +164,8 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **SC-008**: Português e inglês apresentam estrutura equivalente no frontend, backend e conteúdo da release `2026.07.2`, sem texto visível hardcoded nos novos fluxos.
 - **SC-009**: 100% dos cenários de paginação exercitados retornam metadados e itens coerentes para agendas e ocorrências, sem duplicar ou omitir itens ao avançar páginas na interface.
 - **SC-010**: 100% das ocorrências bloqueadas exercitadas são reavaliadas em ciclos posteriores mesmo com `UltimaDataAvaliada` avançada, terminando criadas dentro da janela ou perdidas após o encerramento.
-- **SC-011**: 100% dos cenários no mesmo dia inicializam ou atualizam `UltimaDataAvaliada` no dia anterior antes da publicação e no dia atual a partir do horário de publicação, sem retroceder o marcador ao reativar.
+- **SC-011**: 100% dos três cenários no mesmo dia inicializam ou atualizam `UltimaDataAvaliada` no dia anterior antes e exatamente no horário de publicação, e no dia atual somente depois do horário, sem retroceder o marcador ao reativar.
+- **SC-012**: Em duas páginas com empate de `ProximaExecucaoEm` e `Nome`, incluindo agendas pausadas, 100% dos itens aparecem uma única vez e na ordem determinada pelo `Id`.
 
 ## Assumptions
 

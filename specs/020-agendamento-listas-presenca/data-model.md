@@ -47,13 +47,20 @@ public enum AgendamentoPresencaAcao { Criado, Editado, Pausado, Reativado, Arqui
 - `Editar`, `Pausar`, `Reativar` e `Arquivar` recebem responsável e instante, criam histórico e não alteram ocorrências existentes.
 - `MarcarDataAvaliada` não retrocede e só é chamado após classificação completa da data.
 - `OcorreEm(DateOnly)` usa `DiaSemanaIso`, sem depender da cultura do processo.
-- Na criação, `UltimaDataAvaliada` recebe a data local anterior quando a hora atual em São Paulo é anterior a `HorarioPublicacaoLocal`; quando a hora atual é igual ou posterior, recebe a data local atual.
+- Na criação, `UltimaDataAvaliada` recebe a data local anterior quando a hora atual em São Paulo é menor ou igual a `HorarioPublicacaoLocal`; recebe a data local atual somente quando a hora atual é maior.
 - Na reativação, o novo marcador é `max(UltimaDataAvaliada, data calculada pela regra de criação)`, impedindo retrocesso e recuperação indevida do mesmo dia.
+- A ocorrência do mesmo dia é bloqueada somente quando `AtivadoEm > PublicacaoPrevistaEm`; igualdade é elegível.
 
 ### Indexes
 
 - Índice parcial para agendas `Ativo` por `ultima_data_avaliada` e horários de execução.
 - Índice por `criado_por_usuario_id` para integridade/auditoria quando necessário.
+
+### Paginated Projection Order
+
+- A projeção paginada de agendas aplica, no banco e antes de `Skip`/`Take`, `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`.
+- `Id` é o desempate final obrigatório; agendas pausadas com `ProximaExecucaoEm` nula ficam após agendas com próxima execução e permanecem ordenadas por `Nome` e `Id`.
+- Count usa os mesmos filtros, sem ordenação; a consulta de itens preserva a ordem total em todas as páginas.
 
 ## AgendamentoPresencaDiaSemana
 

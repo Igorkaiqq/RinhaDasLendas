@@ -62,9 +62,9 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 - Implementar `IAgendamentoPresencaTimeZone` com `TimeZoneInfo` e identificador IANA `America/Sao_Paulo`; converter somente os instantes calculados para UTC.
 - `UltimaDataAvaliada` representa a última data local totalmente classificada. Para cada agenda candidata, percorrer cada data posterior ao marcador até hoje, inclusive depois de múltiplos dias indisponíveis.
-- Na criação, calcular `UltimaDataAvaliada` pela hora local: dia anterior se agora local for anterior à publicação; data local atual se for igual ou posterior. Na reativação, aplicar `max(marcador atual, data calculada)` para nunca retroceder.
+- Na criação, calcular `UltimaDataAvaliada` pela hora local: dia anterior se agora local for menor ou igual à publicação; data local atual somente se for maior. Na reativação, aplicar `max(marcador atual, data calculada)` para nunca retroceder.
 - Data não selecionada pode avançar o marcador. Data selecionada avança somente após ocorrência confirmada, bloqueada/perdida persistida ou classificação equivalente concluída; o dia atual antes da publicação permanece pendente.
-- `AtivadoEm` posterior à publicação prevista impede recuperação da data reativada tardiamente. Agenda que permaneceu ativa pode criar atrasado antes do encerramento; depois dele registra `Perdida` sem draft.
+- A fronteira é única: somente `AtivadoEm > PublicacaoPrevistaEm` impede a ocorrência do mesmo dia; igualdade permanece elegível. Agenda que permaneceu ativa pode criar atrasado antes do encerramento; depois dele registra `Perdida` sem draft.
 - Em fase independente de cada ciclo, consultar `ListBlockedAsync(agora)`, sem depender da varredura posterior a `UltimaDataAvaliada`: após encerramento marcar `Perdida`; com janela aberta e configuração restaurada readquirir claim e concluir com draft; se a configuração continuar ausente manter `Bloqueada`.
 - Horário local inválido ou ambíguo vira `Falha` com `MV096`, sem ajuste silencioso e sem draft.
 
@@ -72,6 +72,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 - Separar commands de criar, editar, pausar, reativar, arquivar e processar das queries de listar, detalhar e listar ocorrências.
 - Listar agendas e ocorrências com `page`/`pageSize` e `PaginatedResponseDto<T>`, incluindo `TotalItems` e `TotalPages`.
+- Aplicar a ordenação paginada total de agendas no query/repositório: `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`; o frontend preserva a ordem recebida e nunca reordena páginas concatenadas.
 - Usar `IAgendamentoPresencaRepository` para operações atômicas e projeções; o contrato inclui `ListAsync(bool includePaused, int page, int pageSize, CancellationToken ct)`, `CountAsync(bool includePaused, CancellationToken ct)`, `ListOccurrencesAsync(Guid agendaId, int page, int pageSize, CancellationToken ct)`, `CountOccurrencesAsync(Guid agendaId, CancellationToken ct)` e `ListBlockedAsync(DateTimeOffset now, CancellationToken ct)`; handlers coordenam relógio, timezone, configuração Discord e domínio.
 - Proteger a base `/api/v1/discord/agendamentos-presenca` com JWT e `AuthPermissions.CanManageDrafts`; obter `ResponsavelUsuarioId` do claim autenticado.
 - Usar somente DTOs do contrato [backend-api.md](./contracts/backend-api.md), respostas de erro padrão e resources para `MV089` a `MV100`.
@@ -169,8 +170,8 @@ docs/domain/{DRAFT_DISCORD_OPERATIONS,AGENDAMENTO_LISTAS_PRESENCA}.md
 
 1. Confirmar RED e GREEN para invariantes, transições, normalização, idempotência e histórico do domínio.
 2. Validar PostgreSQL real para mappings, constraints, claim expirável, dois processadores, rollback e conclusão transacional.
-3. Validar handlers, validators e matriz HTTP com anônimo, Jogador, Moderador e Admin, incluindo paginação/count de agendas e ocorrências e ausência de campos operacionais.
-4. Simular relógio antes, no instante e depois da publicação para validar inicialização/reativação de `UltimaDataAvaliada`, além de indisponibilidade de três dias.
+3. Validar handlers, validators e matriz HTTP com anônimo, Jogador, Moderador e Admin, incluindo duas páginas com empate, pausadas, ordenação total, paginação/count e ausência de campos operacionais.
+4. Simular relógio antes, exatamente no instante e depois da publicação para validar `AtivadoEm > PublicacaoPrevistaEm` e inicialização/reativação de `UltimaDataAvaliada`, além de indisponibilidade de três dias.
 5. Testar a fase independente de bloqueadas com marcador já avançado, cobrindo permanência, readquisição/criação e perda após encerramento.
 6. Testar serviço periódico sem sobreposição, cancelamento, isolamento de falha e métricas com contadores e tags seguras.
 7. Testar frontend para paginação de agendas, histórico paginado, permissões, CRUD, estados, i18n, foco, teclado, toque, 320px e paridade PT/EN.
