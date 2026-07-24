@@ -10,6 +10,7 @@ namespace RinhaDasLendas.Tests.Domain;
 public sealed class AgendamentoPresencaTests
 {
     private static readonly Guid Responsavel = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid ClaimId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private static readonly DateTimeOffset Agora = new(2026, 7, 24, 15, 0, 0, TimeSpan.Zero);
     private static readonly DateOnly UltimaDataAvaliada = new(2026, 7, 23);
 
@@ -183,6 +184,8 @@ public sealed class AgendamentoPresencaTests
             new DateOnly(2026, 7, 24),
             Agora.AddHours(3),
             Agora.AddHours(5),
+            ClaimId,
+            Agora.AddMinutes(5),
             Agora);
         agenda.AdicionarOcorrencia(ocorrencia);
 
@@ -341,7 +344,14 @@ public sealed class AgendamentoPresencaTests
         var publicacao = Agora.AddHours(3);
         var encerramento = Agora.AddHours(5);
 
-        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(agendaId, data, publicacao, encerramento, Agora);
+        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(
+            agendaId,
+            data,
+            publicacao,
+            encerramento,
+            ClaimId,
+            Agora.AddMinutes(5),
+            Agora);
 
         ocorrencia.Id.Should().NotBeEmpty();
         ocorrencia.AgendamentoPresencaId.Should().Be(agendaId);
@@ -349,6 +359,8 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.PublicacaoPrevistaEm.Should().Be(publicacao);
         ocorrencia.EncerramentoPrevistoEm.Should().Be(encerramento);
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+        ocorrencia.ClaimId.Should().Be(ClaimId);
+        ocorrencia.ClaimExpiresAt.Should().Be(Agora.AddMinutes(5));
         ocorrencia.UltimaTentativaEm.Should().Be(Agora);
         ocorrencia.CriadaEm.Should().Be(Agora);
         ocorrencia.AtualizadaEm.Should().Be(Agora);
@@ -364,12 +376,62 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
         ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleDiscordUnavailable);
 
-        ocorrencia.IniciarProcessamento(Agora.AddMinutes(1));
+        var novoClaimId = Guid.NewGuid();
+        var tentativaEm = Agora.AddMinutes(1);
+        ocorrencia.IniciarProcessamento(novoClaimId, tentativaEm.AddMinutes(5), tentativaEm);
 
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
         ocorrencia.CodigoFalha.Should().BeNull();
-        ocorrencia.UltimaTentativaEm.Should().Be(Agora.AddMinutes(1));
-        ocorrencia.AtualizadaEm.Should().Be(Agora.AddMinutes(1));
+        ocorrencia.ClaimId.Should().Be(novoClaimId);
+        ocorrencia.ClaimExpiresAt.Should().Be(tentativaEm.AddMinutes(5));
+        ocorrencia.UltimaTentativaEm.Should().Be(tentativaEm);
+        ocorrencia.AtualizadaEm.Should().Be(tentativaEm);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_claim_vazio_ao_criar_processando()
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora.AddHours(3),
+            Agora.AddHours(5),
+            Guid.Empty,
+            Agora.AddMinutes(5),
+            Agora);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(299)]
+    [InlineData(301)]
+    public void Deve_rejeitar_ttl_invalido_ao_criar_processando(int ttlSeconds)
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora.AddHours(3),
+            Agora.AddHours(5),
+            ClaimId,
+            Agora.AddSeconds(ttlSeconds),
+            Agora);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_claim_invalido_ao_reiniciar_sem_mutar_bloqueada()
+    {
+        var ocorrencia = CriarBloqueada();
+
+        var act = () => ocorrencia.IniciarProcessamento(Guid.Empty, Agora.AddMinutes(6), Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        ocorrencia.ClaimId.Should().BeNull();
+        ocorrencia.ClaimExpiresAt.Should().BeNull();
     }
 
     [Theory]
@@ -427,6 +489,40 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
         ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
         ocorrencia.DraftMontagemId.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deve_marcar_processando_com_claim_expirado_e_janela_encerrada_como_perdida()
+    {
+        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora,
+            Agora.AddHours(2),
+            ClaimId,
+            Agora.AddMinutes(5),
+            Agora);
+
+        ocorrencia.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddHours(2));
+
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
+        ocorrencia.ClaimId.Should().BeNull();
+        ocorrencia.ClaimExpiresAt.Should().BeNull();
+        ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
+    }
+
+    [Fact]
+    public void Nao_deve_marcar_processando_com_janela_aberta_como_perdida()
+    {
+        var ocorrencia = CriarProcessando();
+
+        var act = () => ocorrencia.MarcarPerdida(
+            MessageCodes.PresenceScheduleWindowExpired,
+            Agora.AddMinutes(5));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+        ocorrencia.ClaimId.Should().Be(ClaimId);
     }
 
     [Theory]
@@ -510,6 +606,8 @@ public sealed class AgendamentoPresencaTests
             new DateOnly(2026, 7, 24),
             Agora.AddHours(5),
             Agora.AddHours(3),
+            ClaimId,
+            Agora.AddMinutes(5),
             Agora);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleTimeRangeInvalid);
@@ -529,12 +627,12 @@ public sealed class AgendamentoPresencaTests
 
         Action[] acts =
         [
-            () => processando.IniciarProcessamento(Agora.AddMinutes(2)),
+            () => processando.IniciarProcessamento(Guid.NewGuid(), Agora.AddMinutes(7), Agora.AddMinutes(2)),
             () => processando.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddMinutes(2)),
             () => bloqueada.MarcarCriada(Guid.NewGuid(), Agora.AddMinutes(2)),
             () => bloqueada.MarcarFalha(MessageCodes.PresenceScheduleTimeZoneInvalid, Agora.AddMinutes(2)),
             () => criada.MarcarFalha(MessageCodes.PresenceScheduleTimeZoneInvalid, Agora.AddMinutes(2)),
-            () => perdida.IniciarProcessamento(Agora.AddMinutes(2)),
+            () => perdida.IniciarProcessamento(Guid.NewGuid(), Agora.AddMinutes(7), Agora.AddMinutes(2)),
             () => falha.MarcarCriada(Guid.NewGuid(), Agora.AddMinutes(2))
         ];
 
@@ -568,6 +666,8 @@ public sealed class AgendamentoPresencaTests
             new DateOnly(2026, 7, 24),
             Agora.AddHours(3),
             Agora.AddHours(5),
+            ClaimId,
+            Agora.AddMinutes(5),
             Agora);
     }
 

@@ -77,6 +77,35 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     }
 
     [Fact]
+    public async Task FactoryProcessando_DeveProduzirEntidadePersistivelComClaimCompleto()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        db.AgendamentosPresenca.Add(schedule);
+        await db.SaveChangesAsync();
+        var claimId = Guid.NewGuid();
+        var occurrence = OcorrenciaAgendamentoPresenca.Processando(
+            schedule.Id,
+            new DateOnly(2026, 7, 24),
+            Agora,
+            Agora.AddHours(2),
+            claimId,
+            Agora.AddMinutes(5),
+            Agora);
+
+        db.OcorrenciasAgendamentosPresenca.Add(occurrence);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var persisted = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        persisted.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+        persisted.ClaimId.Should().Be(claimId);
+        persisted.ClaimExpiresAt.Should().Be(Agora.AddMinutes(5));
+    }
+
+    [Fact]
     public async Task ListagensECounts_DevemPaginarSemDuplicarComEmpatesEPausadasPorUltimo()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
@@ -285,6 +314,206 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var occurrence = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
         occurrence.PublicacaoPrevistaEm.Should().Be(persistedPublication);
         occurrence.EncerramentoPrevistoEm.Should().Be(persistedClosure);
+    }
+
+    [Fact]
+    public async Task TryUpsertMissed_DeveMarcarProcessandoExpiradoComoPerdidoSemTocarTerminal()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var date = new DateOnly(2026, 7, 24);
+        var claimId = Guid.NewGuid();
+        await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+            claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
+        var missedAt = Agora.AddHours(2);
+
+        var changed = await repository.TryUpsertMissedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+            MessageCodes.PresenceScheduleWindowExpired, missedAt, CancellationToken.None);
+
+        changed.Should().BeTrue();
+        db.ChangeTracker.Clear();
+        var occurrence = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        occurrence.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
+        occurrence.ClaimId.Should().BeNull();
+        occurrence.ClaimExpiresAt.Should().BeNull();
+        occurrence.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
+        var updatedAt = occurrence.AtualizadaEm;
+
+        (await repository.TryUpsertMissedOccurrenceAsync(schedule.Id, date, Agora.AddHours(-1), Agora.AddHours(3),
+            MessageCodes.PresenceScheduleWindowExpired, missedAt.AddMinutes(1), CancellationToken.None)).Should().BeFalse();
+        db.ChangeTracker.Clear();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync()).AtualizadaEm.Should().Be(updatedAt);
+    }
+
+    [Fact]
+    public async Task TryClaim_PrimeiraAquisicaoComConfiguracaoObsoleta_NaoDeveCriarOcorrencia()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
+            [DiaSemanaIso.Sexta], userId, Agora.AddMinutes(1));
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+            Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
+
+        result.Should().BeNull();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TryClaim_PrimeiraAquisicaoEmDiaNaoConfigurado_NaoDeveCriarOcorrencia()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId, days: [DiaSemanaIso.Sabado]);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+            Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
+
+        result.Should().BeNull();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TryClaim_BloqueadaExistente_DeveIgnorarEdicaoPosteriorDaAgenda()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var date = new DateOnly(2026, 7, 24);
+        await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+            MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
+        schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
+            [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var claimNow = Agora.AddMinutes(30);
+
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora.AddHours(10), Agora.AddHours(12),
+            Guid.NewGuid(), claimNow.AddMinutes(5), claimNow, CancellationToken.None);
+
+        claim!.Adquirido.Should().BeTrue();
+        db.ChangeTracker.Clear();
+        var occurrence = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        occurrence.PublicacaoPrevistaEm.Should().Be(Agora);
+        occurrence.EncerramentoPrevistoEm.Should().Be(Agora.AddHours(2));
+    }
+
+    [Theory]
+    [InlineData("paused")]
+    [InlineData("archived")]
+    public async Task TryClaim_BloqueadaExistente_DeveIgnorarStatusPosteriorDaAgendaEConcluir(string status)
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var date = new DateOnly(2026, 7, 24);
+        await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+            MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
+        if (status == "paused")
+        {
+            schedule.Pausar(userId, Agora.AddMinutes(1));
+        }
+        else
+        {
+            schedule.Arquivar(userId, Agora.AddMinutes(1));
+        }
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var claimNow = Agora.AddMinutes(30);
+        var claimId = Guid.NewGuid();
+
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora.AddHours(10), Agora.AddHours(12),
+            claimId, claimNow.AddMinutes(5), claimNow, CancellationToken.None);
+
+        claim!.Adquirido.Should().BeTrue();
+        (await repository.TryCompleteWithDraftAsync(claim.OcorrenciaId, claimId, CreateDraft(Agora.AddHours(2)),
+            claimNow.AddMinutes(1), CancellationToken.None)).Should().BeTrue();
+        db.ChangeTracker.Clear();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync()).Status
+            .Should().Be(OcorrenciaAgendamentoPresencaStatus.Criada);
+    }
+
+    [Fact]
+    public async Task TryClaim_AgendaPausadaSemOcorrencia_NaoDeveCriar()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        schedule.Pausar(userId, Agora.AddMinutes(1));
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+            Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
+
+        result.Should().BeNull();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("blocked", MessageCodes.PresenceScheduleDiscordUnavailable)]
+    [InlineData("missed", MessageCodes.PresenceScheduleWindowExpired)]
+    [InlineData("failed", MessageCodes.PresenceScheduleTimeZoneInvalid)]
+    public async Task OperacoesSql_DevemPersistirCodigoCanonicoQuandoEntradaTemEspacos(
+        string operation,
+        string expectedCode)
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var date = new DateOnly(2026, 7, 24);
+
+        if (operation == "blocked")
+        {
+            await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+                $" {expectedCode} ", Agora, CancellationToken.None);
+        }
+        else if (operation == "missed")
+        {
+            await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+                MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
+            await repository.TryUpsertMissedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+                $" {expectedCode} ", Agora.AddHours(2), CancellationToken.None);
+        }
+        else
+        {
+            var claimId = Guid.NewGuid();
+            var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
+                claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
+            await repository.TryMarkFailedAsync(claim!.OcorrenciaId, claimId,
+                $" {expectedCode} ", Agora.AddMinutes(1), CancellationToken.None);
+        }
+
+        db.ChangeTracker.Clear();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync()).CodigoFalha.Should().Be(expectedCode);
     }
 
     [Theory]
@@ -733,7 +962,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         Guid userId,
         string name = "Rinha agendada",
         IReadOnlyCollection<DiaSemanaIso>? days = null) =>
-        new(name, "Observacao", new TimeOnly(18, 0), new TimeOnly(20, 0), days ?? [DiaSemanaIso.Sexta],
+        new(name, "Observacao", new TimeOnly(15, 0), new TimeOnly(17, 0), days ?? [DiaSemanaIso.Sexta],
             new DateOnly(2026, 7, 23), userId, Agora);
 
     private static DraftMontagem CreateDraft(DateTimeOffset closure)

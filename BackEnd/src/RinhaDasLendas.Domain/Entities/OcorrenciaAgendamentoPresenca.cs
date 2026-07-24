@@ -17,6 +17,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateTimeOffset encerramento,
         OcorrenciaAgendamentoPresencaStatus status,
         string? codigo,
+        Guid? claimId,
+        DateTimeOffset? claimExpiresAt,
         DateTimeOffset agora)
     {
         if (encerramento <= publicacao)
@@ -31,8 +33,14 @@ public sealed class OcorrenciaAgendamentoPresenca
         EncerramentoPrevistoEm = encerramento;
         Status = status;
         CodigoFalha = status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
-            ? ValidarCodigo(codigo, MessageCodes.PresenceScheduleDiscordUnavailable)
+            ? NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleDiscordUnavailable)
             : null;
+        if (status == OcorrenciaAgendamentoPresencaStatus.Processando)
+        {
+            ValidarClaimProcessamento(claimId ?? Guid.Empty, claimExpiresAt ?? default, agora);
+            ClaimId = claimId;
+            ClaimExpiresAt = claimExpiresAt;
+        }
         UltimaTentativaEm = agora;
         CriadaEm = agora;
         AtualizadaEm = agora;
@@ -57,6 +65,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateOnly dataLocal,
         DateTimeOffset publicacao,
         DateTimeOffset encerramento,
+        Guid claimId,
+        DateTimeOffset claimExpiresAt,
         DateTimeOffset agora)
     {
         return new OcorrenciaAgendamentoPresenca(
@@ -66,6 +76,8 @@ public sealed class OcorrenciaAgendamentoPresenca
             encerramento,
             OcorrenciaAgendamentoPresencaStatus.Processando,
             null,
+            claimId,
+            claimExpiresAt,
             agora);
     }
 
@@ -84,16 +96,33 @@ public sealed class OcorrenciaAgendamentoPresenca
             encerramento,
             OcorrenciaAgendamentoPresencaStatus.Bloqueada,
             codigo,
+            null,
+            null,
             agora);
     }
 
-    public void IniciarProcessamento(DateTimeOffset agora)
+    public void IniciarProcessamento(Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset agora)
     {
+        ValidarClaimProcessamento(claimId, claimExpiresAt, agora);
         ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
         Status = OcorrenciaAgendamentoPresencaStatus.Processando;
         CodigoFalha = null;
+        ClaimId = claimId;
+        ClaimExpiresAt = claimExpiresAt;
         UltimaTentativaEm = agora;
         Touch(agora);
+    }
+
+    public static void ValidarClaimProcessamento(
+        Guid claimId,
+        DateTimeOffset claimExpiresAt,
+        DateTimeOffset agora)
+    {
+        if (claimId == Guid.Empty
+            || TruncarParaMicrossegundos(claimExpiresAt) != TruncarParaMicrossegundos(agora.AddMinutes(5)))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
     }
 
     public void MarcarCriada(Guid draftId, DateTimeOffset agora)
@@ -113,8 +142,19 @@ public sealed class OcorrenciaAgendamentoPresenca
 
     public void MarcarPerdida(string codigo, DateTimeOffset agora)
     {
-        ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
-        var codigoValidado = ValidarCodigo(codigo, MessageCodes.PresenceScheduleWindowExpired);
+        if (Status == OcorrenciaAgendamentoPresencaStatus.Processando)
+        {
+            if (ClaimExpiresAt is null || ClaimExpiresAt > agora || EncerramentoPrevistoEm > agora)
+            {
+                throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+            }
+        }
+        else
+        {
+            ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        }
+
+        var codigoValidado = NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleWindowExpired);
         Status = OcorrenciaAgendamentoPresencaStatus.Perdida;
         CodigoFalha = codigoValidado;
         LimparClaim();
@@ -124,7 +164,7 @@ public sealed class OcorrenciaAgendamentoPresenca
     public void MarcarFalha(string codigo, DateTimeOffset agora)
     {
         ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Processando);
-        var codigoValidado = ValidarCodigo(codigo, MessageCodes.PresenceScheduleTimeZoneInvalid);
+        var codigoValidado = NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleTimeZoneInvalid);
         Status = OcorrenciaAgendamentoPresencaStatus.Falha;
         CodigoFalha = codigoValidado;
         LimparClaim();
@@ -139,7 +179,7 @@ public sealed class OcorrenciaAgendamentoPresenca
         }
     }
 
-    private static string ValidarCodigo(string? codigo, string codigoPermitido)
+    public static string NormalizarCodigoPublico(string? codigo, string codigoPermitido)
     {
         var codigoNormalizado = codigo?.Trim();
         if (string.IsNullOrEmpty(codigoNormalizado)
@@ -161,5 +201,10 @@ public sealed class OcorrenciaAgendamentoPresenca
     private void Touch(DateTimeOffset agora)
     {
         AtualizadaEm = agora;
+    }
+
+    private static DateTimeOffset TruncarParaMicrossegundos(DateTimeOffset value)
+    {
+        return new DateTimeOffset(value.Ticks - (value.Ticks % 10), value.Offset);
     }
 }

@@ -6,7 +6,6 @@ using Npgsql;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
-using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
@@ -150,7 +149,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
-        ValidateClaim(claimId, claimExpiresAt, now);
+        OcorrenciaAgendamentoPresenca.ValidarClaimProcessamento(claimId, claimExpiresAt, now);
         await OpenConnectionAsync(ct);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var dbTransaction = transaction.GetDbTransaction();
@@ -172,14 +171,23 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                        @closureAt, 0, @claimId, @claimExpiresAt, @now, @now, @now
                 FROM agendamentos_presenca AS schedule
                 WHERE schedule.id = @agendaId
-                  AND schedule.status = 0
                   AND (
                       EXISTS (
                           SELECT 1
                           FROM ocorrencias_agendamentos_presenca AS existing
                           WHERE existing.agendamento_presenca_id = @agendaId
                             AND existing.data_local = @localDate)
-                      OR (@now >= @publicationAt AND @now < @closureAt))
+                      OR (
+                          schedule.status = 0
+                          AND EXISTS (
+                              SELECT 1
+                              FROM agendamentos_presenca_dias_semana AS configured_day
+                              WHERE configured_day.agendamento_presenca_id = schedule.id
+                                AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
+                          AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                          AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                          AND @now >= @publicationAt
+                          AND @now < @closureAt))
                 ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
                 SET status = 0,
                     codigo_falha = NULL,
@@ -192,9 +200,6 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                            AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
                   AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= @now
                   AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > @now
-                  AND EXISTS (
-                      SELECT 1 FROM agendamentos_presenca AS current_schedule
-                      WHERE current_schedule.id = @agendaId AND current_schedule.status = 0)
                 RETURNING id, claim_id
             )
             SELECT id, claim_id, TRUE FROM acquired
@@ -239,7 +244,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
-        ValidateCode(code, MessageCodes.PresenceScheduleDiscordUnavailable);
+        code = OcorrenciaAgendamentoPresenca.NormalizarCodigoPublico(
+            code,
+            MessageCodes.PresenceScheduleDiscordUnavailable);
         const string sql = """
             INSERT INTO ocorrencias_agendamentos_presenca
                 (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
@@ -268,7 +275,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
-        ValidateCode(code, MessageCodes.PresenceScheduleWindowExpired);
+        code = OcorrenciaAgendamentoPresenca.NormalizarCodigoPublico(
+            code,
+            MessageCodes.PresenceScheduleWindowExpired);
         const string sql = """
             INSERT INTO ocorrencias_agendamentos_presenca
                 (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
@@ -277,7 +286,14 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             SELECT @occurrenceId, schedule.id, @localDate, @publicationAt, @closureAt,
                    3, @code, @now, @now, @now
             FROM agendamentos_presenca AS schedule
-            WHERE schedule.id = @agendaId AND @now >= @closureAt
+            WHERE schedule.id = @agendaId
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM ocorrencias_agendamentos_presenca AS existing
+                      WHERE existing.agendamento_presenca_id = @agendaId
+                        AND existing.data_local = @localDate)
+                  OR (schedule.status = 0 AND @now >= @closureAt))
             ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
             SET status = 3,
                 codigo_falha = EXCLUDED.codigo_falha,
@@ -285,7 +301,10 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 claim_expires_at = NULL,
                 ultima_tentativa_em = EXCLUDED.ultima_tentativa_em,
                 atualizada_em = EXCLUDED.atualizada_em
-            WHERE ocorrencias_agendamentos_presenca.status = 1
+            WHERE (ocorrencias_agendamentos_presenca.status = 1
+                   OR (ocorrencias_agendamentos_presenca.status = 0
+                       AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
+              AND ocorrencias_agendamentos_presenca.encerramento_previsto_em <= @now
             RETURNING TRUE
             """;
         return ExecuteBooleanAsync(sql, agendaId, localDate, publicationAt, closureAt, code, now, ct);
@@ -388,7 +407,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset now,
         CancellationToken ct)
     {
-        ValidateCode(code, MessageCodes.PresenceScheduleTimeZoneInvalid);
+        code = OcorrenciaAgendamentoPresenca.NormalizarCodigoPublico(
+            code,
+            MessageCodes.PresenceScheduleTimeZoneInvalid);
         const string sql = """
             UPDATE ocorrencias_agendamentos_presenca
             SET status = 4,
@@ -485,25 +506,4 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return postgres?.SqlState == PostgresErrorCodes.UniqueViolation;
     }
 
-    private static void ValidateClaim(Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset now)
-    {
-        if (claimId == Guid.Empty
-            || TruncateToPostgreSqlPrecision(claimExpiresAt) != TruncateToPostgreSqlPrecision(now.AddMinutes(5)))
-        {
-            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
-        }
-    }
-
-    private static DateTimeOffset TruncateToPostgreSqlPrecision(DateTimeOffset value)
-    {
-        return new DateTimeOffset(value.Ticks - (value.Ticks % 10), value.Offset);
-    }
-
-    private static void ValidateCode(string code, string expected)
-    {
-        if (!string.Equals(code?.Trim(), expected, StringComparison.Ordinal))
-        {
-            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
-        }
-    }
 }
