@@ -24,15 +24,15 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 **Purpose**: estabelecer agregado, enums, invariantes, transições e auditoria sem dependência de infraestrutura.
 
-- [ ] T001 Escrever testes RED para nome, observação, ao menos um dia, dias únicos, janela no mesmo dia e precisão de minuto em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
-- [ ] T002 Acrescentar testes RED para `OcorreEm`, normalização, `UltimaDataAvaliada`, edição sem alterar ocorrências e pausa/reativação idempotentes em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
-- [ ] T003 Acrescentar testes RED para histórico com `CamposAlterados` contendo somente nomes estáveis, arquivamento imutável e transições de ocorrência em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
-- [ ] T004 Executar o filtro `AgendamentoPresencaTests` e registrar RED causado pelos tipos/comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T005 Adicionar as constantes localizáveis `MV089` a `MV100` em `BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs`
-- [ ] T006 Criar `DiaSemanaIso`, `AgendamentoPresencaStatus`, `OcorrenciaAgendamentoPresencaStatus` e `AgendamentoPresencaAcao` em `BackEnd/src/RinhaDasLendas.Domain/Enums/`
-- [ ] T007 Implementar agregado, dias e histórico com backing fields, invariantes, `CamposAlterados` sem valores e instantes explícitos em `BackEnd/src/RinhaDasLendas.Domain/Entities/AgendamentoPresenca.cs`, `AgendamentoPresencaDiaSemana.cs` e `HistoricoAgendamentoPresenca.cs`
-- [ ] T008 Implementar factories e transições de ocorrência sem relógio estático em `BackEnd/src/RinhaDasLendas.Domain/Entities/OcorrenciaAgendamentoPresenca.cs`
-- [ ] T009 Executar `AgendamentoPresencaTests` e registrar GREEN de invariantes, auditoria e transições em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T001 Escrever testes RED para nome, observação, ao menos um dia, dias únicos, janela no mesmo dia e precisão de minuto em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
+- [X] T002 Acrescentar testes RED para `OcorreEm`, normalização, `UltimaDataAvaliada`, edição sem alterar ocorrências e pausa/reativação idempotentes em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
+- [X] T003 Acrescentar testes RED para histórico com `CamposAlterados` contendo somente nomes estáveis, arquivamento imutável e transições de ocorrência em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
+- [X] T004 Executar o filtro `AgendamentoPresencaTests` e registrar RED causado pelos tipos/comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`. RED confirmado em 2026-07-24: `CS0246` para `AgendamentoPresenca`, `DiaSemanaIso` e `OcorrenciaAgendamentoPresenca`; segundo RED comportamental confirmou auditoria incorreta do no-op idempotente (1 falha, 33 aprovados).
+- [X] T005 Adicionar as constantes localizáveis `MV089` a `MV100` em `BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs`
+- [X] T006 Criar `DiaSemanaIso`, `AgendamentoPresencaStatus`, `OcorrenciaAgendamentoPresencaStatus` e `AgendamentoPresencaAcao` em `BackEnd/src/RinhaDasLendas.Domain/Enums/`
+- [X] T007 Implementar agregado, dias e histórico com backing fields, invariantes, `CamposAlterados` sem valores e instantes explícitos em `BackEnd/src/RinhaDasLendas.Domain/Entities/AgendamentoPresenca.cs`, `AgendamentoPresencaDiaSemana.cs` e `HistoricoAgendamentoPresenca.cs`
+- [X] T008 Implementar factories e transições de ocorrência sem relógio estático em `BackEnd/src/RinhaDasLendas.Domain/Entities/OcorrenciaAgendamentoPresenca.cs`
+- [X] T009 Executar `AgendamentoPresencaTests` e registrar GREEN de invariantes, auditoria e transições em `specs/020-agendamento-listas-presenca/tasks.md`. GREEN confirmado em 2026-07-24: 34 aprovados, 0 falhas, 0 ignorados.
 
 **Checkpoint**: domínio executável sem EF, PostgreSQL, HTTP, DTOs ou Discord.
 
