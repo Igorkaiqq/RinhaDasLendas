@@ -80,6 +80,7 @@ Campos:
 - `AtivadoEm`: instante da ativação mais recente;
 - `PausadoEm`: instante opcional;
 - `ArquivadoEm`: instante opcional;
+- `UltimaDataAvaliada`: última data local já analisada pelo scheduler;
 - `CriadoPorUsuarioId`: UUID;
 - `CriadoEm`, `AtualizadoEm`: instantes UTC;
 - coleção de dias da semana;
@@ -213,6 +214,9 @@ Se houver crash antes do commit, nada é confirmado e uma nova execução pode t
 ### API Reiniciada Ou Indisponível
 
 - ao reiniciar, agendas que permaneceram ativas são recalculadas;
+- o scheduler percorre as datas posteriores a `UltimaDataAvaliada` até a data local atual, sem horizonte arbitrário;
+- datas selecionadas que já encerraram são registradas como `Perdida`, inclusive após indisponibilidade de vários dias;
+- `UltimaDataAvaliada` avança somente depois que todas as ocorrências esperadas daquela data forem confirmadas ou classificadas;
 - ocorrências do dia ainda dentro da janela são criadas;
 - ocorrências vencidas são registradas como `Perdida`;
 - reativar uma agenda depois do horário de publicação não recupera a ocorrência daquele dia;
