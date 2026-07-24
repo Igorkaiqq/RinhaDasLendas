@@ -203,7 +203,8 @@ public sealed class AgendamentoPresencaHandlersTests
     {
         var agenda = CreateAgenda();
         var occurrence = OcorrenciaAgendamentoPresenca.Bloqueada(
-            agenda.Id, Hoje, Agora.AddHours(-1), Agora.AddHours(1), "MV098", Agora);
+            agenda.Id, Hoje, Agora.AddHours(-1), Agora.AddHours(1), "MV098", Agora,
+            agenda.Nome, agenda.Observacao);
         _repository.Setup(item => item.ExistsAsync(agenda.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _repository.Setup(item => item.CountOccurrencesAsync(agenda.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
         _repository.Setup(item => item.ListOccurrencesAsync(agenda.Id, 2, 2, It.IsAny<CancellationToken>()))

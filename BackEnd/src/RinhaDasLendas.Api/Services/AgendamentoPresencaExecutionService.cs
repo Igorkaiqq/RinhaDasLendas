@@ -11,6 +11,7 @@ public sealed class AgendamentoPresencaExecutionService(
     ILogger<AgendamentoPresencaExecutionService> logger) : BackgroundService
 {
     private readonly SemaphoreSlim cycleGate = new(1, 1);
+    private Guid? candidateCursor;
     private readonly TimeSpan interval = TimeSpan.FromSeconds(Math.Clamp(
         configuration.GetValue("PresenceSchedule:IntervalSeconds", 30),
         1,
@@ -23,8 +24,10 @@ public sealed class AgendamentoPresencaExecutionService(
         {
             using var scope = scopeFactory.CreateScope();
             var sender = scope.ServiceProvider.GetRequiredService<ISender>();
-            return await sender.Send(
-                new ProcessarAgendamentosPresencaDevidosCommand(clock.UtcNow), cancellationToken);
+            var result = await sender.Send(
+                new ProcessarAgendamentosPresencaDevidosCommand(clock.UtcNow, candidateCursor), cancellationToken);
+            candidateCursor = result.Cursor;
+            return result;
         }
         finally
         {

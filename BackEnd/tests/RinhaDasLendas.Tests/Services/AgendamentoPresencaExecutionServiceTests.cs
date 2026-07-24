@@ -35,7 +35,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
 
         var result = await handler.Handle(new(Publicacao.AddMinutes(-1)), CancellationToken.None);
 
-        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 0, 0, 0));
+        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 0, 0, 0, agenda.Id));
         agenda.UltimaDataAvaliada.Should().Be(Hoje.AddDays(-1));
         repository.Verify(item => item.TryClaimOccurrenceAsync(
             It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(),
@@ -65,7 +65,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
 
         var result = await handler.Handle(new(Publicacao), CancellationToken.None);
 
-        result.Should().Be(new AgendamentoPresencaCycleResult(1, 1, 0, 0, 0));
+        result.Should().Be(new AgendamentoPresencaCycleResult(1, 1, 0, 0, 0, agenda.Id));
         agenda.UltimaDataAvaliada.Should().Be(Hoje);
         draft.Should().NotBeNull();
         draft!.Nome.Should().Be("Agenda semanal - 24/07/2026");
@@ -87,7 +87,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
 
         var result = await handler.Handle(new(Publicacao), CancellationToken.None);
 
-        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 1, 0, 0));
+        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 1, 0, 0, agenda.Id));
         agenda.UltimaDataAvaliada.Should().Be(Hoje);
         repository.Verify(item => item.TryClaimOccurrenceAsync(
             It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(),
@@ -103,7 +103,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         var repository = CreateRepository();
         var agenda = CreateAgenda(Hoje, Publicacao.AddDays(-1), [DiaSemanaIso.Sexta]);
         var occurrence = OcorrenciaAgendamentoPresenca.Bloqueada(
-            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao);
+            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao,
+            agenda.Nome, agenda.Observacao);
         repository.Setup(item => item.ListBlockedAsync(Publicacao.AddMinutes(30), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([occurrence]);
         repository.Setup(item => item.GetByIdAsync(agenda.Id, false, It.IsAny<CancellationToken>())).ReturnsAsync(agenda);
@@ -123,7 +124,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
 
         result.Criadas.Should().Be(1);
         repository.Verify(item => item.ListBlockedAsync(Publicacao.AddMinutes(30), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
-        repository.Verify(item => item.ListCandidatesAsync(Hoje, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(item => item.ListCandidatesAsync(
+            Publicacao.AddMinutes(30), null, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -132,7 +134,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         var repository = CreateRepository();
         var agenda = CreateAgenda(Hoje, Publicacao.AddDays(-1), [DiaSemanaIso.Sexta]);
         var occurrence = OcorrenciaAgendamentoPresenca.Bloqueada(
-            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao);
+            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao,
+            agenda.Nome, agenda.Observacao);
         repository.Setup(item => item.ListBlockedAsync(Publicacao.AddMinutes(30), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([occurrence]);
         repository.Setup(item => item.TryUpsertBlockedOccurrenceAsync(
@@ -187,7 +190,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         var repository = CreateRepository();
         var agenda = CreateAgenda(Hoje.AddDays(-1), Publicacao, [DiaSemanaIso.Sexta]);
         var terminal = OcorrenciaAgendamentoPresenca.Bloqueada(
-            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao);
+            agenda.Id, Hoje, Publicacao, Encerramento, MessageCodes.PresenceScheduleDiscordUnavailable, Publicacao,
+            agenda.Nome, agenda.Observacao);
         terminal.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Encerramento);
         SetupCandidates(repository, agenda);
         repository.Setup(item => item.TryUpsertMissedOccurrenceAsync(
@@ -212,7 +216,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
 
         var result = await handler.Handle(new(Publicacao.AddMinutes(30)), CancellationToken.None);
 
-        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 0, 0, 0));
+        result.Should().Be(new AgendamentoPresencaCycleResult(1, 0, 0, 0, 0, agenda.Id));
         agenda.UltimaDataAvaliada.Should().Be(Hoje);
         repository.Verify(item => item.TryUpsertMissedOccurrenceAsync(
             It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(),
@@ -227,7 +231,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         var agenda = CreateAgenda(Hoje.AddDays(-1), Publicacao.AddDays(-1), [DiaSemanaIso.Sexta]);
         SetupCandidates(repository, agenda);
         repository.Setup(item => item.TryUpsertFailedTimeZoneOccurrenceAsync(
-                agenda.Id, Hoje, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+                agenda.Id, Hoje, 1, DiaSemanaIso.Sexta, agenda.HorarioPublicacaoLocal,
+                agenda.HorarioEncerramentoLocal, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AgendamentoPresencaOccurrenceWriteResult(
                 OcorrenciaAgendamentoPresencaStatus.Falha, true));
         var handler = CreateHandler(repository, Publicacao, metrics: metrics, timezone: new InvalidTimeZone());
@@ -374,7 +379,8 @@ public sealed class AgendamentoPresencaExecutionServiceTests
     private static Mock<IAgendamentoPresencaRepository> CreateRepository()
     {
         var repository = new Mock<IAgendamentoPresencaRepository>();
-        repository.Setup(item => item.ListCandidatesAsync(It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        repository.Setup(item => item.ListCandidatesAsync(
+                It.IsAny<DateTimeOffset>(), It.IsAny<Guid?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         repository.Setup(item => item.ListBlockedAsync(It.IsAny<DateTimeOffset>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -387,12 +393,12 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         params AgendamentoPresenca[] schedules)
     {
         repository.Setup(item => item.ListCandidatesAsync(
-                It.IsAny<DateOnly>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<DateTimeOffset>(), It.IsAny<Guid?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(schedules);
         foreach (var schedule in schedules)
         {
-            repository.Setup(item => item.GetByIdAsync(schedule.Id, true, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(schedule);
+            repository.Setup(item => item.GetProcessingCandidateAsync(schedule.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AgendamentoPresencaProcessingCandidate(schedule, 1));
         }
     }
 

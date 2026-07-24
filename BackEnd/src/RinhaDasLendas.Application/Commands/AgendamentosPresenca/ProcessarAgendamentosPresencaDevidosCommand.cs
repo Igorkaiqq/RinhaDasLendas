@@ -2,7 +2,7 @@ using MediatR;
 
 namespace RinhaDasLendas.Application.Commands.AgendamentosPresenca;
 
-public sealed record ProcessarAgendamentosPresencaDevidosCommand(DateTimeOffset Agora)
+public sealed record ProcessarAgendamentosPresencaDevidosCommand(DateTimeOffset Agora, Guid? Cursor = null)
     : IRequest<AgendamentoPresencaCycleResult>;
 
 public sealed record AgendamentoPresencaCycleResult(
@@ -10,4 +10,5 @@ public sealed record AgendamentoPresencaCycleResult(
     int Criadas,
     int Bloqueadas,
     int Perdidas,
-    int Falhas);
+    int Falhas,
+    Guid? Cursor = null);

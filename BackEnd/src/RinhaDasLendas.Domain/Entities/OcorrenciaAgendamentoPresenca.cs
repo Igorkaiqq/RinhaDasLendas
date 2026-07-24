@@ -33,8 +33,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DataLocal = dataLocal;
         PublicacaoPrevistaEm = publicacao;
         EncerramentoPrevistoEm = encerramento;
-        NomeSnapshot = nomeSnapshot;
-        ObservacaoSnapshot = observacaoSnapshot;
+        NomeSnapshot = NormalizarNomeSnapshot(nomeSnapshot);
+        ObservacaoSnapshot = NormalizarObservacaoSnapshot(observacaoSnapshot);
         Status = status;
         CodigoFalha = status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
             ? NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleDiscordUnavailable)
@@ -74,8 +74,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         Guid claimId,
         DateTimeOffset claimExpiresAt,
         DateTimeOffset agora,
-        string nomeSnapshot = "Snapshot",
-        string? observacaoSnapshot = null)
+        string nomeSnapshot,
+        string? observacaoSnapshot)
     {
         return new OcorrenciaAgendamentoPresenca(
             agendaId,
@@ -98,8 +98,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateTimeOffset encerramento,
         string codigo,
         DateTimeOffset agora,
-        string nomeSnapshot = "Snapshot",
-        string? observacaoSnapshot = null)
+        string nomeSnapshot,
+        string? observacaoSnapshot)
     {
         return new OcorrenciaAgendamentoPresenca(
             agendaId,
@@ -209,6 +209,33 @@ public sealed class OcorrenciaAgendamentoPresenca
         }
 
         return codigoNormalizado;
+    }
+
+    private static string NormalizarNomeSnapshot(string nome)
+    {
+        var normalizado = nome?.Trim() ?? string.Empty;
+        if (normalizado.Length == 0)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleNameRequired);
+        }
+
+        if (normalizado.Length is < 3 or > 100)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleNameLengthInvalid);
+        }
+
+        return normalizado;
+    }
+
+    private static string? NormalizarObservacaoSnapshot(string? observacao)
+    {
+        var normalizada = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+        if (normalizada?.Length > 500)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleObservationTooLong);
+        }
+
+        return normalizada;
     }
 
     private void LimparClaim()

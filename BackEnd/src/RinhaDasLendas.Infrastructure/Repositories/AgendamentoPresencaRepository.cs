@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
@@ -176,18 +177,59 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
     }
 
     public async Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(
-        DateOnly throughLocalDate,
+        DateTimeOffset now,
+        Guid? afterId,
         int limit,
         CancellationToken ct)
     {
-        return await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
-            .Where(schedule => schedule.Status == AgendamentoPresencaStatus.Ativo
-                && schedule.UltimaDataAvaliada < throughLocalDate)
-            .OrderBy(schedule => schedule.UltimaDataAvaliada)
-            .ThenBy(schedule => schedule.AtualizadoEm)
-            .ThenBy(schedule => schedule.Id)
-            .Take(Math.Clamp(limit, 1, 1000))
+        var ids = await dbContext.Database.SqlQueryRaw<Guid>(
+            """
+            SELECT schedule.id AS "Value"
+            FROM agendamentos_presenca AS schedule
+            WHERE schedule.status = 0
+              AND EXISTS (
+                  SELECT 1
+                  FROM generate_series(
+                      schedule.ultima_data_avaliada + 1,
+                      (@now AT TIME ZONE 'America/Sao_Paulo')::date,
+                      interval '1 day') AS candidate_date
+                  INNER JOIN agendamentos_presenca_dias_semana AS configured_day
+                      ON configured_day.agendamento_presenca_id = schedule.id
+                     AND configured_day.dia_semana = EXTRACT(ISODOW FROM candidate_date)::smallint
+                  WHERE (candidate_date::date + schedule.horario_publicacao_local)
+                        AT TIME ZONE 'America/Sao_Paulo' <= @now)
+            ORDER BY
+                CASE WHEN CAST(@afterId AS uuid) IS NULL OR schedule.id > CAST(@afterId AS uuid) THEN 0 ELSE 1 END,
+                schedule.id
+            LIMIT @limit
+            """,
+            new NpgsqlParameter("now", now),
+            new NpgsqlParameter("afterId", afterId ?? (object)DBNull.Value),
+            new NpgsqlParameter("limit", Math.Clamp(limit, 1, 1000)))
             .ToListAsync(ct);
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var schedules = await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
+            .Where(schedule => ids.Contains(schedule.Id))
+            .ToListAsync(ct);
+        var byId = schedules.ToDictionary(schedule => schedule.Id);
+        return ids.Select(id => byId[id]).ToArray();
+    }
+
+    public async Task<AgendamentoPresencaProcessingCandidate?> GetProcessingCandidateAsync(
+        Guid id,
+        CancellationToken ct)
+    {
+        var schedule = await IncludeDays(dbContext.AgendamentosPresenca)
+            .SingleOrDefaultAsync(item => item.Id == id, ct);
+        return schedule is null
+            ? null
+            : new AgendamentoPresencaProcessingCandidate(
+                schedule,
+                dbContext.Entry(schedule).Property<uint>("xmin").CurrentValue);
     }
 
     public async Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(
@@ -419,6 +461,10 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
     public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertFailedTimeZoneOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
+        uint observedVersion,
+        DiaSemanaIso observedDay,
+        TimeOnly observedPublicationTime,
+        TimeOnly observedClosureTime,
         DateTimeOffset now,
         CancellationToken ct)
     {
@@ -434,10 +480,14 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                        schedule.nome, schedule.observacao, 4, @code, @now, @now, @now
                 FROM agendamentos_presenca AS schedule
                 WHERE schedule.id = @agendaId
+                  AND schedule.xmin = CAST(@observedVersion AS xid)
                   AND schedule.status = 0
+                  AND schedule.horario_publicacao_local = @observedPublicationTime
+                  AND schedule.horario_encerramento_local = @observedClosureTime
                   AND EXISTS (
                       SELECT 1 FROM agendamentos_presenca_dias_semana AS configured_day
                       WHERE configured_day.agendamento_presenca_id = schedule.id
+                        AND configured_day.dia_semana = @observedDay
                         AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
                   AND ((CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo')
                       > ((CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo')
@@ -453,9 +503,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
               AND NOT EXISTS (SELECT 1 FROM inserted)
             LIMIT 1
             """;
-        return ExecuteOccurrenceWriteAsync(
-            sql, agendaId, localDate, default, default,
-            MessageCodes.PresenceScheduleTimeZoneInvalid, now, ct);
+        return ExecuteFailedTimeZoneWriteAsync(
+            sql, agendaId, localDate, observedVersion, observedDay,
+            observedPublicationTime, observedClosureTime, now, ct);
     }
 
     public async Task<AgendamentoPresencaOccurrenceWriteResult> TryMarkClaimedOccurrenceMissedAsync(
@@ -509,7 +559,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND status = 0
                   AND claim_id = @claimId
                   AND claim_expires_at > @now
-                  AND encerramento_previsto_em > @now
+                  AND encerramento_previsto_em > clock_timestamp()
                 FOR UPDATE
                 """))
             {
@@ -547,6 +597,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND status = 0
                   AND claim_id = @claimId
                   AND claim_expires_at > @now
+                  AND encerramento_previsto_em > clock_timestamp()
                 RETURNING TRUE
                 """))
             {
@@ -627,8 +678,6 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         }
     }
 
-    public void DiscardTrackedChanges() => dbContext.ChangeTracker.Clear();
-
     private static IQueryable<AgendamentoPresenca> IncludeDays(IQueryable<AgendamentoPresenca> query)
     {
         return query.Include(schedule => schedule.DiasSemana);
@@ -671,6 +720,32 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         AddParameter(command, "publicationAt", publicationAt);
         AddParameter(command, "closureAt", closureAt);
         AddParameter(command, "code", code);
+        AddParameter(command, "now", now);
+        await OpenConnectionAsync(ct);
+        return await ReadOccurrenceWriteResultAsync(command, ct);
+    }
+
+    private async Task<AgendamentoPresencaOccurrenceWriteResult> ExecuteFailedTimeZoneWriteAsync(
+        string sql,
+        Guid agendaId,
+        DateOnly localDate,
+        uint observedVersion,
+        DiaSemanaIso observedDay,
+        TimeOnly observedPublicationTime,
+        TimeOnly observedClosureTime,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        AddParameter(command, "occurrenceId", Guid.NewGuid());
+        AddParameter(command, "agendaId", agendaId);
+        AddParameter(command, "localDate", localDate);
+        AddParameter(command, "observedVersion", observedVersion.ToString(CultureInfo.InvariantCulture));
+        AddParameter(command, "observedDay", (short)observedDay);
+        AddParameter(command, "observedPublicationTime", observedPublicationTime);
+        AddParameter(command, "observedClosureTime", observedClosureTime);
+        AddParameter(command, "code", MessageCodes.PresenceScheduleTimeZoneInvalid);
         AddParameter(command, "now", now);
         await OpenConnectionAsync(ct);
         return await ReadOccurrenceWriteResultAsync(command, ct);

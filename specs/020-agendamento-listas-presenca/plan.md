@@ -57,6 +57,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - Adicionar `claim_id` e `claim_expires_at` à ocorrência. `TryClaimOccurrenceAsync` usa claim de cinco minutos e permite retomada de processador interrompido enquanto a janela estiver aberta.
 - Criar draft, publicação pendente e conclusão da ocorrência na mesma transação. Crash antes do commit não confirma estado; commit impede novo draft pela ocorrência única.
 - Capturar `NomeSnapshot`/`ObservacaoSnapshot` no `INSERT` atômico de qualquer ocorrência e usar exclusivamente esses snapshots em retomadas e drafts.
+- Exigir snapshots explícitos nas factories de ocorrência; normalizar e validar nome entre 3-100 caracteres e observação com até 500 caracteres no Domain.
 - Implementar exclusão como status `Arquivado` e FKs restritas para preservar auditoria e drafts existentes.
 
 ### Tempo E Recuperação
@@ -71,6 +72,10 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - Persistir `Falha/MV096` idempotente antes do marcador. Como a janela é non-null, somente esse estado terminal usa a derivação determinística do PostgreSQL para registrar os instantes locais inválidos/ambíguos; ela nunca participa da elegibilidade de draft.
 - Obter `ISystemClock.UtcNow` novamente antes de cada classificação, claim, conclusão e marcador; um claim que cruza o encerramento vira `Perdida` com o mesmo instante em seu CAS.
 - Limitar por ciclo a quantidade de bloqueadas, agendas e datas por agenda, sem horizonte por idade. O marcador e a ordenação persistida fornecem continuação e progresso eventual.
+- Listar somente agendas com alguma data selecionada cuja publicação local já seja acionável. Propagar cursor de agenda entre ciclos pelo hosted service, com ordenação circular, para que falhas persistentes no início do lote não causem starvation.
+- Ao persistir `Falha/MV096`, comparar atomicamente `xmin`, dia e horários observados; configuração concorrente invalida a escrita e impede avanço do marcador.
+- Após adquirir o lock da ocorrência, validar o encerramento com `clock_timestamp()` do PostgreSQL antes de criar draft/publicação; o instante injetado continua sendo usado apenas nos timestamps persistidos.
+- Manter limpeza do change tracker encapsulada no repositório ao traduzir conflito de concorrência; Application recarrega cada candidata rastreada isoladamente e não controla tracking.
 - Exceção transitória ao consultar configuração Discord não equivale a configuração ausente: diagnosticar por porta segura, não criar `Bloqueada`, não avançar marcador e tentar novamente; datas já encerradas continuam classificáveis como `Perdida`.
 
 ### CQRS, API E Autorização

@@ -186,7 +186,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(5),
             ClaimId,
             Agora.AddMinutes(5),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
         agenda.AdicionarOcorrencia(ocorrencia);
 
         agenda.Editar(
@@ -351,7 +353,9 @@ public sealed class AgendamentoPresencaTests
             encerramento,
             ClaimId,
             Agora.AddMinutes(5),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         ocorrencia.Id.Should().NotBeEmpty();
         ocorrencia.AgendamentoPresencaId.Should().Be(agendaId);
@@ -398,9 +402,45 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(5),
             Guid.Empty,
             Agora.AddMinutes(5),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
+    [Theory]
+    [InlineData("", MessageCodes.PresenceScheduleNameRequired)]
+    [InlineData("  ", MessageCodes.PresenceScheduleNameRequired)]
+    [InlineData("ab", MessageCodes.PresenceScheduleNameLengthInvalid)]
+    public void Ocorrencia_deve_rejeitar_nome_snapshot_invalido(string nome, string codigo)
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(), new DateOnly(2026, 7, 24), Agora.AddHours(3), Agora.AddHours(5),
+            ClaimId, Agora.AddMinutes(5), Agora, nome, null);
+
+        act.Should().Throw<DomainException>().WithMessage(codigo);
+    }
+
+    [Fact]
+    public void Ocorrencia_deve_normalizar_snapshots_explicitos()
+    {
+        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(), new DateOnly(2026, 7, 24), Agora.AddHours(3), Agora.AddHours(5),
+            ClaimId, Agora.AddMinutes(5), Agora, "  Agenda snapshot  ", "  Observacao snapshot  ");
+
+        ocorrencia.NomeSnapshot.Should().Be("Agenda snapshot");
+        ocorrencia.ObservacaoSnapshot.Should().Be("Observacao snapshot");
+    }
+
+    [Fact]
+    public void Ocorrencia_deve_rejeitar_observacao_snapshot_acima_do_limite()
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Bloqueada(
+            Guid.NewGuid(), new DateOnly(2026, 7, 24), Agora.AddHours(3), Agora.AddHours(5),
+            MessageCodes.PresenceScheduleDiscordUnavailable, Agora, "Agenda snapshot", new string('a', 501));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleObservationTooLong);
     }
 
     [Theory]
@@ -416,7 +456,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(5),
             ClaimId,
             Agora.AddSeconds(ttlSeconds),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
     }
@@ -444,7 +486,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(3),
             Agora.AddHours(5),
             codigo!,
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
     }
@@ -460,7 +504,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(3),
             Agora.AddHours(5),
             codigo,
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
     }
@@ -596,7 +642,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(3),
             ClaimId,
             Agora.AddMinutes(5),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleTimeRangeInvalid);
     }
@@ -656,7 +704,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(5),
             ClaimId,
             Agora.AddMinutes(5),
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
     }
 
     private static OcorrenciaAgendamentoPresenca CriarBloqueada()
@@ -667,7 +717,9 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(3),
             Agora.AddHours(5),
             MessageCodes.PresenceScheduleDiscordUnavailable,
-            Agora);
+            Agora,
+            "Snapshot",
+            null);
     }
 
     private static HistoricoAgendamentoPresenca CriarHistorico(IEnumerable<string> camposAlterados)

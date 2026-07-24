@@ -38,17 +38,21 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
             await ProcessBlockedBatchAsync(configuration, totals, cancellationToken);
 
             var candidates = await repository.ListCandidatesAsync(
-                throughDate, options.MaxSchedulesPerCycle, cancellationToken);
+                clock.UtcNow, command.Cursor, options.MaxSchedulesPerCycle, cancellationToken);
+            Guid? cursor = command.Cursor;
             foreach (var candidate in candidates)
             {
+                cursor = candidate.Id;
                 cancellationToken.ThrowIfCancellationRequested();
                 totals.Evaluated(metrics);
                 try
                 {
-                    var schedule = await repository.GetByIdAsync(candidate.Id, tracking: true, cancellationToken);
-                    if (schedule is not null)
+                    var processingCandidate = await repository.GetProcessingCandidateAsync(
+                        candidate.Id, cancellationToken);
+                    if (processingCandidate is not null)
                     {
-                        await ProcessScheduleAsync(schedule, throughDate, configuration, totals, cancellationToken);
+                        await ProcessScheduleAsync(
+                            processingCandidate, throughDate, configuration, totals, cancellationToken);
                     }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -63,13 +67,9 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                         exception.GetType().Name,
                         StableCode(exception));
                 }
-                finally
-                {
-                    repository.DiscardTrackedChanges();
-                }
             }
 
-            return totals.ToResult();
+            return totals.ToResult(cursor);
         }
         finally
         {
@@ -107,12 +107,13 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
     }
 
     private async Task ProcessScheduleAsync(
-        AgendamentoPresenca schedule,
+        AgendamentoPresencaProcessingCandidate processingCandidate,
         DateOnly throughDate,
         ConfigurationLookup configuration,
         CycleTotals totals,
         CancellationToken cancellationToken)
     {
+        var schedule = processingCandidate.Agenda;
         var processedDates = 0;
         for (var date = schedule.UltimaDataAvaliada.AddDays(1);
              date <= throughDate && processedDates < options.MaxDatesPerSchedulePerCycle;
@@ -137,7 +138,14 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                 exception.MessageCode == MessageCodes.PresenceScheduleTimeZoneInvalid)
             {
                 var failed = await repository.TryUpsertFailedTimeZoneOccurrenceAsync(
-                    schedule.Id, date, clock.UtcNow, cancellationToken);
+                    schedule.Id,
+                    date,
+                    processingCandidate.Version,
+                    schedule.DiasSemana.Single(item => item.DiaSemana == ToIsoDay(date)).DiaSemana,
+                    schedule.HorarioPublicacaoLocal,
+                    schedule.HorarioEncerramentoLocal,
+                    clock.UtcNow,
+                    cancellationToken);
                 if (!failed.IsTerminal)
                 {
                     return;
@@ -174,6 +182,9 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
             await AdvanceMarkerAsync(schedule, date, cancellationToken);
         }
     }
+
+    private static DiaSemanaIso ToIsoDay(DateOnly date) =>
+        (DiaSemanaIso)(date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek);
 
     private async Task<bool> ClassifyAsync(
         AgendamentoPresenca schedule,
@@ -430,6 +441,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         public void Conflict(IAgendamentoPresencaMetrics value) =>
             value.RecordConflict(MessageCodes.PresenceScheduleOccurrenceConflict);
 
-        public AgendamentoPresencaCycleResult ToResult() => new(evaluated, created, blocked, missed, failed);
+        public AgendamentoPresencaCycleResult ToResult(Guid? cursor) =>
+            new(evaluated, created, blocked, missed, failed, cursor);
     }
 }
