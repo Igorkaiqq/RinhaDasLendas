@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using RinhaDasLendas.Api.Services;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Tests.Infrastructure;
 
@@ -38,6 +39,10 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
     protected string? ConnectionString { get; }
 
     internal HttpClient CreateAnonymousClient() => CreateClient();
+
+    internal HttpClient CreatePresenceScheduleModeratorClient(Guid userId) => CreateJwtClient(userId, AuthRoles.Moderador);
+
+    internal HttpClient CreatePresenceSchedulePlayerClient(Guid userId) => CreateJwtClient(userId, AuthRoles.Jogador);
 
     internal HttpClient CreateBotClient()
     {

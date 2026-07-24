@@ -190,6 +190,18 @@
   <data name="MV086" xml:space="preserve"><value>Confirm that the Discord publication is absent before republishing</value></data>
   <data name="MV087" xml:space="preserve"><value>The Discord publication requires administrative reconciliation</value></data>
   <data name="MV088" xml:space="preserve"><value>The presence was changed by another request. Refresh the draft and try again</value></data>
+  <data name="MV089" xml:space="preserve"><value>The schedule name is required</value></data>
+  <data name="MV090" xml:space="preserve"><value>The schedule name must be between 3 and 100 characters</value></data>
+  <data name="MV091" xml:space="preserve"><value>The schedule note must not exceed 500 characters</value></data>
+  <data name="MV092" xml:space="preserve"><value>Select at least one valid day of the week</value></data>
+  <data name="MV093" xml:space="preserve"><value>Schedule days of the week must not be duplicated</value></data>
+  <data name="MV094" xml:space="preserve"><value>Closing must occur after publication on the same day, with minute precision</value></data>
+  <data name="MV095" xml:space="preserve"><value>An archived schedule cannot be changed</value></data>
+  <data name="MV096" xml:space="preserve"><value>The schedule local time is invalid or ambiguous</value></data>
+  <data name="MV097" xml:space="preserve"><value>The schedule or occurrence was changed by another process. Refresh and try again</value></data>
+  <data name="MV098" xml:space="preserve"><value>Discord configuration is unavailable for this occurrence</value></data>
+  <data name="MV099" xml:space="preserve"><value>Presence schedule not found</value></data>
+  <data name="MV100" xml:space="preserve"><value>This occurrence window has already closed</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

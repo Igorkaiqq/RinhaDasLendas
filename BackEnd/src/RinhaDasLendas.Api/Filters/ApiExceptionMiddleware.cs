@@ -24,7 +24,9 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         }
         catch (DomainException exception)
         {
-            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            context.Response.StatusCode = exception.MessageCode == MessageCodes.PresenceScheduleOccurrenceConflict
+                ? (int)HttpStatusCode.Conflict
+                : (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(ApiErrorResponse.FromCode(messages, exception.MessageCode));
         }
         catch (UnauthorizedAccessException exception)

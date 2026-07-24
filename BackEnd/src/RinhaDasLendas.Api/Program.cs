@@ -13,6 +13,7 @@ using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Hubs;
 using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Services;
+using RinhaDasLendas.Api.Serialization;
 using RinhaDasLendas.Application;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
@@ -26,6 +27,7 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ApiMetrics>();
 builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
@@ -34,7 +36,11 @@ builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
 builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
+    });
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationMiddlewareResultHandler>();
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {

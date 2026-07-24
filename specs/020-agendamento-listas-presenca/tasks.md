@@ -66,23 +66,23 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 **Independent Test**: matriz HTTP comprova paginação de agendas/ocorrências, `401`, `403`, CRUD para Moderador, autoria do JWT, marcador determinístico e ausência de claims/IDs Discord.
 
-- [ ] T023 [US1] Escrever testes RED de `SaveAgendamentoPresencaRequestDto` e códigos `MV089`-`MV094` em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaValidatorTests.cs`
-- [ ] T024 [US1] Escrever testes RED dos handlers de CRUD e duas páginas com empate/pausadas em `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, counts, detalhe e próxima execução em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
-- [ ] T025 [US1] Acrescentar três cenários RED de criação e reativação antes, exatamente no horário e depois da publicação, provando marcador no dia anterior para menor/igual, data atual somente para maior e bloqueio apenas com `AtivadoEm > PublicacaoPrevistaEm`, em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
-- [ ] T026 [US5] Escrever matriz HTTP RED para anônimo, Jogador, Moderador e Admin, `page`/`pageSize` e projeções sem campos operacionais em `BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs`
-- [ ] T027 [US1] Executar validators/handlers/endpoints e registrar RED pelos contratos e comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T028 [US1] Criar `SaveAgendamentoPresencaRequestDto`, `AgendamentoPresencaSummaryDto` e `OcorrenciaAgendamentoPresencaSummaryDto` e reutilizar `PaginatedResponseDto<T>` em `BackEnd/src/RinhaDasLendas.Application/Dtos/AgendamentoPresencaDtos.cs`
-- [ ] T029 [US1] Criar commands de criar, editar, pausar, reativar e arquivar em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/`
-- [ ] T030 [US1] Criar queries paginadas de agendas com ordem total declarada, ocorrências e detalhe em `BackEnd/src/RinhaDasLendas.Application/Queries/AgendamentosPresenca/`
-- [ ] T031 [US1] Implementar handlers CQRS com counts, `PaginatedResponseDto`, ordem `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, autoria e fronteira `AtivadoEm > PublicacaoPrevistaEm` em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/`
-- [ ] T032 [US1] Implementar `AgendamentoPresencaRequestValidator` sem duplicar invariantes de domínio em `BackEnd/src/RinhaDasLendas.Application/Validators/AgendamentoPresencaRequestValidator.cs`
-- [ ] T033 [US1] Criar `ISystemClock` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/ISystemClock.cs` e `SystemClock` em `BackEnd/src/RinhaDasLendas.Api/Services/SystemClock.cs`
-- [ ] T034 [US5] Acrescentar clientes autenticados Moderador e Jogador em `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/SecurityApiFactory.cs`
-- [ ] T035 [US5] Implementar os oito endpoints finos com `CanManageDrafts`, paginação, `ISender`, autoria do claim e respostas padrão em `BackEnd/src/RinhaDasLendas.Api/Controllers/AgendamentosPresencaController.cs`
-- [ ] T036 [US1] Adicionar `MV089`-`MV100` sincronizados em `docs/messages/message-catalog.md`, `docs/messages/message-codes.md`, `BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx`, `Messages.pt-BR.resx` e `Messages.en-US.resx`
-- [ ] T037 [US1] Registrar `ISystemClock` e dependências CQRS em `BackEnd/src/RinhaDasLendas.Api/Program.cs`
-- [ ] T038 [US1] Executar validators/handlers e registrar GREEN de CRUD, duas páginas estáveis com empate/pausadas, counts e três fronteiras temporais em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T039 [US5] Executar a matriz HTTP e registrar GREEN de paginação, `401`, `403`, `400`, `404`, `409` e sucessos em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T023 [US1] Escrever testes RED de `SaveAgendamentoPresencaRequestDto` e códigos `MV089`-`MV094` em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaValidatorTests.cs`
+- [X] T024 [US1] Escrever testes RED dos handlers de CRUD e duas páginas com empate/pausadas em `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, counts, detalhe e próxima execução em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
+- [X] T025 [US1] Acrescentar três cenários RED de criação e reativação antes, exatamente no horário e depois da publicação, provando marcador no dia anterior para menor/igual, data atual somente para maior e bloqueio apenas com `AtivadoEm > PublicacaoPrevistaEm`, em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
+- [X] T026 [US5] Escrever matriz HTTP RED para anônimo, Jogador, Moderador e Admin, `page`/`pageSize` e projeções sem campos operacionais em `BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs`
+- [X] T027 [US1] Executar validators/handlers/endpoints e registrar RED pelos contratos e comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`. RED confirmado em 2026-07-24 no devcontainer: compilação falhou com `CS0234`/`CS0246` para DTOs, commands, queries, handlers, validator e relógio ainda ausentes; o ambiente e o baseline de 414 testes estavam íntegros.
+- [X] T028 [US1] Criar `SaveAgendamentoPresencaRequestDto`, `AgendamentoPresencaSummaryDto` e `OcorrenciaAgendamentoPresencaSummaryDto` e reutilizar `PaginatedResponseDto<T>` em `BackEnd/src/RinhaDasLendas.Application/Dtos/AgendamentoPresencaDtos.cs`
+- [X] T029 [US1] Criar commands de criar, editar, pausar, reativar e arquivar em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/`
+- [X] T030 [US1] Criar queries paginadas de agendas com ordem total declarada, ocorrências e detalhe em `BackEnd/src/RinhaDasLendas.Application/Queries/AgendamentosPresenca/`
+- [X] T031 [US1] Implementar handlers CQRS com counts, `PaginatedResponseDto`, ordem `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, autoria e fronteira `AtivadoEm > PublicacaoPrevistaEm` em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/`
+- [X] T032 [US1] Implementar `AgendamentoPresencaRequestValidator` sem duplicar invariantes de domínio em `BackEnd/src/RinhaDasLendas.Application/Validators/AgendamentoPresencaRequestValidator.cs`
+- [X] T033 [US1] Criar `ISystemClock` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/ISystemClock.cs` e `SystemClock` em `BackEnd/src/RinhaDasLendas.Api/Services/SystemClock.cs`
+- [X] T034 [US5] Acrescentar clientes autenticados Moderador e Jogador em `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/SecurityApiFactory.cs`
+- [X] T035 [US5] Implementar os oito endpoints finos com `CanManageDrafts`, paginação, `ISender`, autoria do claim e respostas padrão em `BackEnd/src/RinhaDasLendas.Api/Controllers/AgendamentosPresencaController.cs`
+- [X] T036 [US1] Adicionar `MV089`-`MV100` sincronizados em `docs/messages/message-catalog.md`, `docs/messages/message-codes.md`, `BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx`, `Messages.pt-BR.resx` e `Messages.en-US.resx`
+- [X] T037 [US1] Registrar `ISystemClock` e dependências CQRS em `BackEnd/src/RinhaDasLendas.Api/Program.cs`
+- [X] T038 [US1] Executar validators/handlers e registrar GREEN de CRUD, duas páginas estáveis com empate/pausadas, counts e três fronteiras temporais em `specs/020-agendamento-listas-presenca/tasks.md`. GREEN confirmado em 2026-07-24: filtro de Task 4 com 27 testes aprovados, 0 falhas, incluindo criação/reativação antes, exatamente no horário e depois da publicação.
+- [X] T039 [US5] Executar a matriz HTTP e registrar GREEN de paginação, `401`, `403`, `400`, `404`, `409` e sucessos em `specs/020-agendamento-listas-presenca/tasks.md`. GREEN confirmado em 2026-07-24: todos os oito endpoints negaram anônimo/Jogador, Moderador e Admin concluíram CRUD, autoria forjada foi ignorada, paginação em duas páginas não duplicou/omitiu IDs e projeções não expuseram campos operacionais.
 
 **Checkpoint**: gestão da US1 funciona por API paginada e a fronteira da US5 é comprovada independentemente do scheduler e frontend.
 

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
@@ -21,6 +22,184 @@ public sealed class EndpointCoverageIntegrationTests
 {
     private static readonly ResourceMessageProvider Messages = new();
     private readonly List<string> _errors = [];
+
+    [Fact]
+    public async Task PresenceScheduleEndpoints_ShouldEnforcePermissionMatrixAndTrustedAuthorship()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        var userId = factory.GetExistingUserId();
+        using var anonymous = factory.CreateAnonymousClient();
+        using var player = factory.CreatePresenceSchedulePlayerClient(userId);
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(userId);
+        using var admin = factory.CreateAdminClient();
+        const string route = "/api/v1/discord/agendamentos-presenca";
+
+        (await anonymous.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await player.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await moderator.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var protectedRequests = new Func<HttpClient, Task<HttpResponseMessage>>[]
+        {
+            client => client.GetAsync(route),
+            client => client.PostAsJsonAsync(route, ValidPresenceSchedulePayload("Protegida")),
+            client => client.GetAsync($"{route}/{Guid.NewGuid()}"),
+            client => client.PutAsJsonAsync($"{route}/{Guid.NewGuid()}", ValidPresenceSchedulePayload("Protegida")),
+            client => client.PostAsync($"{route}/{Guid.NewGuid()}/pausar", null),
+            client => client.PostAsync($"{route}/{Guid.NewGuid()}/reativar", null),
+            client => client.DeleteAsync($"{route}/{Guid.NewGuid()}"),
+            client => client.GetAsync($"{route}/{Guid.NewGuid()}/ocorrencias"),
+        };
+        foreach (var request in protectedRequests)
+        {
+            (await request(anonymous)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await request(player)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        var forgedAuthor = Guid.NewGuid();
+        var payload = new
+        {
+            nome = "Agenda API",
+            observacao = "Sem dados operacionais",
+            diasSemana = new[] { "Sexta" },
+            horarioPublicacao = "18:00",
+            horarioEncerramento = "20:00",
+            responsavelUsuarioId = forgedAuthor,
+            criadoPorUsuarioId = forgedAuthor,
+        };
+        var create = await moderator.PostAsJsonAsync(route, payload);
+
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        create.Headers.Location.Should().NotBeNull();
+        var createJson = await create.Content.ReadAsStringAsync();
+        createJson.Should().Contain("\"horarioPublicacao\":\"18:00\"")
+            .And.Contain("\"horarioEncerramento\":\"20:00\"");
+        using var createdJson = JsonDocument.Parse(createJson);
+        var createdId = createdJson.RootElement.GetProperty("id").GetGuid();
+        await factory.AssertScheduleAuthorAsync(createdId, userId, forgedAuthor);
+        await AssertSafePresenceScheduleResponseAsync(create);
+
+        var detail = await moderator.GetAsync($"{route}/{createdId}");
+        detail.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(detail);
+
+        (await moderator.PutAsJsonAsync($"{route}/{createdId}", new
+        {
+            nome = "Agenda API editada",
+            observacao = (string?)null,
+            diasSemana = new[] { "Sexta" },
+            horarioPublicacao = "18:00",
+            horarioEncerramento = "20:00",
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await moderator.PostAsync($"{route}/{createdId}/pausar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await moderator.PostAsync($"{route}/{createdId}/reativar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var occurrences = await moderator.GetAsync($"{route}/{createdId}/ocorrencias?page=1&pageSize=20");
+        occurrences.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(occurrences);
+        (await moderator.DeleteAsync($"{route}/{createdId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await moderator.GetAsync($"{route}/{createdId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PresenceScheduleEndpoints_ShouldReturnContractValidationAndNotFoundErrors()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(factory.GetExistingUserId());
+        const string route = "/api/v1/discord/agendamentos-presenca";
+
+        var invalidPage = await moderator.GetAsync($"{route}?page=0&pageSize=101");
+        invalidPage.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var invalid = await moderator.PostAsJsonAsync(route, new
+        {
+            nome = "",
+            observacao = (string?)null,
+            diasSemana = Array.Empty<string>(),
+            horarioPublicacao = "20:00",
+            horarioEncerramento = "18:00",
+        });
+        invalid.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var validationError = await invalid.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        validationError!.Errors.Should().Contain(M(MessageCodes.PresenceScheduleNameRequired));
+
+        var missingId = Guid.NewGuid();
+        foreach (var response in new[]
+        {
+            await moderator.GetAsync($"{route}/{missingId}"),
+            await moderator.PutAsJsonAsync($"{route}/{missingId}", new
+            {
+                nome = "Agenda valida",
+                observacao = (string?)null,
+                diasSemana = new[] { "Sexta" },
+                horarioPublicacao = "18:00",
+                horarioEncerramento = "20:00",
+            }),
+            await moderator.PostAsync($"{route}/{missingId}/pausar", null),
+            await moderator.PostAsync($"{route}/{missingId}/reativar", null),
+            await moderator.GetAsync($"{route}/{missingId}/ocorrencias"),
+            await moderator.DeleteAsync($"{route}/{missingId}"),
+        })
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.PresenceScheduleNotFound);
+        }
+    }
+
+    [Fact]
+    public async Task PresenceScheduleEndpoints_ShouldAllowAdminCrudAndStableTwoPageListing()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        using var admin = factory.CreateAdminClient();
+        const string route = "/api/v1/discord/agendamentos-presenca";
+        var ids = new List<Guid>();
+        foreach (var name in new[] { "Agenda empatada", "Agenda empatada", "Agenda pausada" })
+        {
+            var response = await admin.PostAsJsonAsync(route, ValidPresenceSchedulePayload(name));
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            ids.Add(json.RootElement.GetProperty("id").GetGuid());
+        }
+
+        (await admin.PostAsync($"{route}/{ids[2]}/pausar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var firstPage = await admin.GetAsync($"{route}?page=1&pageSize=2");
+        var secondPage = await admin.GetAsync($"{route}?page=2&pageSize=2");
+        firstPage.StatusCode.Should().Be(HttpStatusCode.OK);
+        secondPage.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var firstJson = JsonDocument.Parse(await firstPage.Content.ReadAsStringAsync());
+        using var secondJson = JsonDocument.Parse(await secondPage.Content.ReadAsStringAsync());
+        firstJson.RootElement.GetProperty("totalItems").GetInt32().Should().Be(3);
+        firstJson.RootElement.GetProperty("totalPages").GetInt32().Should().Be(2);
+        var listedIds = firstJson.RootElement.GetProperty("items").EnumerateArray()
+            .Concat(secondJson.RootElement.GetProperty("items").EnumerateArray())
+            .Select(item => item.GetProperty("id").GetGuid())
+            .ToArray();
+        listedIds.Should().HaveCount(3).And.OnlyHaveUniqueItems();
+        listedIds.Should().BeEquivalentTo(ids);
+        secondJson.RootElement.GetProperty("items").EnumerateArray().Single()
+            .GetProperty("status").GetString().Should().Be("Pausado");
+
+        (await admin.GetAsync($"{route}/{ids[0]}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.PutAsJsonAsync($"{route}/{ids[0]}", ValidPresenceSchedulePayload("Agenda admin editada"))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.PostAsync($"{route}/{ids[2]}/reativar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.GetAsync($"{route}/{ids[0]}/ocorrencias?page=1&pageSize=20")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.DeleteAsync($"{route}/{ids[0]}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    private static async Task AssertSafePresenceScheduleResponseAsync(HttpResponseMessage response)
+    {
+        var json = (await response.Content.ReadAsStringAsync()).ToLowerInvariant();
+        json.Should().NotContainAny(
+            "claimid", "claimexpiresat", "discordguildid", "channelid", "messageid", "token",
+            "responsavelusuarioid", "criadoporusuarioid", "ultimatentativaem", "payload", "stacktrace");
+    }
+
+    private static object ValidPresenceSchedulePayload(string name) => new
+    {
+        nome = name,
+        observacao = (string?)null,
+        diasSemana = new[] { "Sexta" },
+        horarioPublicacao = "18:00",
+        horarioEncerramento = "20:00",
+    };
 
     [Fact]
     public async Task ClosedPresenceMutation_ShouldReturnSpecificDomainMessageCode()
@@ -560,11 +739,26 @@ public sealed class EndpointCoverageIntegrationTests
 
         public HttpClient CreateAdminClient()
         {
+            return CreateJwtClient(GetExistingUserId(), AuthRoles.Admin);
+        }
+
+        public Guid GetExistingUserId()
+        {
             using var scope = Services.CreateScope();
-            var userId = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
+            return scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Users
                 .Select(user => user.Id)
                 .First();
-            return CreateJwtClient(userId, AuthRoles.Admin);
+        }
+
+        public async Task AssertScheduleAuthorAsync(Guid scheduleId, Guid expectedUserId, Guid forgedUserId)
+        {
+            using var scope = Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var schedule = await dbContext.AgendamentosPresenca
+                .Include(item => item.Historicos)
+                .SingleAsync(item => item.Id == scheduleId);
+            schedule.CriadoPorUsuarioId.Should().Be(expectedUserId).And.NotBe(forgedUserId);
+            schedule.Historicos.Should().OnlyContain(item => item.ResponsavelUsuarioId == expectedUserId);
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
