@@ -41,6 +41,20 @@ public sealed class AgendamentoPresencaValidatorTests
         result.IsValid.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ValidateAsync_ShouldApplyDomainNormalizationBeforeLengthChecks()
+    {
+        var request = Valid() with
+        {
+            Nome = "  Agenda normalizada  ",
+            Observacao = $"  {new string('a', 500)}  ",
+        };
+
+        var result = await _validator.ValidateAsync(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
     private static SaveAgendamentoPresencaRequestDto Valid() => new(
         "Sexta da comunidade",
         "Lista semanal",

@@ -1,6 +1,7 @@
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
+using RinhaDasLendas.Domain.Rules;
 
 namespace RinhaDasLendas.Domain.Entities;
 
@@ -183,34 +184,27 @@ public sealed class AgendamentoPresenca
         TimeOnly encerramento,
         IReadOnlyCollection<DiaSemanaIso> dias)
     {
-        if (nome.Length is < 3 or > 100)
+        if (!AgendamentoPresencaRules.HasValidNameLength(nome))
         {
             throw new DomainException(MessageCodes.PresenceScheduleNameLengthInvalid);
         }
 
-        if (observacao?.Length > 500)
+        if (!AgendamentoPresencaRules.HasValidObservationLength(observacao))
         {
             throw new DomainException(MessageCodes.PresenceScheduleObservationTooLong);
         }
 
-        if (dias is null || dias.Count == 0)
+        if (!AgendamentoPresencaRules.HasValidDays(dias))
         {
             throw new DomainException(MessageCodes.PresenceScheduleDayRequired);
         }
 
-        if (dias.Any(dia => (int)dia is < (int)DiaSemanaIso.Segunda or > (int)DiaSemanaIso.Domingo))
-        {
-            throw new DomainException(MessageCodes.PresenceScheduleDayRequired);
-        }
-
-        if (dias.Distinct().Count() != dias.Count)
+        if (!AgendamentoPresencaRules.HasUniqueDays(dias))
         {
             throw new DomainException(MessageCodes.PresenceScheduleDayDuplicated);
         }
 
-        if (publicacao.Ticks % TimeSpan.TicksPerMinute != 0
-            || encerramento.Ticks % TimeSpan.TicksPerMinute != 0
-            || encerramento <= publicacao)
+        if (!AgendamentoPresencaRules.HasValidTimeRange(publicacao, encerramento))
         {
             throw new DomainException(MessageCodes.PresenceScheduleTimeRangeInvalid);
         }
@@ -218,17 +212,18 @@ public sealed class AgendamentoPresenca
 
     private static string NormalizarNome(string nome)
     {
-        if (string.IsNullOrWhiteSpace(nome))
+        var normalized = AgendamentoPresencaRules.NormalizeName(nome);
+        if (normalized.Length == 0)
         {
             throw new DomainException(MessageCodes.PresenceScheduleNameRequired);
         }
 
-        return nome.Trim();
+        return normalized;
     }
 
     private static string? NormalizarObservacao(string? observacao)
     {
-        return string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+        return AgendamentoPresencaRules.NormalizeObservation(observacao);
     }
 
     private void SubstituirDias(IEnumerable<DiaSemanaIso> dias)

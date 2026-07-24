@@ -14,7 +14,7 @@ namespace RinhaDasLendas.Api.Controllers;
 public sealed class DiscordController(IDiscordConfigurationService configurationService, IMessageProvider messages) : ControllerBase
 {
     [HttpGet("configuracoes")]
-    [Authorize(Policy = ApiAuthenticationDefaults.AuthenticatedPolicyName)]
+    [Authorize(Policy = AuthPermissions.CanManageUsers)]
     [ProducesResponseType(typeof(DiscordConfigurationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetConfiguration(CancellationToken cancellationToken)

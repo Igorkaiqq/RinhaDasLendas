@@ -35,6 +35,6 @@ public sealed class CreateAgendamentoPresencaCommandHandler(
 
         await repository.AddAsync(agenda, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
-        return AgendamentoPresencaSummaryDto.FromEntity(agenda, timeZone);
+        return (await AgendamentoPresencaHandlerHelpers.GetSummaryAsync(repository, agenda.Id, cancellationToken))!;
     }
 }

@@ -3,17 +3,23 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Net.Http.Headers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Models;
+using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
+using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Tests.Infrastructure;
 
 namespace RinhaDasLendas.Tests.Integration;
@@ -36,8 +42,12 @@ public sealed class EndpointCoverageIntegrationTests
 
         (await anonymous.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await player.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await moderator.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await admin.GetAsync(route)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var moderatorList = await moderator.GetAsync(route);
+        moderatorList.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(moderatorList);
+        var adminList = await admin.GetAsync(route);
+        adminList.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(adminList);
 
         var protectedRequests = new Func<HttpClient, Task<HttpResponseMessage>>[]
         {
@@ -83,20 +93,29 @@ public sealed class EndpointCoverageIntegrationTests
         detail.StatusCode.Should().Be(HttpStatusCode.OK);
         await AssertSafePresenceScheduleResponseAsync(detail);
 
-        (await moderator.PutAsJsonAsync($"{route}/{createdId}", new
+        var update = await moderator.PutAsJsonAsync($"{route}/{createdId}", new
         {
             nome = "Agenda API editada",
             observacao = (string?)null,
             diasSemana = new[] { "Sexta" },
             horarioPublicacao = "18:00",
             horarioEncerramento = "20:00",
-        })).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await moderator.PostAsync($"{route}/{createdId}/pausar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await moderator.PostAsync($"{route}/{createdId}/reativar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        });
+        update.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(update);
+        var pause = await moderator.PostAsync($"{route}/{createdId}/pausar", null);
+        pause.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(pause);
+        var reactivate = await moderator.PostAsync($"{route}/{createdId}/reativar", null);
+        reactivate.StatusCode.Should().Be(HttpStatusCode.OK);
+        await AssertSafePresenceScheduleResponseAsync(reactivate);
         var occurrences = await moderator.GetAsync($"{route}/{createdId}/ocorrencias?page=1&pageSize=20");
         occurrences.StatusCode.Should().Be(HttpStatusCode.OK);
         await AssertSafePresenceScheduleResponseAsync(occurrences);
-        (await moderator.DeleteAsync($"{route}/{createdId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var archive = await moderator.DeleteAsync($"{route}/{createdId}");
+        archive.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await archive.Content.ReadAsStringAsync()).Should().BeEmpty();
+        await factory.AssertScheduleAuthorAsync(createdId, userId, forgedAuthor);
         (await moderator.GetAsync($"{route}/{createdId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -182,6 +201,144 @@ public sealed class EndpointCoverageIntegrationTests
         (await admin.PostAsync($"{route}/{ids[2]}/reativar", null)).StatusCode.Should().Be(HttpStatusCode.OK);
         (await admin.GetAsync($"{route}/{ids[0]}/ocorrencias?page=1&pageSize=20")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await admin.DeleteAsync($"{route}/{ids[0]}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task PresenceSchedulePagination_ShouldPreserveStrictDatabaseOrderAndLatestOccurrence()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(factory.GetExistingUserId());
+        var expectedIds = await factory.SeedPresenceSchedulesForStrictOrderingAsync();
+        const string route = "/api/v1/discord/agendamentos-presenca";
+
+        var firstPage = await moderator.GetAsync($"{route}?page=1&pageSize=2");
+        var secondPage = await moderator.GetAsync($"{route}?page=2&pageSize=2");
+        using var firstJson = JsonDocument.Parse(await firstPage.Content.ReadAsStringAsync());
+        using var secondJson = JsonDocument.Parse(await secondPage.Content.ReadAsStringAsync());
+        var firstItems = firstJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        var secondItems = secondJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        var actualIds = firstItems.Concat(secondItems).Select(item => item.GetProperty("id").GetGuid()).ToArray();
+
+        actualIds.Should().Equal(expectedIds);
+        actualIds.Should().OnlyHaveUniqueItems();
+        secondItems.Last().GetProperty("status").GetString().Should().Be("Pausado");
+        firstItems.First().GetProperty("ultimaOcorrencia").ValueKind.Should().Be(JsonValueKind.Object);
+        var detail = await moderator.GetAsync($"{route}/{expectedIds.First()}");
+        using var detailJson = JsonDocument.Parse(await detail.Content.ReadAsStringAsync());
+        detailJson.RootElement.GetProperty("proximaExecucaoEm").GetString()
+            .Should().Be(firstItems.First().GetProperty("proximaExecucaoEm").GetString());
+        firstJson.RootElement.GetProperty("totalItems").GetInt32().Should().Be(4);
+        firstJson.RootElement.GetProperty("totalPages").GetInt32().Should().Be(2);
+        await AssertSafePresenceScheduleResponseAsync(firstPage);
+        await AssertSafePresenceScheduleResponseAsync(secondPage);
+        await AssertSafePresenceScheduleResponseAsync(detail);
+    }
+
+    [Theory]
+    [InlineData("18", "\"20:00\"")]
+    [InlineData("null", "\"20:00\"")]
+    [InlineData("{}", "\"20:00\"")]
+    [InlineData("[]", "\"20:00\"")]
+    [InlineData("\"18:00:00\"", "\"20:00\"")]
+    [InlineData("\"18:00\"", "\"20:00:00\"")]
+    public async Task PresenceScheduleModelBinding_ShouldReturnLocalizedEnvelopeForInvalidTimes(
+        string publication,
+        string closure)
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(factory.GetExistingUserId());
+        moderator.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-US"));
+        var json = $$"""
+            {"nome":"Agenda inválida","observacao":null,"diasSemana":["Sexta"],"horarioPublicacao":{{publication}},"horarioEncerramento":{{closure}}}
+            """;
+
+        var response = await moderator.PostAsync(
+            "/api/v1/discord/agendamentos-presenca",
+            new StringContent(json, Encoding.UTF8, "application/json"));
+
+        await AssertLocalizedValidationEnvelopeAsync(response, "Validation error");
+    }
+
+    [Theory]
+    [InlineData("{\"nome\":")]
+    [InlineData("{\"nome\":\"Agenda inválida\",\"observacao\":null,\"diasSemana\":[\"Inexistente\"],\"horarioPublicacao\":\"18:00\",\"horarioEncerramento\":\"20:00\"}")]
+    public async Task PresenceScheduleModelBinding_ShouldReturnLocalizedEnvelopeForMalformedJsonOrEnum(string json)
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(factory.GetExistingUserId());
+
+        var response = await moderator.PostAsync(
+            "/api/v1/discord/agendamentos-presenca",
+            new StringContent(json, Encoding.UTF8, "application/json"));
+
+        await AssertLocalizedValidationEnvelopeAsync(response, M(MessageCodes.ValidationError));
+    }
+
+    [Fact]
+    public async Task DiscordConfigurationGet_ShouldRequireCanManageUsers()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        var userId = factory.GetExistingUserId();
+        using var admin = factory.CreateAdminClient();
+        using var moderator = factory.CreatePresenceScheduleModeratorClient(userId);
+        using var player = factory.CreatePresenceSchedulePlayerClient(userId);
+        var configuration = new DiscordConfigurationDto(
+            null,
+            "guild-segura",
+            "canal-presenca",
+            "canal-noticias",
+            "canal-admin",
+            "canal-draft",
+            "canal-resultado",
+            true);
+        (await admin.PutAsJsonAsync("/api/v1/discord/configuracoes", configuration)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await moderator.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await player.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await admin.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task PresenceScheduleConcurrentHttpUpdates_ShouldReturnLocalized409WithoutLastWriteWins()
+    {
+        await using var factory = new PostgreSqlApiFactory(coordinatePresenceScheduleSaves: true);
+        var userId = factory.GetExistingUserId();
+        using var clientA = factory.CreatePresenceScheduleModeratorClient(userId);
+        using var clientB = factory.CreatePresenceScheduleModeratorClient(userId);
+        clientA.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-US"));
+        clientB.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-US"));
+        const string route = "/api/v1/discord/agendamentos-presenca";
+        var create = await clientA.PostAsJsonAsync(route, ValidPresenceSchedulePayload("Agenda concorrente"));
+        using var created = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var id = created.RootElement.GetProperty("id").GetGuid();
+        factory.EnablePresenceScheduleSaveBarrier();
+
+        var responses = await Task.WhenAll(
+            clientA.PutAsJsonAsync($"{route}/{id}", ValidPresenceSchedulePayload("Atualização HTTP A")),
+            clientB.PutAsJsonAsync($"{route}/{id}", ValidPresenceSchedulePayload("Atualização HTTP B")));
+
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+        responses.Should().NotContain(response => response.StatusCode == HttpStatusCode.InternalServerError);
+        var conflict = responses.Single(response => response.StatusCode == HttpStatusCode.Conflict);
+        var error = await conflict.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error!.MessageCode.Should().Be(MessageCodes.PresenceScheduleOccurrenceConflict);
+        error.Message.Should().Be(Messages.GetMessage(MessageCodes.PresenceScheduleOccurrenceConflict, "en-US"));
+        await AssertSafePresenceScheduleResponseAsync(conflict);
+        await AssertSafePresenceScheduleResponseAsync(responses.Single(response => response.StatusCode == HttpStatusCode.OK));
+    }
+
+    private static async Task AssertLocalizedValidationEnvelopeAsync(HttpResponseMessage response, string expectedMessage)
+    {
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().NotContain("ProblemDetails").And.NotContain("traceId").And.NotContain("System.Text.Json");
+        var error = JsonSerializer.Deserialize<ApiErrorResponse>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        error.Should().NotBeNull();
+        error!.MessageCode.Should().Be(MessageCodes.ValidationError);
+        error.Message.Should().Be(expectedMessage);
+        error.Errors.Should().BeEmpty();
     }
 
     private static async Task AssertSafePresenceScheduleResponseAsync(HttpResponseMessage response)
@@ -544,10 +701,7 @@ public sealed class EndpointCoverageIntegrationTests
 
     private static async Task ExecuteDiscordFlowAsync(HttpClient client)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/discord/configuracoes");
-        request.Headers.Add("X-Rinha-Internal-Token", SecurityApiFactory.BotToken);
-
-        var response = await client.SendAsync(request);
+        var response = await client.GetAsync("/api/v1/discord/configuracoes");
 
         response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound);
 
@@ -735,7 +889,15 @@ public sealed class EndpointCoverageIntegrationTests
 
     private sealed class PostgreSqlApiFactory : SecurityApiFactory
     {
-        public PostgreSqlApiFactory() : base(useIsolatedPostgreSql: true) { }
+        private readonly ConcurrentRequestSaveBarrier? _presenceScheduleSaveBarrier;
+
+        public PostgreSqlApiFactory(bool coordinatePresenceScheduleSaves = false) : base(useIsolatedPostgreSql: true)
+        {
+            if (coordinatePresenceScheduleSaves)
+            {
+                _presenceScheduleSaveBarrier = new ConcurrentRequestSaveBarrier();
+            }
+        }
 
         public HttpClient CreateAdminClient()
         {
@@ -761,6 +923,53 @@ public sealed class EndpointCoverageIntegrationTests
             schedule.Historicos.Should().OnlyContain(item => item.ResponsavelUsuarioId == expectedUserId);
         }
 
+        public async Task<IReadOnlyCollection<Guid>> SeedPresenceSchedulesForStrictOrderingAsync()
+        {
+            var ids = new[]
+            {
+                Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                Guid.Parse("00000000-0000-0000-0000-000000000002"),
+                Guid.Parse("00000000-0000-0000-0000-000000000003"),
+                Guid.Parse("00000000-0000-0000-0000-000000000004"),
+            };
+            var userId = GetExistingUserId();
+            var now = new DateTimeOffset(2026, 7, 24, 18, 0, 0, TimeSpan.Zero);
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            foreach (var id in ids)
+            {
+                var status = id == ids[^1] ? (short)AgendamentoPresencaStatus.Pausado : (short)AgendamentoPresencaStatus.Ativo;
+                await db.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO agendamentos_presenca
+                        (id, nome, observacao, horario_publicacao_local, horario_encerramento_local,
+                         status, ativado_em, pausado_em, arquivado_em, ultima_data_avaliada,
+                         criado_por_usuario_id, criado_em, atualizado_em)
+                    VALUES
+                        ({id}, {"Agenda empatada"}, NULL, {new TimeOnly(18, 0)}, {new TimeOnly(20, 0)},
+                         {status}, {now}, {(status == 1 ? now : (DateTimeOffset?)null)}, NULL, {new DateOnly(2026, 7, 24)},
+                         {userId}, {now}, {now})
+                    """);
+                await db.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO agendamentos_presenca_dias_semana (agendamento_presenca_id, dia_semana)
+                    VALUES ({id}, {(short)DiaSemanaIso.Sexta})
+                    """);
+            }
+
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO ocorrencias_agendamentos_presenca
+                    (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
+                     encerramento_previsto_em, status, draft_montagem_id, codigo_falha,
+                     claim_id, claim_expires_at, ultima_tentativa_em, criada_em, atualizada_em)
+                VALUES
+                    ({Guid.Parse("10000000-0000-0000-0000-000000000001")}, {ids[0]}, {new DateOnly(2026, 7, 24)},
+                     {now}, {now.AddHours(2)}, {(short)OcorrenciaAgendamentoPresencaStatus.Bloqueada}, NULL,
+                     {MessageCodes.PresenceScheduleDiscordUnavailable}, NULL, NULL, {now}, {now}, {now})
+                """);
+            return ids;
+        }
+
+        public void EnablePresenceScheduleSaveBarrier() => _presenceScheduleSaveBarrier!.Enable();
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             base.ConfigureWebHost(builder);
@@ -768,6 +977,70 @@ public sealed class EndpointCoverageIntegrationTests
                 .UseSetting("Authentication:BootstrapSuperAdmin:Enabled", "true")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Email", "integration-admin@example.com")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Senha", "IntegrationAdmin123!");
+            if (_presenceScheduleSaveBarrier is not null)
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IAgendamentoPresencaRepository>();
+                    services.AddScoped<IAgendamentoPresencaRepository>(provider =>
+                        new CoordinatedPresenceScheduleRepository(
+                            new AgendamentoPresencaRepository(provider.GetRequiredService<RinhaDasLendasDbContext>()),
+                            _presenceScheduleSaveBarrier));
+                });
+            }
+        }
+    }
+
+    private sealed class ConcurrentRequestSaveBarrier
+    {
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivals;
+        private volatile bool _enabled;
+
+        public void Enable() => _enabled = true;
+
+        public async Task WaitAsync(CancellationToken cancellationToken)
+        {
+            if (!_enabled)
+            {
+                return;
+            }
+
+            if (Interlocked.Increment(ref _arrivals) == 2)
+            {
+                _release.TrySetResult();
+            }
+
+            await _release.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    private sealed class CoordinatedPresenceScheduleRepository(
+        IAgendamentoPresencaRepository inner,
+        ConcurrentRequestSaveBarrier barrier) : IAgendamentoPresencaRepository
+    {
+        public Task AddAsync(AgendamentoPresenca agenda, CancellationToken ct) => inner.AddAsync(agenda, ct);
+        public Task<AgendamentoPresenca?> GetByIdAsync(Guid id, bool tracking, CancellationToken ct) => inner.GetByIdAsync(id, tracking, ct);
+        public Task<bool> ExistsAsync(Guid id, CancellationToken ct) => inner.ExistsAsync(id, ct);
+        public Task<AgendamentoPresencaListItem?> GetSummaryAsync(Guid id, CancellationToken ct) => inner.GetSummaryAsync(id, ct);
+        public Task<IReadOnlyCollection<AgendamentoPresencaListItem>> ListAsync(bool includePaused, int page, int pageSize, CancellationToken ct) => inner.ListAsync(includePaused, page, pageSize, ct);
+        public Task<int> CountAsync(bool includePaused, CancellationToken ct) => inner.CountAsync(includePaused, ct);
+        public Task<OcorrenciaAgendamentoPresenca?> GetLatestOccurrenceAsync(Guid agendaId, CancellationToken ct) => inner.GetLatestOccurrenceAsync(agendaId, ct);
+        public Task<IReadOnlyDictionary<Guid, OcorrenciaAgendamentoPresenca>> ListLatestOccurrencesAsync(IReadOnlyCollection<Guid> agendaIds, CancellationToken ct) => inner.ListLatestOccurrencesAsync(agendaIds, ct);
+        public Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListOccurrencesAsync(Guid agendaId, int page, int pageSize, CancellationToken ct) => inner.ListOccurrencesAsync(agendaId, page, pageSize, ct);
+        public Task<int> CountOccurrencesAsync(Guid agendaId, CancellationToken ct) => inner.CountOccurrencesAsync(agendaId, ct);
+        public Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(DateOnly throughLocalDate, CancellationToken ct) => inner.ListCandidatesAsync(throughLocalDate, ct);
+        public Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(DateTimeOffset now, CancellationToken ct) => inner.ListBlockedAsync(now, ct);
+        public Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset now, CancellationToken ct) => inner.TryClaimOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, claimId, claimExpiresAt, now, ct);
+        public Task<bool> TryUpsertBlockedOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, string code, DateTimeOffset now, CancellationToken ct) => inner.TryUpsertBlockedOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, code, now, ct);
+        public Task<bool> TryUpsertMissedOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, string code, DateTimeOffset now, CancellationToken ct) => inner.TryUpsertMissedOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, code, now, ct);
+        public Task<bool> TryCompleteWithDraftAsync(Guid occurrenceId, Guid claimId, DraftMontagem draft, DateTimeOffset now, CancellationToken ct) => inner.TryCompleteWithDraftAsync(occurrenceId, claimId, draft, now, ct);
+        public Task<bool> TryMarkFailedAsync(Guid occurrenceId, Guid claimId, string code, DateTimeOffset now, CancellationToken ct) => inner.TryMarkFailedAsync(occurrenceId, claimId, code, now, ct);
+
+        public async Task SaveChangesAsync(CancellationToken ct)
+        {
+            await barrier.WaitAsync(ct);
+            await inner.SaveChangesAsync(ct);
         }
     }
 

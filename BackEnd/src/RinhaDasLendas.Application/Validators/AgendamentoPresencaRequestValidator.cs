@@ -2,6 +2,7 @@ using FluentValidation;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Rules;
 
 namespace RinhaDasLendas.Application.Validators;
 
@@ -10,33 +11,35 @@ public sealed class AgendamentoPresencaRequestValidator : AbstractValidator<Save
     public AgendamentoPresencaRequestValidator()
     {
         RuleFor(item => item.Nome)
-            .NotEmpty().WithErrorCode(MessageCodes.PresenceScheduleNameRequired).WithMessage(MessageCodes.PresenceScheduleNameRequired);
+            .Must(name => AgendamentoPresencaRules.NormalizeName(name).Length > 0)
+            .WithErrorCode(MessageCodes.PresenceScheduleNameRequired)
+            .WithMessage(MessageCodes.PresenceScheduleNameRequired);
         RuleFor(item => item.Nome)
-            .Must(name => string.IsNullOrWhiteSpace(name) || name.Trim().Length is >= 3 and <= 100)
+            .Must(name =>
+            {
+                var normalized = AgendamentoPresencaRules.NormalizeName(name);
+                return normalized.Length == 0 || AgendamentoPresencaRules.HasValidNameLength(normalized);
+            })
             .WithErrorCode(MessageCodes.PresenceScheduleNameLengthInvalid)
             .WithMessage(MessageCodes.PresenceScheduleNameLengthInvalid);
         RuleFor(item => item.Observacao)
-            .MaximumLength(500)
+            .Must(observation => AgendamentoPresencaRules.HasValidObservationLength(
+                AgendamentoPresencaRules.NormalizeObservation(observation)))
             .WithErrorCode(MessageCodes.PresenceScheduleObservationTooLong)
             .WithMessage(MessageCodes.PresenceScheduleObservationTooLong);
         RuleFor(item => item.DiasSemana)
-            .NotNull()
-            .Must(days => days is { Count: > 0 } && days.All(IsValidDay))
+            .Must(AgendamentoPresencaRules.HasValidDays)
             .WithErrorCode(MessageCodes.PresenceScheduleDayRequired)
             .WithMessage(MessageCodes.PresenceScheduleDayRequired);
         RuleFor(item => item.DiasSemana)
-            .Must(days => days is null || days.Distinct().Count() == days.Count)
+            .Must(AgendamentoPresencaRules.HasUniqueDays)
             .WithErrorCode(MessageCodes.PresenceScheduleDayDuplicated)
             .WithMessage(MessageCodes.PresenceScheduleDayDuplicated);
         RuleFor(item => item)
-            .Must(item => HasMinutePrecision(item.HorarioPublicacao)
-                && HasMinutePrecision(item.HorarioEncerramento)
-                && item.HorarioEncerramento > item.HorarioPublicacao)
+            .Must(item => AgendamentoPresencaRules.HasValidTimeRange(
+                item.HorarioPublicacao,
+                item.HorarioEncerramento))
             .WithErrorCode(MessageCodes.PresenceScheduleTimeRangeInvalid)
             .WithMessage(MessageCodes.PresenceScheduleTimeRangeInvalid);
     }
-
-    private static bool IsValidDay(DiaSemanaIso day) => (int)day is >= 1 and <= 7;
-
-    private static bool HasMinutePrecision(TimeOnly time) => time.Ticks % TimeSpan.TicksPerMinute == 0;
 }

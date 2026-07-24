@@ -1,9 +1,16 @@
 using System.Data;
+using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Npgsql;
+using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
+using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Handlers.AgendamentosPresenca;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Queries.AgendamentosPresenca;
+using RinhaDasLendas.Application.Validators;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -19,6 +26,121 @@ namespace RinhaDasLendas.Tests.Integration;
 public sealed class AgendamentoPresencaBehaviorIntegrationTests
 {
     private static readonly DateTimeOffset Agora = new(2026, 7, 24, 18, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task DoisHandlersConcorrentes_DevemPersistirUmEVincularOutroAoMV097()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        Guid userId;
+        Guid scheduleId;
+        await using (var seed = database.CreateContext())
+        {
+            userId = await AddUserAsync(seed);
+            var schedule = CreateSchedule(userId);
+            seed.AgendamentosPresenca.Add(schedule);
+            await seed.SaveChangesAsync();
+            scheduleId = schedule.Id;
+        }
+
+        var saveBarrier = new ConcurrentSaveBarrierInterceptor(expectedSaves: 2);
+        await using var dbA = database.CreateContext(saveBarrier);
+        await using var dbB = database.CreateContext(saveBarrier);
+        var handlerA = CreateUpdateHandler(new AgendamentoPresencaRepository(dbA));
+        var handlerB = CreateUpdateHandler(new AgendamentoPresencaRepository(dbB));
+        var requestA = new SaveAgendamentoPresencaRequestDto(
+            "Atualização A", null, [DiaSemanaIso.Sexta], new TimeOnly(18, 0), new TimeOnly(20, 0));
+        var requestB = requestA with { Nome = "Atualização B" };
+
+        var outcomes = await Task.WhenAll(
+            CaptureExceptionAsync(async () => await handlerA.Handle(
+                new UpdateAgendamentoPresencaCommand(scheduleId, requestA, userId), CancellationToken.None)),
+            CaptureExceptionAsync(async () => await handlerB.Handle(
+                new UpdateAgendamentoPresencaCommand(scheduleId, requestB, userId), CancellationToken.None)));
+
+        outcomes.Count(exception => exception is null).Should().Be(1);
+        outcomes.Count(exception => exception is DomainException domain
+            && domain.MessageCode == MessageCodes.PresenceScheduleOccurrenceConflict).Should().Be(1);
+        await using var assertion = database.CreateContext();
+        var persisted = await assertion.AgendamentosPresenca.AsNoTracking().SingleAsync(item => item.Id == scheduleId);
+        persisted.Nome.Should().BeOneOf("Atualização A", "Atualização B");
+        (await assertion.HistoricosAgendamentosPresenca.AsNoTracking()
+            .CountAsync(item => item.AgendamentoPresencaId == scheduleId)).Should().Be(2);
+    }
+
+    [Fact]
+    public void Mapping_DeveUsarXminComoTokenDeConcorrenciaSemCampoDeDominio()
+    {
+        using var db = new RinhaDasLendasDbContext(new DbContextOptionsBuilder<RinhaDasLendasDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused")
+            .Options);
+        var entity = db.Model.FindEntityType(typeof(AgendamentoPresenca));
+
+        var xmin = entity!.FindProperty("xmin");
+        xmin.Should().NotBeNull();
+        xmin!.IsConcurrencyToken.Should().BeTrue();
+        typeof(AgendamentoPresenca).GetProperty("xmin").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConsultasAdministrativas_DevemTerComandosConstantesEColecoesLimitadas()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        Guid firstScheduleId;
+        await using (var seed = database.CreateContext())
+        {
+            var userId = await AddUserAsync(seed);
+            var schedules = Enumerable.Range(0, 25).Select(index =>
+                CreateSchedule(userId, $"Agenda {index:D2}", [DiaSemanaIso.Sexta])).ToArray();
+            firstScheduleId = schedules[0].Id;
+            foreach (var schedule in schedules)
+            {
+                for (var edit = 0; edit < 20; edit++)
+                {
+                    schedule.Editar(
+                        schedule.Nome,
+                        $"Observação {edit}",
+                        schedule.HorarioPublicacaoLocal,
+                        schedule.HorarioEncerramentoLocal,
+                        [DiaSemanaIso.Sexta],
+                        userId,
+                        Agora.AddMinutes(edit + 1));
+                }
+
+                schedule.AdicionarOcorrencia(OcorrenciaAgendamentoPresenca.Bloqueada(
+                    schedule.Id,
+                    new DateOnly(2026, 7, 24),
+                    Agora,
+                    Agora.AddHours(2),
+                    MessageCodes.PresenceScheduleDiscordUnavailable,
+                    Agora));
+            }
+
+            seed.AgendamentosPresenca.AddRange(schedules);
+            await seed.SaveChangesAsync();
+        }
+
+        var counter = new CommandCounterInterceptor();
+        await using var db = database.CreateContext(counter);
+        var repository = new AgendamentoPresencaRepository(db);
+        var list = await new ListAgendamentosPresencaQueryHandler(repository)
+            .Handle(new ListAgendamentosPresencaQuery(1, 20), CancellationToken.None);
+
+        counter.Count.Should().Be(4);
+        list.Items.Should().HaveCount(20).And.OnlyContain(item => item.UltimaOcorrencia != null);
+
+        counter.Reset();
+        var occurrences = await new ListOcorrenciasAgendamentoPresencaQueryHandler(repository)
+            .Handle(new ListOcorrenciasAgendamentoPresencaQuery(firstScheduleId, 1, 20), CancellationToken.None);
+        counter.Count.Should().Be(3);
+        occurrences.Should().NotBeNull();
+
+        db.ChangeTracker.Clear();
+        var loaded = await repository.GetByIdAsync(firstScheduleId, tracking: true, CancellationToken.None);
+        loaded.Should().NotBeNull();
+        loaded!.DiasSemana.Should().ContainSingle();
+        loaded.Historicos.Should().BeEmpty();
+        loaded.Ocorrencias.Should().BeEmpty();
+    }
 
     [Fact]
     public async Task ModeloEMigration_DevemPreservarTiposConstraintsEIndicesObrigatorios()
@@ -62,18 +184,22 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var persisted = await repository.GetByIdAsync(agenda.Id, tracking: true, CancellationToken.None);
         persisted.Should().NotBeNull();
         persisted!.DiasSemana.Select(day => day.DiaSemana).Should().Equal(DiaSemanaIso.Sexta, DiaSemanaIso.Domingo);
-        persisted.Historicos.Should().ContainSingle();
-        persisted.Historicos.Single().CamposAlterados.Should().Be(
+        persisted.Historicos.Should().BeEmpty();
+        var creationHistory = await db.HistoricosAgendamentosPresenca.AsNoTracking()
+            .SingleAsync(item => item.AgendamentoPresencaId == agenda.Id);
+        creationHistory.CamposAlterados.Should().Be(
             "DiasSemana,HorarioEncerramentoLocal,HorarioPublicacaoLocal,Nome,Observacao,Status");
 
         persisted.Arquivar(userId, Agora.AddMinutes(1));
         await repository.SaveChangesAsync(CancellationToken.None);
         db.ChangeTracker.Clear();
+        (await db.HistoricosAgendamentosPresenca.AsNoTracking()
+            .CountAsync(item => item.AgendamentoPresencaId == agenda.Id)).Should().Be(2);
 
         (await repository.GetByIdAsync(agenda.Id, tracking: false, CancellationToken.None))!.Status
             .Should().Be(AgendamentoPresencaStatus.Arquivado);
         (await repository.ListAsync(includePaused: true, page: 1, pageSize: 20, CancellationToken.None))
-            .Should().NotContain(item => item.Id == agenda.Id);
+            .Should().NotContain(item => item.Agenda.Id == agenda.Id);
     }
 
     [Fact]
@@ -133,8 +259,11 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             .Concat([schedules[3]])
             .Select(item => item.Id);
 
-        combined.Select(item => item.Id).Should().Equal(expected);
-        combined.Select(item => item.Id).Should().OnlyHaveUniqueItems();
+        combined.Select(item => item.Agenda.Id).Should().Equal(expected);
+        combined.Select(item => item.Agenda.Id).Should().OnlyHaveUniqueItems();
+        combined.Take(3).Should().OnlyContain(item =>
+            item.ProximaExecucaoEm == new DateTimeOffset(2026, 7, 24, 18, 0, 0, TimeSpan.Zero));
+        combined.Last().ProximaExecucaoEm.Should().BeNull();
         (await repository.CountAsync(true, CancellationToken.None)).Should().Be(4);
         (await repository.CountAsync(false, CancellationToken.None)).Should().Be(3);
 
@@ -730,7 +859,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
 
         await using var db = database.CreateContext();
         var repositoryForList = new AgendamentoPresencaRepository(db);
-        var listed = (await repositoryForList.ListAsync(true, 1, 20, CancellationToken.None)).Single(item => item.Id == scheduleId);
+        var listed = (await repositoryForList.ListAsync(true, 1, 20, CancellationToken.None)).Single(item => item.Agenda.Id == scheduleId).Agenda;
         var candidate = (await repositoryForList.ListCandidatesAsync(new DateOnly(2026, 7, 24), CancellationToken.None))
             .Single(item => item.Id == scheduleId);
 
@@ -1188,6 +1317,78 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         DateTimeOffset? ClaimExpiresAt,
         Guid? DraftId);
 
+    private static UpdateAgendamentoPresencaCommandHandler CreateUpdateHandler(IAgendamentoPresencaRepository repository) => new(
+        repository,
+        new AgendamentoPresencaRequestValidator(),
+        new FixedClock(Agora));
+
+    private static async Task<Exception?> CaptureExceptionAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : ISystemClock
+    {
+        public DateTimeOffset UtcNow => now;
+    }
+
+    private sealed class ConcurrentSaveBarrierInterceptor(int expectedSaves) : SaveChangesInterceptor
+    {
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivals;
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref _arrivals) == expectedSaves)
+            {
+                _release.TrySetResult();
+            }
+
+            await _release.Task.WaitAsync(cancellationToken);
+            return result;
+        }
+    }
+
+    private sealed class CommandCounterInterceptor : DbCommandInterceptor
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public void Reset() => Interlocked.Exchange(ref _count, 0);
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _count);
+            return ValueTask.FromResult(result);
+        }
+
+        public override ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<object> result,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _count);
+            return ValueTask.FromResult(result);
+        }
+    }
+
     private sealed class PostgreSqlTestDatabase : IAsyncDisposable
     {
         private readonly string _databaseName;
@@ -1218,11 +1419,16 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             return database;
         }
 
-        public RinhaDasLendasDbContext CreateContext()
+        public RinhaDasLendasDbContext CreateContext(params IInterceptor[] interceptors)
         {
-            var options = new DbContextOptionsBuilder<RinhaDasLendasDbContext>()
-                .UseNpgsql(ConnectionString)
-                .Options;
+            var builder = new DbContextOptionsBuilder<RinhaDasLendasDbContext>()
+                .UseNpgsql(ConnectionString);
+            if (interceptors.Length > 0)
+            {
+                builder.AddInterceptors(interceptors);
+            }
+
+            var options = builder.Options;
             return new RinhaDasLendasDbContext(options);
         }
 

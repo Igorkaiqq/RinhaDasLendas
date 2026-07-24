@@ -11,8 +11,7 @@ namespace RinhaDasLendas.Application.Handlers.AgendamentosPresenca;
 public sealed class UpdateAgendamentoPresencaCommandHandler(
     IAgendamentoPresencaRepository repository,
     IValidator<SaveAgendamentoPresencaRequestDto> validator,
-    ISystemClock clock,
-    IAgendamentoPresencaTimeZone timeZone)
+    ISystemClock clock)
     : IRequestHandler<UpdateAgendamentoPresencaCommand, AgendamentoPresencaSummaryDto?>
 {
     public async Task<AgendamentoPresencaSummaryDto?> Handle(
@@ -35,6 +34,6 @@ public sealed class UpdateAgendamentoPresencaCommandHandler(
             command.ResponsavelUsuarioId,
             clock.UtcNow);
         await repository.SaveChangesAsync(cancellationToken);
-        return AgendamentoPresencaSummaryDto.FromEntity(agenda, timeZone);
+        return await AgendamentoPresencaHandlerHelpers.GetSummaryAsync(repository, agenda.Id, cancellationToken);
     }
 }

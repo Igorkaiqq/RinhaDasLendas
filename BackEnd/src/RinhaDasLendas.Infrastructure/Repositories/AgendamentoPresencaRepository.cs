@@ -6,6 +6,7 @@ using Npgsql;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
@@ -15,6 +16,21 @@ namespace RinhaDasLendas.Infrastructure.Repositories;
 public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbContext)
     : IAgendamentoPresencaRepository
 {
+    private const string NextExecutionExpression = """
+        CASE WHEN schedule.status = 0 THEN (
+            SELECT MIN((
+                schedule.ultima_data_avaliada
+                + (1 + MOD(
+                    day.dia_semana::integer
+                    - EXTRACT(ISODOW FROM schedule.ultima_data_avaliada + 1)::integer
+                    + 7,
+                    7))::integer
+                + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo')
+            FROM agendamentos_presenca_dias_semana AS day
+            WHERE day.agendamento_presenca_id = schedule.id
+        ) END
+        """;
+
     public async Task AddAsync(AgendamentoPresenca agenda, CancellationToken ct)
     {
         await dbContext.AgendamentosPresenca.AddAsync(agenda, ct);
@@ -22,7 +38,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
 
     public Task<AgendamentoPresenca?> GetByIdAsync(Guid id, bool tracking, CancellationToken ct)
     {
-        var query = IncludeFullAgenda(dbContext.AgendamentosPresenca);
+        var query = IncludeDays(dbContext.AgendamentosPresenca);
         if (!tracking)
         {
             query = query.AsNoTracking();
@@ -31,7 +47,30 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return query.FirstOrDefaultAsync(schedule => schedule.Id == id, ct);
     }
 
-    public async Task<IReadOnlyCollection<AgendamentoPresenca>> ListAsync(
+    public Task<bool> ExistsAsync(Guid id, CancellationToken ct)
+    {
+        return dbContext.AgendamentosPresenca.AsNoTracking()
+            .AnyAsync(schedule => schedule.Id == id && schedule.Status != AgendamentoPresencaStatus.Arquivado, ct);
+    }
+
+    public async Task<AgendamentoPresencaListItem?> GetSummaryAsync(Guid id, CancellationToken ct)
+    {
+        var rows = await ReadSummaryRowsAsync(
+            "WHERE schedule.id = @id AND schedule.status <> 2 ORDER BY \"NextExecution\" ASC NULLS LAST, schedule.nome ASC, schedule.id ASC",
+            [new NpgsqlParameter("id", id)],
+            ct);
+        var row = rows.SingleOrDefault();
+        if (row is null)
+        {
+            return null;
+        }
+
+        var agenda = await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
+            .SingleAsync(schedule => schedule.Id == row.Id, ct);
+        return new AgendamentoPresencaListItem(agenda, row.NextExecution);
+    }
+
+    public async Task<IReadOnlyCollection<AgendamentoPresencaListItem>> ListAsync(
         bool includePaused,
         int page,
         int pageSize,
@@ -39,50 +78,30 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
-        var ids = new List<Guid>();
-        await using (var command = dbContext.Database.GetDbConnection().CreateCommand())
-        {
-            command.CommandText = """
-                SELECT schedule.id
-                FROM agendamentos_presenca AS schedule
-                WHERE schedule.status = 0 OR (@includePaused AND schedule.status = 1)
-                ORDER BY CASE WHEN schedule.status = 0 THEN (
-                    SELECT MIN(
-                        schedule.ultima_data_avaliada
-                        + (1 + MOD(
-                            day.dia_semana::integer
-                            - EXTRACT(ISODOW FROM schedule.ultima_data_avaliada + 1)::integer
-                            + 7,
-                            7))::integer
-                        + schedule.horario_publicacao_local)
-                    FROM agendamentos_presenca_dias_semana AS day
-                    WHERE day.agendamento_presenca_id = schedule.id
-                ) END ASC NULLS LAST,
-                schedule.nome ASC,
-                schedule.id ASC
-                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-                """;
-            AddParameter(command, "includePaused", includePaused);
-            AddParameter(command, "offset", (page - 1) * pageSize);
-            AddParameter(command, "pageSize", pageSize);
-            await OpenConnectionAsync(ct);
-            await using var reader = await command.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-            {
-                ids.Add(reader.GetGuid(0));
-            }
-        }
+        var rows = await ReadSummaryRowsAsync(
+            """
+            WHERE schedule.status = 0 OR (@includePaused AND schedule.status = 1)
+            ORDER BY "NextExecution" ASC NULLS LAST, schedule.nome ASC, schedule.id ASC
+            OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            """,
+            [
+                new NpgsqlParameter("includePaused", includePaused),
+                new NpgsqlParameter("offset", (page - 1) * pageSize),
+                new NpgsqlParameter("pageSize", pageSize),
+            ],
+            ct);
 
-        if (ids.Count == 0)
+        if (rows.Count == 0)
         {
             return [];
         }
 
+        var ids = rows.Select(row => row.Id).ToArray();
         var schedules = await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
             .Where(schedule => ids.Contains(schedule.Id))
             .ToListAsync(ct);
-        var positions = ids.Select((id, index) => (id, index)).ToDictionary(item => item.id, item => item.index);
-        return schedules.OrderBy(schedule => positions[schedule.Id]).ToArray();
+        var schedulesById = schedules.ToDictionary(schedule => schedule.Id);
+        return rows.Select(row => new AgendamentoPresencaListItem(schedulesById[row.Id], row.NextExecution)).ToArray();
     }
 
     public Task<int> CountAsync(bool includePaused, CancellationToken ct)
@@ -90,6 +109,35 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return dbContext.AgendamentosPresenca.AsNoTracking()
             .CountAsync(schedule => schedule.Status == AgendamentoPresencaStatus.Ativo
                 || (includePaused && schedule.Status == AgendamentoPresencaStatus.Pausado), ct);
+    }
+
+    public Task<OcorrenciaAgendamentoPresenca?> GetLatestOccurrenceAsync(Guid agendaId, CancellationToken ct)
+    {
+        return dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
+            .Where(occurrence => occurrence.AgendamentoPresencaId == agendaId)
+            .OrderByDescending(occurrence => occurrence.DataLocal)
+            .ThenBy(occurrence => occurrence.Id)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, OcorrenciaAgendamentoPresenca>> ListLatestOccurrencesAsync(
+        IReadOnlyCollection<Guid> agendaIds,
+        CancellationToken ct)
+    {
+        if (agendaIds.Count == 0)
+        {
+            return new Dictionary<Guid, OcorrenciaAgendamentoPresenca>();
+        }
+
+        var occurrences = await dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
+            .Where(occurrence => agendaIds.Contains(occurrence.AgendamentoPresencaId))
+            .GroupBy(occurrence => occurrence.AgendamentoPresencaId)
+            .Select(group => group
+                .OrderByDescending(occurrence => occurrence.DataLocal)
+                .ThenBy(occurrence => occurrence.Id)
+                .First())
+            .ToListAsync(ct);
+        return occurrences.ToDictionary(occurrence => occurrence.AgendamentoPresencaId);
     }
 
     public async Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListOccurrencesAsync(
@@ -459,22 +507,40 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return await command.ExecuteScalarAsync(ct) is true;
     }
 
-    public Task SaveChangesAsync(CancellationToken ct)
+    public async Task SaveChangesAsync(CancellationToken ct)
     {
-        return dbContext.SaveChangesAsync(ct);
-    }
-
-    private static IQueryable<AgendamentoPresenca> IncludeFullAgenda(IQueryable<AgendamentoPresenca> query)
-    {
-        return query.AsSplitQuery()
-            .Include(schedule => schedule.DiasSemana)
-            .Include(schedule => schedule.Ocorrencias)
-            .Include(schedule => schedule.Historicos);
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
     }
 
     private static IQueryable<AgendamentoPresenca> IncludeDays(IQueryable<AgendamentoPresenca> query)
     {
         return query.Include(schedule => schedule.DiasSemana);
+    }
+
+    private async Task<IReadOnlyCollection<SummaryRow>> ReadSummaryRowsAsync(
+        string filterAndOrder,
+        IReadOnlyCollection<NpgsqlParameter> parameters,
+        CancellationToken ct)
+    {
+        var sql = $"""
+            SELECT schedule.id AS "Id", {NextExecutionExpression} AS "NextExecution"
+            FROM agendamentos_presenca AS schedule
+            {filterAndOrder}
+            """;
+        return await dbContext.Database.SqlQueryRaw<SummaryRow>(sql, parameters.Cast<object>().ToArray()).ToListAsync(ct);
+    }
+
+    private sealed class SummaryRow
+    {
+        public Guid Id { get; init; }
+        public DateTimeOffset? NextExecution { get; init; }
     }
 
     private async Task<bool> ExecuteBooleanAsync(

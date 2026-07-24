@@ -568,6 +568,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(schedule => schedule.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
             entity.Property(schedule => schedule.CriadoEm).HasColumnName("criado_em").HasColumnType("timestamp with time zone").IsRequired();
             entity.Property(schedule => schedule.AtualizadoEm).HasColumnName("atualizado_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property<uint>("xmin").IsRowVersion();
 
             entity.HasOne<ApplicationUser>()
                 .WithMany()

@@ -1,7 +1,6 @@
 using MediatR;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Queries.AgendamentosPresenca;
-using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.AgendamentosPresenca;
@@ -13,8 +12,7 @@ public sealed class ListOcorrenciasAgendamentoPresencaQueryHandler(IAgendamentoP
         ListOcorrenciasAgendamentoPresencaQuery query,
         CancellationToken cancellationToken)
     {
-        var agenda = await repository.GetByIdAsync(query.AgendamentoId, false, cancellationToken);
-        if (agenda is null || agenda.Status == AgendamentoPresencaStatus.Arquivado)
+        if (!await repository.ExistsAsync(query.AgendamentoId, cancellationToken))
         {
             return null;
         }
@@ -29,7 +27,7 @@ public sealed class ListOcorrenciasAgendamentoPresencaQueryHandler(IAgendamentoP
         return new PaginatedResponseDto<OcorrenciaAgendamentoPresencaSummaryDto>(
             query.Page,
             query.PageSize,
-            occurrences.Select(OcorrenciaAgendamentoPresencaSummaryDto.FromEntity).ToArray(),
+            occurrences.Select(AgendamentoPresencaHandlerHelpers.ToOccurrence).ToArray(),
             totalItems,
             totalPages);
     }

@@ -7,8 +7,7 @@ using RinhaDasLendas.Domain.Repositories;
 namespace RinhaDasLendas.Application.Handlers.AgendamentosPresenca;
 
 public sealed class ListAgendamentosPresencaQueryHandler(
-    IAgendamentoPresencaRepository repository,
-    IAgendamentoPresencaTimeZone timeZone)
+    IAgendamentoPresencaRepository repository)
     : IRequestHandler<ListAgendamentosPresencaQuery, PaginatedResponseDto<AgendamentoPresencaSummaryDto>>
 {
     public async Task<PaginatedResponseDto<AgendamentoPresencaSummaryDto>> Handle(
@@ -18,16 +17,11 @@ public sealed class ListAgendamentosPresencaQueryHandler(
         var totalItems = await repository.CountAsync(includePaused: true, cancellationToken);
         var agendas = await repository.ListAsync(includePaused: true, query.Page, query.PageSize, cancellationToken);
         var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)query.PageSize);
-        var items = new List<AgendamentoPresencaSummaryDto>(agendas.Count);
-        foreach (var agenda in agendas)
-        {
-            var occurrences = await repository.ListOccurrencesAsync(
-                agenda.Id,
-                page: 1,
-                pageSize: 1,
-                cancellationToken);
-            items.Add(AgendamentoPresencaSummaryDto.FromEntity(agenda, timeZone, occurrences?.FirstOrDefault()));
-        }
+        var agendaIds = agendas.Select(item => item.Agenda.Id).ToArray();
+        var occurrences = await repository.ListLatestOccurrencesAsync(agendaIds, cancellationToken);
+        var items = agendas.Select(item => AgendamentoPresencaHandlerHelpers.ToSummary(
+            item,
+            occurrences.GetValueOrDefault(item.Agenda.Id))).ToArray();
 
         return new PaginatedResponseDto<AgendamentoPresencaSummaryDto>(
             query.Page,

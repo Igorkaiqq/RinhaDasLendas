@@ -40,6 +40,15 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var messages = context.HttpContext.RequestServices.GetRequiredService<IMessageProvider>();
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                ApiErrorResponse.FromCode(messages, MessageCodes.ValidationError));
+        };
     });
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationMiddlewareResultHandler>();
 builder.Services.Configure<RequestLocalizationOptions>(options =>
