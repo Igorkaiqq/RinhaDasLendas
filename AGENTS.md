@@ -206,6 +206,26 @@ Controllers should only:
 
 ---
 
+# Development Environment
+
+The .NET 10 SDK and backend tooling are provided by the `app` service in `.devcontainer/docker-compose.yml`. Do not assume `dotnet` is installed in the WSL host.
+
+Before running backend commands:
+
+1. If `dotnet --version` succeeds, the agent is already inside the devcontainer and should run commands directly.
+2. Otherwise, run backend commands through the active devcontainer:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet build /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+```
+
+3. Run EF Core commands through the same `app` service and use paths under `/workspaces/RinhaDasLendas`.
+4. If Docker is unavailable in WSL, do not report that the project lacks .NET. Report that Docker Desktop WSL integration or the devcontainer is not active, and request that environment before backend implementation or verification.
+5. Frontend and Discord bot npm commands may run from the host when Node.js is available; backend verification still uses the devcontainer unless the current shell already has `dotnet`.
+
+---
+
 # Frontend Standards
 
 Mandatory technologies:
