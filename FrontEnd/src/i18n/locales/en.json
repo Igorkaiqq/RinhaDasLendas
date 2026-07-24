@@ -251,6 +251,175 @@
         }
       }
     },
+    "presenceSchedules": {
+      "eyebrow": "Automations",
+      "title": "Presence lists",
+      "description": "Organize weekly publications and follow each run without changing drafts already created.",
+      "loading": "Loading schedules...",
+      "error": "Could not load the schedules.",
+      "actions": {
+        "create": "New schedule",
+        "edit": "Edit",
+        "pause": "Pause",
+        "reactivate": "Reactivate",
+        "archive": "Archive",
+        "viewHistory": "View history",
+        "retry": "Try again",
+        "loadMore": "Load more schedules",
+        "loadingMore": "Loading more schedules...",
+        "previous": "Previous",
+        "next": "Next",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "processing": "Processing..."
+      },
+      "summary": {
+        "active": "Active schedules loaded",
+        "next": "Next run",
+        "none": "No run scheduled",
+        "timezoneLabel": "Time zone",
+        "timezone": "Brasília time"
+      },
+      "fields": {
+        "name": {
+          "label": "Name",
+          "placeholder": "E.g. Friday Rinha"
+        },
+        "observation": {
+          "label": "Note",
+          "placeholder": "Optional context for this schedule",
+          "description": "This information follows the schedule and can guide organization."
+        },
+        "weekdays": {
+          "label": "Weekdays",
+          "description": "Select when the list should be published."
+        },
+        "publication": {
+          "label": "Publication time"
+        },
+        "closing": {
+          "label": "Closing time"
+        }
+      },
+      "weekdays": {
+        "Segunda": "Monday",
+        "Terca": "Tuesday",
+        "Quarta": "Wednesday",
+        "Quinta": "Thursday",
+        "Sexta": "Friday",
+        "Sabado": "Saturday",
+        "Domingo": "Sunday"
+      },
+      "statuses": {
+        "schedule": {
+          "Ativo": "Active",
+          "Pausado": "Paused"
+        },
+        "occurrence": {
+          "Processando": "Processing",
+          "Bloqueada": "Blocked",
+          "Criada": "Created",
+          "Perdida": "Missed",
+          "Falha": "Failed"
+        }
+      },
+      "form": {
+        "create": {
+          "title": "New schedule",
+          "description": "Define the weekly presence list window.",
+          "submit": "Create schedule"
+        },
+        "edit": {
+          "title": "Edit schedule",
+          "description": "The change applies to future runs.",
+          "submit": "Save changes"
+        },
+        "summary": "Brasília time · Teams of 5 · Repeats until paused"
+      },
+      "validation": {
+        "nameLength": "Enter a name between 3 and 100 characters.",
+        "observationLength": "The note must be at most 500 characters.",
+        "weekdayRequired": "Select at least one weekday.",
+        "publicationRequired": "Enter the publication time.",
+        "closingAfterPublication": "Closing must be later than publication."
+      },
+      "card": {
+        "days": "Recurrence",
+        "window": "Window",
+        "windowValue": "{publication}–{closing}",
+        "next": "Next run",
+        "noNext": "No next run while paused",
+        "latest": "Latest result",
+        "noOccurrence": "No runs recorded yet."
+      },
+      "empty": {
+        "title": "No schedules created yet.",
+        "description": "Create the first weekly routine to publish presence lists automatically.",
+        "action": "Create first schedule"
+      },
+      "confirm": {
+        "pause": {
+          "title": "Pause schedule",
+          "description": "New occurrences for {name} will no longer be created. Drafts already created remain available.",
+          "confirm": "Pause schedule"
+        },
+        "reactivate": {
+          "title": "Reactivate schedule",
+          "description": "{name} will generate occurrences again in the next eligible windows.",
+          "confirm": "Reactivate schedule"
+        },
+        "archive": {
+          "title": "Archive schedule",
+          "description": "{name} will leave this hub. Drafts already created and history will be preserved.",
+          "confirm": "Archive schedule"
+        }
+      },
+      "history": {
+        "title": "History for {name}",
+        "description": "Latest runs for this schedule, in the order provided by the server.",
+        "loading": "Loading history...",
+        "error": "Could not load history.",
+        "empty": {
+          "title": "No runs recorded yet.",
+          "description": "Occurrences will appear here after the first window is evaluated."
+        },
+        "window": "Publication: {publication} · Closing: {closing}",
+        "draft": "Draft {id}",
+        "total": "{total} runs",
+        "livePage": "Page {page} of {total} loaded."
+      },
+      "toasts": {
+        "created": "Schedule created.",
+        "updated": "Schedule updated.",
+        "paused": "Schedule paused.",
+        "reactivated": "Schedule reactivated.",
+        "archived": "Schedule archived.",
+        "saveError": "Could not save the schedule.",
+        "actionError": "Could not complete the action.",
+        "loadMoreError": "Could not load more schedules."
+      },
+      "messageCodes": {
+        "MV089": "Enter the schedule name.",
+        "MV090": "The schedule name must be between 3 and 100 characters.",
+        "MV091": "The note must be at most 500 characters.",
+        "MV092": "Select at least one weekday.",
+        "MV093": "The schedule contains duplicate weekdays.",
+        "MV094": "Closing must be later than publication on the same day.",
+        "MV095": "This schedule is archived.",
+        "MV096": "The local time for this run could not be processed.",
+        "MV097": "The schedule was changed by another operation. Refresh and try again.",
+        "MV098": "This run could not be processed now.",
+        "MV099": "Schedule not found.",
+        "MV100": "The schedule occurrence was not found.",
+        "unknown": "The run recorded a failure known by the server."
+      },
+      "accessibility": {
+        "summary": "Presence schedule summary",
+        "scheduleList": "Presence list schedules",
+        "historyList": "Run history",
+        "weekdayOptions": "Schedule weekdays"
+      }
+    },
     "discordAdmin": {
       "mark": "BOT",
       "title": "Discord Settings",

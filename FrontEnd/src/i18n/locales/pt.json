@@ -251,6 +251,175 @@
         }
       }
     },
+    "presenceSchedules": {
+      "eyebrow": "Automações",
+      "title": "Listas de presença",
+      "description": "Organize publicações semanais e acompanhe cada execução sem alterar os drafts já criados.",
+      "loading": "Carregando agendamentos...",
+      "error": "Não foi possível carregar os agendamentos.",
+      "actions": {
+        "create": "Novo agendamento",
+        "edit": "Editar",
+        "pause": "Pausar",
+        "reactivate": "Reativar",
+        "archive": "Arquivar",
+        "viewHistory": "Ver histórico",
+        "retry": "Tentar novamente",
+        "loadMore": "Carregar mais agendamentos",
+        "loadingMore": "Carregando mais agendamentos...",
+        "previous": "Anterior",
+        "next": "Próxima",
+        "cancel": "Cancelar",
+        "saving": "Salvando...",
+        "processing": "Processando..."
+      },
+      "summary": {
+        "active": "Agendas ativas carregadas",
+        "next": "Próxima execução",
+        "none": "Nenhuma execução prevista",
+        "timezoneLabel": "Fuso horário",
+        "timezone": "Horário de Brasília"
+      },
+      "fields": {
+        "name": {
+          "label": "Nome",
+          "placeholder": "Ex.: Rinha de sexta"
+        },
+        "observation": {
+          "label": "Observação",
+          "placeholder": "Contexto opcional para este agendamento",
+          "description": "Esta informação acompanha a agenda e pode orientar a organização."
+        },
+        "weekdays": {
+          "label": "Dias da semana",
+          "description": "Selecione quando a lista deve ser publicada."
+        },
+        "publication": {
+          "label": "Horário de publicação"
+        },
+        "closing": {
+          "label": "Horário de encerramento"
+        }
+      },
+      "weekdays": {
+        "Segunda": "Segunda",
+        "Terca": "Terça",
+        "Quarta": "Quarta",
+        "Quinta": "Quinta",
+        "Sexta": "Sexta",
+        "Sabado": "Sábado",
+        "Domingo": "Domingo"
+      },
+      "statuses": {
+        "schedule": {
+          "Ativo": "Ativo",
+          "Pausado": "Pausado"
+        },
+        "occurrence": {
+          "Processando": "Em processamento",
+          "Bloqueada": "Bloqueada",
+          "Criada": "Criada",
+          "Perdida": "Perdida",
+          "Falha": "Falha"
+        }
+      },
+      "form": {
+        "create": {
+          "title": "Novo agendamento",
+          "description": "Defina a janela semanal da lista de presença.",
+          "submit": "Criar agendamento"
+        },
+        "edit": {
+          "title": "Editar agendamento",
+          "description": "A alteração vale para execuções futuras.",
+          "submit": "Salvar alterações"
+        },
+        "summary": "Horário de Brasília · Times de 5 · Repete até ser pausado"
+      },
+      "validation": {
+        "nameLength": "Informe um nome entre 3 e 100 caracteres.",
+        "observationLength": "A observação deve ter no máximo 500 caracteres.",
+        "weekdayRequired": "Selecione ao menos um dia da semana.",
+        "publicationRequired": "Informe o horário de publicação.",
+        "closingAfterPublication": "O encerramento deve ser posterior à publicação."
+      },
+      "card": {
+        "days": "Recorrência",
+        "window": "Janela",
+        "windowValue": "{publication}–{closing}",
+        "next": "Próxima execução",
+        "noNext": "Sem próxima execução enquanto estiver pausado",
+        "latest": "Resultado recente",
+        "noOccurrence": "Nenhuma execução registrada ainda."
+      },
+      "empty": {
+        "title": "Nenhum agendamento criado ainda.",
+        "description": "Crie a primeira rotina semanal para publicar listas de presença automaticamente.",
+        "action": "Criar primeiro agendamento"
+      },
+      "confirm": {
+        "pause": {
+          "title": "Pausar agendamento",
+          "description": "Novas ocorrências de {name} deixarão de ser criadas. Drafts já criados permanecem disponíveis.",
+          "confirm": "Pausar agendamento"
+        },
+        "reactivate": {
+          "title": "Reativar agendamento",
+          "description": "{name} voltará a gerar ocorrências nas próximas janelas elegíveis.",
+          "confirm": "Reativar agendamento"
+        },
+        "archive": {
+          "title": "Arquivar agendamento",
+          "description": "{name} sairá desta central. Drafts já criados e o histórico serão preservados.",
+          "confirm": "Arquivar agendamento"
+        }
+      },
+      "history": {
+        "title": "Histórico de {name}",
+        "description": "Execuções mais recentes desta agenda, na ordem fornecida pelo servidor.",
+        "loading": "Carregando histórico...",
+        "error": "Não foi possível carregar o histórico.",
+        "empty": {
+          "title": "Nenhuma execução registrada ainda.",
+          "description": "As ocorrências aparecerão aqui após a primeira janela avaliada."
+        },
+        "window": "Publicação: {publication} · Encerramento: {closing}",
+        "draft": "Draft {id}",
+        "total": "{total} execuções",
+        "livePage": "Página {page} de {total} carregada."
+      },
+      "toasts": {
+        "created": "Agendamento criado.",
+        "updated": "Agendamento atualizado.",
+        "paused": "Agendamento pausado.",
+        "reactivated": "Agendamento reativado.",
+        "archived": "Agendamento arquivado.",
+        "saveError": "Não foi possível salvar o agendamento.",
+        "actionError": "Não foi possível concluir a ação.",
+        "loadMoreError": "Não foi possível carregar mais agendamentos."
+      },
+      "messageCodes": {
+        "MV089": "Informe o nome do agendamento.",
+        "MV090": "O nome do agendamento deve ter entre 3 e 100 caracteres.",
+        "MV091": "A observação deve ter no máximo 500 caracteres.",
+        "MV092": "Selecione ao menos um dia da semana.",
+        "MV093": "A agenda contém dias da semana repetidos.",
+        "MV094": "O encerramento deve ser posterior à publicação no mesmo dia.",
+        "MV095": "Este agendamento está arquivado.",
+        "MV096": "O horário local desta execução não pôde ser processado.",
+        "MV097": "O agendamento foi alterado por outra operação. Atualize e tente novamente.",
+        "MV098": "Não foi possível processar esta execução agora.",
+        "MV099": "Agendamento não encontrado.",
+        "MV100": "A ocorrência do agendamento não foi encontrada.",
+        "unknown": "A execução registrou uma falha conhecida pelo servidor."
+      },
+      "accessibility": {
+        "summary": "Resumo dos agendamentos de presença",
+        "scheduleList": "Agendamentos de listas de presença",
+        "historyList": "Histórico de execuções",
+        "weekdayOptions": "Dias da semana do agendamento"
+      }
+    },
     "discordAdmin": {
       "mark": "BOT",
       "title": "Configurações do Discord",

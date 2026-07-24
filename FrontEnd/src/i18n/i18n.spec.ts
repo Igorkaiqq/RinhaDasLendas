@@ -33,6 +33,28 @@ describe('i18n', () => {
     ).not.toContain('updates.')
   })
 
+  it('provides the complete localized presence schedule interface', () => {
+    const requiredPaths = [
+      'settings.presenceSchedules.title',
+      'settings.presenceSchedules.actions.viewHistory',
+      'settings.presenceSchedules.fields.name.placeholder',
+      'settings.presenceSchedules.weekdays.Sabado',
+      'settings.presenceSchedules.statuses.occurrence.Bloqueada',
+      'settings.presenceSchedules.confirm.archive.description',
+      'settings.presenceSchedules.history.livePage',
+      'settings.presenceSchedules.toasts.created',
+      'settings.presenceSchedules.validation.closingAfterPublication',
+      'settings.presenceSchedules.accessibility.scheduleList',
+    ]
+
+    for (const path of requiredPaths) {
+      expect(leafPaths(pt)).toContain(path)
+      expect(leafPaths(en)).toContain(path)
+    }
+    expect(pt.settings.presenceSchedules.weekdays.Sabado).toBe('Sábado')
+    expect(pt.settings.presenceSchedules.fields.observation.label).toBe('Observação')
+  })
+
   it('describes security hardening without exposing sensitive implementation details', () => {
     const descriptions = [
       pt.updates.releases['2026_07_1'].details['security-stability-hardening']

@@ -4834,6 +4834,328 @@ p {
   }
 }
 
+/* Central de agendas: a borda lateral representa o ciclo semanal sem criar novos tokens. */
+.presence-schedule-section {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-lg);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  background: var(--color-surface-1);
+}
+
+.presence-schedule-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.presence-schedule-section__header h2 {
+  margin: var(--space-xxs) 0 var(--space-xs);
+  font-family: var(--font-display);
+}
+
+.presence-schedule-section__header p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-ink-muted);
+  line-height: 1.55;
+}
+
+.presence-schedule-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.presence-schedule-summary [data-slot='card'] {
+  min-width: 0;
+  border-color: var(--color-hairline);
+  background: var(--color-canvas-raised);
+}
+
+.presence-schedule-summary [data-slot='card-header'] {
+  padding-bottom: 0;
+}
+
+.presence-schedule-summary strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-data);
+  font-size: 14px;
+}
+
+.presence-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.presence-schedule-card {
+  min-width: 0;
+  border-color: var(--color-hairline);
+  border-inline-start: var(--space-xxs) solid var(--color-primary);
+  background: var(--color-canvas-raised);
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.presence-schedule-card:hover {
+  border-color: var(--color-hairline-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.presence-schedule-card__title,
+.presence-schedule-card__occurrence,
+.presence-schedule-history__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.presence-schedule-card__title [data-slot='card-title'] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.presence-schedule-card__content,
+.presence-schedule-card__content dl {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.presence-schedule-card__content dl {
+  margin: 0;
+}
+
+.presence-schedule-card__content dl > div {
+  display: grid;
+  gap: var(--space-xxs);
+}
+
+.presence-schedule-card__content dt,
+.presence-schedule-card__occurrence > span {
+  color: var(--color-ink-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.presence-schedule-card__content dd {
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+
+.presence-schedule-card__days,
+.presence-schedule-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.presence-schedule-card__occurrence {
+  border-top: 1px solid var(--color-hairline-soft);
+  padding-top: var(--space-md);
+}
+
+.presence-schedule-card__occurrence small {
+  flex-basis: 100%;
+  color: var(--color-ink-muted);
+}
+
+.presence-schedule-card__actions {
+  margin-top: auto;
+}
+
+.presence-schedule-card__actions button,
+.presence-schedule-load-more button {
+  min-height: var(--control-height-md);
+}
+
+.presence-schedule-load-more {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg);
+}
+
+.presence-schedule-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 220px;
+  justify-content: center;
+  border: 1px dashed var(--color-hairline-strong);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  text-align: center;
+  background: var(--color-canvas-raised);
+}
+
+.presence-schedule-state p {
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+
+.presence-schedule-dialog,
+.presence-schedule-history-dialog {
+  max-height: calc(100dvh - var(--space-xl));
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.presence-schedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.presence-schedule-form__times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.presence-schedule-form__weekdays [data-slot='toggle-group'] {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: var(--space-xs);
+}
+
+.presence-schedule-form__weekdays [data-slot='toggle-group-item'] {
+  min-height: var(--control-height-md);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-md);
+}
+
+.presence-schedule-form__summary {
+  margin: 0;
+  border-inline-start: var(--space-xxs) solid var(--color-secondary);
+  padding: var(--space-sm);
+  color: var(--color-ink-muted);
+  background: var(--color-secondary-soft);
+}
+
+.presence-schedule-history__body {
+  min-height: 240px;
+}
+
+.presence-schedule-history__skeletons,
+.presence-schedule-history {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.presence-schedule-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presence-schedule-history__item {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  background: var(--color-canvas-raised);
+}
+
+.presence-schedule-history__item p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.presence-schedule-history__heading time,
+.presence-schedule-history__draft {
+  font-family: var(--font-data);
+}
+
+.presence-schedule-history__pagination {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.presence-schedule-history__pagination span {
+  margin-inline-end: auto;
+  color: var(--color-ink-muted);
+}
+
+.presence-schedule-section :is(button, input, textarea):focus-visible,
+.presence-schedule-dialog :is(button, input, textarea):focus-visible,
+.presence-schedule-history-dialog button:focus-visible,
+.presence-schedule-confirm-dialog button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: var(--space-xxs);
+}
+
+@media (max-width: 1024px) {
+  .presence-schedule-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .presence-schedule-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .presence-schedule-section__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .presence-schedule-section__header > button,
+  .presence-schedule-card__actions button,
+  .presence-schedule-load-more button {
+    width: 100%;
+  }
+
+  .presence-schedule-summary,
+  .presence-schedule-form__times {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .presence-schedule-section {
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+  }
+
+  .presence-schedule-card__title,
+  .presence-schedule-card__occurrence,
+  .presence-schedule-history__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .presence-schedule-dialog,
+  .presence-schedule-history-dialog,
+  .presence-schedule-confirm-dialog {
+    max-width: calc(100% - (var(--space-md) * 2));
+    padding: var(--space-md);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presence-schedule-card,
+  .presence-schedule-section button,
+  .presence-schedule-dialog button,
+  .presence-schedule-history-dialog button,
+  .presence-schedule-confirm-dialog button {
+    transition-duration: 0s;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
