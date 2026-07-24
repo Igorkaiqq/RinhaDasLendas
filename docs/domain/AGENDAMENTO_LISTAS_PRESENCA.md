@@ -2,9 +2,20 @@
 
 ## Objetivo e fronteiras
 
-O backend avalia agendas semanais em `America/Sao_Paulo` e cria, na mesma transação, uma ocorrência, um draft com times de cinco e uma publicação `Presenca` pendente. O bot apenas consome essa publicação pelo polling existente; não existe endpoint, DTO ou regra de recorrência no bot ou no frontend.
+O backend avalia agendas semanais em `America/Sao_Paulo`. O bot apenas consome o draft pelo polling existente; não existe endpoint, DTO ou regra de recorrência adicional no bot ou no frontend.
 
 Moderador, Admin e SuperAdmin gerenciam agendas com `CanManageDrafts`. A configuração sensível do Discord continua restrita por `CanManageUsers`. Nenhuma resposta administrativa expõe claims, tokens, canais, IDs de mensagem ou detalhes técnicos.
+
+## Rastreabilidade
+
+- [Especificação da feature](../../specs/020-agendamento-listas-presenca/spec.md)
+- [Plano técnico](../../specs/020-agendamento-listas-presenca/plan.md)
+- [Modelo de dados](../../specs/020-agendamento-listas-presenca/data-model.md)
+- [Contrato da API backend](../../specs/020-agendamento-listas-presenca/contracts/backend-api.md)
+- [Contrato do bot Discord](../../specs/020-agendamento-listas-presenca/contracts/discord-bot.md)
+- [Contrato da interface](../../specs/020-agendamento-listas-presenca/contracts/frontend-ui.md)
+- [Design aprovado](../superpowers/specs/2026-07-23-agendamento-listas-presenca-design.md)
+- [Plano de implementação aprovado](../superpowers/plans/2026-07-23-agendamento-listas-presenca.md)
 
 ## Ciclo de vida
 
@@ -34,7 +45,12 @@ Após indisponibilidade do serviço, todas as datas posteriores ao marcador são
 
 ## Claims e deduplicação
 
-O claim da ocorrência pertence ao scheduler, dura cinco minutos e protege a criação transacional do draft. O PostgreSQL usa seu próprio relógio para aquisição, expiração e validação da janela. Um processo interrompido pode ser retomado após a expiração, desde que o encerramento ainda não tenha ocorrido.
+O processamento possui duas etapas transacionais separadas:
+
+1. `TryClaimOccurrenceAsync` cria ou readquire a ocorrência em `Processando`, grava o claim de cinco minutos e confirma essa primeira transação.
+2. `TryCompleteWithDraftAsync` abre outra transação, valida claim e janela pelo relógio do PostgreSQL e, como uma unidade, cria o draft, cria a publicação `Presenca/Pendente` e conclui a ocorrência como `Criada`.
+
+Se o processo cair entre as etapas, a ocorrência `Processando` permanece sem draft. Após a expiração de cinco minutos, outro ciclo pode readquirir o claim enquanto a janela estiver aberta. Se a segunda transação falhar, seu rollback não deixa draft ou publicação parcial.
 
 O claim da publicação pertence ao protocolo do bot e é independente. As barreiras são:
 
@@ -56,19 +72,20 @@ O procedimento detalhado de publicação está em [Operações de Draft, Presen�
 
 ## Configuração e limites de lote
 
-O ciclo usa `PresenceSchedule:IntervalSeconds`, com padrão de 30 segundos, e não sobrepõe execuções dentro da mesma instância. Os limites ficam na seção `PresenceSchedule`:
+O ciclo não sobrepõe execuções dentro da mesma instância. As chaves ficam na seção `PresenceSchedule`:
 
-| Chave | Padrão | Faixa aceita | Efeito |
-|-------|--------|--------------|--------|
+| Chave | Padrão | Faixa efetiva após normalização | Efeito |
+|-------|--------|----------------------------------|--------|
+| `IntervalSeconds` | 30 | 1-3600 | Intervalo entre ciclos, em segundos |
 | `MaxBlockedPerCycle` | 50 | 1-1000 | Bloqueadas reavaliadas por ciclo |
 | `MaxSchedulesPerCycle` | 50 | 1-1000 | Agendas candidatas por ciclo |
 | `MaxDatesPerSchedulePerCycle` | 31 | 1-366 | Datas classificadas por agenda e ciclo |
 
-Os limites controlam carga, não descartam backlog. O marcador persistido e o cursor circular retomam o trabalho nos ciclos seguintes e evitam que uma agenda com falha permanente impeça as demais.
+Todos os valores passam por `Math.Clamp`: valores abaixo ou acima da faixa são substituídos silenciosamente pelo limite mais próximo, sem erro de configuração. Os limites controlam carga, não descartam backlog. O marcador persistido e o cursor circular retomam o trabalho nos ciclos seguintes e evitam que uma agenda com falha permanente impeça as demais.
 
-## Métricas e diagnóstico
+## Instrumentação e exportação
 
-O meter `RinhaDasLendas.PresenceSchedule` publica:
+O processo cria o `Meter` `RinhaDasLendas.PresenceSchedule` e os instrumentos abaixo:
 
 | Métrica | Interpretação operacional |
 |---------|--------------------------|
@@ -82,15 +99,20 @@ O meter `RinhaDasLendas.PresenceSchedule` publica:
 
 Nomes, observações, usuários, claims, tokens, guilds, canais, payloads e IDs de mensagem não entram em tags. Diagnósticos técnicos usam etapa fechada, tipo de exceção e código público estável.
 
+Esta instrumentação existe somente dentro do processo. A aplicação não configura exporter OpenTelemetry, endpoint Prometheus nem outro endpoint padrão para essas métricas. Os valores só ficam observáveis quando o ambiente conecta explicitamente um `MeterListener` ou uma pipeline OpenTelemetry. Adicionar exporter ou dependência de observabilidade permanece uma evolução futura, fora desta entrega.
+
 ## Runbook
 
 ### Agenda não executou
 
-1. Confirme que a agenda está ativa, inclui o dia local e possui janela ainda aberta.
-2. Consulte o histórico da agenda e identifique `Bloqueada`, `Perdida` ou `Falha` pelo código público.
-3. Verifique se o bot está ativado e se a configuração do Discord está completa, sem registrar ou compartilhar segredos.
-4. Compare os contadores de avaliadas, bloqueadas, perdidas e falhas e a duração do ciclo.
-5. Aguarde o próximo ciclo após corrigir configuração. Não crie outro draft se já existir ocorrência ou draft para a data.
+1. Consulte a API autenticada `GET /api/v1/discord/agendamentos-presenca?page=1&pageSize=20` com um JWT de Moderador+ obtido pelo fluxo normal; não registre o token no comando ou no documento.
+2. Consulte `GET /api/v1/discord/agendamentos-presenca/{id}/ocorrencias?page=1&pageSize=20` e identifique `Bloqueada`, `Perdida` ou `Falha` pelo `messageCode`.
+3. Confirme que a agenda está ativa, inclui o dia local e possui janela ainda aberta.
+4. Verifique se o bot está ativado e se a configuração do Discord está completa pela interface autorizada, sem registrar ou compartilhar segredos.
+5. Consulte a saída estruturada do processo da API e procure `Presence schedule processing failure` com os campos `Stage`, `ErrorType` e `Code`.
+6. Aguarde o próximo ciclo após corrigir configuração. Não crie outro draft se já existir ocorrência ou draft para a data.
+
+A API retorna o `messageCode` bruto, por exemplo `MV096` ou `MV098`. A interface traduz esse código com `settings.presenceSchedules.messageCodes`; clientes de API devem tratar o código estável, não depender do texto traduzido.
 
 ### Ocorrência bloqueada
 
@@ -107,10 +129,10 @@ Nomes, observações, usuários, claims, tokens, guilds, canais, payloads e IDs 
 
 ### Backlog ou ciclos lentos
 
-1. Observe `rinha_presence_schedule_cycle_duration_ms` e os contadores entre ciclos.
-2. Confirme que o backlog continua avançando e que conflitos não crescem continuamente.
-3. Ajuste limites gradualmente dentro das faixas documentadas; reinicie a aplicação para aplicar configuração.
-4. Reverta o ajuste se banco, API ou latência do ciclo degradarem.
+1. Execute as consultas de marcador e ocorrências abaixo em dois momentos separados por ao menos um ciclo.
+2. Confirme que `ultima_data_avaliada` e o conjunto de ocorrências avançam e procure warnings estruturados repetidos nos logs.
+3. Ajuste limites gradualmente dentro das faixas efetivas documentadas; reinicie a aplicação para aplicar configuração.
+4. Reverta o ajuste se banco, API ou duração percebida do ciclo degradarem.
 
 ### Recuperação após reinício
 
@@ -119,9 +141,49 @@ Nomes, observações, usuários, claims, tokens, guilds, canais, payloads e IDs 
 3. Confirme que datas antigas são classificadas em lotes até o marcador alcançar a data atual.
 4. Valide que cada agenda e data possui no máximo uma ocorrência e um draft.
 
+## Consultas reproduzíveis no banco de desenvolvimento
+
+Os comandos abaixo usam exclusivamente o PostgreSQL local do devcontainer definido em `.devcontainer/docker-compose.yml` e não contêm token ou senha. A migration inicial altera o schema; as consultas posteriores são somente leitura.
+
+Antes da primeira consulta, aplique as migrations no banco de desenvolvimento:
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet ef database update --project /workspaces/RinhaDasLendas/BackEnd/src/RinhaDasLendas.Infrastructure/RinhaDasLendas.Infrastructure.csproj --startup-project /workspaces/RinhaDasLendas/BackEnd/src/RinhaDasLendas.Api/RinhaDasLendas.Api.csproj --configuration Release -- --environment Development
+```
+
+### Status e marcador das agendas
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -c "SELECT id, status, ultima_data_avaliada, horario_publicacao_local, horario_encerramento_local FROM agendamentos_presenca ORDER BY ultima_data_avaliada, id;"
+```
+
+Status de agenda: `0=Ativo`, `1=Pausado`, `2=Arquivado`.
+
+### Ocorrências, claims e publicação
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -c "SELECT agendamento_presenca_id, data_local, status, draft_montagem_id, codigo_falha, claim_id, claim_expires_at, encerramento_previsto_em FROM ocorrencias_agendamentos_presenca ORDER BY data_local DESC, agendamento_presenca_id;"
+```
+
+Status de ocorrência: `0=Processando`, `1=Bloqueada`, `2=Criada`, `3=Perdida`, `4=Falha`. Claim `Processando` com `claim_expires_at <= clock_timestamp()` pode ser retomado somente antes do encerramento.
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -c "SELECT o.agendamento_presenca_id, o.data_local, p.tipo, p.status FROM ocorrencias_agendamentos_presenca o JOIN draft_montagem_publicacoes_discord p ON p.draft_montagem_id = o.draft_montagem_id ORDER BY o.data_local DESC;"
+```
+
+### Barreiras de unicidade
+
+As duas consultas devem retornar zero linhas:
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -c "SELECT agendamento_presenca_id, data_local, count(*) FROM ocorrencias_agendamentos_presenca GROUP BY agendamento_presenca_id, data_local HAVING count(*) > 1;"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -c "SELECT draft_montagem_id, count(*) FROM ocorrencias_agendamentos_presenca WHERE draft_montagem_id IS NOT NULL GROUP BY draft_montagem_id HAVING count(*) > 1;"
+```
+
 ## Validação operacional
 
 - Bot: `npm test --prefix discord-bot` e `npm run build --prefix discord-bot`.
 - Frontend do histórico: `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/i18n/i18n.spec.ts`.
-- Backend: execute a suíte Release pelo devcontainer conforme `AGENTS.md` quando houver mudança no scheduler.
+- Backend focado pelo devcontainer Windows: `docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release --filter "FullyQualifiedName~AgendamentoPresencaBehaviorIntegrationTests.CiclosDoHandler_DevemCriarUmaOcorrenciaUmDraftEUmaPublicacaoPendente"`.
+- Consulte também as [instruções de execução do projeto](../../AGENTS.md).
 - Documentos e whitespace: `git diff --check`.

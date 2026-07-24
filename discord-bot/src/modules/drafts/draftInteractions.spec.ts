@@ -15,6 +15,7 @@ import { buildDraftPresenceCta } from '../../discord/embeds/draftEmbeds.js'
 import { DraftOptionNames } from '../../shared/constants/draftConstants/index.js'
 
 const originalNotifyRoleId = env.DRAFT_NOTIFY_ROLE_ID
+type DraftMontagemDiscordOperationalDto = Awaited<ReturnType<typeof rinhaApi.listActiveDrafts>>[number]
 
 afterEach(() => {
   mock.restoreAll()
@@ -90,10 +91,39 @@ function deferred() {
 
 describe('runDraftPollingCycle', () => {
   it('publishes a scheduled pending presence through the existing polling contract only once', async () => {
-    const scheduledDraft = pollingDraft('scheduled-draft', 'Pendente')
-    scheduledDraft.nome = 'Rinha semanal - 24/07/2026'
-    mockPollingApi([scheduledDraft])
+    const backendResponses: DraftMontagemDiscordOperationalDto[][] = [
+      [{
+        id: 'scheduled-draft',
+        nome: 'Rinha semanal - 24/07/2026',
+        status: 'PresencaAberta',
+        horarioEncerramentoPresenca: '2026-07-24T23:00:00Z',
+        discordPresenceMessageId: null,
+        publicacoesDiscord: [
+          { tipo: 'Presenca', status: 'Pendente' },
+          { tipo: 'ChamadaPresenca', status: 'Pendente' },
+        ],
+        presencas: [],
+        times: [],
+        reservas: [],
+      }],
+      [{
+        id: 'scheduled-draft',
+        nome: 'Rinha semanal - 24/07/2026',
+        status: 'PresencaAberta',
+        horarioEncerramentoPresenca: '2026-07-24T23:00:00Z',
+        discordPresenceMessageId: 'message-1',
+        publicacoesDiscord: [
+          { tipo: 'Presenca', status: 'Publicada' },
+          { tipo: 'ChamadaPresenca', status: 'Publicada' },
+        ],
+        presencas: [],
+        times: [],
+        reservas: [],
+      }],
+    ]
     env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+    const list = mock.method(rinhaApi, 'listActiveDrafts', async () => backendResponses[list.mock.callCount() - 1] ?? backendResponses[1])
     let claimNumber = 0
     const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({
       adquirido: true,
@@ -101,21 +131,18 @@ describe('runDraftPollingCycle', () => {
       expiraEm: '2026-07-24T21:05:00Z',
       status: 'EmAndamento',
     }))
-    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async (
-      _draftId: string,
-      publication: Parameters<typeof rinhaApi.registerDiscordPublication>[1],
-    ) => {
-      const existing = scheduledDraft.publicacoesDiscord?.find(({ tipo }) => tipo === publication.tipo)
-      if (existing) existing.status = 'Publicada'
-      else scheduledDraft.publicacoesDiscord?.push({ tipo: publication.tipo, status: 'Publicada' })
-      return scheduledDraft as never
-    })
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => backendResponses[1]![0] as never)
     const send = mock.fn(async (_options: unknown) => ({ id: `message-${send.mock.callCount() + 1}` }))
     const client = pollingClient(send)
 
+    assert.deepEqual(backendResponses[0]![0]!.publicacoesDiscord, [
+      { tipo: 'Presenca', status: 'Pendente' },
+      { tipo: 'ChamadaPresenca', status: 'Pendente' },
+    ])
     await runDraftPollingCycle(client)
     await runDraftPollingCycle(client)
 
+    assert.equal(list.mock.callCount(), 2)
     assert.deepEqual(claim.mock.calls.map((call) => call.arguments[1]), ['Presenca', 'ChamadaPresenca'])
     assert.equal(send.mock.callCount(), 2)
     assert.ok('embeds' in (send.mock.calls[0]?.arguments[0] as object))

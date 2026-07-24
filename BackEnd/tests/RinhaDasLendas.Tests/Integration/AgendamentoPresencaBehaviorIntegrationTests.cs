@@ -1244,6 +1244,23 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var occurrence = await assertion.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
         occurrence.AgendamentoPresencaId.Should().Be(scheduleId);
         occurrence.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Criada);
+        var operationalDrafts = await new DraftMontagemRepository(assertion)
+            .ListActiveForDiscordAsync(CancellationToken.None);
+        var operationalDraft = operationalDrafts.Should().ContainSingle(item => item.Id == occurrence.DraftMontagemId)
+            .Which;
+        var dto = DraftMontagemDiscordOperationalDto.FromEntity(operationalDraft);
+        dto.Status.Should().Be(DraftMontagemStatus.PresencaAberta.ToString());
+        dto.PublicacoesDiscord.Should().ContainSingle().Which.Should().Be(
+            new DraftMontagemDiscordOperationalPublicacaoDto(
+                DraftMontagemPublicacaoDiscordTipo.Presenca.ToString(),
+                DraftMontagemPublicacaoDiscordStatus.Pendente.ToString()));
+        dto.GetType().GetProperties().Select(property => property.Name).Should().BeEquivalentTo(
+        [
+            "Id", "Nome", "Status", "HorarioEncerramentoPresenca", "DiscordPresenceMessageId",
+            "PublicacoesDiscord", "Presencas", "Times", "Reservas"
+        ]);
+        typeof(DraftMontagemDiscordOperationalPublicacaoDto).GetProperties()
+            .Select(property => property.Name).Should().BeEquivalentTo(["Tipo", "Status"]);
     }
 
     [Fact]

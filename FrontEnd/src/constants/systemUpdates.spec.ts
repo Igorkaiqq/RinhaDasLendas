@@ -23,6 +23,24 @@ const latestDetailIds = [
   'duplicate-draft-protection',
 ]
 
+const previousDetailIds = [
+  'discord-draft-deep-link',
+  'invalid-draft-link-feedback',
+  'contextual-admin-confirmations',
+  'discord-publication-statuses',
+  'individual-publication-recovery',
+  'duplicate-message-protection',
+  'realtime-presence',
+  'consistent-presence-operations',
+  'eligible-player-search',
+  'admin-action-audit',
+  'clear-bot-messages',
+  'discord-permission-diagnostics',
+  'independent-presence-call',
+  'resilient-publication-queue',
+  'security-stability-hardening',
+]
+
 describe('system update registry', () => {
   it('contains the nine stable releases in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
@@ -62,6 +80,13 @@ describe('system update registry', () => {
       latestDetailIds,
     )
     expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
+  })
+
+  it('preserves exactly the fifteen details from release 2026.07.1', () => {
+    const previous = SYSTEM_UPDATES.find(({ version }) => version === '2026.07.1')
+
+    expect(previous?.featured).toBe(false)
+    expect(previous?.details.map(({ id }) => id)).toEqual(previousDetailIds)
   })
 
   it('uses every controlled category and area in a non-empty registry', () => {

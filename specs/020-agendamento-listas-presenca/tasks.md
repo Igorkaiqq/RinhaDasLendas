@@ -218,6 +218,22 @@ npm test -- src/services/presenceSchedules.spec.ts \
 - GREEN do histórico: 3 arquivos e 19 testes aprovados para registro, serviço e i18n, incluindo paridade de chaves e linguagem de produto sem detalhes operacionais sensíveis.
 - Documentação: fluxo existente do bot e runbook do scheduler cobrem criação, pausa/reativação, bloqueio independente, recuperação, perda, falha de envio, claims separados, métricas e limites de lote.
 
+### Revisão obrigatória da Task 7
+
+- [X] T087A Substituir a fixture mutável do bot por duas respostas completas e distintas do contrato `DraftMontagemDiscordOperationalDto`, comprovando `Presenca/Pendente`, `ChamadaPresenca`, claims e conclusões únicas.
+- [X] T087B Provar em PostgreSQL que o draft criado pelo scheduler é retornado por `IDraftMontagemRepository.ListActiveForDiscordAsync` com `Presenca/Pendente` e projeção operacional segura.
+- [X] T087C Restaurar a asserção exata e independente dos 15 detalhes da release `2026.07.1`, preservando `2026.07.2` como latest e único destaque.
+- [X] T087D Corrigir a documentação para duas etapas transacionais, expiração entre etapas, instrumentação sem exporter, clamps efetivos, diagnóstico por logs/API/SQL e rastreabilidade dos artefatos aprovados.
+- [X] T087E Validar migrations e consultas operacionais no PostgreSQL do devcontainer, executar testes/builds focados e atualizar o relatório sem alterar produção ou adicionar dependências.
+
+**Registro da revisão (2026-07-24)**:
+
+- Bot: fixture tipada pelo retorno real de `listActiveDrafts`; o segundo ciclo recebe um novo DTO com publicações `Publicada`, sem mutação do primeiro objeto. Suíte com 52 testes aprovada e build TypeScript aprovado.
+- Backend: 1 teste PostgreSQL focado aprovado no devcontainer; o scheduler criou ocorrência/draft/publicação, `ListActiveForDiscordAsync` encontrou o draft e `DraftMontagemDiscordOperationalDto` manteve somente os nove campos permitidos.
+- Frontend: 3 arquivos e 20 testes aprovados; `2026.07.1` preserva exatamente 15 detalhes e `2026.07.2` permanece latest e único destaque.
+- Operação: migration aplicada no banco de desenvolvimento e cinco consultas documentadas executadas com sucesso; consultas de unicidade retornaram zero linhas.
+- Escopo: nenhum endpoint, exporter, dependência ou arquivo de produção do bot/backend foi adicionado ou alterado.
+
 **Checkpoint**: bot permanece adaptador e a entrega fica documentada e localizada.
 
 ---
