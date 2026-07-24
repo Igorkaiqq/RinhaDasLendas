@@ -185,9 +185,9 @@ npm test -- src/services/presenceSchedules.spec.ts \
   src/views/SettingsView.spec.ts src/i18n/i18n.spec.ts
 ```
 
-- GREEN canônico: 7 arquivos/58 testes.
+- GREEN canônico após a correção final: 7 arquivos/60 testes.
 - T075: serviço 7, formulário 10 e confirmação 3 testes verdes; inclui escrita bem-sucedida sem replay quando o refresh falha.
-- T076: seção 22 e histórico 7 testes verdes; inclui sobreposição entre páginas, concorrência, acessibilidade e responsividade.
+- T076: seção 24 e histórico 7 testes verdes; inclui sobreposição entre páginas, concorrência, bloqueio pós-write, acessibilidade e responsividade.
 - T077: `SettingsView.spec.ts` com 3 testes verdes para Jogador, Moderador e Admin.
 
 **Checkpoint**: US1/US4 e a visibilidade da US5 funcionam com paginação sem deslocar regras do backend.

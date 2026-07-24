@@ -61,6 +61,7 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const loadError = ref(false)
 const refreshError = ref(false)
+const refreshingAfterMutation = ref(false)
 const formOpen = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
 const selectedSchedule = ref<PresenceScheduleSummary | null>(null)
@@ -74,7 +75,9 @@ const focusKey = ref('create')
 let listGeneration = 0
 
 const returnFocusTarget: FocusTarget = {
-  focus: () => { void focusStableAction() },
+  focus: () => {
+    if (!refreshingAfterMutation.value) void focusStableAction()
+  },
 }
 
 const activeCount = computed(() => schedules.value.filter(({ status }) => status === 'Ativo').length)
@@ -104,7 +107,7 @@ async function loadInitial() {
 }
 
 async function loadMore() {
-  if (loadingMore.value || saving.value || confirming.value || !canLoadMore.value) return
+  if (loadingMore.value || saving.value || confirming.value || refreshingAfterMutation.value || !canLoadMore.value) return
   const generation = listGeneration
   loadingMore.value = true
   try {
@@ -154,6 +157,7 @@ function rememberFocus(key: string, event: ActionEvent) {
 }
 
 function openCreate(event: ActionEvent) {
+  if (refreshingAfterMutation.value) return
   rememberFocus('create', event)
   selectedSchedule.value = null
   formMode.value = 'create'
@@ -162,6 +166,7 @@ function openCreate(event: ActionEvent) {
 }
 
 function openEdit(schedule: PresenceScheduleSummary, event: ActionEvent) {
+  if (refreshingAfterMutation.value) return
   rememberFocus(`edit:${schedule.id}`, event)
   selectedSchedule.value = schedule
   formMode.value = 'edit'
@@ -170,6 +175,7 @@ function openEdit(schedule: PresenceScheduleSummary, event: ActionEvent) {
 }
 
 function openConfirmation(action: ConfirmAction, schedule: PresenceScheduleSummary, event: ActionEvent) {
+  if (refreshingAfterMutation.value) return
   rememberFocus(`${action}:${schedule.id}`, event)
   selectedSchedule.value = schedule
   confirmAction.value = action
@@ -177,13 +183,14 @@ function openConfirmation(action: ConfirmAction, schedule: PresenceScheduleSumma
 }
 
 function openHistory(schedule: PresenceScheduleSummary, event: ActionEvent) {
+  if (refreshingAfterMutation.value) return
   rememberFocus(`history:${schedule.id}`, event)
   selectedSchedule.value = schedule
   historyOpen.value = true
 }
 
 async function save(payload: SavePresenceScheduleRequest) {
-  if (saving.value) return
+  if (saving.value || refreshingAfterMutation.value) return
   const generation = ++listGeneration
   loadingMore.value = false
   saving.value = true
@@ -206,6 +213,7 @@ async function save(payload: SavePresenceScheduleRequest) {
     return
   }
 
+  refreshingAfterMutation.value = true
   formOpen.value = false
   toast.success(t(successKey))
   saving.value = false
@@ -213,7 +221,7 @@ async function save(payload: SavePresenceScheduleRequest) {
 }
 
 async function confirmMutation() {
-  if (confirming.value || !selectedSchedule.value) return
+  if (confirming.value || refreshingAfterMutation.value || !selectedSchedule.value) return
   const generation = ++listGeneration
   loadingMore.value = false
   const scheduleId = selectedSchedule.value.id
@@ -239,6 +247,7 @@ async function confirmMutation() {
     : action === 'reactivate'
       ? `pause:${scheduleId}`
       : archiveFocusKey
+  refreshingAfterMutation.value = true
   confirmOpen.value = false
   toast.success(t(`settings.presenceSchedules.toasts.${action}d`))
   confirming.value = false
@@ -246,18 +255,24 @@ async function confirmMutation() {
 }
 
 async function refreshAfterSuccessfulMutation(generation: number, nextFocusKey: string) {
+  let refreshSucceeded = false
+  let refreshFailed = false
   try {
     if (!await reloadLoadedPages(generation)) return
     refreshError.value = false
     loadError.value = false
     focusKey.value = nextFocusKey
-    await focusStableAction()
+    refreshSucceeded = true
   } catch {
     if (generation !== listGeneration) return
     refreshError.value = true
     loadError.value = true
-    await focusListRetry()
+    refreshFailed = true
+  } finally {
+    refreshingAfterMutation.value = false
   }
+  if (refreshSucceeded) await focusStableAction()
+  else if (refreshFailed) await focusListRetry()
 }
 
 function serviceMessageCode(error: unknown) {
@@ -308,14 +323,14 @@ async function focusListRetry() {
 </script>
 
 <template>
-  <section class="presence-schedule-section" aria-labelledby="presence-schedule-title">
+  <section class="presence-schedule-section" aria-labelledby="presence-schedule-title" :aria-busy="refreshingAfterMutation">
     <header class="presence-schedule-section__header">
       <div>
         <span class="eyebrow">{{ t('settings.presenceSchedules.eyebrow') }}</span>
         <h2 id="presence-schedule-title">{{ t('settings.presenceSchedules.title') }}</h2>
         <p>{{ t('settings.presenceSchedules.description') }}</p>
       </div>
-      <Button type="button" data-create-schedule data-focus-key="create" @click="openCreate">
+      <Button type="button" data-create-schedule data-focus-key="create" :disabled="refreshingAfterMutation" @click="openCreate">
         <PlusIcon data-icon="inline-start" />
         {{ t('settings.presenceSchedules.actions.create') }}
       </Button>
@@ -363,7 +378,7 @@ async function focusListRetry() {
         <EmptyDescription>{{ t('settings.presenceSchedules.empty.description') }}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button type="button" data-empty-create data-focus-key="create" @click="openCreate">
+        <Button type="button" data-empty-create data-focus-key="create" :disabled="refreshingAfterMutation" @click="openCreate">
           <PlusIcon data-icon="inline-start" />
           {{ t('settings.presenceSchedules.empty.action') }}
         </Button>
@@ -374,7 +389,7 @@ async function focusListRetry() {
       <ul
         class="presence-schedule-grid"
         data-schedule-list
-        :aria-busy="loadingMore"
+        :aria-busy="loadingMore || refreshingAfterMutation"
         :aria-label="t('settings.presenceSchedules.accessibility.scheduleList')"
       >
         <li
@@ -422,27 +437,28 @@ async function focusListRetry() {
             <p v-else class="presence-schedule-card__occurrence">{{ t('settings.presenceSchedules.card.noOccurrence') }}</p>
           </CardContent>
           <CardFooter class="presence-schedule-card__actions" data-card-actions>
-            <Button type="button" variant="outline" data-view-history :data-focus-key="`history:${schedule.id}`" @click="openHistory(schedule, $event)">
+            <Button type="button" variant="outline" data-view-history :data-focus-key="`history:${schedule.id}`" :disabled="refreshingAfterMutation" @click="openHistory(schedule, $event)">
               <HistoryIcon data-icon="inline-start" />
               {{ t('settings.presenceSchedules.actions.viewHistory') }}
             </Button>
-            <Button type="button" variant="outline" data-edit-schedule :data-focus-key="`edit:${schedule.id}`" @click="openEdit(schedule, $event)">{{ t('settings.presenceSchedules.actions.edit') }}</Button>
-            <Button v-if="schedule.status === 'Ativo'" type="button" variant="secondary" data-pause-schedule :data-focus-key="`pause:${schedule.id}`" @click="openConfirmation('pause', schedule, $event)">{{ t('settings.presenceSchedules.actions.pause') }}</Button>
-            <Button v-else type="button" variant="secondary" data-reactivate-schedule :data-focus-key="`reactivate:${schedule.id}`" @click="openConfirmation('reactivate', schedule, $event)">{{ t('settings.presenceSchedules.actions.reactivate') }}</Button>
-            <Button type="button" variant="destructive" data-archive-schedule :data-focus-key="`archive:${schedule.id}`" @click="openConfirmation('archive', schedule, $event)">{{ t('settings.presenceSchedules.actions.archive') }}</Button>
+            <Button type="button" variant="outline" data-edit-schedule :data-focus-key="`edit:${schedule.id}`" :disabled="refreshingAfterMutation" @click="openEdit(schedule, $event)">{{ t('settings.presenceSchedules.actions.edit') }}</Button>
+            <Button v-if="schedule.status === 'Ativo'" type="button" variant="secondary" data-pause-schedule :data-focus-key="`pause:${schedule.id}`" :disabled="refreshingAfterMutation" @click="openConfirmation('pause', schedule, $event)">{{ t('settings.presenceSchedules.actions.pause') }}</Button>
+            <Button v-else type="button" variant="secondary" data-reactivate-schedule :data-focus-key="`reactivate:${schedule.id}`" :disabled="refreshingAfterMutation" @click="openConfirmation('reactivate', schedule, $event)">{{ t('settings.presenceSchedules.actions.reactivate') }}</Button>
+            <Button type="button" variant="destructive" data-archive-schedule :data-focus-key="`archive:${schedule.id}`" :disabled="refreshingAfterMutation" @click="openConfirmation('archive', schedule, $event)">{{ t('settings.presenceSchedules.actions.archive') }}</Button>
           </CardFooter>
           </Card>
         </li>
       </ul>
       <div v-if="canLoadMore" class="presence-schedule-load-more">
-        <Button type="button" variant="outline" data-load-more :disabled="loadingMore" @click="loadMore">
+        <Button type="button" variant="outline" data-load-more :disabled="loadingMore || refreshingAfterMutation" @click="loadMore">
           {{ loadingMore ? t('settings.presenceSchedules.actions.loadingMore') : t('settings.presenceSchedules.actions.loadMore') }}
         </Button>
-        <p v-if="loadingMore" data-load-more-status class="sr-only" role="status" aria-live="polite">
-          {{ t('settings.presenceSchedules.actions.loadingMore') }}
-        </p>
       </div>
     </div>
+
+    <p v-if="loadingMore || refreshingAfterMutation" data-load-more-status data-refresh-status class="sr-only" role="status" aria-live="polite">
+      {{ t(refreshingAfterMutation ? 'settings.presenceSchedules.actions.refreshing' : 'settings.presenceSchedules.actions.loadingMore') }}
+    </p>
 
     <PresenceScheduleFormDialog
       v-model:open="formOpen"

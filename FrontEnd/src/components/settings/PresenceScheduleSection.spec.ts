@@ -27,8 +27,12 @@ const baseSchedule = {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
-  return { promise, resolve }
+  let reject!: (error: Error) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, reject, resolve }
 }
 
 function pageWith(items: PresenceScheduleSummary[], page = 1, totalPages = 1) {
@@ -113,6 +117,7 @@ describe('PresenceScheduleSection', () => {
     expect(wrapper.find('form#presence-schedule-form').exists()).toBe(false)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('A alteração foi salva, mas a lista não pôde ser atualizada.')
+    expect(document.activeElement).toBe(wrapper.get('[data-schedule-retry]').element)
 
     await wrapper.get('[data-schedule-retry]').trigger('click')
     await flushPromises()
@@ -139,11 +144,80 @@ describe('PresenceScheduleSection', () => {
     expect(wrapper.find('[data-confirm-action]').exists()).toBe(false)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('A alteração foi salva, mas a lista não pôde ser atualizada.')
+    expect(document.activeElement).toBe(wrapper.get('[data-schedule-retry]').element)
 
     await wrapper.get('[data-schedule-retry]').trigger('click')
     await flushPromises()
     expect(service.archivePresenceSchedule).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-schedule-id="agenda-a"]').exists()).toBe(false)
+  })
+
+  it('blocks create and old triggers until its deferred refresh completes', async () => {
+    const created = { ...baseSchedule, id: 'agenda-created', nome: 'Nova agenda' }
+    const refresh = deferred<Awaited<ReturnType<typeof service.listPresenceSchedules>>>()
+    vi.mocked(service.listPresenceSchedules)
+      .mockResolvedValueOnce(pageWith([]))
+      .mockReturnValueOnce(refresh.promise)
+    vi.mocked(service.createPresenceSchedule).mockResolvedValue(created)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper.get('[data-create-schedule]').trigger('click')
+    await fillCreateForm(wrapper)
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('section').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[data-refresh-status]').text()).toContain('Atualizando lista')
+    for (const trigger of wrapper.findAll('[data-focus-key="create"]')) {
+      expect(trigger.attributes('disabled')).toBeDefined()
+      await trigger.trigger('click')
+      await trigger.trigger('keydown', { key: 'Enter' })
+    }
+    expect(service.createPresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+
+    refresh.resolve(pageWith([created]))
+    await flushPromises()
+    const createTrigger = wrapper.get('[data-create-schedule]')
+    expect(createTrigger.attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(createTrigger.element)
+    await createTrigger.trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it('blocks old archive and every card action until its deferred refresh completes', async () => {
+    const nextSchedule = { ...baseSchedule, id: 'agenda-b', nome: 'Próxima agenda' }
+    const refresh = deferred<Awaited<ReturnType<typeof service.listPresenceSchedules>>>()
+    vi.mocked(service.listPresenceSchedules)
+      .mockResolvedValueOnce({ ...pageWith([baseSchedule, nextSchedule], 1, 2), totalItems: 3 })
+      .mockReturnValueOnce(refresh.promise)
+    vi.mocked(service.archivePresenceSchedule).mockResolvedValue()
+    const wrapper = await mountSection()
+    await flushPromises()
+    const oldArchive = wrapper.get('[data-schedule-id="agenda-a"] [data-archive-schedule]')
+
+    await oldArchive.trigger('click')
+    await wrapper.get('[data-confirm-action]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('[data-load-more]').attributes('disabled')).toBeDefined()
+    for (const action of wrapper.findAll('[data-card-actions] button')) {
+      expect(action.attributes('disabled')).toBeDefined()
+    }
+    await oldArchive.trigger('click')
+    await oldArchive.trigger('keydown', { key: 'Enter' })
+    expect(service.archivePresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+
+    refresh.resolve(pageWith([nextSchedule]))
+    await flushPromises()
+    const nextArchive = wrapper.get('[data-schedule-id="agenda-b"] [data-archive-schedule]')
+    expect(nextArchive.attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(nextArchive.element)
+    await nextArchive.trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
   })
 
   it.each([

@@ -53,6 +53,7 @@ describe('i18n', () => {
       'settings.presenceSchedules.accessibility.scheduleList',
       'settings.presenceSchedules.messageCodes.requestFailed',
       'settings.presenceSchedules.refreshError',
+      'settings.presenceSchedules.actions.refreshing',
     ]
 
     for (const path of requiredPaths) {
