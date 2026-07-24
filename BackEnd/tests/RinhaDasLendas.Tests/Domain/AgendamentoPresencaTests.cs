@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Reflection;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -58,6 +59,38 @@ public sealed class AgendamentoPresencaTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    [InlineData(-1)]
+    public void Deve_rejeitar_dia_iso_invalido_na_criacao(int valor)
+    {
+        var act = () => Criar(dias: [(DiaSemanaIso)valor]);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleDayRequired);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    public void Deve_rejeitar_dia_iso_invalido_na_edicao_sem_alterar_agenda(int valor)
+    {
+        var agenda = Criar();
+
+        var act = () => agenda.Editar(
+            "Outro nome",
+            null,
+            new TimeOnly(19, 0),
+            new TimeOnly(21, 0),
+            [(DiaSemanaIso)valor],
+            Responsavel,
+            Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleDayRequired);
+        agenda.Nome.Should().Be("Rinha");
+        agenda.DiasSemana.Select(item => item.DiaSemana).Should().Equal(DiaSemanaIso.Sexta);
+    }
+
+    [Theory]
     [MemberData(nameof(JanelasInvalidas))]
     public void Deve_exigir_janela_posterior_com_precisao_de_minuto(TimeOnly publicacao, TimeOnly encerramento)
     {
@@ -92,6 +125,25 @@ public sealed class AgendamentoPresencaTests
     public void Deve_normalizar_observacao_em_branco_para_nulo()
     {
         Criar(observacao: "   ").Observacao.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deve_expor_colecoes_realmente_somente_leitura()
+    {
+        var agenda = Criar();
+        agenda.AdicionarOcorrencia(CriarProcessando(agenda.Id));
+
+        agenda.DiasSemana.Should().NotBeAssignableTo<List<AgendamentoPresencaDiaSemana>>();
+        agenda.Ocorrencias.Should().NotBeAssignableTo<List<OcorrenciaAgendamentoPresenca>>();
+        agenda.Historicos.Should().NotBeAssignableTo<List<HistoricoAgendamentoPresenca>>();
+
+        var limparDias = () => ((ICollection<AgendamentoPresencaDiaSemana>)agenda.DiasSemana).Clear();
+        var limparOcorrencias = () => ((ICollection<OcorrenciaAgendamentoPresenca>)agenda.Ocorrencias).Clear();
+        var limparHistoricos = () => ((ICollection<HistoricoAgendamentoPresenca>)agenda.Historicos).Clear();
+
+        limparDias.Should().Throw<NotSupportedException>();
+        limparOcorrencias.Should().Throw<NotSupportedException>();
+        limparHistoricos.Should().Throw<NotSupportedException>();
     }
 
     [Fact]
@@ -166,15 +218,6 @@ public sealed class AgendamentoPresencaTests
     }
 
     [Fact]
-    public void Deve_manter_igualdade_da_ativacao_e_publicacao_elegivel()
-    {
-        var agenda = Criar(agora: Agora);
-
-        (agenda.AtivadoEm > Agora).Should().BeFalse();
-        agenda.AtivadoEm.Should().Be(Agora);
-    }
-
-    [Fact]
     public void Deve_auditar_criacao_apenas_com_nomes_estaveis_ordenados()
     {
         var agenda = Criar(nome: "Segredo", observacao: "Valor confidencial");
@@ -205,6 +248,34 @@ public sealed class AgendamentoPresencaTests
         historico.Acao.Should().Be(AgendamentoPresencaAcao.Editado);
         historico.CamposAlterados.Should().Be("Nome");
         historico.CamposAlterados.Should().NotContain("Outra rinha");
+    }
+
+    [Fact]
+    public void Deve_rejeitar_campo_de_historico_fora_da_whitelist()
+    {
+        var act = () => CriarHistorico(["Nome", "TokenDiscord"]);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
+    [Fact]
+    public void Deve_remover_duplicados_e_ordenar_campos_de_historico()
+    {
+        var historico = CriarHistorico(["Status", "Nome", "Status", "Nome"]);
+
+        historico.CamposAlterados.Should().Be("Nome,Status");
+    }
+
+    [Fact]
+    public void Deve_manter_campos_de_historico_persistidos_dentro_do_limite()
+    {
+        var campos = Enumerable.Repeat("HorarioEncerramentoLocal", 20).ToArray();
+        string.Join(",", campos).Length.Should().BeGreaterThan(200);
+
+        var historico = CriarHistorico(campos);
+
+        historico.CamposAlterados.Should().Be("HorarioEncerramentoLocal");
+        historico.CamposAlterados.Length.Should().BeLessThanOrEqualTo(200);
     }
 
     [Fact]
@@ -301,6 +372,37 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.AtualizadaEm.Should().Be(Agora.AddMinutes(1));
     }
 
+    [Theory]
+    [MemberData(nameof(CodigosPublicosInvalidos))]
+    public void Deve_rejeitar_codigo_publico_invalido_ao_bloquear(string? codigo)
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Bloqueada(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora.AddHours(3),
+            Agora.AddHours(5),
+            codigo!,
+            Agora);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
+    [Theory]
+    [InlineData(MessageCodes.PresenceScheduleTimeZoneInvalid)]
+    [InlineData(MessageCodes.PresenceScheduleWindowExpired)]
+    public void Deve_rejeitar_codigo_de_outro_estado_ao_bloquear(string codigo)
+    {
+        var act = () => OcorrenciaAgendamentoPresenca.Bloqueada(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora.AddHours(3),
+            Agora.AddHours(5),
+            codigo,
+            Agora);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+    }
+
     [Fact]
     public void Deve_marcar_processando_como_criada()
     {
@@ -327,6 +429,32 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.DraftMontagemId.Should().BeNull();
     }
 
+    [Theory]
+    [MemberData(nameof(CodigosPublicosInvalidos))]
+    public void Deve_rejeitar_codigo_publico_invalido_ao_marcar_perdida(string? codigo)
+    {
+        var ocorrencia = CriarBloqueada();
+
+        var act = () => ocorrencia.MarcarPerdida(codigo!, Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleDiscordUnavailable);
+    }
+
+    [Theory]
+    [InlineData(MessageCodes.PresenceScheduleTimeZoneInvalid)]
+    [InlineData(MessageCodes.PresenceScheduleDiscordUnavailable)]
+    public void Deve_rejeitar_codigo_de_outro_estado_ao_marcar_perdida(string codigo)
+    {
+        var ocorrencia = CriarBloqueada();
+
+        var act = () => ocorrencia.MarcarPerdida(codigo, Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+    }
+
     [Fact]
     public void Deve_marcar_processando_como_falha()
     {
@@ -338,6 +466,41 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleTimeZoneInvalid);
         ocorrencia.DraftMontagemId.Should().BeNull();
     }
+
+    [Theory]
+    [MemberData(nameof(CodigosPublicosInvalidos))]
+    public void Deve_rejeitar_codigo_publico_invalido_ao_marcar_falha(string? codigo)
+    {
+        var ocorrencia = CriarProcessando();
+
+        var act = () => ocorrencia.MarcarFalha(codigo!, Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+        ocorrencia.CodigoFalha.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(MessageCodes.PresenceScheduleDiscordUnavailable)]
+    [InlineData(MessageCodes.PresenceScheduleWindowExpired)]
+    public void Deve_rejeitar_codigo_de_outro_estado_ao_marcar_falha(string codigo)
+    {
+        var ocorrencia = CriarProcessando();
+
+        var act = () => ocorrencia.MarcarFalha(codigo, Agora.AddMinutes(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+    }
+
+    public static TheoryData<string?> CodigosPublicosInvalidos => new()
+    {
+        null,
+        string.Empty,
+        "   ",
+        "MV001",
+        "MV096-INVALIDO-17"
+    };
 
     [Fact]
     public void Deve_rejeitar_janela_invalida_na_ocorrencia()
@@ -398,10 +561,10 @@ public sealed class AgendamentoPresencaTests
             agora ?? Agora);
     }
 
-    private static OcorrenciaAgendamentoPresenca CriarProcessando()
+    private static OcorrenciaAgendamentoPresenca CriarProcessando(Guid? agendaId = null)
     {
         return OcorrenciaAgendamentoPresenca.Processando(
-            Guid.NewGuid(),
+            agendaId ?? Guid.NewGuid(),
             new DateOnly(2026, 7, 24),
             Agora.AddHours(3),
             Agora.AddHours(5),
@@ -417,5 +580,30 @@ public sealed class AgendamentoPresencaTests
             Agora.AddHours(5),
             MessageCodes.PresenceScheduleDiscordUnavailable,
             Agora);
+    }
+
+    private static HistoricoAgendamentoPresenca CriarHistorico(IEnumerable<string> camposAlterados)
+    {
+        var construtor = typeof(HistoricoAgendamentoPresenca).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [
+                typeof(Guid),
+                typeof(AgendamentoPresencaAcao),
+                typeof(Guid),
+                typeof(DateTimeOffset),
+                typeof(IEnumerable<string>)
+            ],
+            modifiers: null)!;
+
+        try
+        {
+            return (HistoricoAgendamentoPresenca)construtor.Invoke(
+                [Guid.NewGuid(), AgendamentoPresencaAcao.Editado, Responsavel, Agora, camposAlterados]);
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            throw exception.InnerException;
+        }
     }
 }

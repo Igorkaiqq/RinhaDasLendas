@@ -58,9 +58,9 @@ public sealed class AgendamentoPresenca
     public Guid CriadoPorUsuarioId { get; private set; }
     public DateTimeOffset CriadoEm { get; private set; }
     public DateTimeOffset AtualizadoEm { get; private set; }
-    public IReadOnlyCollection<AgendamentoPresencaDiaSemana> DiasSemana => _diasSemana;
-    public IReadOnlyCollection<OcorrenciaAgendamentoPresenca> Ocorrencias => _ocorrencias;
-    public IReadOnlyCollection<HistoricoAgendamentoPresenca> Historicos => _historicos;
+    public IReadOnlyCollection<AgendamentoPresencaDiaSemana> DiasSemana => _diasSemana.AsReadOnly();
+    public IReadOnlyCollection<OcorrenciaAgendamentoPresenca> Ocorrencias => _ocorrencias.AsReadOnly();
+    public IReadOnlyCollection<HistoricoAgendamentoPresenca> Historicos => _historicos.AsReadOnly();
 
     public void Editar(
         string nome,
@@ -194,6 +194,11 @@ public sealed class AgendamentoPresenca
         }
 
         if (dias is null || dias.Count == 0)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleDayRequired);
+        }
+
+        if (dias.Any(dia => (int)dia is < (int)DiaSemanaIso.Segunda or > (int)DiaSemanaIso.Domingo))
         {
             throw new DomainException(MessageCodes.PresenceScheduleDayRequired);
         }

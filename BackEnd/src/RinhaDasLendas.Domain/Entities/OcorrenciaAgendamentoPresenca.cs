@@ -30,7 +30,9 @@ public sealed class OcorrenciaAgendamentoPresenca
         PublicacaoPrevistaEm = publicacao;
         EncerramentoPrevistoEm = encerramento;
         Status = status;
-        CodigoFalha = NormalizarCodigo(codigo);
+        CodigoFalha = status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
+            ? ValidarCodigo(codigo, MessageCodes.PresenceScheduleDiscordUnavailable)
+            : null;
         UltimaTentativaEm = agora;
         CriadaEm = agora;
         AtualizadaEm = agora;
@@ -112,8 +114,9 @@ public sealed class OcorrenciaAgendamentoPresenca
     public void MarcarPerdida(string codigo, DateTimeOffset agora)
     {
         ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        var codigoValidado = ValidarCodigo(codigo, MessageCodes.PresenceScheduleWindowExpired);
         Status = OcorrenciaAgendamentoPresencaStatus.Perdida;
-        CodigoFalha = NormalizarCodigo(codigo);
+        CodigoFalha = codigoValidado;
         LimparClaim();
         Touch(agora);
     }
@@ -121,8 +124,9 @@ public sealed class OcorrenciaAgendamentoPresenca
     public void MarcarFalha(string codigo, DateTimeOffset agora)
     {
         ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Processando);
+        var codigoValidado = ValidarCodigo(codigo, MessageCodes.PresenceScheduleTimeZoneInvalid);
         Status = OcorrenciaAgendamentoPresencaStatus.Falha;
-        CodigoFalha = NormalizarCodigo(codigo);
+        CodigoFalha = codigoValidado;
         LimparClaim();
         Touch(agora);
     }
@@ -135,9 +139,17 @@ public sealed class OcorrenciaAgendamentoPresenca
         }
     }
 
-    private static string? NormalizarCodigo(string? codigo)
+    private static string ValidarCodigo(string? codigo, string codigoPermitido)
     {
-        return string.IsNullOrWhiteSpace(codigo) ? null : codigo.Trim();
+        var codigoNormalizado = codigo?.Trim();
+        if (string.IsNullOrEmpty(codigoNormalizado)
+            || codigoNormalizado.Length > 16
+            || !string.Equals(codigoNormalizado, codigoPermitido, StringComparison.Ordinal))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
+
+        return codigoNormalizado;
     }
 
     private void LimparClaim()
