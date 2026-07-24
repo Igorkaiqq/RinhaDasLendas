@@ -52,8 +52,12 @@ const emit = defineEmits<{
   submit: [payload: SavePresenceScheduleRequest]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const nameInput = ref<InstanceType<typeof Input> | null>(null)
+const observationInput = ref<InstanceType<typeof Textarea> | null>(null)
+const weekdayOptions = ref<InstanceType<typeof ToggleGroup> | null>(null)
+const publicationInput = ref<InstanceType<typeof Input> | null>(null)
+const closingInput = ref<InstanceType<typeof Input> | null>(null)
 const submitLocked = ref(false)
 const form = reactive<SavePresenceScheduleRequest>({
   nome: '',
@@ -73,12 +77,17 @@ const errors = reactive({
 const title = computed(() => t(`settings.presenceSchedules.form.${props.mode}.title`))
 const description = computed(() => t(`settings.presenceSchedules.form.${props.mode}.description`))
 const submitLabel = computed(() => t(`settings.presenceSchedules.form.${props.mode}.submit`))
+const serviceMessageLabel = computed(() => {
+  if (!props.serviceMessageCode) return ''
+  const key = `settings.presenceSchedules.messageCodes.${props.serviceMessageCode}`
+  return te(key) ? t(key) : t('settings.presenceSchedules.messageCodes.requestFailed')
+})
 
 watch(
   () => props.open,
-  (open) => {
+  (open, wasOpen) => {
     if (open) resetForm()
-    else restoreFocus()
+    else if (wasOpen) restoreFocus()
   },
   { immediate: true },
 )
@@ -122,8 +131,12 @@ function validate() {
   return !Object.values(errors).some(Boolean)
 }
 
-function submit() {
-  if (props.saving || submitLocked.value || !validate()) return
+async function submit() {
+  if (props.saving || submitLocked.value) return
+  if (!validate()) {
+    await focusFirstInvalid()
+    return
+  }
   submitLocked.value = true
   emit('submit', {
     nome: form.nome.trim(),
@@ -132,6 +145,20 @@ function submit() {
     horarioPublicacao: form.horarioPublicacao.slice(0, 5),
     horarioEncerramento: form.horarioEncerramento.slice(0, 5),
   })
+}
+
+async function focusFirstInvalid() {
+  await nextTick()
+  const target = errors.nome
+    ? nameInput.value
+    : errors.observacao
+      ? observationInput.value
+      : errors.diasSemana
+        ? weekdayOptions.value
+        : errors.horarioPublicacao
+          ? publicationInput.value
+          : closingInput.value
+  target?.$el?.focus()
 }
 
 function updateWeekdays(value: unknown) {
@@ -147,6 +174,12 @@ function closeOnEscape() {
   setOpen(false)
 }
 
+function handleOpenAutoFocus(event: { preventDefault: () => void }) {
+  event.preventDefault()
+  if (globalThis.matchMedia?.('(max-width: 760px)').matches) return
+  nameInput.value?.$el?.focus()
+}
+
 async function restoreFocus() {
   await nextTick()
   props.returnFocusTo?.focus()
@@ -158,7 +191,7 @@ async function restoreFocus() {
     <DialogContent
       class="presence-schedule-dialog sm:max-w-2xl"
       @keydown.esc.stop="closeOnEscape"
-      @open-auto-focus="() => nameInput?.$el?.focus()"
+      @open-auto-focus="handleOpenAutoFocus"
     >
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
@@ -175,38 +208,50 @@ async function restoreFocus() {
               v-model="form.nome"
               :placeholder="t('settings.presenceSchedules.fields.name.placeholder')"
               :aria-invalid="Boolean(errors.nome)"
+              :aria-describedby="errors.nome ? 'presence-schedule-name-error' : undefined"
+              :aria-errormessage="errors.nome ? 'presence-schedule-name-error' : undefined"
               :disabled="saving"
               maxlength="100"
               autocomplete="off"
+              name="presenceScheduleName"
             />
-            <FieldError v-if="errors.nome">{{ errors.nome }}</FieldError>
+            <FieldError v-if="errors.nome" id="presence-schedule-name-error">{{ errors.nome }}</FieldError>
           </Field>
 
           <Field :data-invalid="Boolean(errors.observacao)">
             <FieldLabel for="presence-schedule-observation">{{ t('settings.presenceSchedules.fields.observation.label') }}</FieldLabel>
             <Textarea
               id="presence-schedule-observation"
+              ref="observationInput"
               :model-value="form.observacao ?? ''"
               :placeholder="t('settings.presenceSchedules.fields.observation.placeholder')"
               :aria-invalid="Boolean(errors.observacao)"
+              :aria-describedby="errors.observacao ? 'presence-schedule-observation-description presence-schedule-observation-error' : 'presence-schedule-observation-description'"
+              :aria-errormessage="errors.observacao ? 'presence-schedule-observation-error' : undefined"
               :disabled="saving"
               maxlength="500"
+              autocomplete="off"
+              name="presenceScheduleObservation"
               rows="3"
               @update:model-value="form.observacao = String($event)"
             />
-            <FieldDescription>{{ t('settings.presenceSchedules.fields.observation.description') }}</FieldDescription>
-            <FieldError v-if="errors.observacao">{{ errors.observacao }}</FieldError>
+            <FieldDescription id="presence-schedule-observation-description">{{ t('settings.presenceSchedules.fields.observation.description') }}</FieldDescription>
+            <FieldError v-if="errors.observacao" id="presence-schedule-observation-error">{{ errors.observacao }}</FieldError>
           </Field>
 
           <FieldSet class="presence-schedule-form__weekdays" :data-invalid="Boolean(errors.diasSemana)">
             <FieldLegend variant="label">{{ t('settings.presenceSchedules.fields.weekdays.label') }}</FieldLegend>
-            <FieldDescription>{{ t('settings.presenceSchedules.fields.weekdays.description') }}</FieldDescription>
+            <FieldDescription id="presence-schedule-weekdays-description">{{ t('settings.presenceSchedules.fields.weekdays.description') }}</FieldDescription>
             <ToggleGroup
+              ref="weekdayOptions"
               type="multiple"
               variant="outline"
               :model-value="form.diasSemana"
               :disabled="saving"
               :aria-label="t('settings.presenceSchedules.accessibility.weekdayOptions')"
+              :aria-invalid="Boolean(errors.diasSemana)"
+              :aria-describedby="errors.diasSemana ? 'presence-schedule-weekdays-description presence-schedule-weekdays-error' : 'presence-schedule-weekdays-description'"
+              :aria-errormessage="errors.diasSemana ? 'presence-schedule-weekdays-error' : undefined"
               @update:model-value="updateWeekdays"
             >
               <ToggleGroupItem
@@ -219,25 +264,25 @@ async function restoreFocus() {
                 {{ t(`settings.presenceSchedules.weekdays.${day}`) }}
               </ToggleGroupItem>
             </ToggleGroup>
-            <FieldError v-if="errors.diasSemana">{{ errors.diasSemana }}</FieldError>
+            <FieldError v-if="errors.diasSemana" id="presence-schedule-weekdays-error">{{ errors.diasSemana }}</FieldError>
           </FieldSet>
 
           <div class="presence-schedule-form__times">
             <Field :data-invalid="Boolean(errors.horarioPublicacao)">
               <FieldLabel for="presence-schedule-publication">{{ t('settings.presenceSchedules.fields.publication.label') }}</FieldLabel>
-              <Input id="presence-schedule-publication" v-model="form.horarioPublicacao" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioPublicacao)" />
-              <FieldError v-if="errors.horarioPublicacao">{{ errors.horarioPublicacao }}</FieldError>
+              <Input id="presence-schedule-publication" ref="publicationInput" v-model="form.horarioPublicacao" name="presenceSchedulePublication" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioPublicacao)" :aria-describedby="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" :aria-errormessage="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" />
+              <FieldError v-if="errors.horarioPublicacao" id="presence-schedule-publication-error">{{ errors.horarioPublicacao }}</FieldError>
             </Field>
             <Field :data-invalid="Boolean(errors.horarioEncerramento)">
               <FieldLabel for="presence-schedule-closing">{{ t('settings.presenceSchedules.fields.closing.label') }}</FieldLabel>
-              <Input id="presence-schedule-closing" v-model="form.horarioEncerramento" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioEncerramento)" />
-              <FieldError v-if="errors.horarioEncerramento">{{ errors.horarioEncerramento }}</FieldError>
+              <Input id="presence-schedule-closing" ref="closingInput" v-model="form.horarioEncerramento" name="presenceScheduleClosing" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioEncerramento)" :aria-describedby="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" :aria-errormessage="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" />
+              <FieldError v-if="errors.horarioEncerramento" id="presence-schedule-closing-error">{{ errors.horarioEncerramento }}</FieldError>
             </Field>
           </div>
 
           <p class="presence-schedule-form__summary">{{ t('settings.presenceSchedules.form.summary') }}</p>
-          <p v-if="serviceMessageCode" class="form-error" role="alert">
-            {{ t(`settings.presenceSchedules.messageCodes.${serviceMessageCode}`) }}
+          <p v-if="serviceMessageCode" data-service-error class="form-error" role="alert">
+            {{ serviceMessageLabel }}
           </p>
         </FieldGroup>
       </form>

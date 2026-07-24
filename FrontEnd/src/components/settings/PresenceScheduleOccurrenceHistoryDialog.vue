@@ -46,6 +46,7 @@ const totalPages = ref(0)
 const totalItems = ref(0)
 const loading = ref(false)
 const error = ref(false)
+let requestGeneration = 0
 
 const liveMessage = computed(() => totalPages.value > 0
   ? t('settings.presenceSchedules.history.livePage', { page: page.value, total: totalPages.value })
@@ -53,35 +54,63 @@ const liveMessage = computed(() => totalPages.value > 0
 
 watch(
   [() => props.open, () => props.scheduleId],
-  ([open]) => {
-    if (open) void loadPage(1)
-    else restoreFocus()
+  ([open, scheduleId], previousValues) => {
+    const wasOpen = previousValues?.[0]
+    const previousScheduleId = previousValues?.[1]
+    requestGeneration += 1
+    if (scheduleId !== previousScheduleId || (open && !wasOpen)) resetHistory()
+    if (open && scheduleId) void loadPage(1)
+    else if (!open && wasOpen) restoreFocus()
   },
   { immediate: true },
 )
 
 async function loadPage(targetPage: number) {
+  const generation = ++requestGeneration
+  const scheduleId = props.scheduleId
   loading.value = true
   error.value = false
   try {
-    const response = await listPresenceScheduleOccurrences(props.scheduleId, targetPage, pageSize)
+    const response = await listPresenceScheduleOccurrences(scheduleId, targetPage, pageSize)
+    if (!isCurrentRequest(generation, scheduleId)) return
     items.value = response.items
     page.value = response.page
     totalPages.value = response.totalPages
     totalItems.value = response.totalItems
   } catch {
+    if (!isCurrentRequest(generation, scheduleId)) return
     error.value = true
   } finally {
-    loading.value = false
+    if (isCurrentRequest(generation, scheduleId)) loading.value = false
   }
 }
 
+function isCurrentRequest(generation: number, scheduleId: string) {
+  return generation === requestGeneration && props.open && scheduleId === props.scheduleId
+}
+
+function resetHistory() {
+  items.value = []
+  page.value = 1
+  totalPages.value = 0
+  totalItems.value = 0
+  loading.value = false
+  error.value = false
+}
+
 function formatInstant(value: string) {
-  return d(new Date(value), { dateStyle: 'medium', timeStyle: 'short' })
+  return d(new Date(value), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'America/Sao_Paulo',
+  })
 }
 
 function formatLocalDate(value: string) {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+  return new Intl.DateTimeFormat(locale.value, {
+    dateStyle: 'long',
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date(`${value}T12:00:00Z`))
 }
 
 function statusVariant(status: PresenceScheduleOccurrenceStatus) {
@@ -113,8 +142,16 @@ async function restoreFocus() {
         <DialogDescription>{{ t('settings.presenceSchedules.history.description') }}</DialogDescription>
       </DialogHeader>
 
-      <div class="presence-schedule-history__body">
-        <div v-if="loading" class="presence-schedule-history__skeletons" :aria-label="t('settings.presenceSchedules.history.loading')">
+      <div data-history-body class="presence-schedule-history__body" :aria-busy="loading">
+        <div
+          v-if="loading"
+          data-history-loading
+          class="presence-schedule-history__skeletons"
+          role="status"
+          aria-live="polite"
+          :aria-label="t('settings.presenceSchedules.history.loading')"
+        >
+          <span class="sr-only">{{ t('settings.presenceSchedules.history.loading') }}</span>
           <Skeleton v-for="index in 3" :key="index" data-history-skeleton class="h-24 w-full" />
         </div>
 
@@ -133,7 +170,7 @@ async function restoreFocus() {
         </Empty>
 
         <ol v-else class="presence-schedule-history" role="list" :aria-label="t('settings.presenceSchedules.accessibility.historyList')">
-          <li v-for="occurrence in items" :key="occurrence.id" data-occurrence class="presence-schedule-history__item">
+          <li v-for="occurrence in items" :key="occurrence.id" data-occurrence :data-occurrence-id="occurrence.id" class="presence-schedule-history__item">
             <div class="presence-schedule-history__heading">
               <time :datetime="occurrence.dataLocal">{{ formatLocalDate(occurrence.dataLocal) }}</time>
               <Badge :variant="statusVariant(occurrence.status)" :data-status="occurrence.status">
@@ -155,7 +192,7 @@ async function restoreFocus() {
       </div>
 
       <p class="sr-only" aria-live="polite">{{ liveMessage }}</p>
-      <DialogFooter class="presence-schedule-history__pagination">
+      <DialogFooter data-history-pagination class="presence-schedule-history__pagination">
         <span v-if="totalItems > 0">{{ t('settings.presenceSchedules.history.total', { total: totalItems }) }}</span>
         <Button type="button" variant="outline" data-history-previous :disabled="loading || page <= 1" @click="loadPage(page - 1)">
           {{ t('settings.presenceSchedules.actions.previous') }}

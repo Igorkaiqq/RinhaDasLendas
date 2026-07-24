@@ -255,7 +255,7 @@
       "eyebrow": "Automações",
       "title": "Listas de presença",
       "description": "Organize publicações semanais e acompanhe cada execução sem alterar os drafts já criados.",
-      "loading": "Carregando agendamentos...",
+      "loading": "Carregando agendamentos…",
       "error": "Não foi possível carregar os agendamentos.",
       "actions": {
         "create": "Novo agendamento",
@@ -266,12 +266,12 @@
         "viewHistory": "Ver histórico",
         "retry": "Tentar novamente",
         "loadMore": "Carregar mais agendamentos",
-        "loadingMore": "Carregando mais agendamentos...",
+        "loadingMore": "Carregando mais agendamentos…",
         "previous": "Anterior",
         "next": "Próxima",
         "cancel": "Cancelar",
-        "saving": "Salvando...",
-        "processing": "Processando..."
+        "saving": "Salvando…",
+        "processing": "Processando…"
       },
       "summary": {
         "active": "Agendas ativas carregadas",
@@ -283,11 +283,11 @@
       "fields": {
         "name": {
           "label": "Nome",
-          "placeholder": "Ex.: Rinha de sexta"
+          "placeholder": "Ex.: Rinha de sexta…"
         },
         "observation": {
           "label": "Observação",
-          "placeholder": "Contexto opcional para este agendamento",
+          "placeholder": "Ex.: Formação dos times…",
           "description": "Esta informação acompanha a agenda e pode orientar a organização."
         },
         "weekdays": {
@@ -377,7 +377,7 @@
       "history": {
         "title": "Histórico de {name}",
         "description": "Execuções mais recentes desta agenda, na ordem fornecida pelo servidor.",
-        "loading": "Carregando histórico...",
+        "loading": "Carregando histórico…",
         "error": "Não foi possível carregar o histórico.",
         "empty": {
           "title": "Nenhuma execução registrada ainda.",
@@ -411,6 +411,7 @@
         "MV098": "Não foi possível processar esta execução agora.",
         "MV099": "Agendamento não encontrado.",
         "MV100": "A ocorrência do agendamento não foi encontrada.",
+        "requestFailed": "A solicitação não pôde ser concluída pelo servidor.",
         "unknown": "A execução registrou uma falha conhecida pelo servidor."
       },
       "accessibility": {

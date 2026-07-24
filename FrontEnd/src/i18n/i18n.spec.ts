@@ -4,6 +4,12 @@ import en from './locales/en.json'
 import pt from './locales/pt.json'
 import { i18n, setLocale } from './index'
 
+const settingsComponents = import.meta.glob('../components/settings/*.vue', {
+  eager: true,
+  import: 'default',
+  query: '?raw',
+}) as Record<string, string>
+
 function leafPaths(source: object, prefix = ''): string[] {
   return Object.entries(source).flatMap(([key, value]) => {
     const path = prefix ? `${prefix}.${key}` : key
@@ -45,6 +51,7 @@ describe('i18n', () => {
       'settings.presenceSchedules.toasts.created',
       'settings.presenceSchedules.validation.closingAfterPublication',
       'settings.presenceSchedules.accessibility.scheduleList',
+      'settings.presenceSchedules.messageCodes.requestFailed',
     ]
 
     for (const path of requiredPaths) {
@@ -53,6 +60,23 @@ describe('i18n', () => {
     }
     expect(pt.settings.presenceSchedules.weekdays.Sabado).toBe('Sábado')
     expect(pt.settings.presenceSchedules.fields.observation.label).toBe('Observação')
+    expect(pt.settings.presenceSchedules.loading).toMatch(/…$/)
+    expect(en.settings.presenceSchedules.loading).toMatch(/…$/)
+    expect(pt.settings.presenceSchedules.history.loading).toMatch(/…$/)
+    expect(en.settings.presenceSchedules.history.loading).toMatch(/…$/)
+    expect(pt.settings.presenceSchedules.fields.name.placeholder).toMatch(/^Ex\.: .+…$/)
+    expect(en.settings.presenceSchedules.fields.name.placeholder).toMatch(/^E\.g\. .+…$/)
+    expect(pt.settings.presenceSchedules.fields.observation.placeholder).toMatch(/…$/)
+    expect(en.settings.presenceSchedules.fields.observation.placeholder).toMatch(/…$/)
+  })
+
+  it('keeps presence schedule visible text and accessible names in i18n', () => {
+    for (const [path, source] of Object.entries(settingsComponents)) {
+      const template = source.match(/<template>([\s\S]*?)<\/template>/)?.[1] ?? ''
+      expect(template, path).not.toMatch(/>\s*[A-Za-zÀ-ÿ][^<{]*</)
+      expect(source, path).not.toMatch(/(?<![:@])\b(?:aria-label|placeholder|title)="[^"{]*[A-Za-zÀ-ÿ][^"]*"/)
+      expect(source, path).not.toMatch(/toast\.(?:success|error)\(\s*['"`]/)
+    }
   })
 
   it('describes security hardening without exposing sensitive implementation details', () => {

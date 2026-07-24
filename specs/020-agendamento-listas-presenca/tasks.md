@@ -145,25 +145,31 @@ RED da correção final confirmado em 2026-07-24: `TryMarkFailedAsync` aceitou c
 
 **Independent Test**: Moderador carrega mais agendas, abre `Ver histórico`, pagina ocorrências em PT/EN; Jogador não vê a seção; modal funciona por teclado em 320px.
 
-- [ ] T056 [US1] Escrever testes RED de duas páginas de agendas com empate/pausadas na ordem backend, métodos, payload `HH:mm`, `messageCode` e propagação de `403`/`500` em `FrontEnd/src/services/presenceSchedules.spec.ts`
-- [ ] T057 [US4] Acrescentar testes RED de `listPresenceScheduleOccurrences(id,page,pageSize)` e envelope `PaginatedResponse` em `FrontEnd/src/services/presenceSchedules.spec.ts`
-- [ ] T058 [US1] Escrever testes RED de campos, chips `aria-pressed`, validação, loading, `Escape` e foco em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.spec.ts`
-- [ ] T059 [US4] Escrever testes RED de cards em duas páginas com empate de próxima execução/nome, pausadas e desempate por ID, provando carregar mais sem duplicação/omissão em `FrontEnd/src/components/settings/PresenceScheduleSection.spec.ts`
-- [ ] T060 [US4] Escrever testes RED de `Ver histórico`, paginação, loading, erro, vazio, região viva, foco e `Escape` em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.spec.ts`
-- [ ] T061 [US1] Escrever testes RED de pausa/exclusão contextual e submissão única em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.spec.ts`
-- [ ] T062 [US5] Escrever testes RED de visibilidade Jogador/Moderador/Admin e separação de permissões em `FrontEnd/src/views/SettingsView.spec.ts`
-- [ ] T063 [US1] Executar os testes frontend focados e registrar RED pelos tipos, serviço e componentes ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T064 [US1] Criar `PaginatedResponse<T>`, tipos fechados e contratos de agenda/ocorrência em `FrontEnd/src/types/presenceSchedule.ts`
-- [ ] T065 [US1] Implementar listagem paginada preservando a ordem total do backend sem reordenar no cliente e mutações sem fallback silencioso em `FrontEnd/src/services/presenceSchedules.ts`
-- [ ] T066 [US4] Implementar `listPresenceScheduleOccurrences(id,page,pageSize)` preservando metadados em `FrontEnd/src/services/presenceSchedules.ts`
-- [ ] T067 [US1] Implementar formulário acessível de criação/edição em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.vue`
-- [ ] T068 [US1] Implementar confirmações acessíveis de pausa e arquivamento em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.vue`
-- [ ] T069 [US4] Implementar resumo, cards, `Ver histórico` e concatenação paginada na ordem backend sem duplicar/omitir agendas em `FrontEnd/src/components/settings/PresenceScheduleSection.vue`
-- [ ] T070 [US4] Implementar painel/modal acessível com histórico paginado, controles, região viva e restauração de foco em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.vue`
-- [ ] T071 [US5] Integrar agendas por `CanManageDrafts` e manter configuração sensível por `CanManageUsers` em `FrontEnd/src/views/SettingsView.vue`
-- [ ] T072 [P] [US1] Adicionar `settings.presenceSchedules` completo, incluindo paginação e `Ver histórico`, em `FrontEnd/src/i18n/locales/pt.json`
-- [ ] T073 [P] [US1] Adicionar estrutura equivalente em inglês em `FrontEnd/src/i18n/locales/en.json`
-- [ ] T074 [US4] Aplicar cards, paginação e modal responsivos com tokens existentes e sem overflow em 320px em `FrontEnd/src/styles/main.css`
+- [x] T056 [US1] Escrever testes RED de duas páginas de agendas com empate/pausadas na ordem backend, métodos, payload `HH:mm`, `messageCode` e propagação de `403`/`500` em `FrontEnd/src/services/presenceSchedules.spec.ts`
+- [x] T057 [US4] Acrescentar testes RED de `listPresenceScheduleOccurrences(id,page,pageSize)` e envelope `PaginatedResponse` em `FrontEnd/src/services/presenceSchedules.spec.ts`
+- [x] T058 [US1] Escrever testes RED de campos, chips `aria-pressed`, validação, loading, `Escape` e foco em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.spec.ts`
+- [x] T059 [US4] Escrever testes RED de cards em duas páginas com empate de próxima execução/nome, pausadas e desempate por ID, provando carregar mais sem duplicação/omissão em `FrontEnd/src/components/settings/PresenceScheduleSection.spec.ts`
+- [x] T060 [US4] Escrever testes RED de `Ver histórico`, paginação, loading, erro, vazio, região viva, foco e `Escape` em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.spec.ts`
+- [x] T061 [US1] Escrever testes RED de pausa/exclusão contextual e submissão única em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.spec.ts`
+- [x] T062 [US5] Escrever testes RED de visibilidade Jogador/Moderador/Admin e separação de permissões em `FrontEnd/src/views/SettingsView.spec.ts`
+- [x] T063 [US1] Executar os testes frontend focados e registrar RED pelos tipos, serviço e componentes ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
+- [x] T064 [US1] Criar `PaginatedResponse<T>`, tipos fechados e contratos de agenda/ocorrência em `FrontEnd/src/types/presenceSchedule.ts`
+- [x] T065 [US1] Implementar listagem paginada preservando a ordem total do backend sem reordenar no cliente e mutações sem fallback silencioso em `FrontEnd/src/services/presenceSchedules.ts`
+- [x] T066 [US4] Implementar `listPresenceScheduleOccurrences(id,page,pageSize)` preservando metadados em `FrontEnd/src/services/presenceSchedules.ts`
+- [x] T067 [US1] Implementar formulário acessível de criação/edição em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.vue`
+- [x] T068 [US1] Implementar confirmações acessíveis de pausa e arquivamento em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.vue`
+- [x] T069 [US4] Implementar resumo, cards, `Ver histórico` e concatenação paginada na ordem backend sem duplicar/omitir agendas em `FrontEnd/src/components/settings/PresenceScheduleSection.vue`
+- [x] T070 [US4] Implementar painel/modal acessível com histórico paginado, controles, região viva e restauração de foco em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.vue`
+- [x] T071 [US5] Integrar agendas por `CanManageDrafts` e manter configuração sensível por `CanManageUsers` em `FrontEnd/src/views/SettingsView.vue`
+- [x] T072 [P] [US1] Adicionar `settings.presenceSchedules` completo, incluindo paginação e `Ver histórico`, em `FrontEnd/src/i18n/locales/pt.json`
+- [x] T073 [P] [US1] Adicionar estrutura equivalente em inglês em `FrontEnd/src/i18n/locales/en.json`
+- [x] T074 [US4] Aplicar cards, paginação e modal responsivos com tokens existentes e sem overflow em 320px em `FrontEnd/src/styles/main.css`
+
+**Registro T063 (2026-07-24)**:
+
+- RED inicial: testes focados falharam pela ausência dos tipos, serviço, componentes, chaves `settings.presenceSchedules` e integração por `CanManageDrafts`.
+- RED da correção: 23 falhas reproduziram respostas stale, foco em nós desconectados, timezone do host, relações ARIA ausentes, autofocus mobile, loading sem região viva, semântica de cards e classe perdida em `EmptyDescription`.
+- GREEN da correção: 7 arquivos/52 testes focados e 31 arquivos/177 testes na suíte frontend, incluindo serviço, i18n/hardcoded, formulário, seção, histórico, permissões e `EmptyDescription`.
 - [ ] T075 [US1] Executar testes de serviço/formulários e registrar GREEN de duas páginas estáveis com empate/pausadas, CRUD e confirmações em `specs/020-agendamento-listas-presenca/tasks.md`
 - [ ] T076 [US4] Executar testes de seção/histórico e registrar GREEN de carregar mais, ocorrências paginadas, acessibilidade e responsividade em `specs/020-agendamento-listas-presenca/tasks.md`
 - [ ] T077 [US5] Executar `SettingsView.spec.ts` e registrar GREEN da matriz de visibilidade e separação de permissões em `specs/020-agendamento-listas-presenca/tasks.md`

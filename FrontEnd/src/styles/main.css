@@ -4891,9 +4891,17 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-lg);
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presence-schedule-card-item {
+  min-width: 0;
 }
 
 .presence-schedule-card {
+  height: 100%;
   min-width: 0;
   border-color: var(--color-hairline);
   border-inline-start: var(--space-xxs) solid var(--color-primary);
@@ -4920,6 +4928,13 @@ p {
 .presence-schedule-card__title [data-slot='card-title'] {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.presence-schedule-card__name,
+.presence-schedule-card__description {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .presence-schedule-card__content,
@@ -5007,6 +5022,20 @@ p {
   max-height: calc(100dvh - var(--space-xl));
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.presence-schedule-history-dialog {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.presence-schedule-history-dialog > *,
+.presence-schedule-history-dialog [data-slot='dialog-title'] {
+  min-width: 0;
+}
+
+.presence-schedule-history-dialog [data-slot='dialog-title'] {
+  overflow-wrap: anywhere;
 }
 
 .presence-schedule-form {
@@ -5082,11 +5111,21 @@ p {
 .presence-schedule-history__pagination {
   align-items: center;
   flex-wrap: wrap;
+  flex-direction: row;
+  min-width: 0;
+  width: 100%;
 }
 
 .presence-schedule-history__pagination span {
   margin-inline-end: auto;
   color: var(--color-ink-muted);
+}
+
+.presence-schedule-section button,
+.presence-schedule-dialog :is(button, input, textarea, [role='group']),
+.presence-schedule-history-dialog button,
+.presence-schedule-confirm-dialog button {
+  touch-action: manipulation;
 }
 
 .presence-schedule-section :is(button, input, textarea):focus-visible,
@@ -5136,6 +5175,15 @@ p {
   .presence-schedule-history__heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .presence-schedule-history__pagination span {
+    flex-basis: 100%;
+    margin-inline-end: 0;
+  }
+
+  .presence-schedule-history__pagination button {
+    flex: 1;
   }
 
   .presence-schedule-dialog,

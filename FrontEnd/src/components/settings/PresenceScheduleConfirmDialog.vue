@@ -35,9 +35,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const locked = ref(false)
 
-watch(() => props.open, (open) => {
+watch(() => props.open, (open, wasOpen) => {
   if (open) locked.value = false
-  else restoreFocus()
+  else if (wasOpen) restoreFocus()
 })
 watch(() => props.submitting, (submitting, wasSubmitting) => {
   if (wasSubmitting && !submitting) locked.value = false

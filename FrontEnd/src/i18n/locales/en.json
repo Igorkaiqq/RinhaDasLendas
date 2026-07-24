@@ -255,7 +255,7 @@
       "eyebrow": "Automations",
       "title": "Presence lists",
       "description": "Organize weekly publications and follow each run without changing drafts already created.",
-      "loading": "Loading schedules...",
+      "loading": "Loading schedules…",
       "error": "Could not load the schedules.",
       "actions": {
         "create": "New schedule",
@@ -266,12 +266,12 @@
         "viewHistory": "View history",
         "retry": "Try again",
         "loadMore": "Load more schedules",
-        "loadingMore": "Loading more schedules...",
+        "loadingMore": "Loading more schedules…",
         "previous": "Previous",
         "next": "Next",
         "cancel": "Cancel",
-        "saving": "Saving...",
-        "processing": "Processing..."
+        "saving": "Saving…",
+        "processing": "Processing…"
       },
       "summary": {
         "active": "Active schedules loaded",
@@ -283,11 +283,11 @@
       "fields": {
         "name": {
           "label": "Name",
-          "placeholder": "E.g. Friday Rinha"
+          "placeholder": "E.g. Friday Rinha…"
         },
         "observation": {
           "label": "Note",
-          "placeholder": "Optional context for this schedule",
+          "placeholder": "E.g. Team formation notes…",
           "description": "This information follows the schedule and can guide organization."
         },
         "weekdays": {
@@ -377,7 +377,7 @@
       "history": {
         "title": "History for {name}",
         "description": "Latest runs for this schedule, in the order provided by the server.",
-        "loading": "Loading history...",
+        "loading": "Loading history…",
         "error": "Could not load history.",
         "empty": {
           "title": "No runs recorded yet.",
@@ -411,6 +411,7 @@
         "MV098": "This run could not be processed now.",
         "MV099": "Schedule not found.",
         "MV100": "The schedule occurrence was not found.",
+        "requestFailed": "The request could not be completed by the server.",
         "unknown": "The run recorded a failure known by the server."
       },
       "accessibility": {
