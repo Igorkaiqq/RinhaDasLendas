@@ -657,7 +657,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             WHERE id = @occurrenceId
               AND status = 0
               AND claim_id = @claimId
-              AND claim_expires_at > @now
+              AND claim_expires_at > clock_timestamp()
             RETURNING TRUE
             """;
         await using var command = dbContext.Database.GetDbConnection().CreateCommand();
