@@ -15,6 +15,7 @@ using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Api.Serialization;
 using RinhaDasLendas.Application;
+using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure;
@@ -30,6 +31,10 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ApiMetrics>();
 builder.Services.AddSingleton<IAgendamentoPresencaMetrics, AgendamentoPresencaMetrics>();
+builder.Services.AddSingleton<IAgendamentoPresencaDiagnostics, AgendamentoPresencaDiagnostics>();
+builder.Services.AddSingleton((builder.Configuration
+    .GetSection(AgendamentoPresencaProcessingOptions.SectionName)
+    .Get<AgendamentoPresencaProcessingOptions>() ?? new AgendamentoPresencaProcessingOptions()).Normalize());
 builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();

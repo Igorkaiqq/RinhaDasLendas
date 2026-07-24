@@ -56,6 +56,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - Persistir todos os enums como `smallint`, aplicar índice `UNIQUE` parcial em `draft_montagem_id WHERE draft_montagem_id IS NOT NULL` e registrar auditoria somente em `campos_alterados varchar(200)` com nomes estáveis separados por vírgula, nunca valores.
 - Adicionar `claim_id` e `claim_expires_at` à ocorrência. `TryClaimOccurrenceAsync` usa claim de cinco minutos e permite retomada de processador interrompido enquanto a janela estiver aberta.
 - Criar draft, publicação pendente e conclusão da ocorrência na mesma transação. Crash antes do commit não confirma estado; commit impede novo draft pela ocorrência única.
+- Capturar `NomeSnapshot`/`ObservacaoSnapshot` no `INSERT` atômico de qualquer ocorrência e usar exclusivamente esses snapshots em retomadas e drafts.
 - Implementar exclusão como status `Arquivado` e FKs restritas para preservar auditoria e drafts existentes.
 
 ### Tempo E Recuperação
@@ -67,6 +68,10 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - A fronteira é única: somente `AtivadoEm > PublicacaoPrevistaEm` impede a ocorrência do mesmo dia; igualdade permanece elegível. Agenda que permaneceu ativa pode criar atrasado antes do encerramento; depois dele registra `Perdida` sem draft.
 - Em fase independente de cada ciclo, consultar `ListBlockedAsync(agora)`, sem depender da varredura posterior a `UltimaDataAvaliada`: após encerramento marcar `Perdida`; com janela aberta e configuração restaurada readquirir claim e concluir com draft; se a configuração continuar ausente manter `Bloqueada`.
 - Horário local inválido ou ambíguo vira `Falha` com `MV096`, sem ajuste silencioso e sem draft.
+- Persistir `Falha/MV096` idempotente antes do marcador. Como a janela é non-null, somente esse estado terminal usa a derivação determinística do PostgreSQL para registrar os instantes locais inválidos/ambíguos; ela nunca participa da elegibilidade de draft.
+- Obter `ISystemClock.UtcNow` novamente antes de cada classificação, claim, conclusão e marcador; um claim que cruza o encerramento vira `Perdida` com o mesmo instante em seu CAS.
+- Limitar por ciclo a quantidade de bloqueadas, agendas e datas por agenda, sem horizonte por idade. O marcador e a ordenação persistida fornecem continuação e progresso eventual.
+- Exceção transitória ao consultar configuração Discord não equivale a configuração ausente: diagnosticar por porta segura, não criar `Bloqueada`, não avançar marcador e tentar novamente; datas já encerradas continuam classificáveis como `Perdida`.
 
 ### CQRS, API E Autorização
 
@@ -83,6 +88,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 - `AgendamentoPresencaExecutionService` cria escopo e envia `ProcessarAgendamentosPresencaDevidosCommand(clock.UtcNow)`; não contém EF, recorrência ou regra Discord.
 - Usar `PeriodicTimer` com `PresenceSchedule:IntervalSeconds`, default 30, sem iniciar ciclo antes do anterior terminar e respeitando cancelamento.
 - Uma falha por agenda é isolada. Testes RED específicos devem preceder a implementação das métricas de avaliadas, criadas, bloqueadas, perdidas, falhas, conflitos e duração, aceitando apenas tags de status/código estável.
+- `Avaliadas` conta cada agenda candidata uma vez; bloqueadas reavaliadas não incrementam esse contador. Diagnóstico técnico usa etapa enum fechada, tipo da exceção e código estável, sem dados de agenda/usuário/Discord.
 
 ### Frontend E Bot
 

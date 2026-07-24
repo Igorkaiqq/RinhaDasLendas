@@ -18,8 +18,8 @@ public interface IAgendamentoPresencaRepository
         CancellationToken ct);
     Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListOccurrencesAsync(Guid agendaId, int page, int pageSize, CancellationToken ct);
     Task<int> CountOccurrencesAsync(Guid agendaId, CancellationToken ct);
-    Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(DateOnly throughLocalDate, CancellationToken ct);
-    Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(DateTimeOffset now, CancellationToken ct);
+    Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(DateOnly throughLocalDate, int limit, CancellationToken ct);
+    Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(DateTimeOffset now, int limit, CancellationToken ct);
     Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
@@ -29,7 +29,7 @@ public interface IAgendamentoPresencaRepository
         DateTimeOffset claimExpiresAt,
         DateTimeOffset now,
         CancellationToken ct);
-    Task<bool> TryUpsertBlockedOccurrenceAsync(
+    Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertBlockedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
         DateTimeOffset publicationAt,
@@ -37,12 +37,22 @@ public interface IAgendamentoPresencaRepository
         string code,
         DateTimeOffset now,
         CancellationToken ct);
-    Task<bool> TryUpsertMissedOccurrenceAsync(
+    Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertMissedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
         DateTimeOffset publicationAt,
         DateTimeOffset closureAt,
         string code,
+        DateTimeOffset now,
+        CancellationToken ct);
+    Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertFailedTimeZoneOccurrenceAsync(
+        Guid agendaId,
+        DateOnly localDate,
+        DateTimeOffset now,
+        CancellationToken ct);
+    Task<AgendamentoPresencaOccurrenceWriteResult> TryMarkClaimedOccurrenceMissedAsync(
+        Guid occurrenceId,
+        Guid claimId,
         DateTimeOffset now,
         CancellationToken ct);
     Task<bool> TryCompleteWithDraftAsync(
@@ -58,4 +68,5 @@ public interface IAgendamentoPresencaRepository
         DateTimeOffset now,
         CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
+    void DiscardTrackedChanges();
 }

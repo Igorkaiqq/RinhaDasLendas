@@ -111,6 +111,16 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 - [X] T054 [US3] Executar cenários de múltiplos dias e bloqueadas com marcador avançado e registrar GREEN de recuperação/perda em `specs/020-agendamento-listas-presenca/tasks.md`. GREEN em 2026-07-24: recuperação sem horizonte classificou três dias selecionados, avançou datas não selecionadas monotonicamente, reavaliou bloqueada com marcador avançado e cobriu crash entre commit de `Perdida` e gravação do marcador.
 - [X] T055 [US2] Executar `AgendamentoPresencaMetricsTests` e registrar GREEN de contadores, duração e tags seguras em `specs/020-agendamento-listas-presenca/tasks.md`. GREEN em 2026-07-24: contadores de avaliadas, criadas, bloqueadas, perdidas, falhas e conflitos e histograma de duração aprovados; valor não permitido foi normalizado para `MV097` sem entrar em tags. Suíte backend: 478 aprovados; build Release: 0 avisos e 0 erros.
 
+### Revisão obrigatória da Task 5
+
+- [X] T055A Persistir `Falha/MV096` idempotente, snapshots imutáveis e janela técnica determinística com migration e testes PostgreSQL.
+- [X] T055B Usar relógio fresco, lotes configuráveis, no-op de bloqueadas e configuração transitória distinta de indisponibilidade.
+- [X] T055C Isolar tracking/conflitos por agenda, adicionar diagnóstico seguro e corrigir semântica de métricas.
+- [X] T055D Testar lifecycle real do hosted service, claim expirado, handlers concorrentes, backlog/cancelamento e EF `xmin` no mesmo ciclo.
+- [X] T055E Executar GREEN focado/PostgreSQL/backend/build/EF/i18n/diff, atualizar relatório e commit sem amend. GREEN da revisão em 2026-07-24: 88 testes focados e 494 testes backend aprovados; build Release sem avisos/erros; migration idempotente gerada com snapshots; `has-pending-model-changes` sem drift; paridade i18n com 778 chaves frontend e 218 resources backend; `git diff --check` aprovado.
+
+RED da revisão confirmado em 2026-07-24: baseline de 478 testes aprovado; novos testes falharam na compilação com `CS0246` para `IAgendamentoPresencaDiagnostics` e `AgendamentoPresencaProcessingOptions`, portas ausentes que representam os requisitos rejeitados.
+
 **Checkpoint**: US2/US3 preservam exactly-once e nenhuma ocorrência bloqueada fica invisível após o avanço do marcador.
 
 ---

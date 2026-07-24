@@ -15,6 +15,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateOnly dataLocal,
         DateTimeOffset publicacao,
         DateTimeOffset encerramento,
+        string nomeSnapshot,
+        string? observacaoSnapshot,
         OcorrenciaAgendamentoPresencaStatus status,
         string? codigo,
         Guid? claimId,
@@ -31,6 +33,8 @@ public sealed class OcorrenciaAgendamentoPresenca
         DataLocal = dataLocal;
         PublicacaoPrevistaEm = publicacao;
         EncerramentoPrevistoEm = encerramento;
+        NomeSnapshot = nomeSnapshot;
+        ObservacaoSnapshot = observacaoSnapshot;
         Status = status;
         CodigoFalha = status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
             ? NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleDiscordUnavailable)
@@ -54,6 +58,8 @@ public sealed class OcorrenciaAgendamentoPresenca
     public OcorrenciaAgendamentoPresencaStatus Status { get; private set; }
     public Guid? DraftMontagemId { get; private set; }
     public string? CodigoFalha { get; private set; }
+    public string NomeSnapshot { get; private set; } = string.Empty;
+    public string? ObservacaoSnapshot { get; private set; }
     public Guid? ClaimId { get; private set; }
     public DateTimeOffset? ClaimExpiresAt { get; private set; }
     public DateTimeOffset? UltimaTentativaEm { get; private set; }
@@ -67,13 +73,17 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateTimeOffset encerramento,
         Guid claimId,
         DateTimeOffset claimExpiresAt,
-        DateTimeOffset agora)
+        DateTimeOffset agora,
+        string nomeSnapshot = "Snapshot",
+        string? observacaoSnapshot = null)
     {
         return new OcorrenciaAgendamentoPresenca(
             agendaId,
             dataLocal,
             publicacao,
             encerramento,
+            nomeSnapshot,
+            observacaoSnapshot,
             OcorrenciaAgendamentoPresencaStatus.Processando,
             null,
             claimId,
@@ -87,13 +97,17 @@ public sealed class OcorrenciaAgendamentoPresenca
         DateTimeOffset publicacao,
         DateTimeOffset encerramento,
         string codigo,
-        DateTimeOffset agora)
+        DateTimeOffset agora,
+        string nomeSnapshot = "Snapshot",
+        string? observacaoSnapshot = null)
     {
         return new OcorrenciaAgendamentoPresenca(
             agendaId,
             dataLocal,
             publicacao,
             encerramento,
+            nomeSnapshot,
+            observacaoSnapshot,
             OcorrenciaAgendamentoPresencaStatus.Bloqueada,
             codigo,
             null,

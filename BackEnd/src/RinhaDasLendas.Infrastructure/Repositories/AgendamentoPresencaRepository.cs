@@ -177,25 +177,31 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
 
     public async Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(
         DateOnly throughLocalDate,
+        int limit,
         CancellationToken ct)
     {
-        return await IncludeDays(dbContext.AgendamentosPresenca)
+        return await IncludeDays(dbContext.AgendamentosPresenca.AsNoTracking())
             .Where(schedule => schedule.Status == AgendamentoPresencaStatus.Ativo
                 && schedule.UltimaDataAvaliada < throughLocalDate)
             .OrderBy(schedule => schedule.UltimaDataAvaliada)
+            .ThenBy(schedule => schedule.AtualizadoEm)
             .ThenBy(schedule => schedule.Id)
+            .Take(Math.Clamp(limit, 1, 1000))
             .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(
         DateTimeOffset now,
+        int limit,
         CancellationToken ct)
     {
         return await dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
             .Where(occurrence => occurrence.Status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
                 && occurrence.PublicacaoPrevistaEm <= now)
             .OrderBy(occurrence => occurrence.EncerramentoPrevistoEm)
+            .ThenBy(occurrence => occurrence.DataLocal)
             .ThenBy(occurrence => occurrence.Id)
+            .Take(Math.Clamp(limit, 1, 1000))
             .ToListAsync(ct);
     }
 
@@ -225,10 +231,12 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             WITH acquired AS (
                 INSERT INTO ocorrencias_agendamentos_presenca
                     (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
-                     encerramento_previsto_em, status, claim_id, claim_expires_at,
+                     encerramento_previsto_em, nome_snapshot, observacao_snapshot,
+                     status, claim_id, claim_expires_at,
                      ultima_tentativa_em, criada_em, atualizada_em)
                 SELECT @occurrenceId, schedule.id, @localDate, @publicationAt,
-                       @closureAt, 0, @claimId, @claimExpiresAt, @now, @now, @now
+                       @closureAt, schedule.nome, schedule.observacao,
+                       0, @claimId, @claimExpiresAt, @now, @now, @now
                 FROM agendamentos_presenca AS schedule
                 WHERE schedule.id = @agendaId
                   AND (
@@ -260,11 +268,12 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                            AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
                   AND ocorrencias_agendamentos_presenca.publicacao_prevista_em <= @now
                   AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > @now
-                RETURNING id, claim_id, status
+                RETURNING id, claim_id, status, nome_snapshot, observacao_snapshot
             )
-            SELECT id, claim_id, TRUE, status FROM acquired
+            SELECT id, claim_id, TRUE, status, nome_snapshot, observacao_snapshot FROM acquired
             UNION ALL
-            SELECT current.id, current.claim_id, FALSE, current.status
+            SELECT current.id, current.claim_id, FALSE, current.status,
+                   current.nome_snapshot, current.observacao_snapshot
             FROM ocorrencias_agendamentos_presenca AS current
             WHERE current.agendamento_presenca_id = @agendaId
               AND current.data_local = @localDate
@@ -288,7 +297,9 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                     reader.GetGuid(0),
                     reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
                     reader.GetBoolean(2),
-                    (OcorrenciaAgendamentoPresencaStatus)reader.GetInt16(3));
+                    (OcorrenciaAgendamentoPresencaStatus)reader.GetInt16(3),
+                    reader.GetString(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5));
             }
         }
 
@@ -296,7 +307,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         return result;
     }
 
-    public Task<bool> TryUpsertBlockedOccurrenceAsync(
+    public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertBlockedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
         DateTimeOffset publicationAt,
@@ -309,41 +320,39 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             code,
             MessageCodes.PresenceScheduleDiscordUnavailable);
         const string sql = """
-            INSERT INTO ocorrencias_agendamentos_presenca
-                (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
-                 encerramento_previsto_em, status, codigo_falha, ultima_tentativa_em,
-                 criada_em, atualizada_em)
-            SELECT @occurrenceId, schedule.id, @localDate, @publicationAt, @closureAt,
-                   1, @code, @now, @now, @now
-            FROM agendamentos_presenca AS schedule
-            WHERE schedule.id = @agendaId
-              AND (
-                  EXISTS (
-                      SELECT 1
-                      FROM ocorrencias_agendamentos_presenca AS existing
-                      WHERE existing.agendamento_presenca_id = @agendaId
-                        AND existing.data_local = @localDate)
-                  OR (
-                      schedule.status = 0
-                      AND EXISTS (
-                          SELECT 1
-                          FROM agendamentos_presenca_dias_semana AS configured_day
-                          WHERE configured_day.agendamento_presenca_id = schedule.id
-                            AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
-                      AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
-                      AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
-                      AND @now < @closureAt))
-            ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
-            SET codigo_falha = EXCLUDED.codigo_falha,
-                ultima_tentativa_em = EXCLUDED.ultima_tentativa_em,
-                atualizada_em = EXCLUDED.atualizada_em
-            WHERE ocorrencias_agendamentos_presenca.status = 1
-            RETURNING TRUE
+            WITH inserted AS (
+                INSERT INTO ocorrencias_agendamentos_presenca
+                    (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
+                     encerramento_previsto_em, nome_snapshot, observacao_snapshot,
+                     status, codigo_falha, ultima_tentativa_em, criada_em, atualizada_em)
+                SELECT @occurrenceId, schedule.id, @localDate, @publicationAt, @closureAt,
+                       schedule.nome, schedule.observacao, 1, @code, @now, @now, @now
+                FROM agendamentos_presenca AS schedule
+                WHERE schedule.id = @agendaId
+                  AND schedule.status = 0
+                  AND EXISTS (
+                      SELECT 1 FROM agendamentos_presenca_dias_semana AS configured_day
+                      WHERE configured_day.agendamento_presenca_id = schedule.id
+                        AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
+                  AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                  AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                  AND @now < @closureAt
+                ON CONFLICT (agendamento_presenca_id, data_local) DO NOTHING
+                RETURNING status, TRUE AS changed
+            )
+            SELECT status, changed FROM inserted
+            UNION ALL
+            SELECT current.status, FALSE
+            FROM ocorrencias_agendamentos_presenca AS current
+            WHERE current.agendamento_presenca_id = @agendaId
+              AND current.data_local = @localDate
+              AND NOT EXISTS (SELECT 1 FROM inserted)
+            LIMIT 1
             """;
-        return ExecuteBooleanAsync(sql, agendaId, localDate, publicationAt, closureAt, code, now, ct);
+        return ExecuteOccurrenceWriteAsync(sql, agendaId, localDate, publicationAt, closureAt, code, now, ct);
     }
 
-    public Task<bool> TryUpsertMissedOccurrenceAsync(
+    public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertMissedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
         DateTimeOffset publicationAt,
@@ -356,12 +365,14 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             code,
             MessageCodes.PresenceScheduleWindowExpired);
         const string sql = """
+            WITH changed AS (
             INSERT INTO ocorrencias_agendamentos_presenca
                 (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
-                 encerramento_previsto_em, status, codigo_falha, ultima_tentativa_em,
+                 encerramento_previsto_em, nome_snapshot, observacao_snapshot,
+                 status, codigo_falha, ultima_tentativa_em,
                  criada_em, atualizada_em)
             SELECT @occurrenceId, schedule.id, @localDate, @publicationAt, @closureAt,
-                   3, @code, @now, @now, @now
+                   schedule.nome, schedule.observacao, 3, @code, @now, @now, @now
             FROM agendamentos_presenca AS schedule
             WHERE schedule.id = @agendaId
               AND (
@@ -391,9 +402,92 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                    OR (ocorrencias_agendamentos_presenca.status = 0
                        AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
               AND ocorrencias_agendamentos_presenca.encerramento_previsto_em <= @now
-            RETURNING TRUE
+            RETURNING status, TRUE AS changed
+            )
+            SELECT status, changed FROM changed
+            UNION ALL
+            SELECT current.status, FALSE
+            FROM ocorrencias_agendamentos_presenca AS current
+            WHERE current.agendamento_presenca_id = @agendaId
+              AND current.data_local = @localDate
+              AND NOT EXISTS (SELECT 1 FROM changed)
+            LIMIT 1
             """;
-        return ExecuteBooleanAsync(sql, agendaId, localDate, publicationAt, closureAt, code, now, ct);
+        return ExecuteOccurrenceWriteAsync(sql, agendaId, localDate, publicationAt, closureAt, code, now, ct);
+    }
+
+    public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertFailedTimeZoneOccurrenceAsync(
+        Guid agendaId,
+        DateOnly localDate,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        const string sql = """
+            WITH inserted AS (
+                INSERT INTO ocorrencias_agendamentos_presenca
+                    (id, agendamento_presenca_id, data_local, publicacao_prevista_em,
+                     encerramento_previsto_em, nome_snapshot, observacao_snapshot,
+                     status, codigo_falha, ultima_tentativa_em, criada_em, atualizada_em)
+                SELECT @occurrenceId, schedule.id, @localDate,
+                       (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo',
+                       (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo',
+                       schedule.nome, schedule.observacao, 4, @code, @now, @now, @now
+                FROM agendamentos_presenca AS schedule
+                WHERE schedule.id = @agendaId
+                  AND schedule.status = 0
+                  AND EXISTS (
+                      SELECT 1 FROM agendamentos_presenca_dias_semana AS configured_day
+                      WHERE configured_day.agendamento_presenca_id = schedule.id
+                        AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
+                  AND ((CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo')
+                      > ((CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo')
+                ON CONFLICT (agendamento_presenca_id, data_local) DO NOTHING
+                RETURNING status, TRUE AS changed
+            )
+            SELECT status, changed FROM inserted
+            UNION ALL
+            SELECT current.status, FALSE
+            FROM ocorrencias_agendamentos_presenca AS current
+            WHERE current.agendamento_presenca_id = @agendaId
+              AND current.data_local = @localDate
+              AND NOT EXISTS (SELECT 1 FROM inserted)
+            LIMIT 1
+            """;
+        return ExecuteOccurrenceWriteAsync(
+            sql, agendaId, localDate, default, default,
+            MessageCodes.PresenceScheduleTimeZoneInvalid, now, ct);
+    }
+
+    public async Task<AgendamentoPresencaOccurrenceWriteResult> TryMarkClaimedOccurrenceMissedAsync(
+        Guid occurrenceId,
+        Guid claimId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        const string sql = """
+            WITH changed AS (
+                UPDATE ocorrencias_agendamentos_presenca
+                SET status = 3, codigo_falha = @code, claim_id = NULL, claim_expires_at = NULL,
+                    ultima_tentativa_em = @now, atualizada_em = @now
+                WHERE id = @occurrenceId AND status = 0 AND claim_id = @claimId
+                  AND encerramento_previsto_em <= @now
+                RETURNING status, TRUE AS changed
+            )
+            SELECT status, changed FROM changed
+            UNION ALL
+            SELECT current.status, FALSE
+            FROM ocorrencias_agendamentos_presenca AS current
+            WHERE current.id = @occurrenceId AND NOT EXISTS (SELECT 1 FROM changed)
+            LIMIT 1
+            """;
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        AddParameter(command, "occurrenceId", occurrenceId);
+        AddParameter(command, "claimId", claimId);
+        AddParameter(command, "code", MessageCodes.PresenceScheduleWindowExpired);
+        AddParameter(command, "now", now);
+        await OpenConnectionAsync(ct);
+        return await ReadOccurrenceWriteResultAsync(command, ct);
     }
 
     public async Task<bool> TryCompleteWithDraftAsync(
@@ -528,9 +622,12 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         }
         catch (DbUpdateConcurrencyException)
         {
+            dbContext.ChangeTracker.Clear();
             throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
         }
     }
+
+    public void DiscardTrackedChanges() => dbContext.ChangeTracker.Clear();
 
     private static IQueryable<AgendamentoPresenca> IncludeDays(IQueryable<AgendamentoPresenca> query)
     {
@@ -556,7 +653,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         public DateTimeOffset? NextExecution { get; init; }
     }
 
-    private async Task<bool> ExecuteBooleanAsync(
+    private async Task<AgendamentoPresencaOccurrenceWriteResult> ExecuteOccurrenceWriteAsync(
         string sql,
         Guid agendaId,
         DateOnly localDate,
@@ -576,7 +673,23 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         AddParameter(command, "code", code);
         AddParameter(command, "now", now);
         await OpenConnectionAsync(ct);
-        return await command.ExecuteScalarAsync(ct) is true;
+        return await ReadOccurrenceWriteResultAsync(command, ct);
+    }
+
+    private static async Task<AgendamentoPresencaOccurrenceWriteResult> ReadOccurrenceWriteResultAsync(
+        DbCommand command,
+        CancellationToken ct)
+    {
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return new AgendamentoPresencaOccurrenceWriteResult(
+                OcorrenciaAgendamentoPresencaStatus.Processando, false);
+        }
+
+        return new AgendamentoPresencaOccurrenceWriteResult(
+            (OcorrenciaAgendamentoPresencaStatus)reader.GetInt16(0),
+            reader.GetBoolean(1));
     }
 
     private DbCommand CreateCommand(DbTransaction transaction, string sql)

@@ -631,6 +631,8 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(occurrence => occurrence.Status).HasColumnName("status").HasConversion<short>().HasColumnType("smallint").IsRequired();
             entity.Property(occurrence => occurrence.DraftMontagemId).HasColumnName("draft_montagem_id");
             entity.Property(occurrence => occurrence.CodigoFalha).HasColumnName("codigo_falha").HasMaxLength(16);
+            entity.Property(occurrence => occurrence.NomeSnapshot).HasColumnName("nome_snapshot").HasMaxLength(100).IsRequired();
+            entity.Property(occurrence => occurrence.ObservacaoSnapshot).HasColumnName("observacao_snapshot").HasMaxLength(500);
             entity.Property(occurrence => occurrence.ClaimId).HasColumnName("claim_id");
             entity.Property(occurrence => occurrence.ClaimExpiresAt).HasColumnName("claim_expires_at").HasColumnType("timestamp with time zone");
             entity.Property(occurrence => occurrence.UltimaTentativaEm).HasColumnName("ultima_tentativa_em").HasColumnType("timestamp with time zone");
