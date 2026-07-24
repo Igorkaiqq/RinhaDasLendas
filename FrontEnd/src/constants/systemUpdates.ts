@@ -28,10 +28,35 @@ function releaseDetails(
 
 export const SYSTEM_UPDATES = [
   {
+    id: 'presence-scheduling-2026-07',
+    version: '2026.07.2',
+    publishedAt: '2026-07-23',
+    featured: true,
+    categories: ['feature', 'improvement'],
+    areas: ['drafts', 'discord'],
+    titleKey: `${releaseKeys('2026.07.2')}.title`,
+    summaryKey: `${releaseKeys('2026.07.2')}.summary`,
+    details: releaseDetails('2026.07.2', [
+      {
+        id: 'weekly-presence-scheduling',
+        category: 'feature',
+        link: AppRoutes.Settings,
+      },
+      { id: 'publication-closing-times', category: 'improvement' },
+      {
+        id: 'moderator-management',
+        category: 'improvement',
+        link: AppRoutes.Settings,
+      },
+      { id: 'window-recovery', category: 'improvement' },
+      { id: 'duplicate-draft-protection', category: 'improvement' },
+    ]),
+  },
+  {
     id: 'drafts-discord-reliability',
     version: '2026.07.1',
     publishedAt: '2026-07-22',
-    featured: true,
+    featured: false,
     categories: ['feature', 'improvement', 'fix', 'security', 'infrastructure'],
     areas: ['players', 'drafts', 'discord', 'security', 'infrastructure'],
     titleKey: `${releaseKeys('2026.07.1')}.title`,

@@ -1017,6 +1017,32 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_2": {
+        "title": "Listas de presença agendadas",
+        "summary": "Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.",
+        "details": {
+          "weekly-presence-scheduling": {
+            "title": "Agendamento semanal de presença",
+            "description": "Crie agendas para os dias da semana escolhidos e deixe cada nova lista entrar automaticamente no fluxo atual do Discord."
+          },
+          "publication-closing-times": {
+            "title": "Horários claros para publicar e encerrar",
+            "description": "Cada agenda informa quando a lista será publicada e até que horário os jogadores poderão confirmar presença."
+          },
+          "moderator-management": {
+            "title": "Gestão disponível para Moderador+",
+            "description": "Usuários autorizados podem criar, editar, pausar, reativar e acompanhar agendas pela área de configurações."
+          },
+          "window-recovery": {
+            "title": "Recuperação dentro da janela",
+            "description": "Se a plataforma ficar temporariamente indisponível, a lista ainda pode ser criada quando o serviço voltar antes do encerramento."
+          },
+          "duplicate-draft-protection": {
+            "title": "Proteção contra listas duplicadas",
+            "description": "Cada agenda e data gera no máximo um draft, mesmo após reinícios ou processamentos simultâneos."
+          }
+        }
+      },
       "2026_07_1": {
         "title": "Drafts e Discord mais confiáveis",
         "summary": "A operação de drafts ganhou acesso direto, confirmações mais claras, publicações recuperáveis e presença sincronizada, com reforços de segurança e estabilidade.",

@@ -4,6 +4,7 @@ import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
+  'presence-scheduling-2026-07',
   'drafts-discord-reliability',
   'security-deploy-identity',
   'discord-presence',
@@ -15,27 +16,18 @@ const releaseIds = [
 ]
 
 const latestDetailIds = [
-  'discord-draft-deep-link',
-  'invalid-draft-link-feedback',
-  'contextual-admin-confirmations',
-  'discord-publication-statuses',
-  'individual-publication-recovery',
-  'duplicate-message-protection',
-  'realtime-presence',
-  'consistent-presence-operations',
-  'eligible-player-search',
-  'admin-action-audit',
-  'clear-bot-messages',
-  'discord-permission-diagnostics',
-  'independent-presence-call',
-  'resilient-publication-queue',
-  'security-stability-hardening',
+  'weekly-presence-scheduling',
+  'publication-closing-times',
+  'moderator-management',
+  'window-recovery',
+  'duplicate-draft-protection',
 ]
 
 describe('system update registry', () => {
-  it('contains the eight stable releases in descending chronological order', () => {
+  it('contains the nine stable releases in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
     expect(SYSTEM_UPDATES.map(({ version }) => version)).toEqual([
+      '2026.07.2',
       '2026.07.1',
       '2026.06.7',
       '2026.06.6',
@@ -46,6 +38,7 @@ describe('system update registry', () => {
       '2026.06.1',
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
+      '2026-07-23',
       '2026-07-22',
       '2026-06-30',
       '2026-06-29',
@@ -57,15 +50,18 @@ describe('system update registry', () => {
     ])
   })
 
-  it('contains exactly the fifteen stable details in the latest release', () => {
+  it('publishes the presence scheduling release as the only featured latest release', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
-      id: 'drafts-discord-reliability',
-      version: '2026.07.1',
+      id: 'presence-scheduling-2026-07',
+      version: '2026.07.2',
       featured: true,
+      categories: ['feature', 'improvement'],
+      areas: ['drafts', 'discord'],
     })
     expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(
       latestDetailIds,
     )
+    expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
   })
 
   it('uses every controlled category and area in a non-empty registry', () => {

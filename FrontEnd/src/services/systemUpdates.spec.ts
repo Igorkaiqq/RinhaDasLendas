@@ -26,7 +26,7 @@ function hasPath(source: object, path: string): boolean {
 describe('system updates', () => {
   it('returns the latest valid release from the registry', () => {
     expect(getLatestSystemUpdate()).toBe(SYSTEM_UPDATES[0])
-    expect(getLatestSystemUpdate().version).toBe('2026.07.1')
+    expect(getLatestSystemUpdate().version).toBe('2026.07.2')
     expect(() => getLatestSystemUpdate([])).toThrow(
       'System update registry cannot be empty',
     )
@@ -71,15 +71,15 @@ describe('system updates', () => {
     expect(errors).toEqual(
       expect.arrayContaining([
         'Exactly one release must be featured',
-        'Duplicate release id: drafts-discord-reliability',
+        'Duplicate release id: presence-scheduling-2026-07',
         'Invalid version: 2026-7-1',
         'Invalid date: 2026-02-30',
         'Releases must be newest first',
-        'Missing categories: drafts-discord-reliability',
-        'Missing areas: drafts-discord-reliability',
-        'Missing details: drafts-discord-reliability',
+        'Missing categories: presence-scheduling-2026-07',
+        'Missing areas: presence-scheduling-2026-07',
+        'Missing details: presence-scheduling-2026-07',
         'Missing translation: missing.title',
-        'Duplicate detail id: drafts-discord-reliability:discord-draft-deep-link',
+        'Duplicate detail id: presence-scheduling-2026-07:weekly-presence-scheduling',
         'Unknown internal link: /unknown',
       ]),
     )
@@ -109,7 +109,7 @@ describe('system updates', () => {
         ['improvement'],
         translate,
       )[0]?.version,
-    ).toBe('2026.07.1')
+    ).toBe('2026.07.2')
     expect(
       filterSystemUpdates(
         SYSTEM_UPDATES,

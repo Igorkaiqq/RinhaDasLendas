@@ -34,9 +34,31 @@ describe('i18n', () => {
     expect(leafPaths(pt).sort()).toEqual(leafPaths(en).sort())
     expect(
       i18n.global.t(
-        'updates.releases.2026_07_1.details.discord-draft-deep-link.title',
+        'updates.releases.2026_07_2.details.weekly-presence-scheduling.title',
       ),
     ).not.toContain('updates.')
+  })
+
+  it('provides equivalent and product-safe presence scheduling release content', () => {
+    const detailIds = [
+      'weekly-presence-scheduling',
+      'publication-closing-times',
+      'moderator-management',
+      'window-recovery',
+      'duplicate-draft-protection',
+    ] as const
+
+    for (const locale of [pt, en]) {
+      const release = locale.updates.releases['2026_07_2']
+      expect(release.title).toBeTruthy()
+      expect(release.summary).toBeTruthy()
+      expect(Object.keys(release.details)).toEqual(detailIds)
+      for (const detail of Object.values(release.details)) {
+        expect(detail.title).toBeTruthy()
+        expect(detail.description).toBeTruthy()
+        expect(detail.description).not.toMatch(/claims?|locks?|tokens?|endpoints?|\/api\//i)
+      }
+    }
   })
 
   it('provides the complete localized presence schedule interface', () => {

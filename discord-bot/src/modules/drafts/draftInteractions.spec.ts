@@ -89,6 +89,46 @@ function deferred() {
 }
 
 describe('runDraftPollingCycle', () => {
+  it('publishes a scheduled pending presence through the existing polling contract only once', async () => {
+    const scheduledDraft = pollingDraft('scheduled-draft', 'Pendente')
+    scheduledDraft.nome = 'Rinha semanal - 24/07/2026'
+    mockPollingApi([scheduledDraft])
+    env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
+    let claimNumber = 0
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({
+      adquirido: true,
+      claimId: `claim-${++claimNumber}`,
+      expiraEm: '2026-07-24T21:05:00Z',
+      status: 'EmAndamento',
+    }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async (
+      _draftId: string,
+      publication: Parameters<typeof rinhaApi.registerDiscordPublication>[1],
+    ) => {
+      const existing = scheduledDraft.publicacoesDiscord?.find(({ tipo }) => tipo === publication.tipo)
+      if (existing) existing.status = 'Publicada'
+      else scheduledDraft.publicacoesDiscord?.push({ tipo: publication.tipo, status: 'Publicada' })
+      return scheduledDraft as never
+    })
+    const send = mock.fn(async (_options: unknown) => ({ id: `message-${send.mock.callCount() + 1}` }))
+    const client = pollingClient(send)
+
+    await runDraftPollingCycle(client)
+    await runDraftPollingCycle(client)
+
+    assert.deepEqual(claim.mock.calls.map((call) => call.arguments[1]), ['Presenca', 'ChamadaPresenca'])
+    assert.equal(send.mock.callCount(), 2)
+    assert.ok('embeds' in (send.mock.calls[0]?.arguments[0] as object))
+    assert.deepEqual(send.mock.calls[1]?.arguments[0], {
+      content: buildDraftPresenceCta('scheduled-draft', 'role-1', env.FRONTEND_PUBLIC_URL),
+      allowedMentions: { roles: ['role-1'] },
+    })
+    assert.deepEqual(complete.mock.calls.map((call) => [call.arguments[1]?.tipo, call.arguments[1]?.claimId]), [
+      ['Presenca', 'claim-1'],
+      ['ChamadaPresenca', 'claim-2'],
+    ])
+  })
+
   it('does not send when the claim is denied', async () => {
     mockPollingApi([pollingDraft('draft-1')])
     mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: false, claimId: null, expiraEm: null, status: 'EmAndamento' }))

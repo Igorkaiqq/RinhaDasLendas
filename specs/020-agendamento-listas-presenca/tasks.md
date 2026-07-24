@@ -200,16 +200,23 @@ npm test -- src/services/presenceSchedules.spec.ts \
 
 **Independent Test**: fixture de draft agendado passa por dois ciclos com uma publicação; release localizada é a mais recente e documentação cobre recuperação sem segredos.
 
-- [ ] T078 [US2] Escrever fixture/teste RED ou de caracterização para draft agendado em dois ciclos de `runDraftPollingCycle` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`
-- [ ] T079 [US2] Executar o teste do bot e, se falhar por contrato real, corrigir somente a adaptação existente sem endpoint/regra de agenda em `discord-bot/src/modules/drafts/draftInteractions.spec.ts` e arquivos de produção estritamente necessários
-- [ ] T080 [US4] Escrever testes RED para `2026.07.2`, ID `presence-scheduling-2026-07`, posição latest e paridade localizada em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T081 [US4] Adicionar release `2026.07.2` e remover destaque de `2026.07.1` em `FrontEnd/src/constants/systemUpdates.ts`
-- [ ] T082 [P] [US4] Adicionar conteúdo de produto da release em português em `FrontEnd/src/i18n/locales/pt.json`
-- [ ] T083 [P] [US4] Adicionar conteúdo equivalente da release em inglês em `FrontEnd/src/i18n/locales/en.json`
-- [ ] T084 [P] [US4] Atualizar fluxo existente de drafts Discord em `docs/domain/DRAFT_DISCORD_OPERATIONS.md`
-- [ ] T085 [P] [US4] Documentar agenda, bloqueadas independentes, recuperação, perda, métricas e runbook em `docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md`
-- [ ] T086 [US2] Executar suíte/build do bot e registrar ausência de endpoint novo ou regra de recorrência em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T087 [US4] Executar testes do histórico/i18n e registrar GREEN de `2026.07.2`, paridade e linguagem segura em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T078 [US2] Escrever fixture/teste RED ou de caracterização para draft agendado em dois ciclos de `runDraftPollingCycle` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`
+- [X] T079 [US2] Executar o teste do bot e, se falhar por contrato real, corrigir somente a adaptação existente sem endpoint/regra de agenda em `discord-bot/src/modules/drafts/draftInteractions.spec.ts` e arquivos de produção estritamente necessários
+- [X] T080 [US4] Escrever testes RED para `2026.07.2`, ID `presence-scheduling-2026-07`, posição latest e paridade localizada em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
+- [X] T081 [US4] Adicionar release `2026.07.2` e remover destaque de `2026.07.1` em `FrontEnd/src/constants/systemUpdates.ts`
+- [X] T082 [P] [US4] Adicionar conteúdo de produto da release em português em `FrontEnd/src/i18n/locales/pt.json`
+- [X] T083 [P] [US4] Adicionar conteúdo equivalente da release em inglês em `FrontEnd/src/i18n/locales/en.json`
+- [X] T084 [P] [US4] Atualizar fluxo existente de drafts Discord em `docs/domain/DRAFT_DISCORD_OPERATIONS.md`
+- [X] T085 [P] [US4] Documentar agenda, bloqueadas independentes, recuperação, perda, métricas e runbook em `docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md`
+- [X] T086 [US2] Executar suíte/build do bot e registrar ausência de endpoint novo ou regra de recorrência em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T087 [US4] Executar testes do histórico/i18n e registrar GREEN de `2026.07.2`, paridade e linguagem segura em `specs/020-agendamento-listas-presenca/tasks.md`
+
+**Registro T078-T087 (2026-07-24)**:
+
+- Caracterização do bot: o teste novo passou na primeira execução e a suíte focada terminou com 52 testes aprovados. O draft agendado sem campo adicional foi encontrado em dois ciclos, adquiriu claims de `Presenca` e `ChamadaPresenca`, enviou embed e CTA e concluiu cada publicação uma única vez. Nenhum arquivo de produção, endpoint, DTO, timer ou regra de recorrência do bot foi alterado.
+- RED do histórico: 5 falhas e 14 aprovações confirmaram ausência da release `2026.07.2`, posição latest, destaque exclusivo e conteúdo PT/EN.
+- GREEN do histórico: 3 arquivos e 19 testes aprovados para registro, serviço e i18n, incluindo paridade de chaves e linguagem de produto sem detalhes operacionais sensíveis.
+- Documentação: fluxo existente do bot e runbook do scheduler cobrem criação, pausa/reativação, bloqueio independente, recuperação, perda, falha de envio, claims separados, métricas e limites de lote.
 
 **Checkpoint**: bot permanece adaptador e a entrega fica documentada e localizada.
 

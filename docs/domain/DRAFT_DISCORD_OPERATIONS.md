@@ -31,6 +31,12 @@ O bot usa o estado persistido para evitar duplicação após restart. A listagem
 
 A mensagem principal `Presenca` e a CTA `ChamadaPresenca` possuem claims e resultados independentes. A primeira é concluída assim que o embed é registrado. A CTA só é candidata quando `DRAFT_NOTIFY_ROLE_ID` está configurado; falha conhecida antes do envio vira `Falha`, enquanto resultado incerto permanece `EmAndamento` até reconciliação. Recuperar a CTA não republica o embed principal.
 
+### Drafts criados por agendamento
+
+O scheduler do backend cria um `DraftMontagem` comum com publicação `Presenca` em `Pendente`. O polling atual encontra esse draft sem endpoint, campo ou timer adicional no bot. O bot não conhece a agenda, não calcula recorrência e não avalia horários: ele adquire o claim de publicação, envia o embed e a CTA e conclui cada publicação pelo protocolo descrito acima.
+
+Os limites de duplicidade são complementares. O scheduler garante um draft por agenda e data; o claim da publicação garante uma mensagem principal confirmada por draft. Uma falha de envio não cria draft compensatório. Consulte [Agendamento Recorrente de Listas de Presença](./AGENDAMENTO_LISTAS_PRESENCA.md) para operação e recuperação do scheduler.
+
 ## Republicação
 
 Administradores podem solicitar republicação pelo frontend. A ação:

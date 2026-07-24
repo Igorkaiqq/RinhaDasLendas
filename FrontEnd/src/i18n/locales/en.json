@@ -1017,6 +1017,32 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_2": {
+        "title": "Scheduled presence lists",
+        "summary": "Moderators can now organize weekly lists with defined times, history tracking, and safe recovery during the configured window.",
+        "details": {
+          "weekly-presence-scheduling": {
+            "title": "Weekly presence scheduling",
+            "description": "Create schedules for selected weekdays and let each new list enter the current Discord flow automatically."
+          },
+          "publication-closing-times": {
+            "title": "Clear publication and closing times",
+            "description": "Each schedule states when the list will be published and until what time players can confirm presence."
+          },
+          "moderator-management": {
+            "title": "Management available to Moderator+",
+            "description": "Authorized users can create, edit, pause, reactivate, and monitor schedules from the settings area."
+          },
+          "window-recovery": {
+            "title": "Recovery within the window",
+            "description": "If the platform is temporarily unavailable, the list can still be created when service returns before closing."
+          },
+          "duplicate-draft-protection": {
+            "title": "Duplicate list protection",
+            "description": "Each schedule and date creates at most one draft, even after restarts or simultaneous processing."
+          }
+        }
+      },
       "2026_07_1": {
         "title": "More reliable drafts and Discord",
         "summary": "Draft operations gained direct access, clearer confirmations, recoverable publications, and synchronized presence, along with stronger security and stability.",
