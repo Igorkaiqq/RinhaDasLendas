@@ -141,11 +141,11 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var date = new DateOnly(2026, 7, 24);
         await repository.TryUpsertBlockedOccurrenceAsync(schedules[0].Id, date, Agora, Agora.AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
-        await repository.TryUpsertBlockedOccurrenceAsync(schedules[0].Id, date.AddDays(1), Agora.AddDays(1), Agora.AddDays(1).AddHours(2),
+        await repository.TryUpsertBlockedOccurrenceAsync(schedules[0].Id, date.AddDays(7), Agora.AddDays(7), Agora.AddDays(7).AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
 
         var occurrences = await repository.ListOccurrencesAsync(schedules[0].Id, 1, 1, CancellationToken.None);
-        occurrences.Should().ContainSingle().Which.DataLocal.Should().Be(date.AddDays(1));
+        occurrences.Should().ContainSingle().Which.DataLocal.Should().Be(date.AddDays(7));
         (await repository.CountOccurrencesAsync(schedules[0].Id, CancellationToken.None)).Should().Be(2);
     }
 
@@ -472,6 +472,106 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
 
         result.Should().BeNull();
         (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("blocked", "stale-times")]
+    [InlineData("blocked", "removed-day")]
+    [InlineData("blocked", "paused")]
+    [InlineData("missed", "stale-times")]
+    [InlineData("missed", "removed-day")]
+    [InlineData("missed", "paused")]
+    public async Task Upsert_PrimeiraCriacaoComConfiguracaoInvalida_NaoDeveCriar(
+        string operation,
+        string invalidConfiguration)
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        if (invalidConfiguration == "stale-times")
+        {
+            schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
+                [DiaSemanaIso.Sexta], userId, Agora.AddMinutes(1));
+        }
+        else if (invalidConfiguration == "removed-day")
+        {
+            schedule.Editar("Rinha editada", null, new TimeOnly(15, 0), new TimeOnly(17, 0),
+                [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+        }
+        else
+        {
+            schedule.Pausar(userId, Agora.AddMinutes(1));
+        }
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var changed = await ExecuteOccurrenceUpsertAsync(
+            repository,
+            operation,
+            schedule.Id,
+            new DateOnly(2026, 7, 24),
+            Agora,
+            Agora.AddHours(2),
+            operation == "blocked" ? Agora : Agora.AddHours(2));
+
+        changed.Should().BeFalse();
+        (await db.OcorrenciasAgendamentosPresenca.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("blocked", "paused")]
+    [InlineData("blocked", "archived")]
+    [InlineData("missed", "paused")]
+    [InlineData("missed", "archived")]
+    public async Task Upsert_OcorrenciaExistente_DeveUsarEstadoEJanelaPersistidos(
+        string operation,
+        string scheduleStatus)
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var db = database.CreateContext();
+        var repository = new AgendamentoPresencaRepository(db);
+        var userId = await AddUserAsync(db);
+        var schedule = CreateSchedule(userId);
+        await repository.AddAsync(schedule, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        var date = new DateOnly(2026, 7, 24);
+        var persistedPublication = Agora;
+        var persistedClosure = Agora.AddHours(2);
+        await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, persistedPublication, persistedClosure,
+            MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
+        schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
+            [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+        if (scheduleStatus == "paused")
+        {
+            schedule.Pausar(userId, Agora.AddMinutes(2));
+        }
+        else
+        {
+            schedule.Arquivar(userId, Agora.AddMinutes(2));
+        }
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var changed = await ExecuteOccurrenceUpsertAsync(
+            repository,
+            operation,
+            schedule.Id,
+            date,
+            Agora.AddHours(10),
+            Agora.AddHours(12),
+            operation == "blocked" ? Agora.AddMinutes(30) : persistedClosure);
+
+        changed.Should().BeTrue();
+        db.ChangeTracker.Clear();
+        var occurrence = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
+        occurrence.PublicacaoPrevistaEm.Should().Be(persistedPublication);
+        occurrence.EncerramentoPrevistoEm.Should().Be(persistedClosure);
+        occurrence.Status.Should().Be(operation == "missed"
+            ? OcorrenciaAgendamentoPresencaStatus.Perdida
+            : OcorrenciaAgendamentoPresencaStatus.Bloqueada);
     }
 
     [Theory]
@@ -972,6 +1072,37 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         draft.ConfigurarEncerramentoPresenca(closure);
         draft.ConfigurarPublicacaoDiscord("guild-1", null);
         return draft;
+    }
+
+    private static Task<bool> ExecuteOccurrenceUpsertAsync(
+        AgendamentoPresencaRepository repository,
+        string operation,
+        Guid scheduleId,
+        DateOnly date,
+        DateTimeOffset publicationAt,
+        DateTimeOffset closureAt,
+        DateTimeOffset now)
+    {
+        if (operation == "blocked")
+        {
+            return repository.TryUpsertBlockedOccurrenceAsync(
+                scheduleId,
+                date,
+                publicationAt,
+                closureAt,
+                MessageCodes.PresenceScheduleDiscordUnavailable,
+                now,
+                CancellationToken.None);
+        }
+
+        return repository.TryUpsertMissedOccurrenceAsync(
+            scheduleId,
+            date,
+            publicationAt,
+            closureAt,
+            MessageCodes.PresenceScheduleWindowExpired,
+            now,
+            CancellationToken.None);
     }
 
     private static async Task<Guid> AddUserAsync(RinhaDasLendasDbContext db)

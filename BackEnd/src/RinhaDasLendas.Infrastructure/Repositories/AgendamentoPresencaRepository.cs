@@ -255,7 +255,23 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             SELECT @occurrenceId, schedule.id, @localDate, @publicationAt, @closureAt,
                    1, @code, @now, @now, @now
             FROM agendamentos_presenca AS schedule
-            WHERE schedule.id = @agendaId AND schedule.status = 0 AND @now < @closureAt
+            WHERE schedule.id = @agendaId
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM ocorrencias_agendamentos_presenca AS existing
+                      WHERE existing.agendamento_presenca_id = @agendaId
+                        AND existing.data_local = @localDate)
+                  OR (
+                      schedule.status = 0
+                      AND EXISTS (
+                          SELECT 1
+                          FROM agendamentos_presenca_dias_semana AS configured_day
+                          WHERE configured_day.agendamento_presenca_id = schedule.id
+                            AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
+                      AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                      AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                      AND @now < @closureAt))
             ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
             SET codigo_falha = EXCLUDED.codigo_falha,
                 ultima_tentativa_em = EXCLUDED.ultima_tentativa_em,
@@ -293,7 +309,16 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                       FROM ocorrencias_agendamentos_presenca AS existing
                       WHERE existing.agendamento_presenca_id = @agendaId
                         AND existing.data_local = @localDate)
-                  OR (schedule.status = 0 AND @now >= @closureAt))
+                  OR (
+                      schedule.status = 0
+                      AND EXISTS (
+                          SELECT 1
+                          FROM agendamentos_presenca_dias_semana AS configured_day
+                          WHERE configured_day.agendamento_presenca_id = schedule.id
+                            AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
+                      AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                      AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                      AND @now >= @closureAt))
             ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
             SET status = 3,
                 codigo_falha = EXCLUDED.codigo_falha,

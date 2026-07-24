@@ -479,50 +479,38 @@ public sealed class AgendamentoPresencaTests
         ocorrencia.AtualizadaEm.Should().Be(Agora.AddMinutes(1));
     }
 
-    [Fact]
-    public void Deve_marcar_bloqueada_como_perdida()
+    [Theory]
+    [InlineData(false, -1, false)]
+    [InlineData(false, 0, true)]
+    [InlineData(false, 1, true)]
+    [InlineData(true, -1, false)]
+    [InlineData(true, 0, true)]
+    [InlineData(true, 1, true)]
+    public void Marcar_perdida_deve_respeitar_fronteira_do_encerramento(
+        bool processando,
+        int segundosAposEncerramento,
+        bool deveMarcar)
     {
-        var ocorrencia = CriarBloqueada();
+        var ocorrencia = processando ? CriarProcessando() : CriarBloqueada();
+        var agora = Agora.AddHours(5).AddSeconds(segundosAposEncerramento);
 
-        ocorrencia.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddMinutes(1));
+        var act = () => ocorrencia.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, agora);
 
-        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
-        ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
-        ocorrencia.DraftMontagemId.Should().BeNull();
-    }
-
-    [Fact]
-    public void Deve_marcar_processando_com_claim_expirado_e_janela_encerrada_como_perdida()
-    {
-        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(
-            Guid.NewGuid(),
-            new DateOnly(2026, 7, 24),
-            Agora,
-            Agora.AddHours(2),
-            ClaimId,
-            Agora.AddMinutes(5),
-            Agora);
-
-        ocorrencia.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddHours(2));
-
-        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
-        ocorrencia.ClaimId.Should().BeNull();
-        ocorrencia.ClaimExpiresAt.Should().BeNull();
-        ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
-    }
-
-    [Fact]
-    public void Nao_deve_marcar_processando_com_janela_aberta_como_perdida()
-    {
-        var ocorrencia = CriarProcessando();
-
-        var act = () => ocorrencia.MarcarPerdida(
-            MessageCodes.PresenceScheduleWindowExpired,
-            Agora.AddMinutes(5));
-
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
-        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
-        ocorrencia.ClaimId.Should().Be(ClaimId);
+        if (deveMarcar)
+        {
+            act.Should().NotThrow();
+            ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
+            ocorrencia.ClaimId.Should().BeNull();
+            ocorrencia.ClaimExpiresAt.Should().BeNull();
+            ocorrencia.CodigoFalha.Should().Be(MessageCodes.PresenceScheduleWindowExpired);
+        }
+        else
+        {
+            act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
+            ocorrencia.Status.Should().Be(processando
+                ? OcorrenciaAgendamentoPresencaStatus.Processando
+                : OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        }
     }
 
     [Theory]
@@ -531,7 +519,7 @@ public sealed class AgendamentoPresencaTests
     {
         var ocorrencia = CriarBloqueada();
 
-        var act = () => ocorrencia.MarcarPerdida(codigo!, Agora.AddMinutes(1));
+        var act = () => ocorrencia.MarcarPerdida(codigo!, Agora.AddHours(5));
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
@@ -545,7 +533,7 @@ public sealed class AgendamentoPresencaTests
     {
         var ocorrencia = CriarBloqueada();
 
-        var act = () => ocorrencia.MarcarPerdida(codigo, Agora.AddMinutes(1));
+        var act = () => ocorrencia.MarcarPerdida(codigo, Agora.AddHours(5));
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceScheduleOccurrenceConflict);
         ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
@@ -621,7 +609,7 @@ public sealed class AgendamentoPresencaTests
         var criada = CriarProcessando();
         criada.MarcarCriada(Guid.NewGuid(), Agora.AddMinutes(1));
         var perdida = CriarBloqueada();
-        perdida.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddMinutes(1));
+        perdida.MarcarPerdida(MessageCodes.PresenceScheduleWindowExpired, Agora.AddHours(5));
         var falha = CriarProcessando();
         falha.MarcarFalha(MessageCodes.PresenceScheduleTimeZoneInvalid, Agora.AddMinutes(1));
 

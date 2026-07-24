@@ -144,7 +144,7 @@ public sealed class OcorrenciaAgendamentoPresenca
     {
         if (Status == OcorrenciaAgendamentoPresencaStatus.Processando)
         {
-            if (ClaimExpiresAt is null || ClaimExpiresAt > agora || EncerramentoPrevistoEm > agora)
+            if (ClaimExpiresAt is null || ClaimExpiresAt > agora)
             {
                 throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
             }
@@ -152,6 +152,11 @@ public sealed class OcorrenciaAgendamentoPresenca
         else
         {
             ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
+        }
+
+        if (EncerramentoPrevistoEm > agora)
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
         }
 
         var codigoValidado = NormalizarCodigoPublico(codigo, MessageCodes.PresenceScheduleWindowExpired);
