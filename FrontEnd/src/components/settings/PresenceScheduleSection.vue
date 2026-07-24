@@ -60,6 +60,7 @@ const totalItems = ref(0)
 const loading = ref(true)
 const loadingMore = ref(false)
 const loadError = ref(false)
+const refreshError = ref(false)
 const formOpen = ref(false)
 const formMode = ref<'create' | 'edit'>('create')
 const selectedSchedule = ref<PresenceScheduleSummary | null>(null)
@@ -86,6 +87,7 @@ async function loadInitial() {
   const generation = ++listGeneration
   loading.value = true
   loadError.value = false
+  refreshError.value = false
   try {
     const response = await listPresenceSchedules(1, pageSize)
     if (generation !== listGeneration) return
@@ -186,23 +188,28 @@ async function save(payload: SavePresenceScheduleRequest) {
   loadingMore.value = false
   saving.value = true
   formMessageCode.value = null
+  let successKey = 'settings.presenceSchedules.toasts.created'
   try {
     if (formMode.value === 'create') {
       await createPresenceSchedule(payload)
-      toast.success(t('settings.presenceSchedules.toasts.created'))
     } else if (selectedSchedule.value) {
       await updatePresenceSchedule(selectedSchedule.value.id, payload)
-      toast.success(t('settings.presenceSchedules.toasts.updated'))
+      successKey = 'settings.presenceSchedules.toasts.updated'
+    } else {
+      saving.value = false
+      return
     }
-    if (!await reloadLoadedPages(generation)) return
-    formOpen.value = false
-    await focusStableAction()
   } catch (error) {
     formMessageCode.value = serviceMessageCode(error)
     toast.error(serviceErrorLabel(error, 'settings.presenceSchedules.toasts.saveError'))
-  } finally {
     saving.value = false
+    return
   }
+
+  formOpen.value = false
+  toast.success(t(successKey))
+  saving.value = false
+  await refreshAfterSuccessfulMutation(generation, focusKey.value)
 }
 
 async function confirmMutation() {
@@ -211,28 +218,45 @@ async function confirmMutation() {
   loadingMore.value = false
   const scheduleId = selectedSchedule.value.id
   const archiveFocusKey = confirmAction.value === 'archive' ? nextArchiveFocusKey(scheduleId) : ''
+  const action = confirmAction.value
   confirming.value = true
   try {
-    if (confirmAction.value === 'pause') {
+    if (action === 'pause') {
       await pausePresenceSchedule(selectedSchedule.value.id)
-    } else if (confirmAction.value === 'reactivate') {
+    } else if (action === 'reactivate') {
       await reactivatePresenceSchedule(selectedSchedule.value.id)
     } else {
       await archivePresenceSchedule(selectedSchedule.value.id)
     }
-    toast.success(t(`settings.presenceSchedules.toasts.${confirmAction.value}d`))
-    if (!await reloadLoadedPages(generation)) return
-    focusKey.value = confirmAction.value === 'pause'
-      ? `reactivate:${scheduleId}`
-      : confirmAction.value === 'reactivate'
-        ? `pause:${scheduleId}`
-        : archiveFocusKey
-    confirmOpen.value = false
-    await focusStableAction()
   } catch (error) {
     toast.error(serviceErrorLabel(error, 'settings.presenceSchedules.toasts.actionError'))
-  } finally {
     confirming.value = false
+    return
+  }
+
+  const nextFocusKey = action === 'pause'
+    ? `reactivate:${scheduleId}`
+    : action === 'reactivate'
+      ? `pause:${scheduleId}`
+      : archiveFocusKey
+  confirmOpen.value = false
+  toast.success(t(`settings.presenceSchedules.toasts.${action}d`))
+  confirming.value = false
+  await refreshAfterSuccessfulMutation(generation, nextFocusKey)
+}
+
+async function refreshAfterSuccessfulMutation(generation: number, nextFocusKey: string) {
+  try {
+    if (!await reloadLoadedPages(generation)) return
+    refreshError.value = false
+    loadError.value = false
+    focusKey.value = nextFocusKey
+    await focusStableAction()
+  } catch {
+    if (generation !== listGeneration) return
+    refreshError.value = true
+    loadError.value = true
+    await focusListRetry()
   }
 }
 
@@ -274,6 +298,12 @@ async function focusStableAction() {
     ?? Array.from(elements).find((element) => element.getAttribute('data-focus-key') === 'create')
   const focusableTarget = target as unknown as FocusTarget | undefined
   focusableTarget?.focus()
+}
+
+async function focusListRetry() {
+  await nextTick()
+  const retry = globalThis.document?.querySelector('[data-schedule-retry]') as FocusTarget | null
+  retry?.focus()
 }
 </script>
 
@@ -320,7 +350,7 @@ async function focusStableAction() {
     </div>
 
     <div v-else-if="loadError" class="presence-schedule-state" role="alert">
-      <p>{{ t('settings.presenceSchedules.error') }}</p>
+      <p>{{ t(refreshError ? 'settings.presenceSchedules.refreshError' : 'settings.presenceSchedules.error') }}</p>
       <Button type="button" variant="outline" data-schedule-retry @click="loadInitial">
         {{ t('settings.presenceSchedules.actions.retry') }}
       </Button>

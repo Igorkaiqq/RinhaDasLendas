@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { i18n } from '@/i18n'
 import * as service from '@/services/presenceSchedules'
 import type { PresenceScheduleSummary } from '@/types/presenceSchedule'
+import { toast } from 'vue-sonner'
 
 import PresenceScheduleSection from './PresenceScheduleSection.vue'
 
@@ -16,6 +17,7 @@ vi.mock('@/services/presenceSchedules', () => ({
   pausePresenceSchedule: vi.fn(), reactivatePresenceSchedule: vi.fn(), archivePresenceSchedule: vi.fn(),
   listPresenceScheduleOccurrences: vi.fn(), PresenceScheduleServiceError: class extends Error {},
 }))
+vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 const baseSchedule = {
   id: 'agenda-a', nome: 'Rinha semanal', observacao: 'Times de cinco', status: 'Ativo' as const,
@@ -52,7 +54,7 @@ async function mountSection() {
 }
 
 describe('PresenceScheduleSection', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => vi.resetAllMocks())
   afterEach(() => { document.body.innerHTML = '' })
 
   it('preserves four unique IDs in exact backend order across tied and paused pages', async () => {
@@ -72,6 +74,7 @@ describe('PresenceScheduleSection', () => {
         page: 2,
         pageSize: 6,
         items: [
+          { ...baseSchedule, id: 'agenda-b', nome: 'Mesmo nome', proximaExecucaoEm: tiedExecution },
           { ...baseSchedule, id: 'agenda-c', nome: 'Seguinte' },
           { ...baseSchedule, id: 'agenda-d', nome: 'Pausada final', status: 'Pausado', proximaExecucaoEm: null },
         ],
@@ -89,6 +92,58 @@ describe('PresenceScheduleSection', () => {
     expect(new Set(ids).size).toBe(4)
     expect(wrapper.text()).toContain('Pausado')
     expect(wrapper.find('[data-load-more]').exists()).toBe(false)
+  })
+
+  it('closes create after a successful write and retries only a failed refresh', async () => {
+    const created = { ...baseSchedule, id: 'agenda-created', nome: 'Nova agenda' }
+    vi.mocked(service.listPresenceSchedules)
+      .mockResolvedValueOnce(pageWith([]))
+      .mockRejectedValueOnce(new Error('refresh failed'))
+      .mockResolvedValueOnce(pageWith([created]))
+    vi.mocked(service.createPresenceSchedule).mockResolvedValue(created)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper.get('[data-create-schedule]').trigger('click')
+    await fillCreateForm(wrapper)
+    await flushPromises()
+
+    expect(service.createPresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('form#presence-schedule-form').exists()).toBe(false)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('A alteração foi salva, mas a lista não pôde ser atualizada.')
+
+    await wrapper.get('[data-schedule-retry]').trigger('click')
+    await flushPromises()
+    expect(service.createPresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-schedule-id="agenda-created"]').text()).toContain('Nova agenda')
+  })
+
+  it('closes archive after a successful write and never replays it when refresh fails', async () => {
+    const nextSchedule = { ...baseSchedule, id: 'agenda-b', nome: 'Próxima agenda' }
+    vi.mocked(service.listPresenceSchedules)
+      .mockResolvedValueOnce(pageWith([baseSchedule, nextSchedule]))
+      .mockRejectedValueOnce(new Error('refresh failed'))
+      .mockResolvedValueOnce(pageWith([nextSchedule]))
+    vi.mocked(service.archivePresenceSchedule).mockResolvedValue()
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper.get('[data-schedule-id="agenda-a"] [data-archive-schedule]').trigger('click')
+    await wrapper.get('[data-confirm-action]').trigger('click')
+    await flushPromises()
+
+    expect(service.archivePresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-confirm-action]').exists()).toBe(false)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('A alteração foi salva, mas a lista não pôde ser atualizada.')
+
+    await wrapper.get('[data-schedule-retry]').trigger('click')
+    await flushPromises()
+    expect(service.archivePresenceSchedule).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-schedule-id="agenda-a"]').exists()).toBe(false)
   })
 
   it.each([

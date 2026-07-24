@@ -169,10 +169,26 @@ RED da correção final confirmado em 2026-07-24: `TryMarkFailedAsync` aceitou c
 
 - RED inicial: testes focados falharam pela ausência dos tipos, serviço, componentes, chaves `settings.presenceSchedules` e integração por `CanManageDrafts`.
 - RED da correção: 23 falhas reproduziram respostas stale, foco em nós desconectados, timezone do host, relações ARIA ausentes, autofocus mobile, loading sem região viva, semântica de cards e classe perdida em `EmptyDescription`.
-- GREEN da correção: 7 arquivos/52 testes focados e 31 arquivos/177 testes na suíte frontend, incluindo serviço, i18n/hardcoded, formulário, seção, histórico, permissões e `EmptyDescription`.
-- [ ] T075 [US1] Executar testes de serviço/formulários e registrar GREEN de duas páginas estáveis com empate/pausadas, CRUD e confirmações em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T076 [US4] Executar testes de seção/histórico e registrar GREEN de carregar mais, ocorrências paginadas, acessibilidade e responsividade em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T077 [US5] Executar `SettingsView.spec.ts` e registrar GREEN da matriz de visibilidade e separação de permissões em `specs/020-agendamento-listas-presenca/tasks.md`
+- GREEN da primeira correção: a contagem canônica correta era 7 arquivos/54 testes focados, não 52; a suíte frontend tinha 31 arquivos/177 testes.
+- [x] T075 [US1] Executar testes de serviço/formulários e registrar GREEN de duas páginas estáveis com empate/pausadas, CRUD e confirmações em `specs/020-agendamento-listas-presenca/tasks.md`
+- [x] T076 [US4] Executar testes de seção/histórico e registrar GREEN de carregar mais, ocorrências paginadas, acessibilidade e responsividade em `specs/020-agendamento-listas-presenca/tasks.md`
+- [x] T077 [US5] Executar `SettingsView.spec.ts` e registrar GREEN da matriz de visibilidade e separação de permissões em `specs/020-agendamento-listas-presenca/tasks.md`
+
+**Registro GREEN T075-T077 (segunda rodada, 2026-07-24)**:
+
+```text
+npm test -- src/services/presenceSchedules.spec.ts \
+  src/components/settings/PresenceScheduleFormDialog.spec.ts \
+  src/components/settings/PresenceScheduleSection.spec.ts \
+  src/components/settings/PresenceScheduleOccurrenceHistoryDialog.spec.ts \
+  src/components/settings/PresenceScheduleConfirmDialog.spec.ts \
+  src/views/SettingsView.spec.ts src/i18n/i18n.spec.ts
+```
+
+- GREEN canônico: 7 arquivos/58 testes.
+- T075: serviço 7, formulário 10 e confirmação 3 testes verdes; inclui escrita bem-sucedida sem replay quando o refresh falha.
+- T076: seção 22 e histórico 7 testes verdes; inclui sobreposição entre páginas, concorrência, acessibilidade e responsividade.
+- T077: `SettingsView.spec.ts` com 3 testes verdes para Jogador, Moderador e Admin.
 
 **Checkpoint**: US1/US4 e a visibilidade da US5 funcionam com paginação sem deslocar regras do backend.
 

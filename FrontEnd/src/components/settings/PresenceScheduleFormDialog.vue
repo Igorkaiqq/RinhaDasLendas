@@ -38,6 +38,10 @@ interface FocusTarget {
   focus: () => void
 }
 
+interface QueryableFocusTarget {
+  querySelector: (selector: string) => FocusTarget | null
+}
+
 const props = defineProps<{
   open: boolean
   mode: 'create' | 'edit'
@@ -149,15 +153,18 @@ async function submit() {
 
 async function focusFirstInvalid() {
   await nextTick()
+  if (errors.diasSemana && !errors.nome && !errors.observacao) {
+    const root = weekdayOptions.value?.$el as QueryableFocusTarget | undefined
+    root?.querySelector('[data-weekday]')?.focus()
+    return
+  }
   const target = errors.nome
     ? nameInput.value
     : errors.observacao
       ? observationInput.value
-      : errors.diasSemana
-        ? weekdayOptions.value
-        : errors.horarioPublicacao
-          ? publicationInput.value
-          : closingInput.value
+      : errors.horarioPublicacao
+        ? publicationInput.value
+        : closingInput.value
   target?.$el?.focus()
 }
 
@@ -270,12 +277,12 @@ async function restoreFocus() {
           <div class="presence-schedule-form__times">
             <Field :data-invalid="Boolean(errors.horarioPublicacao)">
               <FieldLabel for="presence-schedule-publication">{{ t('settings.presenceSchedules.fields.publication.label') }}</FieldLabel>
-              <Input id="presence-schedule-publication" ref="publicationInput" v-model="form.horarioPublicacao" name="presenceSchedulePublication" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioPublicacao)" :aria-describedby="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" :aria-errormessage="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" />
+              <Input id="presence-schedule-publication" ref="publicationInput" v-model="form.horarioPublicacao" name="presenceSchedulePublication" autocomplete="off" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioPublicacao)" :aria-describedby="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" :aria-errormessage="errors.horarioPublicacao ? 'presence-schedule-publication-error' : undefined" />
               <FieldError v-if="errors.horarioPublicacao" id="presence-schedule-publication-error">{{ errors.horarioPublicacao }}</FieldError>
             </Field>
             <Field :data-invalid="Boolean(errors.horarioEncerramento)">
               <FieldLabel for="presence-schedule-closing">{{ t('settings.presenceSchedules.fields.closing.label') }}</FieldLabel>
-              <Input id="presence-schedule-closing" ref="closingInput" v-model="form.horarioEncerramento" name="presenceScheduleClosing" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioEncerramento)" :aria-describedby="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" :aria-errormessage="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" />
+              <Input id="presence-schedule-closing" ref="closingInput" v-model="form.horarioEncerramento" name="presenceScheduleClosing" autocomplete="off" type="time" step="60" :disabled="saving" :aria-invalid="Boolean(errors.horarioEncerramento)" :aria-describedby="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" :aria-errormessage="errors.horarioEncerramento ? 'presence-schedule-closing-error' : undefined" />
               <FieldError v-if="errors.horarioEncerramento" id="presence-schedule-closing-error">{{ errors.horarioEncerramento }}</FieldError>
             </Field>
           </div>

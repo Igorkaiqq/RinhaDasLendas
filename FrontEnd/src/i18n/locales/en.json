@@ -257,6 +257,7 @@
       "description": "Organize weekly publications and follow each run without changing drafts already created.",
       "loading": "Loading schedules…",
       "error": "Could not load the schedules.",
+      "refreshError": "The change was saved, but the list could not be refreshed.",
       "actions": {
         "create": "New schedule",
         "edit": "Edit",

@@ -257,6 +257,7 @@
       "description": "Organize publicações semanais e acompanhe cada execução sem alterar os drafts já criados.",
       "loading": "Carregando agendamentos…",
       "error": "Não foi possível carregar os agendamentos.",
+      "refreshError": "A alteração foi salva, mas a lista não pôde ser atualizada.",
       "actions": {
         "create": "Novo agendamento",
         "edit": "Editar",

@@ -9,7 +9,7 @@ import PresenceScheduleFormDialog from './PresenceScheduleFormDialog.vue'
 
 enableAutoUnmount(afterEach)
 
-async function mountDialog(props: Record<string, unknown> = {}) {
+async function mountDialog(props: Record<string, unknown> = {}, stubs: Record<string, unknown> = {}) {
   const wrapper = mount(PresenceScheduleFormDialog, {
     attachTo: document.body,
     props: {
@@ -20,7 +20,7 @@ async function mountDialog(props: Record<string, unknown> = {}) {
       serviceMessageCode: null,
       ...props,
     },
-    global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' } } },
+    global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' }, ...stubs } },
   })
   await nextTick()
   await nextTick()
@@ -95,6 +95,29 @@ describe('PresenceScheduleFormDialog', () => {
 
     expect(document.activeElement).toBe(wrapper.get('#presence-schedule-observation').element)
     expect(wrapper.get('#presence-schedule-observation').attributes('aria-describedby')).toContain('presence-schedule-observation-error')
+  })
+
+  it('focuses the first weekday option when weekdays are the first invalid field', async () => {
+    const wrapper = await mountDialog({}, {
+      ToggleGroup: { template: '<div data-slot="toggle-group"><slot /></div>' },
+      ToggleGroupItem: { template: '<button><slot /></button>' },
+    })
+    const firstWeekday = wrapper.get('[data-weekday="Segunda"]')
+    const focusFirstWeekday = vi.spyOn(firstWeekday.element as HTMLElement, 'focus')
+    await wrapper.get('#presence-schedule-name').setValue('Nome válido')
+    await wrapper.get('#presence-schedule-publication').setValue('18:00')
+    await wrapper.get('#presence-schedule-closing').setValue('20:00')
+    await wrapper.get('form').trigger('submit')
+    await nextTick()
+
+    expect(focusFirstWeekday).toHaveBeenCalledOnce()
+    expect(document.activeElement).toBe(firstWeekday.element)
+  })
+
+  it('disables autocomplete on both time inputs', async () => {
+    const wrapper = await mountDialog()
+    expect(wrapper.get('#presence-schedule-publication').attributes('autocomplete')).toBe('off')
+    expect(wrapper.get('#presence-schedule-closing').attributes('autocomplete')).toBe('off')
   })
 
   it('uses localized fallback for an unknown backend messageCode', async () => {

@@ -52,6 +52,7 @@ describe('i18n', () => {
       'settings.presenceSchedules.validation.closingAfterPublication',
       'settings.presenceSchedules.accessibility.scheduleList',
       'settings.presenceSchedules.messageCodes.requestFailed',
+      'settings.presenceSchedules.refreshError',
     ]
 
     for (const path of requiredPaths) {
