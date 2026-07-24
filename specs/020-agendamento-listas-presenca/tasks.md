@@ -26,116 +26,125 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 - [ ] T001 Escrever testes RED para nome, observação, ao menos um dia, dias únicos, janela no mesmo dia e precisão de minuto em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
 - [ ] T002 Acrescentar testes RED para `OcorreEm`, normalização, `UltimaDataAvaliada`, edição sem alterar ocorrências e pausa/reativação idempotentes em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
-- [ ] T003 Acrescentar testes RED para histórico com autoria, arquivamento imutável e todas as transições válidas/inválidas de ocorrência em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
+- [ ] T003 Acrescentar testes RED para histórico com `CamposAlterados` contendo somente nomes estáveis, arquivamento imutável e transições de ocorrência em `BackEnd/tests/RinhaDasLendas.Tests/Domain/AgendamentoPresencaTests.cs`
 - [ ] T004 Executar o filtro `AgendamentoPresencaTests` e registrar RED causado pelos tipos/comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
 - [ ] T005 Adicionar as constantes localizáveis `MV089` a `MV100` em `BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs`
 - [ ] T006 Criar `DiaSemanaIso`, `AgendamentoPresencaStatus`, `OcorrenciaAgendamentoPresencaStatus` e `AgendamentoPresencaAcao` em `BackEnd/src/RinhaDasLendas.Domain/Enums/`
-- [ ] T007 Implementar agregado, dias e histórico com backing fields, invariantes e instantes explícitos em `BackEnd/src/RinhaDasLendas.Domain/Entities/AgendamentoPresenca.cs`, `AgendamentoPresencaDiaSemana.cs` e `HistoricoAgendamentoPresenca.cs`
+- [ ] T007 Implementar agregado, dias e histórico com backing fields, invariantes, `CamposAlterados` sem valores e instantes explícitos em `BackEnd/src/RinhaDasLendas.Domain/Entities/AgendamentoPresenca.cs`, `AgendamentoPresencaDiaSemana.cs` e `HistoricoAgendamentoPresenca.cs`
 - [ ] T008 Implementar factories e transições de ocorrência sem relógio estático em `BackEnd/src/RinhaDasLendas.Domain/Entities/OcorrenciaAgendamentoPresenca.cs`
-- [ ] T009 Executar `AgendamentoPresencaTests` e registrar GREEN de todas as invariantes e transições em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T009 Executar `AgendamentoPresencaTests` e registrar GREEN de invariantes, auditoria e transições em `specs/020-agendamento-listas-presenca/tasks.md`
 
 **Checkpoint**: domínio executável sem EF, PostgreSQL, HTTP, DTOs ou Discord.
 
 ---
 
-## Phase 2: Persistência, Claims e Deduplicação (equivale à Task 3)
+## Phase 2: Persistência, Timezone, Claims e Deduplicação (equivale à Task 3)
 
-**Purpose**: proteger uma ocorrência/draft por agenda/data e garantir recuperação de processador interrompido.
+**Purpose**: proteger uma ocorrência/draft por agenda/data, fechar o schema e garantir timezone/retomada seguros.
 
-- [ ] T010 Escrever testes PostgreSQL RED de dias relacionais, arquivamento e constraints únicas em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
-- [ ] T011 Acrescentar testes PostgreSQL RED para dois processadores, claim de cinco minutos, claim expirado recuperável e claim divergente em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
+- [ ] T010 Escrever testes PostgreSQL RED para enums `smallint`, dias relacionais, histórico exato e índices únicos de agenda/data e `draft_montagem_id` não nulo em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
+- [ ] T011 Acrescentar testes PostgreSQL RED para paginação/count de agendas e ocorrências, dois processadores, claim de cinco minutos, claim expirado e claim divergente em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
 - [ ] T012 Acrescentar testes RED para conclusão atômica com draft/publicação e rollback sem estado parcial em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
-- [ ] T013 Executar `AgendamentoPresencaBehaviorIntegrationTests` e registrar RED por mappings/repositório ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T014 Criar `AgendamentoPresencaOcorrenciaClaim` em `BackEnd/src/RinhaDasLendas.Domain/Models/AgendamentoPresencaOcorrenciaClaim.cs` e `IAgendamentoPresencaRepository` em `BackEnd/src/RinhaDasLendas.Domain/Repositories/IAgendamentoPresencaRepository.cs`
-- [ ] T015 Criar `IAgendamentoPresencaTimeZone` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/IAgendamentoPresencaTimeZone.cs`
-- [ ] T016 Mapear DbSets, relações, checks, índices, claims e constraints únicas em `BackEnd/src/RinhaDasLendas.Infrastructure/Persistence/RinhaDasLendasDbContext.cs`
-- [ ] T017 Implementar `SaoPauloAgendamentoPresencaTimeZone` com `TimeZoneInfo` e `America/Sao_Paulo` em `BackEnd/src/RinhaDasLendas.Infrastructure/Time/SaoPauloAgendamentoPresencaTimeZone.cs`
-- [ ] T018 Implementar advisory lock, upserts, claim expirável e conclusão transacional em `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/AgendamentoPresencaRepository.cs`
-- [ ] T019 Registrar repositório e timezone em `BackEnd/src/RinhaDasLendas.Infrastructure/DependencyInjection.cs`
-- [ ] T020 Criar migration `20260723090000_AddAgendamentosPresenca` e atualizar snapshot em `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260723090000_AddAgendamentosPresenca.cs`, `20260723090000_AddAgendamentosPresenca.Designer.cs` e `RinhaDasLendasDbContextModelSnapshot.cs`
-- [ ] T021 Executar os testes PostgreSQL e o script idempotente da migration, registrando GREEN para concorrência, claim, atomicidade e rollback em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T013 Escrever testes RED de `SaoPauloAgendamentoPresencaTimeZone` para conversão São Paulo/UTC e horário local inválido ou ambíguo em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
+- [ ] T014 Executar `AgendamentoPresencaBehaviorIntegrationTests` e registrar RED por mappings, repositório e timezone ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T015 Criar `AgendamentoPresencaOcorrenciaClaim` e `IAgendamentoPresencaRepository` com `ListAsync`/`CountAsync`, `ListOccurrencesAsync`/`CountOccurrencesAsync` e `ListBlockedAsync` em `BackEnd/src/RinhaDasLendas.Domain/Models/AgendamentoPresencaOcorrenciaClaim.cs` e `BackEnd/src/RinhaDasLendas.Domain/Repositories/IAgendamentoPresencaRepository.cs`
+- [ ] T016 Criar `IAgendamentoPresencaTimeZone` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/IAgendamentoPresencaTimeZone.cs`
+- [ ] T017 Implementar `SaoPauloAgendamentoPresencaTimeZone` com `TimeZoneInfo` e `America/Sao_Paulo`, fazendo os testes RED de T013 passarem em `BackEnd/src/RinhaDasLendas.Infrastructure/Time/SaoPauloAgendamentoPresencaTimeZone.cs`
+- [ ] T018 Mapear enums `smallint`, `campos_alterados varchar(200)`, checks, relações, claims e índices únicos obrigatórios em `BackEnd/src/RinhaDasLendas.Infrastructure/Persistence/RinhaDasLendasDbContext.cs`
+- [ ] T019 Implementar paginação/count, `ListBlockedAsync`, advisory lock, upserts, claim expirável e conclusão transacional em `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/AgendamentoPresencaRepository.cs`
+- [ ] T020 Registrar repositório e timezone em `BackEnd/src/RinhaDasLendas.Infrastructure/DependencyInjection.cs`
+- [ ] T021 Criar migration `20260723090000_AddAgendamentosPresenca` e atualizar snapshot em `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260723090000_AddAgendamentosPresenca.cs`, `20260723090000_AddAgendamentosPresenca.Designer.cs` e `RinhaDasLendasDbContextModelSnapshot.cs`
+- [ ] T022 Executar testes PostgreSQL e script idempotente, registrando GREEN de schema, paginação/count, timezone, concorrência, claim e rollback em `specs/020-agendamento-listas-presenca/tasks.md`
 
-**Checkpoint**: banco garante unicidade e retomada segura, independentemente da quantidade de réplicas.
-
----
-
-## Phase 3: Gestão, API e Autorização (equivale à Task 4; US1 e US5)
-
-**Story Goal**: Moderador+ gerencia agendas por contratos seguros, enquanto usuários sem permissão não acessam agenda nem configuração sensível.
-
-**Independent Test**: matriz HTTP comprova `401`, `403`, CRUD para Moderador, autoria do JWT, `404` para arquivada e ausência de claims/IDs Discord.
-
-- [ ] T022 [US1] Escrever testes RED de `SaveAgendamentoPresencaRequestDto` e códigos `MV089`-`MV094` em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaValidatorTests.cs`
-- [ ] T023 [US1] Escrever testes RED dos handlers de criar, editar, pausar, reativar, arquivar, listar, detalhar e paginar ocorrências em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
-- [ ] T024 [US5] Escrever matriz HTTP RED para anônimo, Jogador, Moderador e Admin e projeções sem campos operacionais em `BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs`
-- [ ] T025 [US1] Executar validators/handlers/endpoints e registrar RED pelos contratos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T026 [US1] Criar `SaveAgendamentoPresencaRequestDto`, `AgendamentoPresencaSummaryDto` e `OcorrenciaAgendamentoPresencaSummaryDto` em `BackEnd/src/RinhaDasLendas.Application/Dtos/AgendamentoPresencaDtos.cs`
-- [ ] T027 [US1] Criar commands de criar, editar, pausar, reativar e arquivar em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/`
-- [ ] T028 [US1] Criar queries de listar, detalhar e listar ocorrências em `BackEnd/src/RinhaDasLendas.Application/Queries/AgendamentosPresenca/`
-- [ ] T029 [US1] Implementar handlers CQRS com autoria autenticada, idempotência e cálculo de próxima execução em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/`
-- [ ] T030 [US1] Implementar `AgendamentoPresencaRequestValidator` sem duplicar invariantes de domínio em `BackEnd/src/RinhaDasLendas.Application/Validators/AgendamentoPresencaRequestValidator.cs`
-- [ ] T031 [US1] Criar `ISystemClock` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/ISystemClock.cs` e `SystemClock` em `BackEnd/src/RinhaDasLendas.Api/Services/SystemClock.cs`
-- [ ] T032 [US5] Acrescentar clientes autenticados Moderador e Jogador em `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/SecurityApiFactory.cs`
-- [ ] T033 [US5] Implementar os oito endpoints finos com `CanManageDrafts`, `ISender`, autoria do claim e respostas padrão em `BackEnd/src/RinhaDasLendas.Api/Controllers/AgendamentosPresencaController.cs`
-- [ ] T034 [US1] Adicionar `MV089`-`MV100` sincronizados em `docs/messages/message-catalog.md`, `docs/messages/message-codes.md`, `BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx`, `Messages.pt-BR.resx` e `Messages.en-US.resx`
-- [ ] T035 [US1] Registrar `ISystemClock` e dependências CQRS em `BackEnd/src/RinhaDasLendas.Api/Program.cs`
-- [ ] T036 [US1] Executar validators/handlers/endpoints e registrar GREEN de CRUD, paginação e projeções em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T037 [US5] Executar a matriz HTTP e registrar GREEN de `401`, `403`, `400`, `404`, `409` e sucessos em `specs/020-agendamento-listas-presenca/tasks.md`
-
-**Checkpoint**: gestão da US1 funciona por API e a fronteira da US5 é comprovada independentemente do scheduler e frontend.
+**Checkpoint**: banco e timezone garantem integridade, paginação e retomada segura independentemente da quantidade de réplicas.
 
 ---
 
-## Phase 4: Execução Exatamente Uma Vez e Recuperação (equivale à Task 5; US2 e US3)
+## Phase 3: Gestão, Paginação, API e Autorização (equivale à Task 4; US1 e US5)
 
-**Story Goal**: criar uma ocorrência/draft por data e recuperar todas as datas atrasadas sem avanço prematuro de `UltimaDataAvaliada`.
+**Story Goal**: Moderador+ gerencia agendas por contratos paginados e seguros, enquanto usuários sem permissão não acessam dados administrativos.
 
-**Independent Test**: duas execuções concorrentes criam um único draft; após três dias indisponíveis, cada data é classificada e a data atual é criada somente se ainda estiver na janela.
+**Independent Test**: matriz HTTP comprova paginação de agendas/ocorrências, `401`, `403`, CRUD para Moderador, autoria do JWT, marcador determinístico e ausência de claims/IDs Discord.
 
-- [ ] T038 [US2] Escrever testes RED de conversão São Paulo/UTC e horário local inválido ou ambíguo em `BackEnd/tests/RinhaDasLendas.Tests/Integration/AgendamentoPresencaBehaviorIntegrationTests.cs`
-- [ ] T039 [US2] Escrever testes RED para antes da publicação, dentro da janela, configuração indisponível, retomada e concorrência em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
-- [ ] T040 [US3] Acrescentar testes RED para indisponibilidade de três dias, `UltimaDataAvaliada`, perda após encerramento e reativação tardia em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
-- [ ] T041 [US3] Acrescentar testes RED para falha isolada por agenda, ciclo sem sobreposição e cancelamento do host em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
-- [ ] T042 [US2] Executar testes do ciclo/timezone e registrar RED pelos handlers/serviço ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T043 [US2] Criar `IAgendamentoPresencaMetrics` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/IAgendamentoPresencaMetrics.cs`
-- [ ] T044 [US2] Criar `ProcessarAgendamentosPresencaDevidosCommand` e `AgendamentoPresencaCycleResult` em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/ProcessarAgendamentosPresencaDevidosCommand.cs`
-- [ ] T045 [US3] Implementar percurso sem horizonte das datas após `UltimaDataAvaliada`, bloqueio, perda, reativação e criação transacional em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/ProcessarAgendamentosPresencaDevidosCommandHandler.cs`
-- [ ] T046 [US2] Implementar `AgendamentoPresencaExecutionService` com escopo, `PeriodicTimer`, ciclo sequencial e cancelamento em `BackEnd/src/RinhaDasLendas.Api/Services/AgendamentoPresencaExecutionService.cs`
-- [ ] T047 [US2] Implementar contadores/histograma sem nome, observação, usuário ou IDs Discord em `BackEnd/src/RinhaDasLendas.Api/Observability/AgendamentoPresencaMetrics.cs`
-- [ ] T048 [US2] Registrar hosted service, métricas e intervalo default 30 em `BackEnd/src/RinhaDasLendas.Api/Program.cs` e `BackEnd/src/RinhaDasLendas.Api/appsettings.json`
-- [ ] T049 [US2] Executar testes do ciclo e registrar GREEN para exactly-once, claim expirável e configuração indisponível em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T050 [US3] Executar cenários de múltiplos dias e registrar GREEN para recuperação, perda, reativação tardia e avanço seguro de `UltimaDataAvaliada` em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T023 [US1] Escrever testes RED de `SaveAgendamentoPresencaRequestDto` e códigos `MV089`-`MV094` em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaValidatorTests.cs`
+- [ ] T024 [US1] Escrever testes RED dos handlers de CRUD, listagens `PaginatedResponseDto`, counts, detalhe e próxima execução em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
+- [ ] T025 [US1] Acrescentar testes RED de criação e reativação antes, exatamente no horário e após a publicação no mesmo dia, incluindo `max` sem retrocesso, em `BackEnd/tests/RinhaDasLendas.Tests/AgendamentosPresenca/AgendamentoPresencaHandlersTests.cs`
+- [ ] T026 [US5] Escrever matriz HTTP RED para anônimo, Jogador, Moderador e Admin, `page`/`pageSize` e projeções sem campos operacionais em `BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs`
+- [ ] T027 [US1] Executar validators/handlers/endpoints e registrar RED pelos contratos e comportamentos ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T028 [US1] Criar `SaveAgendamentoPresencaRequestDto`, `AgendamentoPresencaSummaryDto` e `OcorrenciaAgendamentoPresencaSummaryDto` e reutilizar `PaginatedResponseDto<T>` em `BackEnd/src/RinhaDasLendas.Application/Dtos/AgendamentoPresencaDtos.cs`
+- [ ] T029 [US1] Criar commands de criar, editar, pausar, reativar e arquivar em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/`
+- [ ] T030 [US1] Criar queries paginadas de agendas/ocorrências e query de detalhe em `BackEnd/src/RinhaDasLendas.Application/Queries/AgendamentosPresenca/`
+- [ ] T031 [US1] Implementar handlers CQRS com counts, `PaginatedResponseDto`, autoria, idempotência, próxima execução e regra determinística de `UltimaDataAvaliada` em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/`
+- [ ] T032 [US1] Implementar `AgendamentoPresencaRequestValidator` sem duplicar invariantes de domínio em `BackEnd/src/RinhaDasLendas.Application/Validators/AgendamentoPresencaRequestValidator.cs`
+- [ ] T033 [US1] Criar `ISystemClock` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/ISystemClock.cs` e `SystemClock` em `BackEnd/src/RinhaDasLendas.Api/Services/SystemClock.cs`
+- [ ] T034 [US5] Acrescentar clientes autenticados Moderador e Jogador em `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/SecurityApiFactory.cs`
+- [ ] T035 [US5] Implementar os oito endpoints finos com `CanManageDrafts`, paginação, `ISender`, autoria do claim e respostas padrão em `BackEnd/src/RinhaDasLendas.Api/Controllers/AgendamentosPresencaController.cs`
+- [ ] T036 [US1] Adicionar `MV089`-`MV100` sincronizados em `docs/messages/message-catalog.md`, `docs/messages/message-codes.md`, `BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages.resx`, `Messages.pt-BR.resx` e `Messages.en-US.resx`
+- [ ] T037 [US1] Registrar `ISystemClock` e dependências CQRS em `BackEnd/src/RinhaDasLendas.Api/Program.cs`
+- [ ] T038 [US1] Executar validators/handlers e registrar GREEN de CRUD, paginação/count, marcador antes/no/depois da publicação e projeções em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T039 [US5] Executar a matriz HTTP e registrar GREEN de paginação, `401`, `403`, `400`, `404`, `409` e sucessos em `specs/020-agendamento-listas-presenca/tasks.md`
 
-**Checkpoint**: US2 e US3 são testáveis sem interface e preservam uma ocorrência/draft/publicação por agenda/data.
+**Checkpoint**: gestão da US1 funciona por API paginada e a fronteira da US5 é comprovada independentemente do scheduler e frontend.
 
 ---
 
-## Phase 5: Central de Automações (equivale à Task 6; US1, US4 e US5)
+## Phase 4: Execução, Bloqueadas, Recuperação e Métricas (equivale à Task 5; US2 e US3)
 
-**Story Goal**: Moderador+ gerencia e acompanha agendas em `/configuracoes`, sem acesso à configuração sensível.
+**Story Goal**: criar uma ocorrência/draft por data, recuperar atrasos e reavaliar bloqueadas mesmo após avanço de `UltimaDataAvaliada`.
 
-**Independent Test**: Moderador vê cards e executa CRUD em PT/EN; Jogador não vê a seção; Admin vê agendas e configuração sensível; modal funciona por teclado e em 320px.
+**Independent Test**: duas execuções criam um draft; após três dias cada data é classificada; bloqueada com marcador avançado é criada após retorno da configuração ou perdida após encerramento.
 
-- [ ] T051 [US1] Escrever testes RED de URLs, métodos, payload `HH:mm`, `messageCode` e propagação de `403`/`500` em `FrontEnd/src/services/presenceSchedules.spec.ts`
-- [ ] T052 [US1] Escrever testes RED de campos, chips `aria-pressed`, validação, loading, `Escape` e foco em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.spec.ts`
-- [ ] T053 [US4] Escrever testes RED de cards, próxima execução, vazio, loading, erro e status em `FrontEnd/src/components/settings/PresenceScheduleSection.spec.ts`
-- [ ] T054 [US1] Escrever testes RED de pausa/exclusão contextual e submissão única em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.spec.ts`
-- [ ] T055 [US5] Escrever testes RED de visibilidade Jogador/Moderador/Admin e separação de permissões em `FrontEnd/src/views/SettingsView.spec.ts`
-- [ ] T056 [US1] Executar os testes frontend focados e registrar RED pelos componentes/serviço ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T057 [US1] Criar tipos fechados e contratos de request/summary em `FrontEnd/src/types/presenceSchedule.ts`
-- [ ] T058 [US1] Implementar as seis funções de serviço sem fallback silencioso em `FrontEnd/src/services/presenceSchedules.ts`
-- [ ] T059 [US1] Implementar formulário acessível de criação/edição em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.vue`
-- [ ] T060 [US1] Implementar confirmações acessíveis de pausa e arquivamento em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.vue`
-- [ ] T061 [US4] Implementar resumo, cards, status, próxima execução, ações e estados em `FrontEnd/src/components/settings/PresenceScheduleSection.vue`
-- [ ] T062 [US5] Integrar agendas por `CanManageDrafts` e manter configuração sensível por `CanManageUsers` em `FrontEnd/src/views/SettingsView.vue`
-- [ ] T063 [P] [US1] Adicionar `settings.presenceSchedules` completo e acentuado em `FrontEnd/src/i18n/locales/pt.json`
-- [ ] T064 [P] [US1] Adicionar estrutura equivalente em inglês em `FrontEnd/src/i18n/locales/en.json`
-- [ ] T065 [US4] Aplicar cards responsivos, chips, ações e modal com tokens existentes e sem overflow em 320px em `FrontEnd/src/styles/main.css`
-- [ ] T066 [US1] Executar testes frontend focados e registrar GREEN de serviço, CRUD, formulário e confirmações em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T067 [US4] Executar testes de seção e registrar GREEN de acompanhamento, estados e responsividade contratual em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T068 [US5] Executar `SettingsView.spec.ts` e registrar GREEN da matriz de visibilidade e separação de permissões em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T040 [US2] Escrever testes RED para antes da publicação, dentro da janela, configuração indisponível, retomada, claim expirado e concorrência em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
+- [ ] T041 [US3] Acrescentar testes RED para indisponibilidade de três dias, avanço seguro de `UltimaDataAvaliada`, perda e reativação tardia em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
+- [ ] T042 [US3] Escrever testes RED da fase independente `ListBlockedAsync` com marcador avançado para manter bloqueada, readquirir/criar dentro da janela e marcar perdida após encerramento em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
+- [ ] T043 [US3] Acrescentar testes RED para falha isolada por agenda, ciclo sem sobreposição e cancelamento do host em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaExecutionServiceTests.cs`
+- [ ] T044 [US2] Escrever testes RED específicos dos contadores de avaliadas/criadas/bloqueadas/perdidas/falhas/conflitos, histograma e rejeição de tags sensíveis em `BackEnd/tests/RinhaDasLendas.Tests/Services/AgendamentoPresencaMetricsTests.cs`
+- [ ] T045 [US2] Executar testes de ciclo, bloqueadas e métricas e registrar RED pelos handlers/serviços ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T046 [US2] Criar `IAgendamentoPresencaMetrics` em `BackEnd/src/RinhaDasLendas.Application/Interfaces/IAgendamentoPresencaMetrics.cs`
+- [ ] T047 [US2] Criar `ProcessarAgendamentosPresencaDevidosCommand` e `AgendamentoPresencaCycleResult` em `BackEnd/src/RinhaDasLendas.Application/Commands/AgendamentosPresenca/ProcessarAgendamentosPresencaDevidosCommand.cs`
+- [ ] T048 [US3] Implementar varredura de agendas/datas posteriores a `UltimaDataAvaliada`, bloqueio inicial, perda e criação transacional em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/ProcessarAgendamentosPresencaDevidosCommandHandler.cs`
+- [ ] T049 [US3] Implementar fase independente que chama `ListBlockedAsync` em todo ciclo e mantém, readquire claim/conclui draft ou marca `Perdida` sem consultar `UltimaDataAvaliada` em `BackEnd/src/RinhaDasLendas.Application/Handlers/AgendamentosPresenca/ProcessarAgendamentosPresencaDevidosCommandHandler.cs`
+- [ ] T050 [US2] Implementar `AgendamentoPresencaExecutionService` com escopo, `PeriodicTimer`, ciclo sequencial e cancelamento em `BackEnd/src/RinhaDasLendas.Api/Services/AgendamentoPresencaExecutionService.cs`
+- [ ] T051 [US2] Implementar contadores/histograma com tags limitadas a status/código estável, fazendo T044 passar, em `BackEnd/src/RinhaDasLendas.Api/Observability/AgendamentoPresencaMetrics.cs`
+- [ ] T052 [US2] Registrar hosted service, métricas e intervalo default 30 em `BackEnd/src/RinhaDasLendas.Api/Program.cs` e `BackEnd/src/RinhaDasLendas.Api/appsettings.json`
+- [ ] T053 [US2] Executar testes do ciclo e registrar GREEN para exactly-once, claim expirável e configuração indisponível em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T054 [US3] Executar cenários de múltiplos dias e bloqueadas com marcador avançado e registrar GREEN de recuperação/perda em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T055 [US2] Executar `AgendamentoPresencaMetricsTests` e registrar GREEN de contadores, duração e tags seguras em `specs/020-agendamento-listas-presenca/tasks.md`
 
-**Checkpoint**: US1, US4 e a visibilidade da US5 funcionam em frontend sem deslocar regras do backend.
+**Checkpoint**: US2/US3 preservam exactly-once e nenhuma ocorrência bloqueada fica invisível após o avanço do marcador.
+
+---
+
+## Phase 5: Central, Paginação e Histórico (equivale à Task 6; US1, US4 e US5)
+
+**Story Goal**: Moderador+ gerencia agendas paginadas e consulta histórico paginado acessível sem acessar configuração sensível.
+
+**Independent Test**: Moderador carrega mais agendas, abre `Ver histórico`, pagina ocorrências em PT/EN; Jogador não vê a seção; modal funciona por teclado em 320px.
+
+- [ ] T056 [US1] Escrever testes RED de listagem paginada de agendas, métodos, payload `HH:mm`, `messageCode` e propagação de `403`/`500` em `FrontEnd/src/services/presenceSchedules.spec.ts`
+- [ ] T057 [US4] Acrescentar testes RED de `listPresenceScheduleOccurrences(id,page,pageSize)` e envelope `PaginatedResponse` em `FrontEnd/src/services/presenceSchedules.spec.ts`
+- [ ] T058 [US1] Escrever testes RED de campos, chips `aria-pressed`, validação, loading, `Escape` e foco em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.spec.ts`
+- [ ] T059 [US4] Escrever testes RED de cards, carregar mais agendas sem duplicação, próxima execução, vazio, erro e status em `FrontEnd/src/components/settings/PresenceScheduleSection.spec.ts`
+- [ ] T060 [US4] Escrever testes RED de `Ver histórico`, paginação, loading, erro, vazio, região viva, foco e `Escape` em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.spec.ts`
+- [ ] T061 [US1] Escrever testes RED de pausa/exclusão contextual e submissão única em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.spec.ts`
+- [ ] T062 [US5] Escrever testes RED de visibilidade Jogador/Moderador/Admin e separação de permissões em `FrontEnd/src/views/SettingsView.spec.ts`
+- [ ] T063 [US1] Executar os testes frontend focados e registrar RED pelos tipos, serviço e componentes ausentes em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T064 [US1] Criar `PaginatedResponse<T>`, tipos fechados e contratos de agenda/ocorrência em `FrontEnd/src/types/presenceSchedule.ts`
+- [ ] T065 [US1] Implementar listagem paginada de agendas e mutações sem fallback silencioso em `FrontEnd/src/services/presenceSchedules.ts`
+- [ ] T066 [US4] Implementar `listPresenceScheduleOccurrences(id,page,pageSize)` preservando metadados em `FrontEnd/src/services/presenceSchedules.ts`
+- [ ] T067 [US1] Implementar formulário acessível de criação/edição em `FrontEnd/src/components/settings/PresenceScheduleFormDialog.vue`
+- [ ] T068 [US1] Implementar confirmações acessíveis de pausa e arquivamento em `FrontEnd/src/components/settings/PresenceScheduleConfirmDialog.vue`
+- [ ] T069 [US4] Implementar resumo, cards, `Ver histórico`, paginação/carregar mais agendas e estados em `FrontEnd/src/components/settings/PresenceScheduleSection.vue`
+- [ ] T070 [US4] Implementar painel/modal acessível com histórico paginado, controles, região viva e restauração de foco em `FrontEnd/src/components/settings/PresenceScheduleOccurrenceHistoryDialog.vue`
+- [ ] T071 [US5] Integrar agendas por `CanManageDrafts` e manter configuração sensível por `CanManageUsers` em `FrontEnd/src/views/SettingsView.vue`
+- [ ] T072 [P] [US1] Adicionar `settings.presenceSchedules` completo, incluindo paginação e `Ver histórico`, em `FrontEnd/src/i18n/locales/pt.json`
+- [ ] T073 [P] [US1] Adicionar estrutura equivalente em inglês em `FrontEnd/src/i18n/locales/en.json`
+- [ ] T074 [US4] Aplicar cards, paginação e modal responsivos com tokens existentes e sem overflow em 320px em `FrontEnd/src/styles/main.css`
+- [ ] T075 [US1] Executar testes de serviço/formulários e registrar GREEN de paginação, CRUD e confirmações em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T076 [US4] Executar testes de seção/histórico e registrar GREEN de carregar mais, ocorrências paginadas, acessibilidade e responsividade em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T077 [US5] Executar `SettingsView.spec.ts` e registrar GREEN da matriz de visibilidade e separação de permissões em `specs/020-agendamento-listas-presenca/tasks.md`
+
+**Checkpoint**: US1/US4 e a visibilidade da US5 funcionam com paginação sem deslocar regras do backend.
 
 ---
 
@@ -145,16 +154,16 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 **Independent Test**: fixture de draft agendado passa por dois ciclos com uma publicação; release localizada é a mais recente e documentação cobre recuperação sem segredos.
 
-- [ ] T069 [US2] Escrever fixture/teste RED ou de caracterização para draft agendado em dois ciclos de `runDraftPollingCycle` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`
-- [ ] T070 [US2] Executar o teste do bot e, se falhar por contrato real, corrigir somente a adaptação existente sem endpoint/regra de agenda em `discord-bot/src/modules/drafts/draftInteractions.spec.ts` e arquivos de produção estritamente necessários
-- [ ] T071 [US4] Escrever testes RED para `2026.07.2`, ID `presence-scheduling-2026-07`, posição latest e paridade localizada em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T072 [US4] Adicionar release `2026.07.2` e remover destaque de `2026.07.1` em `FrontEnd/src/constants/systemUpdates.ts`
-- [ ] T073 [P] [US4] Adicionar conteúdo de produto da release em português em `FrontEnd/src/i18n/locales/pt.json`
-- [ ] T074 [P] [US4] Adicionar conteúdo equivalente da release em inglês em `FrontEnd/src/i18n/locales/en.json`
-- [ ] T075 [P] [US4] Atualizar fluxo existente de drafts Discord em `docs/domain/DRAFT_DISCORD_OPERATIONS.md`
-- [ ] T076 [P] [US4] Documentar agenda, bloqueio, recuperação, perda, métricas e runbook em `docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md`
-- [ ] T077 [US2] Executar suíte/build do bot e registrar que nenhum endpoint novo ou regra de recorrência foi introduzido em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T078 [US4] Executar testes do histórico/i18n e registrar GREEN de `2026.07.2`, paridade e linguagem segura em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T078 [US2] Escrever fixture/teste RED ou de caracterização para draft agendado em dois ciclos de `runDraftPollingCycle` em `discord-bot/src/modules/drafts/draftInteractions.spec.ts`
+- [ ] T079 [US2] Executar o teste do bot e, se falhar por contrato real, corrigir somente a adaptação existente sem endpoint/regra de agenda em `discord-bot/src/modules/drafts/draftInteractions.spec.ts` e arquivos de produção estritamente necessários
+- [ ] T080 [US4] Escrever testes RED para `2026.07.2`, ID `presence-scheduling-2026-07`, posição latest e paridade localizada em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
+- [ ] T081 [US4] Adicionar release `2026.07.2` e remover destaque de `2026.07.1` em `FrontEnd/src/constants/systemUpdates.ts`
+- [ ] T082 [P] [US4] Adicionar conteúdo de produto da release em português em `FrontEnd/src/i18n/locales/pt.json`
+- [ ] T083 [P] [US4] Adicionar conteúdo equivalente da release em inglês em `FrontEnd/src/i18n/locales/en.json`
+- [ ] T084 [P] [US4] Atualizar fluxo existente de drafts Discord em `docs/domain/DRAFT_DISCORD_OPERATIONS.md`
+- [ ] T085 [P] [US4] Documentar agenda, bloqueadas independentes, recuperação, perda, métricas e runbook em `docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md`
+- [ ] T086 [US2] Executar suíte/build do bot e registrar ausência de endpoint novo ou regra de recorrência em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T087 [US4] Executar testes do histórico/i18n e registrar GREEN de `2026.07.2`, paridade e linguagem segura em `specs/020-agendamento-listas-presenca/tasks.md`
 
 **Checkpoint**: bot permanece adaptador e a entrega fica documentada e localizada.
 
@@ -164,19 +173,19 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 **Purpose**: produzir evidência final reproduzível sem ampliar escopo.
 
-- [ ] T079 Executar testes e build Release do backend pelo devcontainer e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T080 Executar testes, build e lint sem fix do frontend e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T081 Executar testes e build completos do bot e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T082 Aplicar migration em PostgreSQL descartável e comprovar constraints de agenda/data, dias, rollback e reaplicação em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T083 Executar matriz HTTP real para anônimo, Jogador, Moderador e Admin e registrar ausência de dados operacionais em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T084 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T085 Validar recuperação real de múltiplos dias, claim expirado e `UltimaDataAvaliada` sem lacunas em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T086 Validar `/configuracoes` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px e registrar evidências em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T087 Auditar autorização, autoria, DTOs, rate limiting, logs, métricas e ausência de segredos e registrar resultado em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T088 Auditar textos hardcoded frontend/backend, paridade `pt.json`/`en.json`, resources PT/EN, bot, acentuação, placeholders, botões, títulos, badges, toasts, confirmações, estados vazios e validações em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T089 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T088 Executar testes e build Release do backend pelo devcontainer e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T089 Executar testes, build e lint sem fix do frontend e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T090 Executar testes e build completos do bot e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T091 Aplicar migration em PostgreSQL descartável e comprovar enums `smallint`, histórico, índices únicos, rollback e reaplicação em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T092 Executar matriz HTTP real com paginação de agendas/ocorrências para anônimo, Jogador, Moderador e Admin em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T093 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T094 Validar recuperação de múltiplos dias, bloqueada com marcador avançado, claim expirado e inicialização antes/no/depois da publicação em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T095 Validar `/configuracoes`, carregar mais e `Ver histórico` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T096 Auditar autorização, autoria, DTOs, rate limiting, logs, contadores/tags de métricas e ausência de segredos em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T097 Auditar textos hardcoded frontend/backend, paginação, `Ver histórico`, paridade `pt.json`/`en.json`, resources PT/EN, acentuação e validações em `specs/020-agendamento-listas-presenca/tasks.md`
+- [ ] T098 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas em `specs/020-agendamento-listas-presenca/tasks.md`
 
-**Checkpoint**: nenhuma tarefa é concluída com `Não` na auditoria de internacionalização ou sem evidência de segurança, concorrência e recuperação.
+**Checkpoint**: nenhuma tarefa é concluída com `Não` na auditoria de internacionalização ou sem evidência de paginação, segurança, concorrência e recuperação.
 
 ---
 
@@ -185,46 +194,46 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 ### Phase Dependencies
 
 - **Phase 1**: começa somente após aprovação explícita deste `tasks.md` e ambiente backend disponível.
-- **Phase 2**: depende das entidades e transições da Phase 1.
-- **Phase 3**: depende do repositório e timezone da Phase 2.
-- **Phase 4**: depende do domínio, operações atômicas e recursos/API estabelecidos nas Phases 1-3.
-- **Phase 5**: depende do contrato HTTP funcional da Phase 3, mas pode começar após esse checkpoint sem aguardar o scheduler completo.
-- **Phase 6**: depende da criação de draft/publicação da Phase 4 e da estrutura i18n frontend da Phase 5.
+- **Phase 2**: depende das entidades/transições da Phase 1; T013-T014 precedem obrigatoriamente a implementação de timezone em T017.
+- **Phase 3**: depende de repositório paginado/count e timezone da Phase 2.
+- **Phase 4**: depende do domínio, operações atômicas e recursos/API das Phases 1-3.
+- **Phase 5**: depende do contrato HTTP paginado da Phase 3, mas pode começar sem aguardar o scheduler completo.
+- **Phase 6**: depende da criação de draft/publicação da Phase 4 e da estrutura i18n da Phase 5.
 - **Phase 7**: depende de todas as fases anteriores.
 
 ### User Story Dependencies
 
-- **US1 (P1)**: domínio, persistência, API e UI de gestão; entrega administração semanal independente do scheduler.
+- **US1 (P1)**: domínio, persistência, API paginada e UI de gestão.
 - **US2 (P1)**: depende do domínio/persistência e entrega exactly-once independentemente da UI.
-- **US3 (P1)**: amplia o ciclo da US2 com recuperação de múltiplos dias e marcador seguro.
-- **US4 (P2)**: usa projeções da API e ocorrências da US2/US3 para acompanhamento.
+- **US3 (P1)**: amplia US2 com recuperação de múltiplos dias e fase independente de bloqueadas.
+- **US4 (P2)**: usa paginação de agendas/ocorrências e estados da US2/US3 para acompanhamento.
 - **US5 (P1)**: autorização backend é testável na Phase 3; visibilidade frontend é concluída na Phase 5.
 
 ### Red-Green Order
 
 - T001-T004 precedem T005-T009.
-- T010-T013 precedem T014-T021.
-- T022-T025 precedem T026-T037.
-- T038-T042 precedem T043-T050.
-- T051-T056 precedem T057-T068.
-- T069 precede qualquer adaptação permitida em T070; T071 precede T072-T074.
-- Cada teste novo deve falhar pelo comportamento ausente, não apenas por indisponibilidade de SDK, banco ou serviço.
+- T010-T014 precedem T015-T022; especificamente T013-T014 precedem T017.
+- T023-T027 precedem T028-T039.
+- T040-T045 precedem T046-T055; especificamente T042 precede T049 e T044 precede T051.
+- T056-T063 precedem T064-T077; especificamente T057 precede T066 e T060 precede T070.
+- T078 precede qualquer adaptação em T079; T080 precede T081-T083.
+- Cada teste novo deve falhar pelo comportamento ausente, não por indisponibilidade de SDK, banco ou serviço.
 
 ### Parallel Opportunities
 
-- T063 e T064 podem ocorrer em paralelo após os testes i18n porque alteram catálogos distintos.
-- T073 e T074 podem ocorrer em paralelo após T071 porque alteram catálogos distintos.
-- T075 e T076 podem ocorrer em paralelo após o comportamento estar consolidado porque alteram documentos distintos.
-- Nenhuma outra tarefa recebe `[P]`; pares de teste/implementação, migrations, `Program.cs`, `tasks.md` e catálogos compartilhados exigem ordem.
+- T072 e T073 podem ocorrer em paralelo após os testes i18n porque alteram catálogos distintos.
+- T082 e T083 podem ocorrer em paralelo após T080 porque alteram catálogos distintos.
+- T084 e T085 podem ocorrer em paralelo após o comportamento estar consolidado porque alteram documentos distintos.
+- Nenhuma outra tarefa recebe `[P]`; pares RED/GREEN e arquivos compartilhados exigem ordem.
 
 ## Parallel Examples
 
 ```text
-T063: Adicionar settings.presenceSchedules em FrontEnd/src/i18n/locales/pt.json
-T064: Adicionar settings.presenceSchedules em FrontEnd/src/i18n/locales/en.json
+T072: Adicionar settings.presenceSchedules em FrontEnd/src/i18n/locales/pt.json
+T073: Adicionar settings.presenceSchedules em FrontEnd/src/i18n/locales/en.json
 
-T075: Atualizar docs/domain/DRAFT_DISCORD_OPERATIONS.md
-T076: Criar docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md
+T084: Atualizar docs/domain/DRAFT_DISCORD_OPERATIONS.md
+T085: Criar docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md
 ```
 
 ## Implementation Strategy
@@ -232,16 +241,16 @@ T076: Criar docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md
 ### MVP First
 
 1. Aprovar os artefatos e disponibilizar o devcontainer/.NET antes de T001.
-2. Concluir Phases 1-3 para permitir gestão segura e persistida de agendas como primeiro incremento.
-3. Validar US1 e a autorização backend da US5 independentemente antes do scheduler.
-4. Concluir Phase 4 para entregar US2/US3 sem depender da interface.
+2. Concluir Phases 1-3 para gestão segura, persistida e paginada.
+3. Validar US1 e autorização backend da US5 antes do scheduler.
+4. Concluir Phase 4 para US2/US3, incluindo bloqueadas independentes e métricas testadas.
 
 ### Incremental Delivery
 
-1. Domínio e banco íntegros.
-2. CRUD autorizado e localizado.
-3. Execução exatamente uma vez e recuperação de múltiplos dias.
-4. Central responsiva e acompanhamento.
+1. Domínio e schema fechados.
+2. Timezone testado antes da implementação e API paginada.
+3. Exactly-once, recuperação e fase independente de bloqueadas.
+4. Central paginada e histórico acessível.
 5. Regressão do bot, release e documentação.
 6. Verificação integrada, browser, segurança e i18n.
 
@@ -249,20 +258,23 @@ T076: Criar docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md
 
 | Requirement/contract | Tasks |
 |----------------------|-------|
-| FR-001, FR-002, backend auth | T024, T032-T037, T055, T062, T068, T083, T087 |
-| FR-003-FR-008, domain | T001-T009, T022-T030 |
-| FR-009-FR-011, exactly-once/claim | T010-T021, T038-T049, T082, T084-T085 |
-| FR-012-FR-015, draft/bot/Discord indisponível | T012, T018, T039, T045, T069-T070, T077 |
-| FR-016-FR-019, timezone/recuperação/`UltimaDataAvaliada` | T017, T038, T040, T045, T050, T085 |
-| FR-020, frontend UI | T051-T068, T086 |
-| FR-021, DTOs seguros | T024, T026, T033, T037, T083, T087 |
-| FR-022-FR-023, i18n | T034, T051-T068, T071-T074, T078, T088 |
-| FR-024, observabilidade | T041, T043, T047-T050, T087 |
-| FR-025, release `2026.07.2` | T071-T078 |
-| Backend API contract | T022-T037, T083 |
-| Frontend UI contract | T051-T068, T086, T088 |
-| Discord bot contract | T069-T070, T077, T084 |
-| SC-001-SC-008 | T037, T049-T050, T066-T068, T077-T089 |
+| FR-001, FR-002, backend auth/paginação | T024, T026, T030-T039, T056, T062, T071, T077, T092, T096 |
+| FR-003-FR-008, domínio/auditoria | T001-T010, T023-T032 |
+| FR-009-FR-011, exactly-once/claim | T011-T022, T040, T048-T054, T091, T093-T094 |
+| FR-012-FR-015, draft/bot/bloqueadas | T012, T019, T040, T042, T048-T049, T078-T079, T086, T094 |
+| FR-016-FR-019, timezone/recuperação | T013-T017, T025, T031, T041-T049, T054, T094 |
+| FR-020, frontend paginado | T056, T059, T064-T075, T095 |
+| FR-021, DTOs seguros | T026, T028, T035, T039, T092, T096 |
+| FR-022-FR-023, i18n | T036, T056-T077, T080-T083, T087, T097 |
+| FR-024, observabilidade | T043-T055, T096 |
+| FR-025, release `2026.07.2` | T080-T087 |
+| FR-026, histórico acessível | T057, T060, T064, T066, T069-T070, T072-T076, T095, T097 |
+| FR-027, marcador determinístico | T002, T025, T031, T038, T041, T054, T094 |
+| Backend API contract | T011, T024, T026, T028-T039, T092 |
+| Frontend UI contract | T056-T077, T095, T097 |
+| Discord bot contract | T078-T079, T086, T093 |
+| SC-001-SC-008 | T039, T053-T055, T075-T077, T086-T098 |
+| SC-009-SC-011 | T011, T025, T038, T042, T049, T054, T056-T076, T092, T094-T095 |
 
 ## Gate
 

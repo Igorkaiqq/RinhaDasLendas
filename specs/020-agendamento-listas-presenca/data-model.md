@@ -7,6 +7,7 @@
 - Horários recorrentes usam `time without time zone`; datas locais usam `date`; instantes usam `timestamp with time zone` em UTC.
 - Mapeamento por Fluent API e alteração exclusivamente por migration EF Core.
 - `America/Sao_Paulo` é fixo nesta feature e não é persistido por agenda.
+- Todos os enums são persistidos em colunas PostgreSQL `smallint` com checks compatíveis com seus valores definidos.
 
 ## Enums
 
@@ -28,7 +29,7 @@ public enum AgendamentoPresencaAcao { Criado, Editado, Pausado, Reativado, Arqui
 | `Observacao` | `observacao` | varchar(500) | Yes | Até 500 caracteres |
 | `HorarioPublicacaoLocal` | `horario_publicacao_local` | time without time zone | No | Precisão de minuto |
 | `HorarioEncerramentoLocal` | `horario_encerramento_local` | time without time zone | No | Mesmo dia e posterior à publicação |
-| `Status` | `status` | text/smallint | No | `Ativo`, `Pausado`, `Arquivado` |
+| `Status` | `status` | smallint | No | `Ativo`, `Pausado`, `Arquivado` |
 | `AtivadoEm` | `ativado_em` | timestamp with time zone | No | Ativação mais recente |
 | `PausadoEm` | `pausado_em` | timestamp with time zone | Yes | Preenchido quando pausada |
 | `ArquivadoEm` | `arquivado_em` | timestamp with time zone | Yes | Preenchido no arquivamento lógico |
@@ -46,6 +47,8 @@ public enum AgendamentoPresencaAcao { Criado, Editado, Pausado, Reativado, Arqui
 - `Editar`, `Pausar`, `Reativar` e `Arquivar` recebem responsável e instante, criam histórico e não alteram ocorrências existentes.
 - `MarcarDataAvaliada` não retrocede e só é chamado após classificação completa da data.
 - `OcorreEm(DateOnly)` usa `DiaSemanaIso`, sem depender da cultura do processo.
+- Na criação, `UltimaDataAvaliada` recebe a data local anterior quando a hora atual em São Paulo é anterior a `HorarioPublicacaoLocal`; quando a hora atual é igual ou posterior, recebe a data local atual.
+- Na reativação, o novo marcador é `max(UltimaDataAvaliada, data calculada pela regra de criação)`, impedindo retrocesso e recuperação indevida do mesmo dia.
 
 ### Indexes
 
@@ -74,7 +77,7 @@ public enum AgendamentoPresencaAcao { Criado, Editado, Pausado, Reativado, Arqui
 | `DataLocal` | `data_local` | date | No | Data em `America/Sao_Paulo` |
 | `PublicacaoPrevistaEm` | `publicacao_prevista_em` | timestamp with time zone | No | UTC |
 | `EncerramentoPrevistoEm` | `encerramento_previsto_em` | timestamp with time zone | No | UTC e posterior à publicação |
-| `Status` | `status` | text/smallint | No | Enum de ocorrência |
+| `Status` | `status` | smallint | No | Enum de ocorrência |
 | `DraftMontagemId` | `draft_montagem_id` | uuid | Yes | FK restrita; obrigatório em `Criada` |
 | `CodigoFalha` | `codigo_falha` | varchar(16) | Yes | Código público estável |
 | `ClaimId` | `claim_id` | uuid | Yes | Dono atual do processamento |
@@ -87,7 +90,7 @@ public enum AgendamentoPresencaAcao { Criado, Editado, Pausado, Reativado, Arqui
 
 - `UNIQUE (agendamento_presenca_id, data_local)` é a barreira final contra duas ocorrências para a mesma agenda/data.
 - Check `encerramento_previsto_em > publicacao_prevista_em`.
-- FK `draft_montagem_id` restrita; índice único opcional quando preenchida para impedir associação repetida.
+- FK `draft_montagem_id` restrita e índice `UNIQUE (draft_montagem_id) WHERE draft_montagem_id IS NOT NULL` para impedir associação repetida.
 - Índice por `(status, claim_expires_at, encerramento_previsto_em)` para bloqueadas e claims retomáveis.
 - Índice por `(agendamento_presenca_id, data_local DESC)` para histórico paginado.
 
@@ -114,12 +117,12 @@ Estados `Criada`, `Perdida` e `Falha` são terminais para o scheduler. Claim div
 |--------------|--------|------|------|------|
 | `Id` | `id` | uuid | No | PK |
 | `AgendamentoPresencaId` | `agendamento_presenca_id` | uuid | No | FK restrita |
-| `Acao` | `acao` | text/smallint | No | `AgendamentoPresencaAcao` |
+| `Acao` | `acao` | smallint | No | `AgendamentoPresencaAcao` |
 | `ResponsavelUsuarioId` | `responsavel_usuario_id` | uuid | No | Identidade autenticada |
 | `RegistradoEm` | `registrado_em` | timestamp with time zone | No | UTC |
-| Resumo estrutural | Colunas relacionais definidas na implementação | Varia | Yes | Somente campos alterados, sem nome/observação livres ou dados Discord |
+| `CamposAlterados` | `campos_alterados` | varchar(200) | No | Nomes estáveis de campos separados por vírgula, sem valores |
 
-O resumo deve permitir identificar quais propriedades administrativas mudaram sem registrar token, guild/canal, payload, IDs de mensagem ou texto livre sensível. A implementação deve preferir colunas relacionais/controladas a JSON.
+`campos_alterados` aceita somente nomes do conjunto estável `Nome`, `Observacao`, `DiasSemana`, `HorarioPublicacaoLocal`, `HorarioEncerramentoLocal` e `Status`, ordenados e separados por vírgula. Não armazena valores anteriores/novos, token, guild/canal, payload, IDs de mensagem ou texto livre.
 
 ## Existing Draft Relationship
 
@@ -135,6 +138,7 @@ O resumo deve permitir identificar quais propriedades administrativas mudaram se
 4. `TryCompleteWithDraftAsync` valida `OcorrenciaId + ClaimId`, insere draft/publicação e atualiza a ocorrência para `Criada` em uma transação.
 5. Rollback deixa a ocorrência retomável e não expõe draft/publicação parcial.
 6. Para indisponibilidade de múltiplos dias, cada data após `UltimaDataAvaliada` é classificada antes do avanço; uma falha de persistência mantém o marcador anterior para repetição segura.
+7. Em todo ciclo, `ListBlockedAsync(agora)` seleciona ocorrências `Bloqueada` independentemente do marcador da agenda; cada item é mantido bloqueado, readquirido para criação ou marcado `Perdida` conforme configuração e encerramento.
 
 ## Message Codes
 

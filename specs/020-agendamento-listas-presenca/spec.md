@@ -72,8 +72,8 @@ Como Moderador+, quero visualizar agendas, próxima execução e ocorrências re
 
 **Acceptance Scenarios**:
 
-1. **Given** agendas não arquivadas, **When** o Moderador abre a central, **Then** vê agendas ativas e pausadas, fuso de Brasília, próxima execução e resultado recente em ordem útil.
-2. **Given** ocorrências de uma agenda, **When** o Moderador consulta o histórico paginado, **Then** vê data, janela, status, draft relacionado quando houver e mensagem localizada segura.
+1. **Given** agendas não arquivadas, **When** o Moderador abre a central, **Then** vê uma página de agendas ativas e pausadas, fuso de Brasília, próxima execução e resultado recente em ordem útil, com ação localizada para carregar mais quando houver outra página.
+2. **Given** ocorrências de uma agenda, **When** o Moderador aciona `Ver histórico`, **Then** abre um painel ou modal acessível e paginado com data, janela, status, draft relacionado quando houver e mensagem localizada segura.
 3. **Given** nenhum agendamento, **When** a central é aberta, **Then** um estado vazio localizado orienta a criação da primeira agenda.
 4. **Given** viewport de 320px ou maior, **When** a central e os diálogos são operados por teclado ou toque, **Then** não há overflow obrigatório e foco, ações e confirmações permanecem acessíveis.
 
@@ -102,6 +102,8 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - Pausar, editar ou arquivar durante uma execução não modifica ocorrência ou draft já confirmado.
 - Claim divergente não pode concluir ou falhar uma ocorrência; claim expirado pode ser retomado somente enquanto a janela estiver aberta.
 - Falha transitória antes da confirmação não avança indevidamente `UltimaDataAvaliada`; uma falha em uma agenda não interrompe as demais.
+- Uma ocorrência `Bloqueada` continua sendo reavaliada em todos os ciclos mesmo depois de `UltimaDataAvaliada` ter avançado além de sua data.
+- Ao criar ou reativar antes do horário local de publicação, o dia atual permanece elegível; ao criar ou reativar no horário ou depois dele, o dia atual não é recuperado.
 - Falha conhecida de publicação, resultado incerto e CTA seguem estados independentes do protocolo existente e nunca provocam novo draft.
 - Logs e métricas não incluem nome, observação, usuário, token, payload Discord, IDs de mensagem ou motivo administrativo livre.
 
@@ -109,7 +111,7 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 
 ### Functional Requirements
 
-- **FR-001**: O sistema MUST permitir listar, criar, detalhar, editar, pausar, reativar, arquivar e consultar ocorrências de agendas somente a usuários autenticados com `CanManageDrafts`.
+- **FR-001**: O sistema MUST permitir listar agendas com `page` e `pageSize`, criar, detalhar, editar, pausar, reativar, arquivar e consultar ocorrências paginadas somente a usuários autenticados com `CanManageDrafts`.
 - **FR-002**: O sistema MUST manter a configuração sensível de guild, canais, token e ativação global separada e protegida por `CanManageUsers`; `CanManageDrafts` MUST NOT conceder acesso a esses dados.
 - **FR-003**: Uma agenda MUST possuir nome normalizado de 3 a 100 caracteres, observação opcional de até 500 caracteres, ao menos um dia ISO único e horários locais com precisão de minuto.
 - **FR-004**: Publicação e encerramento MUST ocorrer no mesmo dia em `America/Sao_Paulo`, e o encerramento MUST ser estritamente posterior à publicação.
@@ -123,17 +125,19 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **FR-012**: O draft agendado MUST usar times de cinco, os padrões operacionais atuais, observação configurada e nome `Nome configurado - dd/MM/yyyy` sem depender da cultura do processo.
 - **FR-013**: O backend MUST ser a fonte de verdade da recorrência; o bot MUST NOT consultar agendas, calcular horários ou consumir endpoint novo.
 - **FR-014**: Drafts agendados MUST entrar sem campo novo no polling existente do bot e reutilizar claims, conclusão, falha, reconciliação e CTA atuais.
-- **FR-015**: Bot desativado ou configuração Discord incompleta MUST bloquear a ocorrência sem criar draft invisível; recuperação dentro da janela MUST criar o draft e expiração da janela MUST marcar a ocorrência perdida.
+- **FR-015**: Bot desativado ou configuração Discord incompleta MUST bloquear a ocorrência sem criar draft invisível; todo ciclo MUST reavaliar ocorrências bloqueadas independentemente de `UltimaDataAvaliada`, criando o draft após readquirir claim se a configuração voltar dentro da janela ou marcando a ocorrência perdida após o encerramento.
 - **FR-016**: O sistema MUST interpretar horários com `America/Sao_Paulo`, persistir instantes calculados em UTC e MUST NOT usar deslocamento fixo como regra.
 - **FR-017**: O sistema MUST percorrer todas as datas posteriores a `UltimaDataAvaliada` até a data local atual, inclusive após indisponibilidade de múltiplos dias, sem horizonte arbitrário.
 - **FR-018**: `UltimaDataAvaliada` MUST avançar somente depois que todas as ocorrências esperadas da data forem confirmadas ou classificadas; data atual antes da publicação MUST permanecer pendente.
 - **FR-019**: Uma ocorrência atrasada MUST ser criada antes do encerramento somente quando a agenda permaneceu ativa no horário previsto; após o encerramento MUST ser perdida sem draft.
-- **FR-020**: A interface em `/configuracoes` MUST apresentar central responsiva com resumo, cards, próxima execução, resultado recente, estado vazio, formulário e confirmações para `CanManageDrafts`.
+- **FR-020**: A interface em `/configuracoes` MUST apresentar central responsiva com resumo, cards, próxima execução, resultado recente, paginação ou ação localizada para carregar mais agendas, estado vazio, formulário e confirmações para `CanManageDrafts`.
 - **FR-021**: Consultas MUST expor somente DTOs administrativos seguros e códigos públicos `messageCode`; claims, tokens, IDs de mensagem, payloads e falhas técnicas Discord MUST NOT ser retornados.
 - **FR-022**: Todos os textos visíveis do frontend MUST usar chaves equivalentes em `pt.json` e `en.json`, e todas as mensagens backend MUST usar recursos equivalentes em português e inglês.
 - **FR-023**: Datas, horários e dias da semana MUST respeitar o locale ativo; português MUST ter acentuação revisada e valores inseridos pelo usuário MUST NOT ser traduzidos.
 - **FR-024**: O sistema MUST registrar métricas de agendas avaliadas, ocorrências criadas, bloqueadas, perdidas, falhas, conflitos e duração sem dados pessoais ou sensíveis.
 - **FR-025**: A entrega MUST adicionar a release `2026.07.2` ao histórico localizado do produto, descrevendo agendamento, horários, gestão Moderador+, recuperação e proteção contra duplicidade em linguagem de usuário.
+- **FR-026**: A interface MUST oferecer a ação localizada `Ver histórico` e abrir um painel ou modal acessível que consome ocorrências paginadas, permite navegar entre páginas e preserva foco, teclado e leitura por tecnologia assistiva.
+- **FR-027**: Ao criar uma agenda, `UltimaDataAvaliada` MUST iniciar no dia local anterior quando o horário atual em `America/Sao_Paulo` for anterior ao horário de publicação, e na data local atual quando for igual ou posterior; ao reativar, MUST usar o maior valor entre o marcador existente e essa data calculada.
 
 ### Key Entities
 
@@ -155,13 +159,16 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **SC-006**: 100% das operações administrativas exercitadas registram autoria e ação, sem alterar drafts já criados ou expor dados operacionais proibidos.
 - **SC-007**: A central pode ser operada por teclado e toque em desktop, tablet, mobile e 320px sem overflow horizontal obrigatório, perda de foco ou ação inacessível.
 - **SC-008**: Português e inglês apresentam estrutura equivalente no frontend, backend e conteúdo da release `2026.07.2`, sem texto visível hardcoded nos novos fluxos.
+- **SC-009**: 100% dos cenários de paginação exercitados retornam metadados e itens coerentes para agendas e ocorrências, sem duplicar ou omitir itens ao avançar páginas na interface.
+- **SC-010**: 100% das ocorrências bloqueadas exercitadas são reavaliadas em ciclos posteriores mesmo com `UltimaDataAvaliada` avançada, terminando criadas dentro da janela ou perdidas após o encerramento.
+- **SC-011**: 100% dos cenários no mesmo dia inicializam ou atualizam `UltimaDataAvaliada` no dia anterior antes da publicação e no dia atual a partir do horário de publicação, sem retroceder o marcador ao reativar.
 
 ## Assumptions
 
 - Autenticação JWT, permissões `CanManageDrafts` e `CanManageUsers`, fluxo de `DraftMontagem`, polling e claims de publicação do bot já existem e serão reutilizados.
 - O intervalo operacional padrão do avaliador será de 30 segundos; ele não altera a precisão de minuto da agenda.
 - Nome e observação são os únicos parâmetros de draft configuráveis nesta feature; demais opções continuam nos padrões atuais do bot.
-- Agenda criada inicia ativa e `UltimaDataAvaliada` é inicializada de forma que datas anteriores à ativação não sejam recuperadas.
+- Agenda criada inicia ativa e aplica a regra determinística de `UltimaDataAvaliada` do FR-027 no horário local de São Paulo.
 - Falhas de envio posteriores à criação do draft pertencem ao protocolo existente de publicação e reconciliação.
 
 ## Out of Scope

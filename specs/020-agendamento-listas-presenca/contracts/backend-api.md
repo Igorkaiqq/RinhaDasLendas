@@ -29,19 +29,29 @@ public sealed record OcorrenciaAgendamentoPresencaSummaryDto(
     Guid Id, DateOnly DataLocal, DateTimeOffset PublicacaoPrevistaEm,
     DateTimeOffset EncerramentoPrevistoEm, OcorrenciaAgendamentoPresencaStatus Status,
     Guid? DraftMontagemId, string? MessageCode);
+
+public sealed record PaginatedResponseDto<T>(
+    int Page,
+    int PageSize,
+    IReadOnlyCollection<T> Items,
+    int TotalItems = 0,
+    int TotalPages = 0);
 ```
 
 JSON usa a política camelCase existente. `TimeOnly` é enviado como `HH:mm`; instantes são ISO 8601 UTC; `DateOnly` é `yyyy-MM-dd`; enums usam os nomes definidos no domínio.
+
+Para ambas as listagens, `page` inicia em `1`, `pageSize` usa default `20` e limite `100`, e `TotalPages` é calculado a partir de `TotalItems` e do `PageSize` efetivo.
 
 ## Endpoints
 
 ### List Schedules
 
 ```http
-GET /api/v1/discord/agendamentos-presenca
+GET /api/v1/discord/agendamentos-presenca?page=1&pageSize=20
 ```
 
-- **200**: coleção de `AgendamentoPresencaSummaryDto` não arquivados, ordenada por próxima execução e com última ocorrência.
+- **200**: `PaginatedResponseDto<AgendamentoPresencaSummaryDto>` de não arquivados, ordenada por próxima execução e com última ocorrência; `TotalItems` vem de count com os mesmos filtros.
+- **400**: `page` ou `pageSize` inválido.
 - **401/403**: conforme autorização.
 
 ### Create Schedule
@@ -123,7 +133,7 @@ DELETE /api/v1/discord/agendamentos-presenca/{id}
 GET /api/v1/discord/agendamentos-presenca/{id}/ocorrencias?page=1&pageSize=20
 ```
 
-- **200**: resposta paginada padrão contendo `OcorrenciaAgendamentoPresencaSummaryDto`, em `DataLocal` decrescente.
+- **200**: `PaginatedResponseDto<OcorrenciaAgendamentoPresencaSummaryDto>`, em `DataLocal` decrescente; `TotalItems` vem de count da mesma agenda.
 - **400**: paginação inválida.
 - **404**: agenda ausente ou arquivada.
 - **401/403**: conforme autorização.

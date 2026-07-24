@@ -26,7 +26,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 **Constraints**: `America/Sao_Paulo`; publicação e encerramento no mesmo dia; encerramento posterior; exatamente uma ocorrência/draft/publicação por agenda/data; claim de cinco minutos; sem Quartz/Hangfire; sem regra de recorrência no frontend ou bot; sem draft quando Discord estiver indisponível; i18n PT/EN integral
 
-**Scale/Scope**: uso interno, quatro novas tabelas, oito endpoints administrativos, uma seção em `/configuracoes`, um ciclo periódico e regressão do polling existente do bot
+**Scale/Scope**: uso interno, quatro novas tabelas, oito endpoints administrativos paginados quando listam recursos, uma seção em `/configuracoes`, um ciclo periódico e regressão do polling existente do bot
 
 ## Constitution Check
 
@@ -53,6 +53,7 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 - Criar o agregado `AgendamentoPresenca`, as entidades `AgendamentoPresencaDiaSemana`, `OcorrenciaAgendamentoPresenca` e `HistoricoAgendamentoPresenca` e os enums `DiaSemanaIso`, `AgendamentoPresencaStatus`, `OcorrenciaAgendamentoPresencaStatus` e `AgendamentoPresencaAcao` exatamente como definidos em [data-model.md](./data-model.md).
 - Persistir dias em linhas próprias e proteger unicidade por `agendamento_presenca_id + dia_semana`; proteger ocorrências por `agendamento_presenca_id + data_local`.
+- Persistir todos os enums como `smallint`, aplicar índice `UNIQUE` parcial em `draft_montagem_id WHERE draft_montagem_id IS NOT NULL` e registrar auditoria somente em `campos_alterados varchar(200)` com nomes estáveis separados por vírgula, nunca valores.
 - Adicionar `claim_id` e `claim_expires_at` à ocorrência. `TryClaimOccurrenceAsync` usa claim de cinco minutos e permite retomada de processador interrompido enquanto a janela estiver aberta.
 - Criar draft, publicação pendente e conclusão da ocorrência na mesma transação. Crash antes do commit não confirma estado; commit impede novo draft pela ocorrência única.
 - Implementar exclusão como status `Arquivado` e FKs restritas para preservar auditoria e drafts existentes.
@@ -61,14 +62,17 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 - Implementar `IAgendamentoPresencaTimeZone` com `TimeZoneInfo` e identificador IANA `America/Sao_Paulo`; converter somente os instantes calculados para UTC.
 - `UltimaDataAvaliada` representa a última data local totalmente classificada. Para cada agenda candidata, percorrer cada data posterior ao marcador até hoje, inclusive depois de múltiplos dias indisponíveis.
+- Na criação, calcular `UltimaDataAvaliada` pela hora local: dia anterior se agora local for anterior à publicação; data local atual se for igual ou posterior. Na reativação, aplicar `max(marcador atual, data calculada)` para nunca retroceder.
 - Data não selecionada pode avançar o marcador. Data selecionada avança somente após ocorrência confirmada, bloqueada/perdida persistida ou classificação equivalente concluída; o dia atual antes da publicação permanece pendente.
 - `AtivadoEm` posterior à publicação prevista impede recuperação da data reativada tardiamente. Agenda que permaneceu ativa pode criar atrasado antes do encerramento; depois dele registra `Perdida` sem draft.
+- Em fase independente de cada ciclo, consultar `ListBlockedAsync(agora)`, sem depender da varredura posterior a `UltimaDataAvaliada`: após encerramento marcar `Perdida`; com janela aberta e configuração restaurada readquirir claim e concluir com draft; se a configuração continuar ausente manter `Bloqueada`.
 - Horário local inválido ou ambíguo vira `Falha` com `MV096`, sem ajuste silencioso e sem draft.
 
 ### CQRS, API E Autorização
 
 - Separar commands de criar, editar, pausar, reativar, arquivar e processar das queries de listar, detalhar e listar ocorrências.
-- Usar `IAgendamentoPresencaRepository` para operações atômicas e projeções; handlers coordenam relógio, timezone, configuração Discord e domínio.
+- Listar agendas e ocorrências com `page`/`pageSize` e `PaginatedResponseDto<T>`, incluindo `TotalItems` e `TotalPages`.
+- Usar `IAgendamentoPresencaRepository` para operações atômicas e projeções; o contrato inclui `ListAsync(bool includePaused, int page, int pageSize, CancellationToken ct)`, `CountAsync(bool includePaused, CancellationToken ct)`, `ListOccurrencesAsync(Guid agendaId, int page, int pageSize, CancellationToken ct)`, `CountOccurrencesAsync(Guid agendaId, CancellationToken ct)` e `ListBlockedAsync(DateTimeOffset now, CancellationToken ct)`; handlers coordenam relógio, timezone, configuração Discord e domínio.
 - Proteger a base `/api/v1/discord/agendamentos-presenca` com JWT e `AuthPermissions.CanManageDrafts`; obter `ResponsavelUsuarioId` do claim autenticado.
 - Usar somente DTOs do contrato [backend-api.md](./contracts/backend-api.md), respostas de erro padrão e resources para `MV089` a `MV100`.
 - Preservar `CanManageUsers` na configuração de guild/canais/token/ativação; agendas nunca retornam esses campos.
@@ -77,12 +81,13 @@ Permitir que Moderador+ mantenha agendas semanais em `/configuracoes`, com horá
 
 - `AgendamentoPresencaExecutionService` cria escopo e envia `ProcessarAgendamentosPresencaDevidosCommand(clock.UtcNow)`; não contém EF, recorrência ou regra Discord.
 - Usar `PeriodicTimer` com `PresenceSchedule:IntervalSeconds`, default 30, sem iniciar ciclo antes do anterior terminar e respeitando cancelamento.
-- Uma falha por agenda é isolada. Métricas registram avaliadas, criadas, bloqueadas, perdidas, falhas, conflitos e duração, apenas com status/código estável.
+- Uma falha por agenda é isolada. Testes RED específicos devem preceder a implementação das métricas de avaliadas, criadas, bloqueadas, perdidas, falhas, conflitos e duração, aceitando apenas tags de status/código estável.
 
 ### Frontend E Bot
 
-- Compor `PresenceScheduleSection`, `PresenceScheduleFormDialog` e `PresenceScheduleConfirmDialog` em `SettingsView.vue` conforme [frontend-ui.md](./contracts/frontend-ui.md).
+- Compor `PresenceScheduleSection`, `PresenceScheduleFormDialog`, `PresenceScheduleConfirmDialog` e `PresenceScheduleOccurrenceHistoryDialog` em `SettingsView.vue` conforme [frontend-ui.md](./contracts/frontend-ui.md).
 - Mostrar agendas por `CanManageDrafts` e configuração sensível apenas por `CanManageUsers`; não condicionar as agendas à permissão administrativa mais ampla.
+- Consumir `PaginatedResponse<PresenceScheduleSummary>` na central, oferecer paginação/carregar mais localizado e usar `listPresenceScheduleOccurrences` no painel/modal acessível acionado por `Ver histórico`.
 - Reutilizar componentes e tokens existentes, cards responsivos e formulários verticais; garantir teclado, foco, `Escape`, toque e ausência de overflow em 320px.
 - Manter textos em `settings.presenceSchedules` com paridade PT/EN; datas e dias usam locale ativo.
 - O bot não recebe endpoint, DTO ou regra de agenda. Conforme [discord-bot.md](./contracts/discord-bot.md), um draft agendado é apenas outro draft acionável no polling existente.
@@ -148,7 +153,8 @@ FrontEnd/src/
 ├── components/settings/
 │   ├── PresenceScheduleSection.vue
 │   ├── PresenceScheduleFormDialog.vue
-│   └── PresenceScheduleConfirmDialog.vue
+│   ├── PresenceScheduleConfirmDialog.vue
+│   └── PresenceScheduleOccurrenceHistoryDialog.vue
 ├── views/SettingsView.vue
 ├── i18n/locales/{pt,en}.json
 └── styles/main.css
@@ -163,12 +169,13 @@ docs/domain/{DRAFT_DISCORD_OPERATIONS,AGENDAMENTO_LISTAS_PRESENCA}.md
 
 1. Confirmar RED e GREEN para invariantes, transições, normalização, idempotência e histórico do domínio.
 2. Validar PostgreSQL real para mappings, constraints, claim expirável, dois processadores, rollback e conclusão transacional.
-3. Validar handlers, validators e matriz HTTP com anônimo, Jogador, Moderador e Admin, inclusive ausência de campos operacionais.
-4. Simular relógio e indisponibilidade de três dias para verificar `UltimaDataAvaliada`, reativação tardia, bloqueio, recuperação e perda.
-5. Testar serviço periódico sem sobreposição, cancelamento, isolamento de falha e métricas sem dados sensíveis.
-6. Testar frontend para permissões, CRUD, estados, i18n, foco, teclado, toque, 320px e paridade PT/EN.
-7. Comprovar por regressão que o bot processa draft agendado uma vez pelo polling e claim existentes, sem código de produção quando desnecessário.
-8. Executar suites, builds, lint, migration, browser real, auditorias de segurança/i18n e `git diff --check` somente na fase de implementação aprovada.
+3. Validar handlers, validators e matriz HTTP com anônimo, Jogador, Moderador e Admin, incluindo paginação/count de agendas e ocorrências e ausência de campos operacionais.
+4. Simular relógio antes, no instante e depois da publicação para validar inicialização/reativação de `UltimaDataAvaliada`, além de indisponibilidade de três dias.
+5. Testar a fase independente de bloqueadas com marcador já avançado, cobrindo permanência, readquisição/criação e perda após encerramento.
+6. Testar serviço periódico sem sobreposição, cancelamento, isolamento de falha e métricas com contadores e tags seguras.
+7. Testar frontend para paginação de agendas, histórico paginado, permissões, CRUD, estados, i18n, foco, teclado, toque, 320px e paridade PT/EN.
+8. Comprovar por regressão que o bot processa draft agendado uma vez pelo polling e claim existentes, sem código de produção quando desnecessário.
+9. Executar suites, builds, lint, migration, browser real, auditorias de segurança/i18n e `git diff --check` somente na fase de implementação aprovada.
 
 ## Complexity Tracking
 
