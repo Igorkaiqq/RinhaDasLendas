@@ -383,7 +383,7 @@ async function exportImage() {
                   <small v-if="secondaryRoute(player)">{{ secondaryRoute(player) }}</small>
                 </span>
               </span>
-              <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">C</span>
+              <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
               <button v-else-if="canManage && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)">{{ t('drafts.realtime.substitute') }}</button>
             </li>
             <li v-for="index in Math.max(localMontagem.tamanhoEquipe - time.jogadores.length, 0)" :key="`${time.id}-empty-${index}`" class="draft-slot draft-slot--empty">
@@ -457,7 +457,7 @@ async function exportImage() {
                   <small v-if="secondaryRoute(player)">{{ secondaryRoute(player) }}</small>
                 </span>
               </span>
-              <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">C</span>
+              <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
               <button v-else-if="canManage && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)">{{ t('drafts.realtime.substitute') }}</button>
             </li>
             <li v-for="index in Math.max(localMontagem.tamanhoEquipe - time.jogadores.length, 0)" :key="`${time.id}-empty-${index}`" class="draft-slot draft-slot--empty">

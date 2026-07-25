@@ -721,6 +721,7 @@
     },
     "roles": {
       "captain": "CAPITÃO",
+      "captainShort": "C",
       "player": "JOGADOR"
     },
     "status": {
