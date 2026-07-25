@@ -1,8 +1,8 @@
 # Relatório de verificação final da feature 020
 
-**Data**: 2026-07-25  
-**Branch**: `feature/020-agendamento-listas-presenca`  
-**Status**: frontend e contratos aprovados; risco temporal preexistente da suíte PostgreSQL completa registrado abaixo.
+**Data**: 2026-07-25
+**Branch**: `feature/020-agendamento-listas-presenca`
+**Status**: PASS.
 
 ## Escopo
 
@@ -22,11 +22,12 @@
 | Frontend build | PASS | 2.756 módulos transformados |
 | Frontend lint sem fix | PASS | exit 0, sem diagnósticos |
 | Backend contrato | PASS | 29/29 testes de handlers e matriz HTTP |
-| Backend completo | RISCO | 532 executados: 496 aprovados e 36 falhas temporais PostgreSQL após 25/07 |
-| Bot | NÃO REEXECUTADO | baseline verificado: 54 testes; sem mudança nesta rodada |
+| Backend completo | PASS | 532/532 testes; build Release com 0 warnings e 0 erros |
+| Bot | PASS | 54/54 testes; build TypeScript aprovado |
 | i18n frontend | PASS | 906 chaves PT e 906 EN; paridade testada |
 | resources backend | PASS | 218 chaves em neutral, PT-BR e EN-US; sem mudança backend |
-| Diff check | PASS | `git diff --check` sem erros antes da documentação final |
+| Browser real | PASS | resumo global 20 com 6 cards; paginação deduplicada; 1280px e 320px sem overflow |
+| Diff check | PASS | `git diff --check` sem erros após a documentação final |
 
 ## TDD da correção
 
@@ -73,7 +74,7 @@ A suíte completa também foi executada:
 docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release --no-restore
 ```
 
-Resultado: 532 testes, 496 aprovados e 36 falhas. A causa observada é temporal e preexistente: `AgendamentoPresencaBehaviorIntegrationTests` combina marcador fixo em 23/07/2026, nomes/drafts de 24/07/2026 e `clock_timestamp()` real; ao executar em 25/07/2026, ocorrências esperadas já estavam fora da janela. O código frontend/docs desta rodada não participa dessas falhas. Nenhuma correção backend foi feita por restrição de escopo.
+Resultado final: 532 testes aprovados, 0 falhas e 0 ignorados; build Release com 0 warnings e 0 erros. A primeira execução em 25/07 revelou 36 fixtures temporais acopladas aos dias 23/24. O commit `1932a02` passou a derivar datas, dias ISO e janelas do relógio PostgreSQL; o commit `303929a` eliminou dois retornos antecipados que podiam concluir sem asserções. O filtro desses cenários passou com 5/5 antes da suíte completa.
 
 ## Migration e PostgreSQL
 
@@ -96,17 +97,17 @@ docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres featur
 
 ## Concorrência e recuperação
 
-O baseline anterior comprovou exactly-once, claim vencedor, rollback, claim expirado, recuperação de múltiplos dias e bloqueadas com marcador avançado. O filtro reproduzível é:
+A verificação final comprovou exactly-once, claim vencedor, rollback, claim expirado, recuperação de múltiplos dias, cursor de bloqueadas, revalidação da configuração Discord e bloqueadas com marcador avançado. O filtro reproduzível é:
 
 ```bash
 docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release --no-build --filter "FullyQualifiedName~AgendamentoPresencaBehaviorIntegrationTests|FullyQualifiedName~AgendamentoPresencaExecutionServiceTests"
 ```
 
-Na data atual, esse filtro também expõe o risco temporal descrito em [Backend](#backend); não deve ser interpretado como GREEN até as fixtures de data serem estabilizadas em tarefa backend própria.
+Resultado incluído na suíte final: GREEN. As fixtures usam o relógio PostgreSQL e mantêm datas históricas fixas somente nos cenários deliberados de timezone e migration.
 
 ## Browser real
 
-O baseline de 2026-07-24 usou Chromium real e comprovou Jogador/Moderador/Admin, CRUD, carregar mais, histórico, foco/Escape e ausência de overflow em `1440x900`, `768x1024`, `390x844` e `320x844`. As capturas mostravam seis cards na primeira página e sete IDs únicos após carregar mais; o novo teste automatizado cobre especificamente o resumo global 20 com apenas seis cards.
+O baseline de 2026-07-24 usou Chromium real e comprovou Jogador/Moderador/Admin, CRUD, carregar mais, histórico, foco/Escape e ausência de overflow em `1440x900`, `768x1024`, `390x844` e `320x844`. Em 25/07, uma rodada adicional validou a correção de `activeItems`: a primeira página exibiu resumo global 20 com seis cards; a segunda página sobreposta manteve 11 IDs únicos e atualizou o resumo conforme o envelope. Os viewports `1280x900` e `320x800` permaneceram sem overflow e sem erros no console.
 
 Com frontend e API locais ativos, o roteiro pode ser iniciado por:
 
@@ -122,7 +123,7 @@ Credenciais e tokens não são registrados no relatório.
 
 ## Bot
 
-Não reexecutado porque nenhum arquivo ou contrato do bot mudou. Baseline atual informado: 54 testes. Comandos reproduzíveis:
+O bot foi reexecutado após as proteções de deadline e configuração singleton: 54/54 testes e build TypeScript aprovados. Comandos reproduzíveis:
 
 ```bash
 npm test --prefix discord-bot
@@ -155,11 +156,11 @@ git diff --check
 git status --short
 ```
 
-Somente frontend e documentos da feature 020 integram esta correção. Mudanças não relacionadas permanecem fora dos commits.
+O intervalo final contém somente backend, frontend, bot, testes, migrations e documentos da feature 020. `docs/prompts/` e `specs/018-importacao-partidas-lcu/` permanecem fora dos commits.
 
 ## Riscos
 
-- A suíte PostgreSQL completa possui fixtures acopladas a 23/24 de julho de 2026 e falha após a virada para 25/07; requer correção backend/testes em escopo separado.
 - O bundle frontend mantém chunk principal acima de 500 kB; aviso conhecido, sem regressão desta mudança.
 - O bot não possui script de lint.
-- A verificação browser e migration desta rodada reutiliza evidência integrada anterior; os comandos acima permitem reprodução sem depender de paths temporários ou screenshots como única prova.
+- Os cursores de agendas e bloqueadas são operacionais e reiniciam com o processo; a ordenação circular e os marcadores persistidos preservam correção e progresso eventual.
+- O envio ao Discord não participa da transação PostgreSQL; claims, deadline, conclusão e reconciliação protegem contra duplicação e publicação confirmada fora da janela.
