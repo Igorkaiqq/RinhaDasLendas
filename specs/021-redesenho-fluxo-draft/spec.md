@@ -129,7 +129,7 @@ Como usuário, quero encontrar no histórico a melhoria entregue na seleção de
 
 - **FR-001**: A tela MUST apresentar navegador de drafts e área operacional como regiões distintas, com o draft selecionado identificado de forma inequívoca.
 - **FR-002**: A área operacional MUST apresentar nome, data, estado, contagem de confirmados, times e reservas antes dos controles específicos da etapa.
-- **FR-003**: O progresso MUST representar presença, encerramento, capitães, ordem, escolhas, finalização e integração Discord em sequência compreensível.
+- **FR-003**: O progresso MUST representar presença, encerramento, capitães, ordem, escolhas e finalização em sequência compreensível, com integração Discord apresentada como indicador paralelo.
 - **FR-004**: O progresso MUST distinguir etapas concluídas, atual e pendentes por mais de um sinal visual e MUST identificar semanticamente a etapa atual.
 - **FR-005**: Draft cancelado MUST ser apresentado como terminal e MUST NOT ativar visualmente presença aberta ou outra etapa operacional.
 - **FR-006**: Cada etapa MUST possuir no máximo uma ação com o tratamento visual primário; ações secundárias, destrutivas e de integração MUST usar tratamentos distintos.

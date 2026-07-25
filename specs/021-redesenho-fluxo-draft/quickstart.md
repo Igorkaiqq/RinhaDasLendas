@@ -145,9 +145,9 @@ O relatório final deve confirmar explicitamente:
 - nenhum arquivo novo fora do padrão;
 - backend sem mensagens novas e resources backend sem alteração necessária.
 
-### Gate de publicação
+### Gate local para criar a entrada editorial
 
-Não adicionar a release posterior enquanto algum item estiver pendente:
+Não adicionar a release posterior enquanto algum item local estiver pendente:
 
 - seis jornadas aceitas;
 - matriz de viewports aprovada;
@@ -155,6 +155,7 @@ Não adicionar a release posterior enquanto algum item estiver pendente:
 - permissões e atualização ao vivo sem regressão;
 - PT/EN equivalentes;
 - suíte, build, lint e auditoria aprovados;
-- produção validada após deploy.
+
+A entrada pode ser criada depois desses gates locais para seguir no mesmo artefato implantado. A publicação só é considerada concluída após o deploy e a validação autenticada em produção, executados depois da integração em `main`.
 
 A versão será o próximo `AAAA.MM.N` disponível na data real da publicação.
