@@ -312,11 +312,13 @@ public sealed class EndpointCoverageIntegrationTests
     }
 
     [Fact]
-    public async Task DiscordConfigurationGet_ShouldRequireCanManageUsers()
+    public async Task DiscordConfiguration_ShouldAllowAdminOrBotReadAndKeepWritesAdminOnly()
     {
         await using var factory = new PostgreSqlApiFactory();
         var userId = factory.GetExistingUserId();
         using var admin = factory.CreateAdminClient();
+        using var bot = factory.CreateBotClient();
+        using var invalidBot = factory.CreateInvalidBotClient();
         using var moderator = factory.CreatePresenceScheduleModeratorClient(userId);
         using var player = factory.CreatePresenceSchedulePlayerClient(userId);
         var configuration = new DiscordConfigurationDto(
@@ -334,6 +336,9 @@ public sealed class EndpointCoverageIntegrationTests
 
         (await moderator.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await player.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await invalidBot.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await bot.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await bot.PutAsJsonAsync("/api/v1/discord/configuracoes", updatedConfiguration)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         var current = await admin.GetFromJsonAsync<DiscordConfigurationDto>("/api/v1/discord/configuracoes");
         current.Should().NotBeNull();
         current!.GuildId.Should().Be("guild-atualizada");

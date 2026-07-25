@@ -14,4 +14,5 @@ public static class AuthPermissions
     public const string CanViewAdminLogs = nameof(CanViewAdminLogs);
     public const string CanUseDiscordBotApi = nameof(CanUseDiscordBotApi);
     public const string CanManageDraftsOrUseDiscordBotApi = nameof(CanManageDraftsOrUseDiscordBotApi);
+    public const string CanManageUsersOrUseDiscordBotApi = nameof(CanManageUsersOrUseDiscordBotApi);
 }
