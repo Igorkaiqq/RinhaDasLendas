@@ -154,6 +154,7 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanManageUsersOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy.RequireAssertion(_ => true));
     }
     else
@@ -183,6 +184,12 @@ builder.Services.AddAuthorization(options =>
                 context.User.IsInRole(AuthRoles.SuperAdmin)
                 || context.User.IsInRole(AuthRoles.Admin)
                 || context.User.IsInRole(AuthRoles.Moderador)
+                || context.User.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi)));
+        options.AddPolicy(AuthPermissions.CanManageUsersOrUseDiscordBotApi, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context =>
+                context.User.IsInRole(AuthRoles.SuperAdmin)
+                || context.User.IsInRole(AuthRoles.Admin)
                 || context.User.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi)));
         options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy
             .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
