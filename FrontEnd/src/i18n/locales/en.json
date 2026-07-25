@@ -642,7 +642,10 @@
       "manualRemoved": "Presence removed manually.",
       "closed": "Presence list closed.",
       "captainsDefined": "Captains defined.",
-      "orderDefined": "Pick order defined."
+      "orderDefined": "Pick order defined.",
+      "rosterLabel": "Players with confirmed presence",
+      "empty": "No player has confirmed presence.",
+      "toggleCaptain": "Toggle {name} as captain"
     },
     "presenceOrigin": {
       "Web": "Site",
@@ -650,6 +653,9 @@
       "Manual": "Manual"
     },
     "publication": {
+      "kicker": "Integration",
+      "title": "Discord publications",
+      "description": "Track bot messages without interrupting manual preparation.",
       "statusLabel": "Discord publication status",
       "presence": "Discord presence: {status}",
       "presenceCta": "Discord presence call: {status}",
@@ -660,8 +666,10 @@
         "Publicada": "published",
         "Falha": "failed",
         "RequerReconciliacao": "requires reconciliation",
-        "Ignorada": "skipped"
+        "Ignorada": "skipped",
+        "unknown": "Unknown publication status"
       },
+      "unknownType": "Discord publication: {status}",
       "republishPresence": "Republish presence",
       "republishPresenceCta": "Republish presence call",
       "republishFinalTeams": "Republish teams",

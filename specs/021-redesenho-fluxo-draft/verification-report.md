@@ -97,3 +97,46 @@
 - Resultado: aprovado sem erros ou avisos do ESLint.
 - Comando de whitespace, executado na raiz: `git diff --check`.
 - Resultado: aprovado sem saída.
+
+## T014-T019 - Lista de presença e publicações no Discord
+
+### Progresso
+
+| Tarefa | Estado | Evidência |
+|--------|--------|-----------|
+| T014 | Concluída | `DraftPreparationPanel.spec.ts` cobre listas com 0, 1, 10, 14 e 30 participantes, regiões estáveis de identidade/origem/ação, busca agrupada, payloads e seleção de capitão com `aria-pressed`. |
+| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre localização, fallback neutro, permissão, bloqueio durante `saving`, recuperabilidade da chamada e os três tipos exatos de republicação. |
+| T016 | Concluída | `DraftsView.spec.ts` cobre integração dos filhos sem serviços, handlers de confirmar/cancelar/encerrar, IDs e nomes da remoção, tipo da republicação e queda de permissão administrativa. |
+| T017 | Concluída | O roster separa identidade, origem e ações, mantém grade de largura estável e reúne busca, seleção e inclusão manual em um grupo operável. |
+| T018 | Concluída | O painel Discord é subordinado, usa somente ações secundárias, localiza estados e mantém fallback desconhecido neutro. |
+| T019 | Concluída | `DraftsView.vue` preserva serviços, IDs, motivos, request generations, diálogos e permissões, e adiciona guards de concorrência nos handlers existentes. |
+
+### RED
+
+- Comando, executado em `FrontEnd/`: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 3 suítes falharam antes da implementação porque `DraftPreparationPanel.vue` e `DraftDiscordPublicationPanel.vue` ainda não existiam; nenhum teste foi executado.
+- Motivo esperado: os contratos de apresentação e a integração exigidos por T014-T019 ainda estavam ausentes.
+
+### GREEN focado
+
+- Comando, executado em `FrontEnd/`: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 3 arquivos aprovados, 58 testes aprovados e 0 falhas (`DraftPreparationPanel`: 12; `DraftDiscordPublicationPanel`: 8; `DraftsView`: 38).
+
+### Ledger de evidências
+
+| Critério | Evidência desta fase | Estado |
+|----------|----------------------|--------|
+| SC-003 | Matriz automatizada 0/1/10/14/30, nomes longos, três regiões por jogador e grade com colunas estáveis sem alteração por seleção. | Aprovado em teste estrutural; inspeção em 320px permanece em T030. |
+| SC-005 | Confirmar, cancelar presença, encerrar com `false`/`true`, remover com `jogadorId` e nome, e republicar com tipo exato permanecem ligados aos handlers existentes; `saving` bloqueia repetição. | Aprovado para o escopo de presença/Discord; demais ações pertencem a US3. |
+| SC-007 | Chaves novas existem em PT/EN; status ausente ou desconhecido é localizado; scanner não encontrou texto visível hardcoded nos componentes do Draft. | Aprovado para T014-T019. |
+| SC-010 | Busca, seleção e inclusão manual formam um único grupo; remoção e avanço continuam acessíveis na mesma região operacional. | Aprovado em teste estrutural; jornada extensa permanece em T030. |
+
+### Gates da fase
+
+- Suíte completa: `npm test`; 35 arquivos aprovados, 264 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído. Permanecem avisos não bloqueantes de anotações `PURE` em dependências e tamanho de chunk.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 1 arquivo aprovado, 28 testes aprovados e 0 falhas.
+- Dependências: os filhos não importam `@/services/`; serviços e autorização permanecem em `DraftsView.vue`.
+- Textos visíveis: placeholders, botões, títulos, badges, estados vazios e rótulos acessíveis foram revisados em PT/EN; acentuação portuguesa revisada.
+- Backend: nenhuma mensagem, validação ou recurso backend foi alterado.

@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import DraftReasonDialog, { type DraftReasonDialogAction } from '@/components/drafts/DraftReasonDialog.vue'
+import DraftPreparationPanel from '@/components/drafts/DraftPreparationPanel.vue'
+import DraftDiscordPublicationPanel from '@/components/drafts/DraftDiscordPublicationPanel.vue'
 import DraftWorkspaceHeader from '@/components/drafts/DraftWorkspaceHeader.vue'
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
@@ -79,6 +81,11 @@ interface DraftUpdateContext {
 
 const captainSelection = ref<string[]>([])
 const statusOptions = DRAFT_MONTAGEM_STATUS_OPTIONS
+const preparationStatuses: readonly DraftMontagemStatus[] = [
+  DraftMontagemStatusValues.PresencaAberta,
+  DraftMontagemStatusValues.PresencaEncerrada,
+  DraftMontagemStatusValues.CapitaesDefinidos,
+]
 const hasDraftManagementPermission = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
 const canManageDrafts = computed(() => hasDraftManagementPermission.value && !adminAccessDenied.value)
 const currentUserId = computed(() => auth.user.value?.id ?? null)
@@ -300,6 +307,7 @@ async function loadEligibleManualPresencePlayers() {
 }
 
 async function confirmPresence() {
+  if (saving.value) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
@@ -314,6 +322,7 @@ async function confirmPresence() {
 }
 
 async function cancelPresence() {
+  if (saving.value) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
@@ -328,7 +337,7 @@ async function cancelPresence() {
 }
 
 async function addManualPresence() {
-  if (!selectedMontagem.value || !canManageDrafts.value || !selectedManualPresencePlayerId.value) return
+  if (saving.value || !selectedMontagem.value || !canManageDrafts.value || !selectedManualPresencePlayerId.value) return
   const player = availableManualPresencePlayers.value.find((item) => item.id === selectedManualPresencePlayerId.value)
   if (!player) return
 
@@ -336,12 +345,13 @@ async function addManualPresence() {
 }
 
 function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
-  if (selectedMontagem.value && canManageDrafts.value) {
+  if (!saving.value && selectedMontagem.value && canManageDrafts.value) {
     pendingReasonAction.value = { type: 'removeManualPresence', jogadorId, jogadorNome }
   }
 }
 
 async function closePresence(continueWithLess = false) {
+  if (saving.value) return
   const montagemAtual = selectedMontagem.value
   const context = beginSelectedDraftUpdate()
   if (!montagemAtual || !context || !canManageDrafts.value) return
@@ -357,6 +367,7 @@ async function closePresence(continueWithLess = false) {
 }
 
 function toggleCaptainSelection(jogadorId: string) {
+  if (saving.value) return
   if (captainSelection.value.includes(jogadorId)) {
     captainSelection.value = captainSelection.value.filter((id) => id !== jogadorId)
     return
@@ -366,6 +377,7 @@ function toggleCaptainSelection(jogadorId: string) {
 }
 
 async function defineCaptains() {
+  if (saving.value) return
   const context = beginSelectedDraftUpdate()
   if (!context || !canManageDrafts.value) return
   saving.value = true
@@ -380,6 +392,7 @@ async function defineCaptains() {
 }
 
 async function drawPickOrder() {
+  if (saving.value) return
   const context = beginSelectedDraftUpdate()
   if (!context || !canManageDrafts.value) return
   saving.value = true
@@ -581,16 +594,12 @@ function formatRinhaDate(value?: string | null) {
   return new Date(value).toLocaleDateString(locale.value, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function formatPresenceOrigin(origin: string) {
-  return t(`drafts.presenceOrigin.${origin}`)
-}
-
 function publicationStatus(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
   return selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === tipo)?.status ?? 'Pendente'
 }
 
 function requestDiscordRepublish(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
-  if (!selectedMontagem.value || !canManageDrafts.value) return
+  if (saving.value || !selectedMontagem.value || !canManageDrafts.value) return
   const actions: Record<typeof tipo, DraftReasonDialogAction> = {
     Presenca: { type: 'republishPresence', publicationStatus: publicationStatus('Presenca') },
     ChamadaPresenca: { type: 'republishPresenceCta', publicationStatus: publicationStatus('ChamadaPresenca') },
@@ -714,51 +723,44 @@ function captureError(error: unknown) {
           :final-teams-publication-status="finalTeamsPublicationStatus"
         >
           <template #primary-action>
-            <button v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && !myPresence" type="button" :disabled="saving" @click="confirmPresence">{{ t('drafts.presence.confirm') }}</button>
-            <button v-else-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaEncerrada" type="button" :disabled="saving || captainSelection.length !== selectedMontagem.quantidadeTimes" @click="defineCaptains">{{ t('drafts.presence.defineCaptains') }}</button>
-            <button v-else-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.CapitaesDefinidos" type="button" :disabled="saving" @click="drawPickOrder">{{ t('drafts.presence.drawOrder') }}</button>
           </template>
           <template #secondary-actions>
-            <button v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && myPresence" type="button" class="button-secondary" :disabled="saving" @click="cancelPresence">{{ t('drafts.presence.cancel') }}</button>
-            <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" type="button" class="button-secondary" :disabled="saving" @click="closePresence(false)">{{ t('drafts.presence.close') }}</button>
-            <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && confirmedPresences.length < 10" type="button" class="button-secondary" :disabled="saving" @click="closePresence(true)">{{ t('drafts.presence.continueManual') }}</button>
           </template>
           <template #danger-action>
             <Button v-if="canManageDrafts && selectedMontagem.status !== DraftMontagemStatusValues.Finalizada && selectedMontagem.status !== DraftMontagemStatusValues.Cancelada" type="button" variant="destructive" :disabled="saving" @click="requestDraftCancellation">{{ t('common.cancel') }}</Button>
           </template>
         </DraftWorkspaceHeader>
 
-        <section v-if="selectedMontagem" class="panel-card presence-panel">
-          <p v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && confirmedPresences.length < 10" class="profile-inline-message">{{ t('drafts.presence.lessThanTen') }}</p>
-          <div v-if="canManageDrafts" class="draft-hero-actions" :aria-label="t('drafts.publication.statusLabel')">
-            <span class="team-status">{{ t('drafts.publication.presence', { status: t(`drafts.publication.status.${publicationStatus('Presenca')}`) }) }}</span>
-            <span class="team-status">{{ t('drafts.publication.presenceCta', { status: t(`drafts.publication.status.${publicationStatus('ChamadaPresenca')}`) }) }}</span>
-            <span class="team-status">{{ t('drafts.publication.finalTeams', { status: t(`drafts.publication.status.${publicationStatus('TimesDefinidos')}`) }) }}</span>
-            <button type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('Presenca')">{{ t('drafts.publication.republishPresence') }}</button>
-            <button v-if="['Falha', 'RequerReconciliacao'].includes(publicationStatus('ChamadaPresenca'))" type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('ChamadaPresenca')">{{ t('drafts.publication.republishPresenceCta') }}</button>
-            <button type="button" class="button-secondary" :disabled="saving" @click="requestDiscordRepublish('TimesDefinidos')">{{ t('drafts.publication.republishFinalTeams') }}</button>
-          </div>
-          <div v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" class="draft-hero-actions">
-            <label class="filter-field">
-              {{ t('drafts.presence.manualPlayer') }}
-              <input v-model="manualPresenceSearch" type="search" :placeholder="t('drafts.presence.searchPlayer')" :disabled="saving" @input="loadEligibleManualPresencePlayers" />
-              <select v-model="selectedManualPresencePlayerId" :disabled="saving">
-                <option value="">{{ t('drafts.presence.selectPlayer') }}</option>
-                <option v-for="player in availableManualPresencePlayers" :key="player.id" :value="player.id">{{ player.nomeExibicao }}</option>
-              </select>
-            </label>
-            <button type="button" class="button-secondary" :disabled="saving || !selectedManualPresencePlayerId" @click="addManualPresence">{{ t('drafts.presence.addManual') }}</button>
-          </div>
-          <div class="draft-player-picker__grid">
-            <div v-for="presence in confirmedPresences" :key="presence.id" class="draft-player-option" :class="{ 'is-selected': captainSelection.includes(presence.jogadorId) }">
-              <button type="button" :disabled="selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada || !canManageDrafts" @click="toggleCaptainSelection(presence.jogadorId)">
-                <span class="draft-slot__avatar">{{ presence.nomeExibicao.charAt(0) }}</span>
-                <span><strong>{{ presence.nomeExibicao }}</strong><small>{{ formatPresenceOrigin(presence.origemConfirmacao) }}</small></span>
-              </button>
-              <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" type="button" class="button-secondary" :disabled="saving" @click.stop="requestManualPresenceRemoval(presence.jogadorId, presence.nomeExibicao)">{{ t('drafts.presence.removeManual') }}</button>
-            </div>
-          </div>
-        </section>
+        <DraftPreparationPanel
+          v-if="selectedMontagem && preparationStatuses.includes(selectedMontagem.status)"
+          :draft="selectedMontagem"
+          :confirmed-presences="confirmedPresences"
+          :current-user-has-presence="Boolean(myPresence)"
+          :can-manage="canManageDrafts"
+          :saving="saving"
+          :captain-selection="captainSelection"
+          :manual-presence-search="manualPresenceSearch"
+          :selected-manual-presence-player-id="selectedManualPresencePlayerId"
+          :available-manual-presence-players="availableManualPresencePlayers"
+          @confirm-presence="confirmPresence"
+          @cancel-presence="cancelPresence"
+          @close-presence="closePresence"
+          @update:manual-presence-search="manualPresenceSearch = $event"
+          @search-manual-presence="loadEligibleManualPresencePlayers"
+          @update:selected-manual-presence-player-id="selectedManualPresencePlayerId = $event"
+          @add-manual-presence="addManualPresence"
+          @remove-manual-presence="requestManualPresenceRemoval"
+          @toggle-captain="toggleCaptainSelection"
+          @define-captains="defineCaptains"
+          @draw-order="drawPickOrder"
+        />
+        <DraftDiscordPublicationPanel
+          v-if="selectedMontagem && canManageDrafts"
+          :publications="selectedMontagem.publicacoesDiscord ?? []"
+          :can-manage="canManageDrafts"
+          :saving="saving"
+          @republish="requestDiscordRepublish"
+        />
         <DraftVisualBoard
           v-if="selectedMontagem && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada && selectedMontagem.status !== DraftMontagemStatusValues.CapitaesDefinidos"
           :montagem="selectedMontagem"

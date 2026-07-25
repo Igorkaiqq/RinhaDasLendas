@@ -74,15 +74,15 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Escrever testes falhos da matriz de participantes, capitães, busca e eventos em `FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts`
-- [ ] T015 [P] [US2] Escrever testes falhos de status, fallback, permissão, envio duplicado e republicação em `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.spec.ts`
-- [ ] T016 [US2] Atualizar testes integrados falhos de presença, duplicidade, permissões e recuperação para confirmar, encerrar, remover e republicar em `FrontEnd/src/views/DraftsView.spec.ts`
+- [X] T014 [P] [US2] Escrever testes falhos da matriz de participantes, capitães, busca e eventos em `FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts`
+- [X] T015 [P] [US2] Escrever testes falhos de status, fallback, permissão, envio duplicado e republicação em `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.spec.ts`
+- [X] T016 [US2] Atualizar testes integrados falhos de presença, duplicidade, permissões e recuperação para confirmar, encerrar, remover e republicar em `FrontEnd/src/views/DraftsView.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Criar roster, seleção de capitães e toolbar manual em `FrontEnd/src/components/drafts/DraftPreparationPanel.vue`
-- [ ] T018 [P] [US2] Criar painel subordinado de publicações em `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.vue`
-- [ ] T019 [US2] Integrar painéis preservando handlers, IDs, motivos e proteções concorrentes em `FrontEnd/src/views/DraftsView.vue`
+- [X] T017 [P] [US2] Criar roster, seleção de capitães e toolbar manual em `FrontEnd/src/components/drafts/DraftPreparationPanel.vue`
+- [X] T018 [P] [US2] Criar painel subordinado de publicações em `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.vue`
+- [X] T019 [US2] Integrar painéis preservando handlers, IDs, motivos e proteções concorrentes em `FrontEnd/src/views/DraftsView.vue`
 
 **Checkpoint**: A etapa de presença é funcional e testável sem o board de escolhas.
 
