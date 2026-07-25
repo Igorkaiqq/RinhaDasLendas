@@ -23,8 +23,8 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **Purpose**: Preparar gates não destrutivos e registrar baseline.
 
-- [ ] T001 Adicionar script não destrutivo `lint:check` em `FrontEnd/package.json`
-- [ ] T002 Executar e registrar o baseline focado de 58 testes em `specs/021-redesenho-fluxo-draft/verification-report.md`
+- [X] T001 Adicionar script não destrutivo `lint:check` em `FrontEnd/package.json`
+- [X] T002 Executar e registrar o baseline focado de 58 testes em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
 ---
 
@@ -34,10 +34,10 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **CRITICAL**: Nenhuma jornada começa antes desta fase.
 
-- [ ] T003 [P] Escrever testes falhos para todos os sete filtros de status, incluindo `OrdemDefinida`, em `FrontEnd/src/constants/draftMontagemStatus.spec.ts`
-- [ ] T004 [P] Ampliar o scanner de textos visíveis hardcoded para `DraftsView.vue` e `components/drafts/**/*.vue` em `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T005 Incluir os sete status na ordem canônica em `FrontEnd/src/constants/draftMontagemStatus.ts`
-- [ ] T006 Adicionar chaves compartilhadas de estado desconhecido, cancelamento, progresso, ações e acessibilidade em `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
+- [X] T003 [P] Escrever testes falhos para todos os sete filtros de status, incluindo `OrdemDefinida`, em `FrontEnd/src/constants/draftMontagemStatus.spec.ts`
+- [X] T004 [P] Ampliar o scanner de textos visíveis hardcoded para `DraftsView.vue` e `components/drafts/**/*.vue` em `FrontEnd/src/i18n/i18n.spec.ts`
+- [X] T005 Incluir os sete status na ordem canônica em `FrontEnd/src/constants/draftMontagemStatus.ts`
+- [X] T006 Adicionar chaves compartilhadas de estado desconhecido, cancelamento, progresso, ações e acessibilidade em `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
 
 **Checkpoint**: Contratos de status e i18n prontos.
 

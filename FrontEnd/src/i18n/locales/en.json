@@ -550,7 +550,24 @@
       "order": "Order",
       "picking": "Picks",
       "finished": "Finished",
-      "discord": "Discord"
+      "discord": "Discord",
+      "cancelled": "Canceled",
+      "unknown": "Status unavailable"
+    },
+    "progress": {
+      "completed": "Completed",
+      "current": "Current",
+      "pending": "Pending",
+      "terminal": "Closed",
+      "unknown": "Unavailable"
+    },
+    "actions": {
+      "clearFilters": "Clear filters",
+      "retry": "Try again"
+    },
+    "accessibility": {
+      "selectedDraft": "Selected draft: {name}",
+      "currentStep": "Current step: {step}"
     },
     "create": "Create Draft",
     "createWithIcon": "+ Create Draft",
@@ -717,7 +734,8 @@
       "Aberta": "Open",
       "Finalizada": "Finished",
       "Cancelada": "Canceled",
-      "finished": "Finished"
+      "finished": "Finished",
+      "unknown": "Unknown status"
     },
     "createModal": {
       "eyebrow": "New draft",

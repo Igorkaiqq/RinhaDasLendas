@@ -10,6 +10,15 @@ const settingsComponents = import.meta.glob('../components/settings/*.vue', {
   query: '?raw',
 }) as Record<string, string>
 
+const draftComponents = import.meta.glob(
+  ['../views/DraftsView.vue', '../components/drafts/**/*.vue'],
+  {
+    eager: true,
+    import: 'default',
+    query: '?raw',
+  },
+) as Record<string, string>
+
 function leafPaths(source: object, prefix = ''): string[] {
   return Object.entries(source).flatMap(([key, value]) => {
     const path = prefix ? `${prefix}.${key}` : key
@@ -107,6 +116,37 @@ describe('i18n', () => {
       expect(template, path).not.toMatch(/>\s*[A-Za-zÀ-ÿ][^<{]*</)
       expect(source, path).not.toMatch(/(?<![:@])\b(?:aria-label|placeholder|title)="[^"{]*[A-Za-zÀ-ÿ][^"]*"/)
       expect(source, path).not.toMatch(/toast\.(?:success|error)\(\s*['"`]/)
+    }
+  })
+
+  it('keeps draft visible text and accessible names in i18n', () => {
+    for (const [path, source] of Object.entries(draftComponents)) {
+      const template = source.match(/<template>([\s\S]*?)<\/template>/)?.[1] ?? ''
+      expect(template, path).not.toMatch(/>\s*[A-Za-zÀ-ÿ][^<{]*[A-Za-zÀ-ÿ][^<{]*</)
+      expect(source, path).not.toMatch(/(?<![:@])\b(?:aria-label|placeholder|title)="[^"{]*[A-Za-zÀ-ÿ][^"]*"/)
+      expect(source, path).not.toMatch(/toast\.(?:success|error)\(\s*['"`]/)
+    }
+  })
+
+  it('provides shared draft state, progress, action, and accessibility translations', () => {
+    const requiredPaths = [
+      'drafts.status.unknown',
+      'drafts.rail.cancelled',
+      'drafts.rail.unknown',
+      'drafts.progress.completed',
+      'drafts.progress.current',
+      'drafts.progress.pending',
+      'drafts.progress.terminal',
+      'drafts.progress.unknown',
+      'drafts.actions.clearFilters',
+      'drafts.actions.retry',
+      'drafts.accessibility.selectedDraft',
+      'drafts.accessibility.currentStep',
+    ]
+
+    for (const path of requiredPaths) {
+      expect(leafPaths(pt)).toContain(path)
+      expect(leafPaths(en)).toContain(path)
     }
   })
 
