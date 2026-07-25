@@ -29,7 +29,21 @@ namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class AgendamentoPresencaBehaviorIntegrationTests
 {
-    private static readonly DateTimeOffset Agora = CurrentOpenInstant();
+    private readonly DateTimeOffset Agora;
+    private readonly DateOnly DataLocal;
+    private readonly DateOnly Marcador;
+    private readonly DiaSemanaIso DiaLocal;
+    private readonly DiaSemanaIso OutroDia;
+
+    public AgendamentoPresencaBehaviorIntegrationTests()
+    {
+        Agora = CurrentOpenInstant();
+        var local = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora, "America/Sao_Paulo");
+        DataLocal = DateOnly.FromDateTime(local.DateTime);
+        Marcador = DataLocal.AddDays(-1);
+        DiaLocal = ToIsoDay(local.DayOfWeek);
+        OutroDia = DiaLocal == DiaSemanaIso.Domingo ? DiaSemanaIso.Segunda : DiaLocal + 1;
+    }
 
     [Fact]
     public async Task MigrationSingleton_DeveManterConfiguracaoMaisRecenteEPermitirRoundTrip()
@@ -73,7 +87,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         DraftMontagemPublicacaoDiscordTipo tipo)
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         Guid draftId;
         await using (var seed = database.CreateContext())
         {
@@ -105,7 +119,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         DraftMontagemPublicacaoDiscordTipo tipo)
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         Guid draftId;
         await using (var seed = database.CreateContext())
         {
@@ -133,7 +147,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task ClaimDePresenca_DeveLimitarExpiracaoAoEncerramento()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var closure = now.AddMinutes(2);
         Guid draftId;
         await using (var seed = database.CreateContext())
@@ -162,7 +176,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task ConclusaoDePublicacao_DeveFalharSeEncerramentoExpirarAposClaim()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var claimId = Guid.NewGuid();
         Guid draftId;
         await using (var seed = database.CreateContext())
@@ -200,13 +214,13 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var userId = await AddUserAsync(seed);
         var schedule = new AgendamentoPresenca(
             "Agenda justa", null, new TimeOnly(18, 0), new TimeOnly(23, 0),
-            [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 20), userId, Agora);
+            [DiaLocal], DataLocal.AddDays(-4), userId, Agora);
         var ids = new List<Guid>();
         for (var index = 0; index < 3; index++)
         {
             var occurrence = OcorrenciaAgendamentoPresenca.Bloqueada(
                 schedule.Id,
-                new DateOnly(2026, 7, 24).AddDays(index),
+                DataLocal.AddDays(index),
                 Agora.AddMinutes(-3 + index),
                 Agora.AddHours(1 + index),
                 MessageCodes.PresenceScheduleDiscordUnavailable,
@@ -236,7 +250,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var timeZone = new SaoPauloAgendamentoPresencaTimeZone();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo");
         var date = DateOnly.FromDateTime(localNow.DateTime);
         var publicationLocal = localNow.AddMinutes(-2);
@@ -313,16 +327,16 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task CriacaoBloqueada_DeveAceitarAtivacaoExatamenteNaPublicacao()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var date = new DateOnly(2026, 7, 24);
-        var publication = new DateTimeOffset(2026, 7, 24, 21, 0, 0, TimeSpan.Zero);
+        var date = DataLocal;
+        var publication = Agora;
         var closure = publication.AddHours(2);
         Guid scheduleId;
         await using (var seed = database.CreateContext())
         {
             var userId = await AddUserAsync(seed);
             var schedule = new AgendamentoPresenca(
-                "Agenda igualdade", null, new TimeOnly(18, 0), new TimeOnly(20, 0),
-                [DiaSemanaIso.Sexta], date.AddDays(-1), userId, publication);
+                "Agenda igualdade", null, SchedulePublicationTime(), ScheduleClosureTime(),
+                [DiaLocal], date.AddDays(-1), userId, publication);
             seed.AgendamentosPresenca.Add(schedule);
             await seed.SaveChangesAsync();
             scheduleId = schedule.Id;
@@ -342,7 +356,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var timeZone = new SaoPauloAgendamentoPresencaTimeZone();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo");
         var date = DateOnly.FromDateTime(localNow.DateTime);
         var publicationLocal = localNow.AddMinutes(-2);
@@ -388,7 +402,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task Conclusao_DeveRejeitarGuildAlteradaDepoisDoClaimSemPersistirDraft()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var claimId = Guid.NewGuid();
         Guid occurrenceId;
         await using (var seed = database.CreateContext())
@@ -396,9 +410,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var userId = await AddUserAsync(seed);
             var schedule = new AgendamentoPresenca(
                 "Agenda conclusao", null, new TimeOnly(18, 0), new TimeOnly(20, 0),
-                [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, now.AddDays(-1));
+                [DiaLocal], Marcador, userId, now.AddDays(-1));
             var occurrence = OcorrenciaAgendamentoPresenca.Processando(
-                schedule.Id, new DateOnly(2026, 7, 24), now.AddMinutes(-1), now.AddMinutes(20),
+                schedule.Id, DataLocal, now.AddMinutes(-1), now.AddMinutes(20),
                 claimId, now.AddMinutes(5), now, schedule.Nome, null);
             schedule.AdicionarOcorrencia(occurrence);
             var configuration = await seed.DiscordServerConfigurations.SingleAsync();
@@ -431,7 +445,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task Conclusao_DeveRejeitarCanalDePresencaAlteradoDepoisDoClaim()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var claimId = Guid.NewGuid();
         Guid occurrenceId;
         await using (var seed = database.CreateContext())
@@ -439,9 +453,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var userId = await AddUserAsync(seed);
             var schedule = new AgendamentoPresenca(
                 "Agenda canal", null, new TimeOnly(18, 0), new TimeOnly(20, 0),
-                [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, now.AddDays(-1));
+                [DiaLocal], Marcador, userId, now.AddDays(-1));
             var occurrence = OcorrenciaAgendamentoPresenca.Processando(
-                schedule.Id, new DateOnly(2026, 7, 24), now.AddMinutes(-1), now.AddMinutes(20),
+                schedule.Id, DataLocal, now.AddMinutes(-1), now.AddMinutes(20),
                 claimId, now.AddMinutes(5), now, schedule.Nome, null);
             schedule.AdicionarOcorrencia(occurrence);
             var configuration = await seed.DiscordServerConfigurations.SingleAsync();
@@ -471,9 +485,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task TryUpsertMissed_DevePerderAposEncerramentoMesmoComClaimAindaValido()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         Guid scheduleId;
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         var publication = now.AddMinutes(-2);
         var closure = now.AddMinutes(1);
         await using (var seed = database.CreateContext())
@@ -481,7 +495,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var userId = await AddUserAsync(seed);
             var schedule = new AgendamentoPresenca(
                 "Agenda perda", null, new TimeOnly(18, 0), new TimeOnly(20, 0),
-                [DiaSemanaIso.Sexta], date.AddDays(-1), userId, now.AddDays(-1));
+                [DiaLocal], date.AddDays(-1), userId, now.AddDays(-1));
             schedule.AdicionarOcorrencia(OcorrenciaAgendamentoPresenca.Processando(
                 schedule.Id, date, publication, closure, Guid.NewGuid(), now.AddMinutes(5), now,
                 schedule.Nome, null));
@@ -520,7 +534,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var handlerA = CreateUpdateHandler(new AgendamentoPresencaRepository(dbA));
         var handlerB = CreateUpdateHandler(new AgendamentoPresencaRepository(dbB));
         var requestA = new SaveAgendamentoPresencaRequestDto(
-            "Atualização A", null, [DiaSemanaIso.Sexta], new TimeOnly(18, 0), new TimeOnly(20, 0));
+            "Atualização A", null, [DiaLocal], new TimeOnly(18, 0), new TimeOnly(20, 0));
         var requestB = requestA with { Nome = "Atualização B" };
 
         var outcomes = await Task.WhenAll(
@@ -562,7 +576,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         {
             var userId = await AddUserAsync(seed);
             var schedules = Enumerable.Range(0, 25).Select(index =>
-                CreateSchedule(userId, $"Agenda {index:D2}", [DiaSemanaIso.Sexta])).ToArray();
+                CreateSchedule(userId, $"Agenda {index:D2}", [DiaLocal])).ToArray();
             firstScheduleId = schedules[0].Id;
             foreach (var schedule in schedules)
             {
@@ -573,14 +587,14 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
                         $"Observação {edit}",
                         schedule.HorarioPublicacaoLocal,
                         schedule.HorarioEncerramentoLocal,
-                        [DiaSemanaIso.Sexta],
+                        [DiaLocal],
                         userId,
                         Agora.AddMinutes(edit + 1));
                 }
 
                 schedule.AdicionarOcorrencia(OcorrenciaAgendamentoPresenca.Bloqueada(
                     schedule.Id,
-                    new DateOnly(2026, 7, 24),
+                    DataLocal,
                     Agora,
                     Agora.AddHours(2),
                     MessageCodes.PresenceScheduleDiscordUnavailable,
@@ -688,7 +702,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var claimId = Guid.NewGuid();
         var occurrence = OcorrenciaAgendamentoPresenca.Processando(
             schedule.Id,
-            new DateOnly(2026, 7, 24),
+            DataLocal,
             Agora,
             Agora.AddHours(2),
             claimId,
@@ -718,10 +732,10 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var repository = new AgendamentoPresencaRepository(db);
         var schedules = new[]
         {
-            CreateSchedule(userId, "Beta", [DiaSemanaIso.Sexta]),
-            CreateSchedule(userId, "Alfa", [DiaSemanaIso.Sexta]),
-            CreateSchedule(userId, "Alfa", [DiaSemanaIso.Sexta]),
-            CreateSchedule(userId, "Pausada", [DiaSemanaIso.Sexta]),
+            CreateSchedule(userId, "Beta", [DiaLocal]),
+            CreateSchedule(userId, "Alfa", [DiaLocal]),
+            CreateSchedule(userId, "Alfa", [DiaLocal]),
+            CreateSchedule(userId, "Pausada", [DiaLocal]),
         };
         schedules[3].Pausar(userId, Agora.AddMinutes(1));
         foreach (var schedule in schedules)
@@ -745,7 +759,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         (await repository.CountAsync(true, CancellationToken.None)).Should().Be(4);
         (await repository.CountAsync(false, CancellationToken.None)).Should().Be(3);
 
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         await repository.TryUpsertBlockedOccurrenceAsync(schedules[0].Id, date, Agora, Agora.AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
         await repository.TryUpsertBlockedOccurrenceAsync(schedules[0].Id, date.AddDays(7), Agora.AddDays(7), Agora.AddDays(7).AddHours(2),
@@ -776,7 +790,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var repositoryB = new AgendamentoPresencaRepository(dbB);
         var claimA = Guid.NewGuid();
         var claimB = Guid.NewGuid();
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         var results = await Task.WhenAll(
             repositoryA.TryClaimOccurrenceAsync(scheduleId, date, Agora, Agora.AddHours(2), claimA, Agora.AddMinutes(5), Agora, CancellationToken.None),
@@ -800,7 +814,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         var firstClaimId = Guid.NewGuid();
         var secondClaimId = Guid.NewGuid();
 
@@ -836,7 +850,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         if (terminalStatus == OcorrenciaAgendamentoPresencaStatus.Perdida)
         {
@@ -881,7 +895,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         var persistedPublication = Agora;
         var persistedClosure = Agora.AddHours(2);
         await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, persistedPublication, persistedClosure,
@@ -908,7 +922,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         var persistedPublication = Agora;
         var persistedClosure = Agora.AddHours(2);
         await repository.TryClaimOccurrenceAsync(schedule.Id, date, persistedPublication, persistedClosure,
@@ -936,9 +950,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var date = DateOnly.FromDateTime(now.UtcDateTime);
-        var closure = now.AddMinutes(10);
+        var closure = now.AddHours(2);
         var claimId = Guid.NewGuid();
         await InsertBlockedOccurrenceAsync(database, schedule.Id, date, now, closure);
         var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, date, now, closure,
@@ -977,9 +991,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         var date = DateOnly.FromDateTime(now.UtcDateTime);
-        var closure = now.AddMinutes(10);
+        var closure = now.AddHours(2);
         var claimId = Guid.NewGuid();
         await InsertBlockedOccurrenceAsync(database, schedule.Id, date, now, closure);
         var claim = await repository.TryClaimOccurrenceAsync(
@@ -1008,10 +1022,10 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
         schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
-            [DiaSemanaIso.Sexta], userId, Agora.AddMinutes(1));
+            [DiaLocal], userId, Agora.AddMinutes(1));
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal,
             Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
 
         result.Should().BeNull();
@@ -1025,11 +1039,11 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await using var db = database.CreateContext();
         var repository = new AgendamentoPresencaRepository(db);
         var userId = await AddUserAsync(db);
-        var schedule = CreateSchedule(userId, days: [DiaSemanaIso.Sabado]);
+        var schedule = CreateSchedule(userId, days: [OutroDia]);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal,
             Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
 
         result.Should().BeNull();
@@ -1046,11 +1060,11 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
         schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
-            [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+            [OutroDia], userId, Agora.AddMinutes(1));
         await repository.SaveChangesAsync(CancellationToken.None);
         var claimNow = Agora.AddMinutes(30);
 
@@ -1076,7 +1090,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
         if (status == "paused")
@@ -1114,7 +1128,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24),
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal,
             Agora, Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
 
         result.Should().BeNull();
@@ -1143,12 +1157,12 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         if (invalidConfiguration == "stale-times")
         {
             schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
-                [DiaSemanaIso.Sexta], userId, Agora.AddMinutes(1));
+                [DiaLocal], userId, Agora.AddMinutes(1));
         }
         else if (invalidConfiguration == "removed-day")
         {
             schedule.Editar("Rinha editada", null, SchedulePublicationTime(), ScheduleClosureTime(),
-                [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+                [OutroDia], userId, Agora.AddMinutes(1));
         }
         else
         {
@@ -1160,7 +1174,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             repository,
             operation,
             schedule.Id,
-            new DateOnly(2026, 7, 24),
+            DataLocal,
             Agora,
             Agora.AddHours(2),
             operation == "blocked" ? Agora : Agora.AddHours(2));
@@ -1185,13 +1199,13 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
         var persistedPublication = Agora;
         var persistedClosure = Agora.AddHours(2);
         await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, persistedPublication, persistedClosure,
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
         schedule.Editar("Rinha editada", null, new TimeOnly(16, 0), new TimeOnly(18, 0),
-            [DiaSemanaIso.Sabado], userId, Agora.AddMinutes(1));
+            [OutroDia], userId, Agora.AddMinutes(1));
         if (scheduleStatus == "paused")
         {
             schedule.Pausar(userId, Agora.AddMinutes(2));
@@ -1236,7 +1250,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         if (operation == "blocked")
         {
@@ -1277,7 +1291,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var act = () => repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var act = () => repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), Guid.NewGuid(), Agora.AddSeconds(ttlSeconds), Agora, CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>()
@@ -1295,7 +1309,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var act = () => repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var act = () => repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), Guid.Empty, Agora.AddMinutes(5), Agora, CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>()
@@ -1313,7 +1327,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
 
-        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var result = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5).AddTicks(9), Agora, CancellationToken.None);
 
         result!.Adquirido.Should().BeTrue();
@@ -1332,7 +1346,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         Func<Task> act;
         if (operation == "blocked")
@@ -1370,7 +1384,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             seed.AgendamentosPresenca.Add(schedule);
             await seed.SaveChangesAsync();
             var repository = new AgendamentoPresencaRepository(seed);
-            await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+            await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, DataLocal, Agora,
                 Agora.AddHours(2), MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
             scheduleId = schedule.Id;
         }
@@ -1435,9 +1449,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
-        schedule.MarcarDataAvaliada(new DateOnly(2026, 7, 30), Agora.AddHours(1));
+        schedule.MarcarDataAvaliada(DataLocal.AddDays(6), Agora.AddHours(1));
         await repository.SaveChangesAsync(CancellationToken.None);
 
         var blocked = await repository.ListBlockedAsync(Agora.AddHours(3), 20, CancellationToken.None);
@@ -1455,7 +1469,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), Guid.NewGuid(), Agora.AddMinutes(5), Agora, CancellationToken.None);
         var draft = CreateDraft(Agora.AddHours(2));
 
@@ -1484,7 +1498,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
         var claimId = Guid.NewGuid();
-        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
         var draft = CreateDraft(Agora.AddHours(2));
 
@@ -1542,7 +1556,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
         var claimId = Guid.NewGuid();
-        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
         var conflictingDraft = CreateDraft(Agora.AddHours(2));
         db.DraftMontagens.Add(conflictingDraft);
@@ -1572,7 +1586,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
         var claimId = Guid.NewGuid();
-        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+        var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
             Agora.AddHours(2), claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
         var occurrenceId = claim!.OcorrenciaId;
         db.ChangeTracker.Clear();
@@ -1628,7 +1642,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             await repository.AddAsync(schedule, CancellationToken.None);
             await repository.SaveChangesAsync(CancellationToken.None);
             claimId = Guid.NewGuid();
-            var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, new DateOnly(2026, 7, 24), Agora,
+            var claim = await repository.TryClaimOccurrenceAsync(schedule.Id, DataLocal, Agora,
                 Agora.AddHours(2), claimId, Agora.AddMinutes(5), Agora, CancellationToken.None);
             occurrenceId = claim!.OcorrenciaId;
         }
@@ -1663,7 +1677,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var schedule = CreateSchedule(userId);
         await repository.AddAsync(schedule, CancellationToken.None);
         await repository.SaveChangesAsync(CancellationToken.None);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         (await repository.TryUpsertBlockedOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2),
             MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None)).Changed.Should().BeTrue();
@@ -1771,7 +1785,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             await seed.SaveChangesAsync();
             var repository = new AgendamentoPresencaRepository(seed);
             await repository.TryClaimOccurrenceAsync(
-                schedule.Id, new DateOnly(2026, 7, 24), Agora, Agora.AddHours(2), Guid.NewGuid(),
+                schedule.Id, DataLocal, Agora, Agora.AddHours(2), Guid.NewGuid(),
                 Agora.AddMinutes(5), Agora, CancellationToken.None);
             await ExpireCurrentClaimAsync(database);
         }
@@ -1832,8 +1846,8 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
 
         await using var assertion = database.CreateContext();
         var schedules = await assertion.AgendamentosPresenca.AsNoTracking().ToDictionaryAsync(item => item.Id);
-        schedules[firstId].UltimaDataAvaliada.Should().Be(new DateOnly(2026, 7, 23));
-        schedules[secondId].UltimaDataAvaliada.Should().Be(new DateOnly(2026, 7, 24));
+        schedules[firstId].UltimaDataAvaliada.Should().Be(Marcador);
+        schedules[secondId].UltimaDataAvaliada.Should().Be(DataLocal);
     }
 
     [Fact]
@@ -1845,15 +1859,16 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var userId = await AddUserAsync(seed);
             var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora, "America/Sao_Paulo");
             var localTime = TimeOnly.FromDateTime(localNow.DateTime);
+            var dueTime = TimeOnly.MinValue;
             seed.AgendamentosPresenca.AddRange(
                 new AgendamentoPresenca("Futura", null, localTime.AddHours(1), localTime.AddHours(2),
-                    [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, Agora),
-                new AgendamentoPresenca("Devida A", null, localTime.AddHours(-1), localTime.AddHours(2),
-                    [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, Agora),
-                new AgendamentoPresenca("Devida B", null, localTime.AddHours(-1), localTime.AddHours(2),
-                    [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, Agora),
-                new AgendamentoPresenca("Devida curta", null, localTime.AddHours(-1), localTime.AddMinutes(1),
-                    [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, Agora));
+                    [DiaLocal], Marcador, userId, Agora),
+                new AgendamentoPresenca("Devida A", null, dueTime, localTime.AddHours(2),
+                    [DiaLocal], Marcador, userId, Agora),
+                new AgendamentoPresenca("Devida B", null, dueTime, localTime.AddHours(2),
+                    [DiaLocal], Marcador, userId, Agora),
+                new AgendamentoPresenca("Devida curta", null, dueTime, localTime.AddMinutes(1),
+                    [DiaLocal], Marcador, userId, Agora));
             await seed.SaveChangesAsync();
         }
 
@@ -1877,7 +1892,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             seed.AgendamentosPresenca.AddRange(Enumerable.Range(1, 30).Select(index =>
                 new AgendamentoPresenca(
                     $"Agenda historica {index:D2}", null, SchedulePublicationTime(), ScheduleClosureTime(),
-                    [DiaSemanaIso.Segunda, DiaSemanaIso.Sexta], new DateOnly(1996, 7, 24), userId, Agora)));
+                    [DiaLocal], new DateOnly(1996, 7, 24), userId, Agora)));
             await seed.SaveChangesAsync();
         }
 
@@ -1901,13 +1916,13 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         {
             var userId = await AddUserAsync(seed);
             var schedule = CreateSchedule(userId);
-            schedule.MarcarDataAvaliada(new DateOnly(2026, 7, 24), Agora);
+            schedule.MarcarDataAvaliada(DataLocal, Agora);
             seed.AgendamentosPresenca.Add(schedule);
             await seed.SaveChangesAsync();
             var repository = new AgendamentoPresencaRepository(seed);
             (await repository.TryUpsertBlockedOccurrenceAsync(
                 schedule.Id,
-                new DateOnly(2026, 7, 24),
+                DataLocal,
                 Agora,
                 Agora.AddHours(2),
                 MessageCodes.PresenceScheduleDiscordUnavailable,
@@ -1944,7 +1959,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
                 .ToArray();
             foreach (var schedule in schedules)
             {
-                schedule.MarcarDataAvaliada(new DateOnly(2026, 7, 24), Agora);
+                schedule.MarcarDataAvaliada(DataLocal, Agora);
             }
 
             seed.AgendamentosPresenca.AddRange(schedules);
@@ -1953,7 +1968,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             foreach (var schedule in schedules)
             {
                 await repository.TryUpsertBlockedOccurrenceAsync(
-                    schedule.Id, new DateOnly(2026, 7, 24), Agora, Agora.AddHours(2),
+                    schedule.Id, DataLocal, Agora, Agora.AddHours(2),
                     MessageCodes.PresenceScheduleDiscordUnavailable, Agora, CancellationToken.None);
             }
         }
@@ -2057,7 +2072,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         Guid occurrenceId;
         Guid claimId = Guid.NewGuid();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         await using (var seed = database.CreateContext())
         {
             var userId = await AddUserAsync(seed);
@@ -2118,7 +2133,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var occurrenceId = Guid.NewGuid();
         var claimId = Guid.NewGuid();
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
         await using (var seed = database.CreateContext())
         {
             var userId = await AddUserAsync(seed);
@@ -2149,8 +2164,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task TryClaimAposEsperarAdvisoryLockAteJanelaFechar_DeveRecusar()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var date = DateOnly.FromDateTime(DateTime.UtcNow);
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
+        var date = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo").DateTime);
         Guid scheduleId;
         await using (var seed = database.CreateContext())
         {
@@ -2184,8 +2200,9 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     public async Task TryClaimAposEsperaDevePersistirExpiracaoCincoMinutosAPartirDoRelogioDb()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
-        var date = DateOnly.FromDateTime(DateTime.UtcNow);
-        var now = DateTimeOffset.UtcNow;
+        var now = await database.GetClockAsync();
+        var date = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo").DateTime);
         Guid scheduleId;
         await using (var seed = database.CreateContext())
         {
@@ -2205,10 +2222,10 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             scheduleId, date, now, now.AddMinutes(10), Guid.NewGuid(), now.AddMinutes(5), now,
             CancellationToken.None);
         await Task.Delay(TimeSpan.FromSeconds(2));
-        var releasedAt = DateTimeOffset.UtcNow;
         await transaction.CommitAsync();
 
         (await claimTask)!.Adquirido.Should().BeTrue();
+        var releasedAt = await database.GetClockAsync();
         await using var assertion = database.CreateContext();
         var expiresAt = (await assertion.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync()).ClaimExpiresAt;
         expiresAt.Should().BeAfter(now.AddMinutes(5));
@@ -2251,8 +2268,8 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
 
         await using var assertion = database.CreateContext();
         var schedules = await assertion.AgendamentosPresenca.AsNoTracking().ToDictionaryAsync(item => item.Id);
-        schedules[firstId].UltimaDataAvaliada.Should().Be(new DateOnly(2026, 7, 23));
-        schedules[secondId].UltimaDataAvaliada.Should().Be(new DateOnly(2026, 7, 24));
+        schedules[firstId].UltimaDataAvaliada.Should().Be(Marcador);
+        schedules[secondId].UltimaDataAvaliada.Should().Be(DataLocal);
     }
 
     [Fact]
@@ -2265,7 +2282,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         db.AgendamentosPresenca.Add(schedule);
         await db.SaveChangesAsync();
         var repository = new AgendamentoPresencaRepository(db);
-        var date = new DateOnly(2026, 7, 24);
+        var date = DataLocal;
 
         var first = await repository.TryUpsertBlockedOccurrenceAsync(
             schedule.Id, date, Agora, Agora.AddHours(2), MessageCodes.PresenceScheduleDiscordUnavailable,
@@ -2322,12 +2339,12 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     private static string? ColumnType(IEntityType entityType, string propertyName) =>
         entityType.FindProperty(propertyName)?.GetColumnType();
 
-    private static AgendamentoPresenca CreateSchedule(
+    private AgendamentoPresenca CreateSchedule(
         Guid userId,
         string name = "Rinha agendada",
         IReadOnlyCollection<DiaSemanaIso>? days = null) =>
-        new(name, "Observacao", SchedulePublicationTime(), ScheduleClosureTime(), days ?? [DiaSemanaIso.Sexta],
-            new DateOnly(2026, 7, 23), userId, Agora);
+        new(name, "Observacao", SchedulePublicationTime(), ScheduleClosureTime(), days ?? [DiaLocal],
+            Marcador, userId, Agora);
 
     private static DateTimeOffset CurrentOpenInstant()
     {
@@ -2340,10 +2357,13 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         return new DateTimeOffset(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0, TimeSpan.Zero);
     }
 
-    private static TimeOnly SchedulePublicationTime() =>
+    private static DiaSemanaIso ToIsoDay(DayOfWeek day) =>
+        (DiaSemanaIso)(day == DayOfWeek.Sunday ? 7 : (int)day);
+
+    private TimeOnly SchedulePublicationTime() =>
         TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora, "America/Sao_Paulo").DateTime);
 
-    private static TimeOnly ScheduleClosureTime()
+    private TimeOnly ScheduleClosureTime()
     {
         var publication = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora, "America/Sao_Paulo");
         var closure = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora.AddHours(2), "America/Sao_Paulo");
@@ -2361,7 +2381,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         return draft;
     }
 
-    private static ProcessarAgendamentosPresencaDevidosCommandHandler CreateExecutionHandler(
+    private ProcessarAgendamentosPresencaDevidosCommandHandler CreateExecutionHandler(
         IAgendamentoPresencaRepository repository,
         DateTimeOffset? now = null,
         IDiscordConfigurationService? configurationService = null,
@@ -2476,7 +2496,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         return definitions;
     }
 
-    private static async Task InsertOccurrenceStateAsync(
+    private async Task InsertOccurrenceStateAsync(
         PostgreSqlTestDatabase database,
         Guid scheduleId,
         InvalidOccurrenceState state)
@@ -2610,7 +2630,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         DateTimeOffset? ClaimExpiresAt,
         Guid? DraftId);
 
-    private static UpdateAgendamentoPresencaCommandHandler CreateUpdateHandler(IAgendamentoPresencaRepository repository) => new(
+    private UpdateAgendamentoPresencaCommandHandler CreateUpdateHandler(IAgendamentoPresencaRepository repository) => new(
         repository,
         new AgendamentoPresencaRequestValidator(),
         new FixedClock(Agora));
@@ -2772,6 +2792,19 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
             return connection;
+        }
+
+        public async Task<DateTimeOffset> GetClockAsync()
+        {
+            await using var connection = await OpenConnectionAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT clock_timestamp()";
+            return await command.ExecuteScalarAsync() switch
+            {
+                DateTimeOffset value => value,
+                DateTime value => new DateTimeOffset(value),
+                _ => throw new InvalidOperationException("PostgreSQL clock was unavailable."),
+            };
         }
 
         public async ValueTask DisposeAsync()
