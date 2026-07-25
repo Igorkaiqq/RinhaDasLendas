@@ -173,9 +173,11 @@ Discord é paralelo à progressão e nunca recebe `aria-current`.
 
 ## `DraftVisualBoard`
 
-Props preservadas:
+Props preservadas e complementares:
 
-- `montagem`, `saving`, `canManage`, `currentPlayerId`.
+- `montagem`, `saving`, `canManage`, `currentPlayerId`;
+- `canCurrentUserPick` recebe somente autorização personalizada;
+- `serverClockOffsetMs` recebe a diferença calculada entre `serverNow` personalizado e `Date.now()`.
 
 Eventos preservados:
 
@@ -189,7 +191,11 @@ Garantias adicionais:
 - finalizado e cancelado não exibem controles mutáveis;
 - progresso das escolhas usa `montagem.escolhas` sem alterar dados recebidos;
 - preferências de rota permanecem visíveis nos jogadores disponíveis e detalhes, inclusive em layouts compactos;
-- identidade geral do draft não é duplicada no board.
+- identidade geral do draft não é duplicada no board;
+- broadcasts SignalR são apenas notificações de mudança: a view ignora sua autorização e projeção, consulta `getDraftMontagemRealtimeState` para o draft ativo e aplica o retorno personalizado sob as proteções de geração e versão de requisição;
+- estado inicial, mutações realtime e reconexões também atualizam `montagem`, `canCurrentUserPick` e o offset do relógio a partir do retorno personalizado;
+- o board calcula tempo restante e expiração com `Date.now() + serverClockOffsetMs`;
+- antes de preservar o payload `pick(jogadorId)`, a view exige status e modo ativos, autorização personalizada, time atual existente, capitão do time igual a `turnoAtualCapitaoId` e ao jogador autenticado, jogador livre elegível e `turnoExpiraEm` posterior ao horário ajustado do servidor.
 
 ## Atualizações
 

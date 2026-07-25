@@ -106,7 +106,7 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **Checkpoint**: Todo o ciclo operacional do Draft funciona no novo shell.
 
-**Revisão pós-T023 (2026-07-25)**: T020-T023 permanecem concluídas após testes RED adicionais e correções para cancelamento obsoleto após atualização realtime, preservação de `canCurrentUserPick`, lock local de pick, validade temporal/identidade do turno e localização PT/EN dos filtros de rota. Evidências corrigidas em `verification-report.md`.
+**Revisão pós-T023 (2026-07-25)**: T020-T023 permanecem concluídas após testes RED adicionais e correções para cancelamento obsoleto, SignalR tratado como notificação seguida de GET personalizado, propagação do offset de `serverNow`, lock local, validação independente de time/capitão/jogador livre/expiração e localização PT/EN dos filtros. Evidências corrigidas em `verification-report.md`.
 
 ---
 

@@ -201,10 +201,10 @@
 
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
-| T020 | Concluída | `DraftVisualBoard.spec.ts` cobre clone local imutável, cópia ordenada, payload, progresso, preferências, leitura terminal, autorização oficial, turno válido/não expirado, lock local e filtros de rota em inglês. |
-| T021 | Concluída | `DraftsView.spec.ts` cobre payload, estados, duplicidade, escolha inválida, cancelamento obsoleto após transição realtime e preservação de `canCurrentUserPick` em estado inicial, callbacks e mutações. |
-| T022 | Concluída | O board preserva props/emits com a prop opcional de autorização, ordena cópias, mantém rotas, restringe picks ao turno oficial ativo e usa lock resetado por ciclo de salvamento ou nova projeção. |
-| T023 | Concluída | A view mantém serviços e contratos, revalida cancelamento imediatamente antes da mutação e conserva autorização oficial junto às proteções de identidade, geração e versão de requisição. |
+| T020 | Concluída | `DraftVisualBoard.spec.ts` cobre clone local imutável, cópia ordenada, payload, progresso, preferências, leitura terminal, autorização personalizada, turno válido e expiração calculada pelo relógio ajustado do servidor, lock local e filtros de rota em inglês. |
+| T021 | Concluída | `DraftsView.spec.ts` cobre payload, estados, duplicidade, escolha inválida, cancelamento obsoleto, broadcast não personalizado seguido de GET personalizado, offset em mutação/reconexão e rejeições independentes por time, capitão, jogador livre e expiração. |
+| T022 | Concluída | O board preserva props/emits, recebe autorização e offset opcionais, ordena cópias, mantém rotas, restringe picks ao turno oficial ativo e usa lock resetado por ciclo de salvamento ou nova projeção. |
+| T023 | Concluída | A view mantém serviços e payloads, trata SignalR somente como notificação, aplica estado personalizado sob geração/versão e revalida autorização, identidade, elegibilidade e expiração antes do pick. |
 
 ### RED
 
@@ -257,8 +257,8 @@
 
 - Cancelamento obsoleto: `DraftsView.spec.ts` passou 60/60 após a revalidação terminal limpar a ação sem mutação.
 - Focado final: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 103 testes aprovados (`DraftVisualBoard`: 13; `DraftsView`: 62; i18n: 28).
-- A autorização oficial é preservada no carregamento realtime inicial, callbacks SignalR, reconexão e respostas de iniciar, escolher e substituir; a view e o board exigem valor `true`.
-- O board exige time atual existente, capitão pertencente e marcado como capitão desse time e tempo positivo; seu lock bloqueia emits rápidos e é liberado somente após ciclo de salvamento ou atualização da projeção.
+- A autorização oficial é preservada no carregamento realtime inicial, reconexão e respostas de iniciar, escolher e substituir; broadcasts SignalR não são fonte de autorização e exigem nova consulta personalizada antes da aplicação.
+- O board exige time atual existente, capitão pertencente e marcado como capitão desse time e tempo positivo calculado pelo relógio ajustado do servidor; seu lock bloqueia emits rápidos e é liberado somente após ciclo de salvamento ou atualização da projeção.
 - Os rótulos dos seis filtros usam chaves PT/EN, enquanto `DraftRouteFilterValues` e `DRAFT_MONTAGEM_ROUTE_BY_FILTER` permanecem inalterados para seleção e filtragem.
 
 #### Gates corrigidos
@@ -269,3 +269,27 @@
 - Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
 - Whitespace: `git diff --check`; aprovado sem saída.
 - Escopo: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.
+
+### Revisão realtime complementar
+
+#### RED
+
+- Fluxo personalizado e relógio: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts`; 6 testes falharam e 75 passaram. O callback ainda aplicava o broadcast diretamente, offset não era propagado por mutação/reconexão e view/board aceitavam turno expirado apenas no relógio do servidor.
+- Time atual ausente: `npm test -- src/views/DraftsView.spec.ts -t "rejects a parent pick when current team is missing"`; 1 teste falhou e 65 foram ignorados, confirmando que a view ainda encaminhava o pick sem time ativo.
+- Capitão do time e jogador livre elegível: `npm test -- src/views/DraftsView.spec.ts -t "captain mismatches the current team|requested player is not eligible and free"`; 2 testes falharam e 66 foram ignorados quando os dois guardas mínimos estavam ausentes.
+
+#### GREEN
+
+- Cada broadcast do draft ativo dispara `getDraftMontagemRealtimeState`; nenhum campo do payload SignalR é aplicado, e somente o retorno personalizado atual pode atualizar projeção, autorização e offset.
+- Estado inicial, mutações e reconexões atualizam o offset como `Date.parse(serverNow) - Date.now()` sob as proteções existentes de draft, geração e versão de requisição.
+- View e board usam `Date.now() + serverClockOffsetMs`; a view também exige time atual, cadeia de identidade do capitão, participação do capitão no time, jogador com estado `Livre` e expiração futura.
+- Payloads, endpoints, serviços, backend e regras de domínio permanecem inalterados.
+
+#### Gates finais
+
+- Focado: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 111 testes aprovados (`DraftVisualBoard`: 14; `DraftsView`: 69; i18n: 28).
+- Suíte completa: `npm test`; 36 arquivos e 316 testes aprovados, sem falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído, somente com os avisos não bloqueantes já conhecidos de anotações `PURE` e chunk acima de 500 kB.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.
+- Whitespace: `git diff --check`; aprovado sem saída.
