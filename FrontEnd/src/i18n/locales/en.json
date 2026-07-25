@@ -587,7 +587,12 @@
     "noRinhaDate": "Date not informed",
     "cancelReason": "Draft canceled",
     "cancelReasonPrompt": "Enter the reason for cancelling this draft.",
-    "metrics": { "visible": "{total} drafts" },
+    "metrics": {
+      "visible": "{total} drafts",
+      "confirmed": "{count} confirmed player | {count} confirmed players",
+      "teams": "{count} team | {count} teams",
+      "reserves": "{count} reserve | {count} reserves"
+    },
     "messages": {
       "layoutSaved": "Draft layout saved.",
       "captainsDrawn": "Captains drawn.",

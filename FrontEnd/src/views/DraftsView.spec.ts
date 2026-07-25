@@ -737,4 +737,9 @@ describe('DraftsView reason actions', () => {
     expect(DraftsViewSource).not.toMatch(/<main\b/)
     expect(DraftVisualBoardSource).not.toContain('{{ localMontagem.nome }}')
   })
+
+  it('keeps cancellation only in the parent header while preserving the board emit contract', () => {
+    expect(DraftVisualBoardSource).toContain('cancel: []')
+    expect(DraftVisualBoardSource).not.toContain(`@click="emit('cancel')"`)
+  })
 })

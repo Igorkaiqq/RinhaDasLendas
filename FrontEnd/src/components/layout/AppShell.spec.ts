@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,7 +13,13 @@ import {
 } from '@/services/systemUpdates'
 import type { SidebarNavigationItem } from '@/types/layout'
 import AppShell from './AppShell.vue'
+import PageFrame from './PageFrame.vue'
 import SidebarNav from './SidebarNav.vue'
+
+const PageContent = defineComponent({
+  components: { PageFrame },
+  template: '<PageFrame><section>Content</section></PageFrame>',
+})
 
 vi.mock('@/services/authState', async () => {
   const { ref } = await import('vue')
@@ -112,5 +119,19 @@ describe('AppShell update badge', () => {
     )
     expect(updateItem()?.badge).toBeUndefined()
     expect(wrapper.exists()).toBe(true)
+  })
+
+  it('keeps AppShell as the sole rendered main landmark', async () => {
+    const router = createAppRouter()
+    await router.push(AppRoutes.Home)
+    await router.isReady()
+
+    const wrapper = mount(AppShell, {
+      slots: { default: PageContent },
+      global: { plugins: [i18n, router] },
+    })
+
+    expect(wrapper.findAll('main')).toHaveLength(1)
+    expect(wrapper.getComponent(PageFrame).element.tagName).toBe('DIV')
   })
 })

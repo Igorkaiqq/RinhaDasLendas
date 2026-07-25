@@ -2,7 +2,10 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
+
 import DraftStateRail from './DraftStateRail.vue'
+import DraftStateRailSource from './DraftStateRail.vue?raw'
 
 describe('DraftStateRail', () => {
   it.each([
@@ -49,7 +52,10 @@ describe('DraftStateRail', () => {
   it.each([
     ['Falha', 'attention'],
     ['Pendente', 'attention'],
+    ['RequerReconciliacao', 'attention'],
+    ['EmAndamento', 'attention'],
     ['Publicada', 'done'],
+    ['Ignorada', 'pending'],
     [null, 'pending'],
   ])('keeps Discord %s parallel and never current', (publicationStatus, state) => {
     const wrapper = mount(DraftStateRail, {
@@ -60,5 +66,17 @@ describe('DraftStateRail', () => {
     const discord = wrapper.get('[data-step-id="discord"]')
     expect(discord.attributes('data-state')).toBe(state)
     expect(discord.attributes('aria-current')).toBeUndefined()
+  })
+
+  it('derives the operational sequence from the canonical status options', () => {
+    const wrapper = mount(DraftStateRail, {
+      props: { status: 'PresencaAberta', publicationStatus: null },
+      global: { mocks: { $t: (key: string) => key } },
+    })
+    const expectedIds = DRAFT_MONTAGEM_STATUS_OPTIONS.filter((status) => status !== 'Cancelada')
+
+    expect(wrapper.findAll('.draft-rail__step').slice(0, -1).map((step) => step.attributes('data-step-id'))).toEqual(expectedIds)
+    expect(DraftStateRailSource).toContain('DRAFT_MONTAGEM_STATUS_OPTIONS')
+    expect(DraftStateRailSource).not.toMatch(/const order\s*=\s*\[/)
   })
 })

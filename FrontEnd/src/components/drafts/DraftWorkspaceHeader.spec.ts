@@ -2,7 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem } from '@/types/draftMontagem'
 
 import DraftWorkspaceHeader from './DraftWorkspaceHeader.vue'
@@ -42,7 +42,7 @@ describe('DraftWorkspaceHeader', () => {
     expect(wrapper.get('[data-workspace-status]').text()).toBe('Capitães definidos')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('7 confirmados')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('2 times')
-    expect(wrapper.get('[data-workspace-counts]').text()).toContain('1 reservas')
+    expect(wrapper.get('[data-workspace-counts]').text()).toContain('1 reserva')
     expect(wrapper.getComponent({ name: 'DraftStateRail' }).props()).toMatchObject({
       status: 'CapitaesDefinidos',
       publicationStatus: 'Pendente',
@@ -78,5 +78,25 @@ describe('DraftWorkspaceHeader', () => {
     expect(wrapper.get('[data-action-group="secondary"]').text()).toBe('secondary')
     expect(wrapper.get('[data-action-group="danger"]').text()).toBe('danger')
     expect(wrapper.get('[data-action-group="primary"]').findAll('button')).toHaveLength(1)
+  })
+
+  it.each([
+    ['pt', 1, '1 confirmado · 1 time · 1 reserva'],
+    ['pt', 2, '2 confirmados · 2 times · 2 reservas'],
+    ['en', 1, '1 confirmed player · 1 team · 1 reserve'],
+    ['en', 2, '2 confirmed players · 2 teams · 2 reserves'],
+  ] as const)('pluralizes workspace counts in %s for count %i', (locale, count, expected) => {
+    setLocale(locale)
+    const wrapper = mount(DraftWorkspaceHeader, {
+      props: {
+        draft: { ...draft, quantidadeTimes: count, quantidadeReservas: count },
+        confirmedCount: count,
+        finalTeamsPublicationStatus: null,
+      },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('[data-workspace-counts]').text()).toBe(expected)
+    setLocale('pt')
   })
 })

@@ -2,6 +2,7 @@
 import { computed, getCurrentInstance } from 'vue'
 
 import DraftRail, { type DraftRailStep } from '@/components/layout/DraftRail.vue'
+import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
 
 const props = defineProps<{
   status: string
@@ -11,7 +12,7 @@ const props = defineProps<{
 const instance = getCurrentInstance()
 const t = (key: string) => instance?.proxy?.$t?.(key) ?? key
 
-const order = ['PresencaAberta', 'PresencaEncerrada', 'CapitaesDefinidos', 'OrdemDefinida', 'Aberta', 'Finalizada']
+const operationalStatuses = DRAFT_MONTAGEM_STATUS_OPTIONS.filter((status) => status !== 'Cancelada')
 const labels: Record<string, string> = {
   PresencaAberta: 'drafts.rail.presenceOpen',
   PresencaEncerrada: 'drafts.rail.presenceClosed',
@@ -29,7 +30,7 @@ const steps = computed<DraftRailStep[]>(() => {
     ]
   }
 
-  const activeIndex = order.indexOf(props.status)
+  const activeIndex = operationalStatuses.findIndex((status) => status === props.status)
   if (activeIndex === -1) {
     return [
       { id: 'unknown', label: t('drafts.rail.unknown'), state: 'unknown' },
@@ -37,7 +38,7 @@ const steps = computed<DraftRailStep[]>(() => {
     ]
   }
 
-  const base: DraftRailStep[] = order.map((status, index) => ({
+  const base: DraftRailStep[] = operationalStatuses.map((status, index) => ({
     id: status,
     label: t(labels[status] ?? status),
     state: (index < activeIndex ? 'done' : index === activeIndex ? status === 'Finalizada' ? 'terminal' : 'active' : 'pending') as DraftRailStep['state'],
@@ -51,7 +52,7 @@ const steps = computed<DraftRailStep[]>(() => {
 const discordStep = computed<DraftRailStep>(() => ({
   id: 'discord',
   label: t('drafts.rail.discord'),
-  state: props.publicationStatus === 'Falha' || props.publicationStatus === 'Pendente'
+  state: ['RequerReconciliacao', 'Falha', 'Pendente', 'EmAndamento'].includes(props.publicationStatus ?? '')
     ? 'attention'
     : props.publicationStatus === 'Publicada'
       ? 'done'

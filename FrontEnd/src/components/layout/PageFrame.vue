@@ -5,7 +5,7 @@ defineProps<{
 </script>
 
 <template>
-  <main class="mesa-page-frame" :data-has-rail="rail || undefined">
+  <div class="mesa-page-frame" :data-has-rail="rail || undefined">
     <slot />
-  </main>
+  </div>
 </template>

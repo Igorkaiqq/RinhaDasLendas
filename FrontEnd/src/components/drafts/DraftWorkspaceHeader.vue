@@ -40,7 +40,7 @@ const draftDate = computed(() => {
       </div>
       <div class="draft-hero-actions">
         <Badge variant="outline" data-workspace-status>{{ statusLabel }}</Badge>
-        <span data-workspace-counts>{{ t('drafts.presence.summary', { count: confirmedCount, teams: draft.quantidadeTimes, reserves: draft.quantidadeReservas }) }}</span>
+        <span data-workspace-counts><span>{{ t('drafts.metrics.confirmed', confirmedCount) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.teams', draft.quantidadeTimes) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.reserves', draft.quantidadeReservas) }}</span></span>
       </div>
     </div>
 
