@@ -105,11 +105,11 @@
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
 | T014 | Concluída | `DraftPreparationPanel.spec.ts` cobre listas com 0, 1, 10, 14 e 30 participantes e valida identidade, origem, ação aplicável e estrutura de cada linha, além de busca agrupada, metadados dos campos, payloads e `aria-pressed`. |
-| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre matriz canônica vazia/parcial, localização, fallback neutro, disponibilidade legada de republicação, permissão, `saving` e os três tipos exatos. |
-| T016 | Concluída | `DraftsView.spec.ts` cobre integração sem serviços, duplicidade rápida, perda de permissão, confirmar/encerrar/remover/republicar, IDs, nomes, tipos e fallback desconhecido no diálogo. |
+| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre renderização da matriz canônica recebida, localização, fallback neutro, disponibilidade legada de republicação, permissão, `saving` e os três tipos exatos. |
+| T016 | Concluída | `DraftsView.spec.ts` cobre projeções Discord vazias/parciais em PT/EN, preservação de `null` até o diálogo, integração sem serviços, duplicidade rápida, perda de permissão, payloads e fallbacks. |
 | T017 | Concluída | O roster separa identidade, origem e ações em colunas estruturais consistentes e reúne busca, seleção e inclusão manual em um grupo operável; largura visual real permanece para T030. |
 | T018 | Concluída | O painel Discord é subordinado, usa somente ações secundárias, localiza estados e mantém fallback desconhecido neutro. |
-| T019 | Concluída | `DraftsView.vue` preserva serviços, IDs, motivos, request generations e diálogos; os handlers mantêm guards de concorrência/permissão e capitães exigem permissão, presença encerrada e participante confirmado. |
+| T019 | Concluída | `DraftsView.vue` é a única origem da matriz Discord canônica usada pelo painel, ações e diálogo; preserva serviços, IDs, motivos, request generations e guards de concorrência/permissão. |
 
 ### RED
 
@@ -156,5 +156,23 @@
 - Resultado: 4 arquivos aprovados, 99 testes aprovados e 0 falhas (`DraftPreparationPanel`: 13; `DraftDiscordPublicationPanel`: 10; `DraftReasonDialog`: 31; `DraftsView`: 45).
 - Suíte completa: `npm test`; 35 arquivos aprovados, 276 testes aprovados e 0 falhas.
 - Build: `npm run build`; 2.761 módulos transformados e build concluído, com os mesmos avisos não bloqueantes de dependências e tamanho de chunk.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
+
+### Fechamento do status ausente no Discord
+
+#### RED
+
+- Comando: `npm test -- src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 3 arquivos com falha; 5 testes falharam e 85 passaram.
+- Motivos esperados: o filho ainda normalizava dados, a view fornecia projeção esparsa e convertia registro ausente para `Pendente`, e o diálogo ocultava contexto quando `publicationStatus` era `null`.
+
+#### GREEN
+
+- Comando focado: `npm test -- src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 3 arquivos aprovados, 90 testes aprovados e 0 falhas (`DraftDiscordPublicationPanel`: 10; `DraftReasonDialog`: 33; `DraftsView`: 47).
+- Projeções vazias e parciais foram verificadas em português e inglês; registros ausentes permanecem `null` na matriz, na ação pendente e no diálogo.
+- Suíte completa: `npm test`; 35 arquivos aprovados, 280 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído, com os avisos não bloqueantes já registrados.
 - Lint: `npm run lint:check`; aprovado sem erros ou avisos.
 - Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.

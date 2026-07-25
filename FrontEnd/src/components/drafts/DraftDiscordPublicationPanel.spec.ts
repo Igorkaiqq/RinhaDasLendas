@@ -21,8 +21,12 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
 }
 
 describe('DraftDiscordPublicationPanel', () => {
-  it('keeps all canonical rows and legacy republish actions when the projection is empty', () => {
-    const wrapper = mountPanel({ publications: [] })
+  it('renders a normalized empty matrix with legacy republish actions', () => {
+    const wrapper = mountPanel({ publications: [
+      { tipo: 'Presenca', status: null },
+      { tipo: 'ChamadaPresenca', status: null },
+      { tipo: 'TimesDefinidos', status: null },
+    ] })
 
     expect(wrapper.findAll('[data-publication-type]')).toHaveLength(3)
     expect(wrapper.findAll('[data-publication-status="unknown"]')).toHaveLength(3)
@@ -31,8 +35,12 @@ describe('DraftDiscordPublicationPanel', () => {
     expect(wrapper.find('[data-testid="republish-final-teams"]').exists()).toBe(true)
   })
 
-  it('fills missing canonical rows without replacing statuses from a partial projection', () => {
-    const wrapper = mountPanel({ publications: [{ tipo: 'ChamadaPresenca', status: 'Falha' }] })
+  it('renders a normalized partial matrix without replacing known statuses', () => {
+    const wrapper = mountPanel({ publications: [
+      { tipo: 'Presenca', status: null },
+      { tipo: 'ChamadaPresenca', status: 'Falha' },
+      { tipo: 'TimesDefinidos', status: null },
+    ] })
 
     expect(wrapper.findAll('[data-publication-type]')).toHaveLength(3)
     expect(wrapper.get('[data-publication-type="Presenca"] [data-publication-status]').attributes('data-publication-status')).toBe('unknown')
@@ -103,5 +111,6 @@ describe('DraftDiscordPublicationPanel', () => {
 
     expect(wrapper.findAll('button').every((button) => button.classes().includes('button-secondary'))).toBe(true)
     expect(DraftDiscordPublicationPanelSource).not.toMatch(/@\/services\//)
+    expect(DraftDiscordPublicationPanelSource).not.toContain('normalizedPublications')
   })
 })

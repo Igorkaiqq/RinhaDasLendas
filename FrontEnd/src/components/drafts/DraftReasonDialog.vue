@@ -100,7 +100,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
           <DialogDescription>{{ t(`${translationKey}.description`) }}</DialogDescription>
         </DialogHeader>
 
-        <div v-if="discordAction && publicationStatus" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+        <div v-if="discordAction" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
           <strong>{{ t(`${translationKey}.context`) }}</strong>
           <Badge variant="outline">
             {{ t('drafts.reasonDialog.currentStatus', { status: t(publicationStatusKey) }) }}

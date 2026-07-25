@@ -44,7 +44,7 @@ import {
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
 import { DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
 const { t, locale } = useI18n()
@@ -86,6 +86,7 @@ const preparationStatuses: readonly DraftMontagemStatus[] = [
   DraftMontagemStatusValues.PresencaEncerrada,
   DraftMontagemStatusValues.CapitaesDefinidos,
 ]
+const discordPublicationTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos']
 const hasDraftManagementPermission = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
 const canManageDrafts = computed(() => hasDraftManagementPermission.value && !adminAccessDenied.value)
 const currentUserId = computed(() => auth.user.value?.id ?? null)
@@ -103,7 +104,11 @@ const availableManualPresencePlayers = computed(() => {
   const confirmed = new Set(confirmedPresences.value.map((presence) => presence.jogadorId))
   return manualPresencePlayers.value.filter((player) => !confirmed.has(player.id))
 })
-const finalTeamsPublicationStatus = computed(() => selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === 'TimesDefinidos')?.status ?? null)
+const discordPublicationMatrix = computed(() => discordPublicationTypes.map((tipo) => ({
+  tipo,
+  status: selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === tipo)?.status ?? null,
+})))
+const finalTeamsPublicationStatus = computed(() => discordPublicationStatus('TimesDefinidos'))
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -599,16 +604,16 @@ function formatRinhaDate(value?: string | null) {
   return new Date(value).toLocaleDateString(locale.value, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function publicationStatus(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
-  return selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === tipo)?.status ?? 'Pendente'
+function discordPublicationStatus(tipo: DraftMontagemPublicacaoDiscordTipo): DraftMontagemPublicacaoDiscordStatus | null {
+  return discordPublicationMatrix.value.find((publication) => publication.tipo === tipo)?.status ?? null
 }
 
-function requestDiscordRepublish(tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos') {
+function requestDiscordRepublish(tipo: DraftMontagemPublicacaoDiscordTipo) {
   if (saving.value || !selectedMontagem.value || !canManageDrafts.value) return
   const actions: Record<typeof tipo, DraftReasonDialogAction> = {
-    Presenca: { type: 'republishPresence', publicationStatus: publicationStatus('Presenca') },
-    ChamadaPresenca: { type: 'republishPresenceCta', publicationStatus: publicationStatus('ChamadaPresenca') },
-    TimesDefinidos: { type: 'republishTeams', publicationStatus: publicationStatus('TimesDefinidos') },
+    Presenca: { type: 'republishPresence', publicationStatus: discordPublicationStatus('Presenca') },
+    ChamadaPresenca: { type: 'republishPresenceCta', publicationStatus: discordPublicationStatus('ChamadaPresenca') },
+    TimesDefinidos: { type: 'republishTeams', publicationStatus: discordPublicationStatus('TimesDefinidos') },
   }
   pendingReasonAction.value = actions[tipo]
 }
@@ -761,7 +766,7 @@ function captureError(error: unknown) {
         />
         <DraftDiscordPublicationPanel
           v-if="selectedMontagem && canManageDrafts"
-          :publications="selectedMontagem.publicacoesDiscord ?? []"
+          :publications="discordPublicationMatrix"
           :can-manage="canManageDrafts"
           :saving="saving"
           @republish="requestDiscordRepublish"

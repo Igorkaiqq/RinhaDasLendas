@@ -49,6 +49,18 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it.each([
+    ['pt', 'Status atual: estado de publicação desconhecido'],
+    ['en', 'Current status: unknown publication status'],
+  ] as const)('renders neutral publication context for a missing status in %s', async (locale, expected) => {
+    setLocale(locale)
+    const wrapper = await mountDialog({ type: 'republishTeams', publicationStatus: null })
+
+    expect(wrapper.get('[data-slot="badge"]').text().toLocaleLowerCase()).toBe(expected.toLocaleLowerCase())
+    expect(wrapper.text()).toContain(locale === 'pt' ? 'Times definidos' : 'Defined teams')
+    wrapper.unmount()
+  })
+
   it('renders action details and the localized default reason', async () => {
     const wrapper = await mountDialog({ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' })
 

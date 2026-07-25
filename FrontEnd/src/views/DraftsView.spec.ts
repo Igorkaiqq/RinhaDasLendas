@@ -3,7 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftsView from './DraftsView.vue'
@@ -515,6 +515,7 @@ describe('DraftsView reason actions', () => {
 
   afterEach(() => {
     document.body.innerHTML = ''
+    setLocale('pt')
   })
 
   it('republishes presence with its current status and exact reason', async () => {
@@ -573,6 +574,48 @@ describe('DraftsView reason actions', () => {
 
     expect(wrapper.text()).toContain('Chamada no Discord: publicada')
     expect(wrapper.text()).not.toContain('Republicar chamada')
+    wrapper.unmount()
+  })
+
+  it.each([
+    {
+      locale: 'pt',
+      publications: [],
+      actionTestId: 'republish-presence',
+      expectedContext: 'Lista de presença',
+      expectedStatus: 'Status atual: Estado de publicação desconhecido',
+      expectedActionType: 'republishPresence',
+    },
+    {
+      locale: 'en',
+      publications: [{ tipo: 'ChamadaPresenca', status: 'Falha' }],
+      actionTestId: 'republish-final-teams',
+      expectedContext: 'Defined teams',
+      expectedStatus: 'Current status: Unknown publication status',
+      expectedActionType: 'republishTeams',
+    },
+  ] as const)('keeps missing status null from a $locale $publications projection through the reason dialog', async ({ locale, publications, actionTestId, expectedContext, expectedStatus, expectedActionType }) => {
+    setLocale(locale)
+    const projection = adminProjection()
+    projection.publicacoesDiscord = publications as unknown as DraftMontagemAdmin['publicacoesDiscord']
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(projection)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftDiscordPublicationPanel' })
+
+    expect(panel.props('publications')).toEqual([
+      { tipo: 'Presenca', status: null },
+      { tipo: 'ChamadaPresenca', status: publications[0]?.tipo === 'ChamadaPresenca' ? 'Falha' : null },
+      { tipo: 'TimesDefinidos', status: null },
+    ])
+    await panel.get(`[data-testid="${actionTestId}"]`).trigger('click')
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { pendingReasonAction: { type: string; publicationStatus: unknown } }).pendingReasonAction).toEqual({
+      type: expectedActionType,
+      publicationStatus: null,
+    })
+    expect(wrapper.get('[role="dialog"]').text()).toContain(expectedContext)
+    expect(wrapper.get('[role="dialog"] [data-slot="badge"]').text()).toBe(expectedStatus)
     wrapper.unmount()
   })
 
