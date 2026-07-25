@@ -71,6 +71,13 @@ jobs:
 
       - name: Test bot
         working-directory: discord-bot
+        env:
+          DISCORD_TOKEN: ci-test-token
+          DISCORD_CLIENT_ID: ci-test-client
+          DISCORD_GUILD_ID: ci-test-guild
+          RINHA_API_BASE_URL: http://localhost:5000
+          RINHA_API_INTERNAL_TOKEN: ci-test-internal-token
+          NODE_ENV: test
         run: npm test
 
       - name: Audit bot dependencies
