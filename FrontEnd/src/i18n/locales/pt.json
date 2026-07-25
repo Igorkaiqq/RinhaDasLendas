@@ -824,7 +824,11 @@
       "availablePlayers": "Jogadores Disponíveis",
       "reservesHint": "Reservas ficam marcados aqui",
       "reserve": "Reserva",
-      "noPlayersForFilter": "Sem jogadores disponíveis para o filtro atual."
+      "noPlayersForFilter": "Sem jogadores disponíveis para o filtro atual.",
+      "teamOrder": "Ordem {order}",
+      "pickProgress": "{current} / {total} escolhas",
+      "pickSequence": "Sequência de escolhas",
+      "timeout": "Tempo esgotado"
     },
     "playerDetails": {
       "dialogLabel": "Detalhes de {name}",

@@ -96,13 +96,13 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 3
 
-- [ ] T020 [US3] Criar testes falhos para clone imutável, ordem de times, progresso, preferências, pick, payload, terminal, permissão e bloqueio de eventos duplicados em `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
-- [ ] T021 [US3] Escrever matriz integrada falha de permissão, envio duplicado e resultado preservado para cancelar draft, definir capitães, definir ordem, escolher e finalizar, incluindo escolha inválida e atualização ao vivo, em `FrontEnd/src/views/DraftsView.spec.ts`
+- [X] T020 [US3] Criar testes falhos para clone imutável, ordem de times, progresso, preferências, pick, payload, terminal, permissão e bloqueio de eventos duplicados em `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
+- [X] T021 [US3] Escrever matriz integrada falha de permissão, envio duplicado e resultado preservado para cancelar draft, definir capitães, definir ordem, escolher e finalizar, incluindo escolha inválida e atualização ao vivo, em `FrontEnd/src/views/DraftsView.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Reorganizar `DraftVisualBoard` com ordem e progresso explícitos, preferências visíveis e estados terminais somente leitura em `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
-- [ ] T023 [US3] Ajustar a integração de ações de capitães, ordem, escolha e finalização sem mudar serviços em `FrontEnd/src/views/DraftsView.vue`
+- [X] T022 [US3] Reorganizar `DraftVisualBoard` com ordem e progresso explícitos, preferências visíveis e estados terminais somente leitura em `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
+- [X] T023 [US3] Ajustar a integração de ações de capitães, ordem, escolha e finalização sem mudar serviços em `FrontEnd/src/views/DraftsView.vue`
 
 **Checkpoint**: Todo o ciclo operacional do Draft funciona no novo shell.
 

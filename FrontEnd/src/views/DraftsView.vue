@@ -398,9 +398,15 @@ function toggleCaptainSelection(jogadorId: string) {
 }
 
 async function defineCaptains() {
-  if (saving.value) return
+  if (
+    saving.value
+    || !canManageDrafts.value
+    || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
+    || captainSelection.value.length !== selectedMontagem.value.quantidadeTimes
+    || captainSelection.value.some((id) => !confirmedPresences.value.some((presence) => presence.jogadorId === id))
+  ) return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
   saving.value = true
   try {
     const montagem = await defineDraftMontagemCaptains(context.draftId, captainSelection.value)
@@ -413,9 +419,9 @@ async function defineCaptains() {
 }
 
 async function drawPickOrder() {
-  if (saving.value) return
+  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.CapitaesDefinidos) return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
   saving.value = true
   try {
     const montagem = await defineDraftMontagemPickOrder(context.draftId, DraftMontagemOrdemEscolhaModoValues.Sorteado)
@@ -504,8 +510,9 @@ async function saveMontagem(payload: DraftMontagemPayload) {
 }
 
 async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
+  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
   saving.value = true
   errors.value = []
   try {
@@ -521,8 +528,9 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
 }
 
 async function startRealtime() {
+  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
 
   saving.value = true
   errors.value = []
@@ -537,6 +545,15 @@ async function startRealtime() {
 }
 
 async function pickRealtime(jogadorId: string) {
+  const current = selectedMontagem.value
+  if (
+    saving.value
+    || !current
+    || current.status !== DraftMontagemStatusValues.Aberta
+    || current.modo !== 'TempoReal'
+    || current.turnoAtualCapitaoId !== currentPlayerId.value
+    || !current.livres.some((player) => player.jogadorId === jogadorId)
+  ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
 
@@ -583,8 +600,9 @@ async function drawMontagemCaptains() {
 }
 
 async function finalizeMontagem() {
+  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
   saving.value = true
   try {
     const montagem = await finalizeDraftMontagem(context.draftId)
@@ -599,7 +617,13 @@ async function finalizeMontagem() {
 }
 
 function requestDraftCancellation() {
-  if (selectedMontagem.value && canManageDrafts.value) {
+  if (
+    !saving.value
+    && selectedMontagem.value
+    && canManageDrafts.value
+    && selectedMontagem.value.status !== DraftMontagemStatusValues.Finalizada
+    && selectedMontagem.value.status !== DraftMontagemStatusValues.Cancelada
+  ) {
     pendingReasonAction.value = { type: 'cancelDraft' }
   }
 }

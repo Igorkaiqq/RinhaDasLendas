@@ -194,3 +194,52 @@
 - Build: `npm run build`; 2.761 módulos transformados e build concluído, com os avisos não bloqueantes já registrados.
 - Lint: `npm run lint:check`; aprovado sem erros ou avisos.
 - Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
+
+## T020-T023 - Capitães, ordem, escolhas e resultado
+
+### Progresso
+
+| Tarefa | Estado | Evidência |
+|--------|--------|-----------|
+| T020 | Concluída | O novo `DraftVisualBoard.spec.ts` cobre clone local imutável, cópia ordenada de times, ordem original do payload, progresso e sequência por `escolhas`, capitães, preferências, identidade do pick e leitura terminal. |
+| T021 | Concluída | `DraftsView.spec.ts` cobre payload exato, estados válidos, permissão/identidade, duplicidade rápida, escolha inválida e as proteções existentes contra respostas realtime obsoletas. |
+| T022 | Concluída | O board ordena cópias por `time.ordem`, explicita ordem/capitão/progresso/sequência, mantém rotas no pool e substitui renomeação e demais affordances mutáveis por leitura em `Finalizada` e `Cancelada`. |
+| T023 | Concluída | A view mantém serviços e contratos, valida o contexto de cada intenção e bloqueia reenvios de capitães, ordem, pick e finalização sem alterar a arbitragem de projeções públicas, administrativas ou realtime. |
+
+### RED
+
+- Primeiro comando, executado em `FrontEnd/`: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts`.
+- Primeiro resultado: 2 arquivos com falha; 8 testes falharam e 54 passaram.
+- Motivos esperados: ausência de ordenação visual identificável, ordem/capitão/progresso/sequência explícitos, regiões claras de turno/pool e leitura terminal sem renomeação; pick e finalização ainda aceitavam eventos duplicados, e a view não validava a identidade do capitão da vez.
+- Comando RED ampliado após adicionar as matrizes de estado: o mesmo comando executou 64 testes; 10 falharam e 54 passaram.
+- Motivos adicionais esperados: capitães e ordem eram aceitos fora das etapas correspondentes, e intenções do board eram encaminhadas antes de o draft estar aberto.
+- RED de timeout, executado em `FrontEnd/`: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts`; 1 teste falhou e 5 passaram porque o timeout era contado como jogador escolhido (`3 / 4` em vez de `2 / 4`).
+
+### GREEN focado
+
+- Comando: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 2 arquivos aprovados, 64 testes aprovados e 0 falhas (`DraftVisualBoard`: 6; `DraftsView`: 58).
+- O teste de payload confirma que a apresentação usa `team-a`, `team-b` por `ordem`, enquanto `save` mantém a ordem funcional recebida `team-b`, `team-a` e os mesmos `jogadorId`.
+- O teste realtime confirma que somente o capitão identificado em `currentPlayerId` encaminha o `jogadorId`; uma segunda emissão rápida não cria outra chamada.
+- A escolha rejeitada pelo serviço mantém turno, pool e projeção atuais, apresenta o erro retornado e não interfere nas proteções existentes contra refresh obsoleto.
+- Timeouts permanecem na sequência auditável, mas somente registros com `jogadorId` avançam o progresso de jogadores escolhidos.
+
+### Ledger de evidências
+
+| Critério | Evidência desta fase | Estado |
+|----------|----------------------|--------|
+| SC-001 | `Finalizada` e `Cancelada` mantêm resultado, ordem e capitães, sem renomear, arrastar, substituir, salvar, escolher, finalizar ou cancelar. | Aprovado estruturalmente para o board; inspeção visual permanece em T030. |
+| SC-005 | Matriz cobre cancelamento já protegido, capitães, ordem, pick e finalização com permissão/identidade, estado válido e bloqueio de duplicidade rápida. | Aprovado para as ações de US3. |
+| SC-007 | Quatro chaves novas possuem equivalentes PT/EN; ordem, progresso, sequência e timeout usam i18n e o scanner completo foi aprovado. | Aprovado para T020-T023. |
+| SC-009 | Props/emits, `jogadorId`, ordem do payload, projeção inválida e identidade realtime permanecem preservados nos testes focados e completos. | Aprovado para a jornada automatizada de US3; jornada real permanece em T030. |
+
+### Gates da fase
+
+- Suíte completa: `npm test`; 36 arquivos aprovados, 297 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído. Permanecem somente os avisos não bloqueantes já conhecidos de anotações `PURE` em dependências e tamanho de chunk.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
+- Whitespace: `git diff --check`; aprovado sem saída.
+- Fronteiras: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.
+- Textos visíveis: ordem dos times, progresso, sequência e timeout foram adicionados em PT/EN; preferências, botões, títulos, badges, estados vazios e mensagens de validação existentes foram revisados.
+- Backend: nenhuma mensagem ou resource foi alterado; nenhuma atualização é necessária para esta fase exclusivamente frontend.
