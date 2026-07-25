@@ -21,6 +21,7 @@
 | Frontend completo | PASS | 31 arquivos, 187/187 testes |
 | Frontend build | PASS | 2.756 módulos transformados |
 | Frontend lint sem fix | PASS | exit 0, sem diagnósticos |
+| Frontend dependency audit | PASS | 0 vulnerabilidades após overrides patched de `brace-expansion` e `postcss` |
 | Backend contrato | PASS | 29/29 testes de handlers e matriz HTTP |
 | Backend completo | PASS | 532/532 testes; build Release com 0 warnings e 0 erros |
 | Bot | PASS | 54/54 testes; build TypeScript aprovado |
@@ -57,6 +58,8 @@ npm run lint --prefix FrontEnd -- --no-fix
 ```
 
 Resultados: focado 63/63; completo 187/187; build e lint aprovados. O build mantém os avisos conhecidos de anotações `PURE` em dependências e chunk principal de aproximadamente 678 kB.
+
+O gate `npm audit --audit-level=moderate` também passou sem vulnerabilidades. As versões transitivas vulneráveis foram substituídas por `brace-expansion 5.0.8` e `postcss 8.5.23`, mantendo ESLint 9 e a compatibilidade da suíte.
 
 ## Backend
 
