@@ -5,9 +5,9 @@ export type DraftReasonDialogAction =
   | { type: 'cancelDraft' }
   | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
-  | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
-  | { type: 'republishPresenceCta'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
-  | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
+  | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
+  | { type: 'republishPresenceCta'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
+  | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
 </script>
 
 <script setup lang="ts">
@@ -25,7 +25,7 @@ type ReasonKeyboardEvent = InstanceType<typeof globalThis.KeyboardEvent>
 
 const props = defineProps<{ open: boolean; action: DraftReasonDialogAction | null; saving: boolean }>()
 const emit = defineEmits<{ confirm: [reason: string]; cancel: [] }>()
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const reason = ref('')
 const submitted = ref(false)
@@ -36,6 +36,10 @@ const constructiveAction = computed(() => discordAction.value || props.action?.t
 const publicationStatus = computed(() => {
   const action = props.action
   return action?.type === 'republishPresence' || action?.type === 'republishPresenceCta' || action?.type === 'republishTeams' ? action.publicationStatus : null
+})
+const publicationStatusKey = computed(() => {
+  const key = publicationStatus.value ? `drafts.publication.status.${publicationStatus.value}` : ''
+  return key && te(key) ? key : 'drafts.publication.status.unknown'
 })
 const normalizedReasonLength = computed(() => reason.value.trim().length)
 const reasonTooLong = computed(() => normalizedReasonLength.value > 500)
@@ -99,7 +103,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
         <div v-if="discordAction && publicationStatus" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
           <strong>{{ t(`${translationKey}.context`) }}</strong>
           <Badge variant="outline">
-            {{ t('drafts.reasonDialog.currentStatus', { status: t(`drafts.publication.status.${publicationStatus}`) }) }}
+            {{ t('drafts.reasonDialog.currentStatus', { status: t(publicationStatusKey) }) }}
           </Badge>
         </div>
         <div v-else-if="action.type === 'addManualPresence' || action.type === 'removeManualPresence'" class="rounded-lg border bg-muted/40 p-3 text-sm">

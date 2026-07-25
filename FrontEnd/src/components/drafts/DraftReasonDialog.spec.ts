@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 import DraftReasonDialog, { type DraftReasonDialogAction } from './DraftReasonDialog.vue'
@@ -20,6 +20,8 @@ const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
 }
 
 describe('DraftReasonDialog', () => {
+  afterEach(() => setLocale('pt'))
+
   it.each([
     ['cancelDraft', { type: 'cancelDraft' }, 'Cancelar draft'],
     ['addManualPresence', { type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'Adicionar presença'],
@@ -32,6 +34,18 @@ describe('DraftReasonDialog', () => {
 
     expect(wrapper.text()).toContain(title)
     expect(wrapper.get('[role="dialog"]')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', 'Status atual: estado de publicação desconhecido'],
+    ['en', 'Current status: unknown publication status'],
+  ] as const)('uses the localized neutral publication fallback in %s', async (locale, expected) => {
+    setLocale(locale)
+    const wrapper = await mountDialog({ type: 'republishPresence', publicationStatus: 'EstadoLegado' } as unknown as DraftReasonDialogAction)
+
+    expect(wrapper.get('[data-slot="badge"]').text().toLocaleLowerCase()).toBe(expected.toLocaleLowerCase())
+    expect(wrapper.text()).not.toContain('drafts.publication.status.EstadoLegado')
     wrapper.unmount()
   })
 

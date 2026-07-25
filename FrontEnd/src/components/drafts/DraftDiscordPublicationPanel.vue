@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo } from '@/types/draftMontagem'
@@ -21,6 +22,11 @@ const emit = defineEmits<{
 const { t, te } = useI18n()
 const knownTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos']
 const recoverableStatuses = ['Falha', 'RequerReconciliacao']
+const normalizedPublications = computed<DraftPublicationPresentation[]>(() => {
+  const canonical = knownTypes.map((tipo) => props.publications.find((publication) => publication.tipo === tipo) ?? { tipo, status: null })
+  const unknown = props.publications.filter((publication) => !isKnownType(publication.tipo))
+  return [...canonical, ...unknown]
+})
 
 function isKnownType(tipo: string): tipo is DraftMontagemPublicacaoDiscordTipo {
   return knownTypes.includes(tipo as DraftMontagemPublicacaoDiscordTipo)
@@ -71,7 +77,7 @@ function actionTestId(tipo: DraftMontagemPublicacaoDiscordTipo) {
       <p>{{ t('drafts.publication.description') }}</p>
     </header>
     <ul>
-      <li v-for="publication in publications" :key="publication.tipo">
+      <li v-for="publication in normalizedPublications" :key="publication.tipo" :data-publication-type="publication.tipo">
         <span
           class="team-status"
           :data-publication-status="statusKey(publication.status).endsWith('.unknown') ? 'unknown' : publication.status"

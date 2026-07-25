@@ -66,12 +66,20 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
 
 describe('DraftPreparationPanel', () => {
   it.each([0, 1, 10, 14, 30])('keeps a stable roster structure with %i participants', (count) => {
-    const wrapper = mountPanel({ confirmedPresences: presences(count) })
+    const expectedPresences = presences(count)
+    const wrapper = mountPanel({ confirmedPresences: expectedPresences })
+    const rows = wrapper.findAll('[data-presence-row]')
 
-    expect(wrapper.findAll('[data-presence-row]')).toHaveLength(count)
+    expect(rows).toHaveLength(count)
     expect(wrapper.get('[data-presence-roster]').classes()).toContain('draft-preparation__roster')
     if (count === 0) expect(wrapper.get('[data-presence-empty]').text()).toBe('Nenhum jogador confirmou presença.')
-    if (count > 0) expect(wrapper.text()).toContain(`Jogador ${count - 1}`)
+    rows.forEach((row, index) => {
+      expect(row.element.tagName).toBe('LI')
+      expect(row.get('[data-presence-identity]').text()).toContain(expectedPresences[index]!.nomeExibicao)
+      expect(row.get('[data-presence-origin]').text()).toMatch(/^(Manual|Discord|Site)$/)
+      expect(row.get('[data-presence-actions] [data-testid="remove-manual-presence"]')).toBeTruthy()
+      expect(row.classes()).toContain('draft-preparation__player')
+    })
   })
 
   it('separates participant identity, origin, and actions without making the row a button', () => {
@@ -98,6 +106,13 @@ describe('DraftPreparationPanel', () => {
     expect(wrapper.emitted('search-manual-presence')).toEqual([[]])
     expect(wrapper.emitted('update:selectedManualPresencePlayerId')).toEqual([['eligible-1']])
     expect(wrapper.emitted('add-manual-presence')).toEqual([[]])
+  })
+
+  it('provides meaningful form names and autocomplete metadata for manual controls', () => {
+    const group = mountPanel().get('[data-manual-presence]')
+
+    expect(group.get('input[type="search"]').attributes()).toMatchObject({ name: 'manual-presence-search', autocomplete: 'off' })
+    expect(group.get('select').attributes()).toMatchObject({ name: 'manual-presence-player', autocomplete: 'off' })
   })
 
   it('emits exact presence and manual removal events', async () => {

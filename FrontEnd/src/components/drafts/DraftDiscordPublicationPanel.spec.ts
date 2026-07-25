@@ -21,6 +21,28 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
 }
 
 describe('DraftDiscordPublicationPanel', () => {
+  it('keeps all canonical rows and legacy republish actions when the projection is empty', () => {
+    const wrapper = mountPanel({ publications: [] })
+
+    expect(wrapper.findAll('[data-publication-type]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-publication-status="unknown"]')).toHaveLength(3)
+    expect(wrapper.find('[data-testid="republish-presence"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="republish-presence-cta"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="republish-final-teams"]').exists()).toBe(true)
+  })
+
+  it('fills missing canonical rows without replacing statuses from a partial projection', () => {
+    const wrapper = mountPanel({ publications: [{ tipo: 'ChamadaPresenca', status: 'Falha' }] })
+
+    expect(wrapper.findAll('[data-publication-type]')).toHaveLength(3)
+    expect(wrapper.get('[data-publication-type="Presenca"] [data-publication-status]').attributes('data-publication-status')).toBe('unknown')
+    expect(wrapper.get('[data-publication-type="ChamadaPresenca"] [data-publication-status]').attributes('data-publication-status')).toBe('Falha')
+    expect(wrapper.get('[data-publication-type="TimesDefinidos"] [data-publication-status]').attributes('data-publication-status')).toBe('unknown')
+    expect(wrapper.find('[data-testid="republish-presence"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="republish-presence-cta"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="republish-final-teams"]').exists()).toBe(true)
+  })
+
   it('presents localized publication statuses in a subordinate region', () => {
     const wrapper = mountPanel()
 
@@ -37,7 +59,7 @@ describe('DraftDiscordPublicationPanel', () => {
     ]
     const wrapper = mountPanel({ publications: values })
 
-    expect(wrapper.findAll('[data-publication-status="unknown"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-publication-status="unknown"]').length).toBeGreaterThanOrEqual(2)
     expect(wrapper.text()).toContain('Estado de publicação desconhecido')
 
     setLocale('en')

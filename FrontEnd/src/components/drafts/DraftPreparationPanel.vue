@@ -123,11 +123,11 @@ function updateManualSelection(event: ControlEvent) {
     >
       <label>
         {{ t('drafts.presence.searchPlayer') }}
-        <input :value="manualPresenceSearch" type="search" :disabled="saving" @input="updateManualSearch" />
+        <input name="manual-presence-search" autocomplete="off" :value="manualPresenceSearch" type="search" :disabled="saving" @input="updateManualSearch" />
       </label>
       <label>
         {{ t('drafts.presence.selectPlayer') }}
-        <select :value="selectedManualPresencePlayerId" :disabled="saving" @change="updateManualSelection">
+        <select name="manual-presence-player" autocomplete="off" :value="selectedManualPresencePlayerId" :disabled="saving" @change="updateManualSelection">
           <option value="">{{ t('drafts.presence.selectPlayer') }}</option>
           <option v-for="player in availableManualPresencePlayers" :key="player.id" :value="player.id">{{ player.nomeExibicao }}</option>
         </select>

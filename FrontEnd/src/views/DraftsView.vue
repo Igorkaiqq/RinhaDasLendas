@@ -367,7 +367,12 @@ async function closePresence(continueWithLess = false) {
 }
 
 function toggleCaptainSelection(jogadorId: string) {
-  if (saving.value) return
+  if (
+    saving.value
+    || !canManageDrafts.value
+    || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
+    || !confirmedPresences.value.some((presence) => presence.jogadorId === jogadorId)
+  ) return
   if (captainSelection.value.includes(jogadorId)) {
     captainSelection.value = captainSelection.value.filter((id) => id !== jogadorId)
     return

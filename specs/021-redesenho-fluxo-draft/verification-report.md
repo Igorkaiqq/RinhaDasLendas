@@ -104,12 +104,12 @@
 
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
-| T014 | Concluída | `DraftPreparationPanel.spec.ts` cobre listas com 0, 1, 10, 14 e 30 participantes, regiões estáveis de identidade/origem/ação, busca agrupada, payloads e seleção de capitão com `aria-pressed`. |
-| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre localização, fallback neutro, permissão, bloqueio durante `saving`, recuperabilidade da chamada e os três tipos exatos de republicação. |
-| T016 | Concluída | `DraftsView.spec.ts` cobre integração dos filhos sem serviços, handlers de confirmar/cancelar/encerrar, IDs e nomes da remoção, tipo da republicação e queda de permissão administrativa. |
-| T017 | Concluída | O roster separa identidade, origem e ações, mantém grade de largura estável e reúne busca, seleção e inclusão manual em um grupo operável. |
+| T014 | Concluída | `DraftPreparationPanel.spec.ts` cobre listas com 0, 1, 10, 14 e 30 participantes e valida identidade, origem, ação aplicável e estrutura de cada linha, além de busca agrupada, metadados dos campos, payloads e `aria-pressed`. |
+| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre matriz canônica vazia/parcial, localização, fallback neutro, disponibilidade legada de republicação, permissão, `saving` e os três tipos exatos. |
+| T016 | Concluída | `DraftsView.spec.ts` cobre integração sem serviços, duplicidade rápida, perda de permissão, confirmar/encerrar/remover/republicar, IDs, nomes, tipos e fallback desconhecido no diálogo. |
+| T017 | Concluída | O roster separa identidade, origem e ações em colunas estruturais consistentes e reúne busca, seleção e inclusão manual em um grupo operável; largura visual real permanece para T030. |
 | T018 | Concluída | O painel Discord é subordinado, usa somente ações secundárias, localiza estados e mantém fallback desconhecido neutro. |
-| T019 | Concluída | `DraftsView.vue` preserva serviços, IDs, motivos, request generations, diálogos e permissões, e adiciona guards de concorrência nos handlers existentes. |
+| T019 | Concluída | `DraftsView.vue` preserva serviços, IDs, motivos, request generations e diálogos; os handlers mantêm guards de concorrência/permissão e capitães exigem permissão, presença encerrada e participante confirmado. |
 
 ### RED
 
@@ -126,10 +126,10 @@
 
 | Critério | Evidência desta fase | Estado |
 |----------|----------------------|--------|
-| SC-003 | Matriz automatizada 0/1/10/14/30, nomes longos, três regiões por jogador e grade com colunas estáveis sem alteração por seleção. | Aprovado em teste estrutural; inspeção em 320px permanece em T030. |
-| SC-005 | Confirmar, cancelar presença, encerrar com `false`/`true`, remover com `jogadorId` e nome, e republicar com tipo exato permanecem ligados aos handlers existentes; `saving` bloqueia repetição. | Aprovado para o escopo de presença/Discord; demais ações pertencem a US3. |
-| SC-007 | Chaves novas existem em PT/EN; status ausente ou desconhecido é localizado; scanner não encontrou texto visível hardcoded nos componentes do Draft. | Aprovado para T014-T019. |
-| SC-010 | Busca, seleção e inclusão manual formam um único grupo; remoção e avanço continuam acessíveis na mesma região operacional. | Aprovado em teste estrutural; jornada extensa permanece em T030. |
+| SC-003 | Matriz automatizada 0/1/10/14/30 verifica identidade, origem, ação e a mesma estrutura em cada linha, incluindo nomes longos. | Cobertura estrutural aprovada; largura real e inspeção em 320px permanecem em T030. |
+| SC-005 | Testes focados cobrem duplicidade rápida de confirmar/encerrar/remover/republicar, perda de permissão administrativa, payloads exatos e validação defensiva de capitães. | Aprovado para presença/Discord; ações de US3 permanecem fora desta fase. |
+| SC-007 | PT/EN possuem fallback neutro para status Discord desconhecido tanto no painel quanto no diálogo; o scanner não encontrou texto visível hardcoded. | Aprovado para T014-T019. |
+| SC-010 | Busca, seleção e inclusão manual formam um grupo estrutural único com nomes e `autocomplete`; remoção e avanço mantêm seus eventos. | Cobertura estrutural parcial; jornada extensa e rolagem real permanecem em T030. |
 
 ### Gates da fase
 
@@ -140,3 +140,21 @@
 - Dependências: os filhos não importam `@/services/`; serviços e autorização permanecem em `DraftsView.vue`.
 - Textos visíveis: placeholders, botões, títulos, badges, estados vazios e rótulos acessíveis foram revisados em PT/EN; acentuação portuguesa revisada.
 - Backend: nenhuma mensagem, validação ou recurso backend foi alterado.
+
+### Revisão dos achados de T014-T019
+
+#### RED
+
+- Comando: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado isolado: 4 arquivos com falha; 8 testes falharam e 91 passaram.
+- Motivos esperados: projeções Discord vazias/parciais não mantinham três linhas; campos manuais não tinham `name`/`autocomplete`; status desconhecido vazava chave técnica no diálogo; e o pai aceitava capitão sem validar permissão, estado ou presença confirmada.
+- Os novos testes de duplicidade rápida e perda de permissão para confirmar, encerrar, remover e republicar já passaram no RED, comprovando os guards existentes sem exigir alteração artificial de produção.
+
+#### GREEN
+
+- Comando focado: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 4 arquivos aprovados, 99 testes aprovados e 0 falhas (`DraftPreparationPanel`: 13; `DraftDiscordPublicationPanel`: 10; `DraftReasonDialog`: 31; `DraftsView`: 45).
+- Suíte completa: `npm test`; 35 arquivos aprovados, 276 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído, com os mesmos avisos não bloqueantes de dependências e tamanho de chunk.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.

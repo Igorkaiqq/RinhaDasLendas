@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n } from '@/i18n'
@@ -802,6 +802,127 @@ describe('DraftsView reason actions', () => {
 
     expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('canManage')).toBe(false)
     expect(wrapper.findComponent({ name: 'DraftDiscordPublicationPanel' }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('blocks rapid duplicate confirmation requests', async () => {
+    let resolveConfirmation!: (value: DraftMontagem) => void
+    serviceMocks.confirmDraftMontagemPresence.mockReturnValueOnce(new Promise((resolve) => { resolveConfirmation = resolve }))
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('confirm-presence')
+    panel.vm.$emit('confirm-presence')
+    await nextTick()
+
+    expect(serviceMocks.confirmDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    resolveConfirmation(montagem)
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('blocks rapid duplicate close requests and ignores close after management permission is lost', async () => {
+    let resolveClose!: (value: DraftMontagem) => void
+    serviceMocks.closeDraftMontagemPresence.mockReturnValueOnce(new Promise((resolve) => { resolveClose = resolve }))
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('close-presence', false)
+    panel.vm.$emit('close-presence', false)
+    await nextTick()
+    expect(serviceMocks.closeDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    resolveClose(montagem)
+    await flushPromises()
+
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    panel.vm.$emit('close-presence', false)
+    await nextTick()
+    expect(serviceMocks.closeDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('blocks duplicate removal confirmation and ignores it after management permission is lost', async () => {
+    let resolveRemoval!: (value: DraftMontagem) => void
+    serviceMocks.removeManualDraftMontagemPresence.mockReturnValueOnce(new Promise((resolve) => { resolveRemoval = resolve }))
+    const wrapper = await mountView()
+
+    await openReasonDialog(wrapper, 'Remover')
+    await wrapper.get('textarea').setValue('remoção concorrente')
+    const form = wrapper.get('form')
+    await Promise.all([form.trigger('submit'), form.trigger('submit')])
+    expect(serviceMocks.removeManualDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    resolveRemoval(montagem)
+    await flushPromises()
+
+    await openReasonDialog(wrapper, 'Remover')
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    await wrapper.get('form').trigger('submit')
+    expect(serviceMocks.removeManualDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('blocks duplicate republication confirmation and localizes unknown status after permission loss', async () => {
+    const projection = adminProjection()
+    projection.publicacoesDiscord = projection.publicacoesDiscord.map((publication) => publication.tipo === 'Presenca'
+      ? { ...publication, status: 'EstadoLegado' as never }
+      : publication)
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(projection)
+    let resolveRepublish!: (value: DraftMontagem) => void
+    serviceMocks.republishDraftMontagemDiscordPublication.mockReturnValueOnce(new Promise((resolve) => { resolveRepublish = resolve }))
+    const wrapper = await mountView()
+
+    await openReasonDialog(wrapper, 'Republicar presença')
+    expect(wrapper.get('[role="dialog"] [data-slot="badge"]').text()).toContain('Estado de publicação desconhecido')
+    await wrapper.get('textarea').setValue('republicação concorrente')
+    const form = wrapper.get('form')
+    await Promise.all([form.trigger('submit'), form.trigger('submit')])
+    expect(serviceMocks.republishDraftMontagemDiscordPublication).toHaveBeenCalledTimes(1)
+    resolveRepublish(montagem)
+    await flushPromises()
+
+    await openReasonDialog(wrapper, 'Republicar presença')
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    await wrapper.get('form').trigger('submit')
+    expect(serviceMocks.republishDraftMontagemDiscordPublication).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('keeps personal confirmation available after management permission is lost', async () => {
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+
+    panel.vm.$emit('confirm-presence')
+    await flushPromises()
+
+    expect(serviceMocks.confirmDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('accepts captain toggles only for authorized confirmed players while presence is closed', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('PresencaEncerrada'))
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('toggle-captain', 'jogador-inexistente')
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual([])
+
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1'])
+
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1'])
+    wrapper.unmount()
+  })
+
+  it('ignores captain toggles outside the closed-presence state', async () => {
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual([])
     wrapper.unmount()
   })
 })
