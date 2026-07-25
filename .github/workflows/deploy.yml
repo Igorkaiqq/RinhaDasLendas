@@ -20,7 +20,7 @@ jobs:
           script: |
             set -eu
             cd /opt/rinhadaslendas
-            git pull --ff-only
+            git -c safe.directory=/opt/rinhadaslendas pull --ff-only
             set -a
             . ./.env
             set +a
