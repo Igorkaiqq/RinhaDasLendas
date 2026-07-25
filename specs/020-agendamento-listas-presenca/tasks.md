@@ -242,17 +242,17 @@ npm test -- src/services/presenceSchedules.spec.ts \
 
 **Purpose**: produzir evidência final reproduzível sem ampliar escopo.
 
-- [ ] T088 Executar testes e build Release do backend pelo devcontainer e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T089 Executar testes, build e lint sem fix do frontend e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T090 Executar testes e build completos do bot e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T091 Aplicar migration em PostgreSQL descartável e comprovar enums `smallint`, histórico, índices únicos, rollback e reaplicação em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T092 Executar matriz HTTP real com duas páginas ordenadas, empate, pausadas e paginação de ocorrências para anônimo, Jogador, Moderador e Admin em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T093 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T094 Validar recuperação de múltiplos dias, bloqueada com marcador avançado, claim expirado e inicialização antes/no/depois da publicação em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T095 Validar `/configuracoes`, carregar mais e `Ver histórico` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T096 Auditar autorização, autoria, DTOs, rate limiting, logs, contadores/tags de métricas e ausência de segredos em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T097 Auditar textos hardcoded frontend/backend, paginação, `Ver histórico`, paridade `pt.json`/`en.json`, resources PT/EN, acentuação e validações em `specs/020-agendamento-listas-presenca/tasks.md`
-- [ ] T098 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T088 Executar testes e build Release do backend pelo devcontainer e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T089 Executar testes, build e lint sem fix do frontend e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T090 Executar testes e build completos do bot e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T091 Aplicar migration em PostgreSQL descartável e comprovar enums `smallint`, histórico, índices únicos, rollback e reaplicação em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T092 Executar matriz HTTP real com duas páginas ordenadas, empate, pausadas e paginação de ocorrências para anônimo, Jogador, Moderador e Admin em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T093 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T094 Validar recuperação de múltiplos dias, bloqueada com marcador avançado, claim expirado e inicialização antes/no/depois da publicação em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T095 Validar `/configuracoes`, carregar mais e `Ver histórico` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T096 Auditar autorização, autoria, DTOs, rate limiting, logs, contadores/tags de métricas e ausência de segredos em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T097 Auditar textos hardcoded frontend/backend, paginação, `Ver histórico`, paridade `pt.json`/`en.json`, resources PT/EN, acentuação e validações em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T098 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas em `specs/020-agendamento-listas-presenca/tasks.md`
 
 **Checkpoint**: nenhuma tarefa é concluída com `Não` na auditoria de internacionalização ou sem evidência de paginação, segurança, concorrência e recuperação.
 
