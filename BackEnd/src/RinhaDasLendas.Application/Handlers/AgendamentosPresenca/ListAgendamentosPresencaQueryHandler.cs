@@ -8,13 +8,14 @@ namespace RinhaDasLendas.Application.Handlers.AgendamentosPresenca;
 
 public sealed class ListAgendamentosPresencaQueryHandler(
     IAgendamentoPresencaRepository repository)
-    : IRequestHandler<ListAgendamentosPresencaQuery, PaginatedResponseDto<AgendamentoPresencaSummaryDto>>
+    : IRequestHandler<ListAgendamentosPresencaQuery, PaginatedAgendamentoPresencaResponseDto>
 {
-    public async Task<PaginatedResponseDto<AgendamentoPresencaSummaryDto>> Handle(
+    public async Task<PaginatedAgendamentoPresencaResponseDto> Handle(
         ListAgendamentosPresencaQuery query,
         CancellationToken cancellationToken)
     {
         var totalItems = await repository.CountAsync(includePaused: true, cancellationToken);
+        var activeItems = await repository.CountAsync(includePaused: false, cancellationToken);
         var agendas = await repository.ListAsync(includePaused: true, query.Page, query.PageSize, cancellationToken);
         var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)query.PageSize);
         var agendaIds = agendas.Select(item => item.Agenda.Id).ToArray();
@@ -23,11 +24,12 @@ public sealed class ListAgendamentosPresencaQueryHandler(
             item,
             occurrences.GetValueOrDefault(item.Agenda.Id))).ToArray();
 
-        return new PaginatedResponseDto<AgendamentoPresencaSummaryDto>(
+        return new PaginatedAgendamentoPresencaResponseDto(
             query.Page,
             query.PageSize,
             items,
             totalItems,
-            totalPages);
+            totalPages,
+            activeItems);
     }
 }

@@ -20,6 +20,14 @@ public sealed record AgendamentoPresencaSummaryDto(
     DateTimeOffset? ProximaExecucaoEm,
     OcorrenciaAgendamentoPresencaSummaryDto? UltimaOcorrencia);
 
+public sealed record PaginatedAgendamentoPresencaResponseDto(
+    int Page,
+    int PageSize,
+    IReadOnlyCollection<AgendamentoPresencaSummaryDto> Items,
+    int TotalItems,
+    int TotalPages,
+    int ActiveItems);
+
 public sealed record OcorrenciaAgendamentoPresencaSummaryDto(
     Guid Id,
     DateOnly DataLocal,

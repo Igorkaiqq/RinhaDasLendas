@@ -238,16 +238,45 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
     public async Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(
         DateTimeOffset now,
         int limit,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? afterId = null)
     {
-        return await dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
-            .Where(occurrence => occurrence.Status == OcorrenciaAgendamentoPresencaStatus.Bloqueada
-                && occurrence.PublicacaoPrevistaEm <= now)
-            .OrderBy(occurrence => occurrence.EncerramentoPrevistoEm)
-            .ThenBy(occurrence => occurrence.DataLocal)
-            .ThenBy(occurrence => occurrence.Id)
-            .Take(Math.Clamp(limit, 1, 1000))
+        var ids = await dbContext.Database.SqlQueryRaw<Guid>(
+            """
+            WITH cursor_row AS (
+                SELECT encerramento_previsto_em, data_local, id
+                FROM ocorrencias_agendamentos_presenca
+                WHERE id = CAST(@afterId AS uuid)
+            )
+            SELECT occurrence.id AS "Value"
+            FROM ocorrencias_agendamentos_presenca AS occurrence
+            LEFT JOIN cursor_row AS cursor ON TRUE
+            WHERE occurrence.status = 1
+              AND occurrence.publicacao_prevista_em <= @now
+            ORDER BY
+                CASE WHEN cursor.id IS NULL
+                    OR (occurrence.encerramento_previsto_em, occurrence.data_local, occurrence.id)
+                       > (cursor.encerramento_previsto_em, cursor.data_local, cursor.id)
+                    THEN 0 ELSE 1 END,
+                occurrence.encerramento_previsto_em,
+                occurrence.data_local,
+                occurrence.id
+            LIMIT @limit
+            """,
+            new NpgsqlParameter("afterId", afterId ?? (object)DBNull.Value),
+            new NpgsqlParameter("now", now),
+            new NpgsqlParameter("limit", Math.Clamp(limit, 1, 1000)))
             .ToListAsync(ct);
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var occurrences = await dbContext.OcorrenciasAgendamentosPresenca.AsNoTracking()
+            .Where(occurrence => ids.Contains(occurrence.Id))
+            .ToListAsync(ct);
+        var byId = occurrences.ToDictionary(occurrence => occurrence.Id);
+        return ids.Select(id => byId[id]).ToArray();
     }
 
     public async Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(
@@ -258,7 +287,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         Guid claimId,
         DateTimeOffset claimExpiresAt,
         DateTimeOffset now,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? expectedGuildId = null)
     {
         OcorrenciaAgendamentoPresenca.ValidarClaimProcessamento(claimId, claimExpiresAt, now);
         await OpenConnectionAsync(ct);
@@ -300,10 +330,18 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                               FROM agendamentos_presenca_dias_semana AS configured_day
                               WHERE configured_day.agendamento_presenca_id = schedule.id
                                 AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
-                          AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
-                          AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
-                          AND db_time.now >= @publicationAt
-                          AND db_time.now < @closureAt))
+                           AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                           AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                           AND schedule.ativado_em <= @publicationAt
+                           AND db_time.now >= @publicationAt
+                           AND db_time.now < @closureAt))
+                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM discord_server_configurations AS configuration
+                      WHERE configuration.bot_enabled
+                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
+                        AND BTRIM(configuration.presence_channel_id) <> ''
+                      FOR SHARE))
                 ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
                 SET status = 0,
                     codigo_falha = NULL,
@@ -337,6 +375,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             AddParameter(command, "closureAt", closureAt);
             AddParameter(command, "claimId", claimId);
             AddParameter(command, "now", now);
+            AddParameter(command, "expectedGuildId", expectedGuildId);
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
             {
@@ -383,8 +422,18 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                         AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
                   AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
                   AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                  AND schedule.ativado_em <= @publicationAt
                   AND @now < @closureAt
-                ON CONFLICT (agendamento_presenca_id, data_local) DO NOTHING
+                ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
+                SET status = 1,
+                    codigo_falha = EXCLUDED.codigo_falha,
+                    claim_id = NULL,
+                    claim_expires_at = NULL,
+                    ultima_tentativa_em = EXCLUDED.ultima_tentativa_em,
+                    atualizada_em = EXCLUDED.atualizada_em
+                WHERE ocorrencias_agendamentos_presenca.status = 0
+                  AND ocorrencias_agendamentos_presenca.claim_expires_at <= clock_timestamp()
+                  AND ocorrencias_agendamentos_presenca.encerramento_previsto_em > clock_timestamp()
                 RETURNING status, TRUE AS changed
             )
             SELECT status, changed FROM inserted
@@ -435,9 +484,10 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                           FROM agendamentos_presenca_dias_semana AS configured_day
                           WHERE configured_day.agendamento_presenca_id = schedule.id
                             AND configured_day.dia_semana = EXTRACT(ISODOW FROM CAST(@localDate AS date))::smallint)
-                      AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
-                      AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
-                      AND @now >= @closureAt))
+                       AND @publicationAt = (CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo'
+                       AND @closureAt = (CAST(@localDate AS date) + schedule.horario_encerramento_local) AT TIME ZONE 'America/Sao_Paulo'
+                       AND schedule.ativado_em <= @publicationAt
+                       AND @now >= @closureAt))
             ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
             SET status = 3,
                 codigo_falha = EXCLUDED.codigo_falha,
@@ -445,9 +495,7 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                 claim_expires_at = NULL,
                 ultima_tentativa_em = EXCLUDED.ultima_tentativa_em,
                 atualizada_em = EXCLUDED.atualizada_em
-            WHERE (ocorrencias_agendamentos_presenca.status = 1
-                   OR (ocorrencias_agendamentos_presenca.status = 0
-                       AND ocorrencias_agendamentos_presenca.claim_expires_at <= @now))
+            WHERE ocorrencias_agendamentos_presenca.status IN (0, 1)
               AND ocorrencias_agendamentos_presenca.encerramento_previsto_em <= @now
             RETURNING status, TRUE AS changed
             )
@@ -489,6 +537,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND schedule.status = 0
                   AND schedule.horario_publicacao_local = @observedPublicationTime
                   AND schedule.horario_encerramento_local = @observedClosureTime
+                  AND schedule.ativado_em <=
+                      ((CAST(@localDate AS date) + schedule.horario_publicacao_local) AT TIME ZONE 'America/Sao_Paulo')
                   AND EXISTS (
                       SELECT 1 FROM agendamentos_presenca_dias_semana AS configured_day
                       WHERE configured_day.agendamento_presenca_id = schedule.id
@@ -550,7 +600,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         Guid claimId,
         DraftMontagem draft,
         DateTimeOffset now,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? expectedGuildId = null)
     {
         await OpenConnectionAsync(ct);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
@@ -565,11 +616,19 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND claim_id = @claimId
                   AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
+                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM discord_server_configurations AS configuration
+                      WHERE configuration.bot_enabled
+                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
+                        AND BTRIM(configuration.presence_channel_id) <> ''
+                      FOR SHARE))
                 FOR UPDATE
                 """))
             {
                 AddParameter(lockCommand, "occurrenceId", occurrenceId);
                 AddParameter(lockCommand, "claimId", claimId);
+                AddParameter(lockCommand, "expectedGuildId", expectedGuildId);
                 AddParameter(lockCommand, "now", now);
                 lockedOccurrenceId = await lockCommand.ExecuteScalarAsync(ct) as Guid?;
             }
@@ -603,12 +662,19 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND claim_id = @claimId
                   AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
+                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM discord_server_configurations AS configuration
+                      WHERE configuration.bot_enabled
+                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
+                        AND BTRIM(configuration.presence_channel_id) <> ''))
                 RETURNING TRUE
                 """))
             {
                 AddParameter(updateCommand, "draftId", draft.Id);
                 AddParameter(updateCommand, "occurrenceId", occurrenceId);
                 AddParameter(updateCommand, "claimId", claimId);
+                AddParameter(updateCommand, "expectedGuildId", expectedGuildId);
                 AddParameter(updateCommand, "now", now);
                 updated = await updateCommand.ExecuteScalarAsync(ct) is true;
             }

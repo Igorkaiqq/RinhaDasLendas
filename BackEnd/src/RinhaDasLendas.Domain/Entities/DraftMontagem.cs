@@ -126,6 +126,7 @@ public sealed class DraftMontagem
         DateTimeOffset expiraEm,
         DateTimeOffset agora)
     {
+        ExigirPresencaAbertaParaPublicacaoDePresenca(tipo);
         DraftMontagemPublicacaoDiscord.ValidarInicioTentativa(claimId, expiraEm, agora);
         var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
         publicacao.IniciarTentativa(claimId, expiraEm, agora);
@@ -140,6 +141,7 @@ public sealed class DraftMontagem
         string messageId,
         DateTimeOffset agora)
     {
+        ExigirPresencaAbertaParaPublicacaoDePresenca(tipo);
         var publicacao = ObterPublicacaoDiscord(tipo);
         publicacao.RegistrarPublicada(claimId, guildId, channelId, messageId, agora);
         if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
@@ -148,6 +150,17 @@ public sealed class DraftMontagem
             DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
         }
         Touch(agora);
+    }
+
+    private void ExigirPresencaAbertaParaPublicacaoDePresenca(
+        DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        if (tipo is DraftMontagemPublicacaoDiscordTipo.Presenca
+                or DraftMontagemPublicacaoDiscordTipo.ChamadaPresenca
+            && Status != DraftMontagemStatus.PresencaAberta)
+        {
+            throw new DomainException(MessageCodes.PresenceAlreadyClosed);
+        }
     }
 
     public void RegistrarFalhaPublicacaoDiscord(

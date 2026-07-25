@@ -51,15 +51,15 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         SetupCandidates(repository, agenda);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 agenda.Id, Hoje, Publicacao, Encerramento, It.IsAny<Guid>(), Publicacao.AddMinutes(5), Publicacao,
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync((Guid agendaId, DateOnly date, DateTimeOffset publication, DateTimeOffset closure,
-                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _) =>
+                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _, string? _) =>
                 new AgendamentoPresencaOcorrenciaClaim(
                     Guid.NewGuid(), claimId, true, OcorrenciaAgendamentoPresencaStatus.Processando,
                     agenda.Nome, agenda.Observacao));
         repository.Setup(item => item.TryCompleteWithDraftAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publicacao, It.IsAny<CancellationToken>()))
-            .Callback<Guid, Guid, DraftMontagem, DateTimeOffset, CancellationToken>((_, _, value, _, _) => draft = value)
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publicacao, It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .Callback<Guid, Guid, DraftMontagem, DateTimeOffset, CancellationToken, string?>((_, _, value, _, _, _) => draft = value)
             .ReturnsAsync(true);
         var handler = CreateHandler(repository, Publicacao);
 
@@ -94,7 +94,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
             It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
         repository.Verify(item => item.TryCompleteWithDraftAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), It.IsAny<DateTimeOffset>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact]
@@ -110,13 +110,13 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         repository.Setup(item => item.GetByIdAsync(agenda.Id, false, It.IsAny<CancellationToken>())).ReturnsAsync(agenda);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 agenda.Id, Hoje, Publicacao, Encerramento, It.IsAny<Guid>(), Publicacao.AddMinutes(35),
-                Publicacao.AddMinutes(30), It.IsAny<CancellationToken>()))
+                Publicacao.AddMinutes(30), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync((Guid agendaId, DateOnly date, DateTimeOffset publication, DateTimeOffset closure,
-                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _) =>
+                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _, string? _) =>
                 new AgendamentoPresencaOcorrenciaClaim(occurrence.Id, claimId, true));
         repository.Setup(item => item.TryCompleteWithDraftAsync(
                 occurrence.Id, It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publicacao.AddMinutes(30),
-                It.IsAny<CancellationToken>()))
+                 It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
         var handler = CreateHandler(repository, Publicacao.AddMinutes(30));
 
@@ -244,7 +244,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         metrics.Verify(item => item.RecordFailure(MessageCodes.PresenceScheduleTimeZoneInvalid), Times.Once);
         repository.Verify(item => item.TryCompleteWithDraftAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), It.IsAny<DateTimeOffset>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+             It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact]
@@ -256,18 +256,18 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         SetupCandidates(repository, first, second);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 first.Id, It.IsAny<DateOnly>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<Guid>(),
-                It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+                 It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ThrowsAsync(new InvalidOperationException("technical failure"));
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 second.Id, Hoje, Publicacao, Encerramento, It.IsAny<Guid>(), Publicacao.AddMinutes(5), Publicacao,
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync((Guid agendaId, DateOnly date, DateTimeOffset publication, DateTimeOffset closure,
-                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _) =>
+                Guid claimId, DateTimeOffset expiresAt, DateTimeOffset now, CancellationToken _, string? _) =>
                 new AgendamentoPresencaOcorrenciaClaim(
                     Guid.NewGuid(), claimId, true, OcorrenciaAgendamentoPresencaStatus.Processando,
                     second.Nome, second.Observacao));
         repository.Setup(item => item.TryCompleteWithDraftAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publicacao, It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publicacao, It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
         var handler = CreateHandler(repository, Publicacao);
 
@@ -288,7 +288,7 @@ public sealed class AgendamentoPresencaExecutionServiceTests
         SetupCandidates(repository, agenda);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 agenda.Id, Hoje, Publicacao, Encerramento, It.IsAny<Guid>(), Publicacao.AddMinutes(5), Publicacao,
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(new AgendamentoPresencaOcorrenciaClaim(
                 Guid.NewGuid(), Guid.NewGuid(), false, OcorrenciaAgendamentoPresencaStatus.Criada));
         var handler = CreateHandler(repository, Publicacao, metrics: metrics);

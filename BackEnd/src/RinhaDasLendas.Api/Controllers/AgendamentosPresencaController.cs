@@ -18,7 +18,7 @@ namespace RinhaDasLendas.Api.Controllers;
 public sealed class AgendamentosPresencaController(ISender sender, IMessageProvider messages) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType(typeof(PaginatedResponseDto<AgendamentoPresencaSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PaginatedAgendamentoPresencaResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List(
         [FromQuery] int page = 1,

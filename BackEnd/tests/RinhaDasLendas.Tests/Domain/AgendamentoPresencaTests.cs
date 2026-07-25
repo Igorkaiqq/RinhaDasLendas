@@ -559,6 +559,29 @@ public sealed class AgendamentoPresencaTests
         }
     }
 
+    [Fact]
+    public void Marcar_perdida_deve_ignorar_validade_temporal_do_claim_apos_encerramento()
+    {
+        var ocorrencia = OcorrenciaAgendamentoPresenca.Processando(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 24),
+            Agora,
+            Agora.AddMinutes(2),
+            Guid.NewGuid(),
+            Agora.AddMinutes(5),
+            Agora,
+            "Snapshot",
+            null);
+
+        ocorrencia.MarcarPerdida(
+            MessageCodes.PresenceScheduleWindowExpired,
+            Agora.AddMinutes(2));
+
+        ocorrencia.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Perdida);
+        ocorrencia.ClaimId.Should().BeNull();
+        ocorrencia.ClaimExpiresAt.Should().BeNull();
+    }
+
     [Theory]
     [MemberData(nameof(CodigosPublicosInvalidos))]
     public void Deve_rejeitar_codigo_publico_invalido_ao_marcar_perdida(string? codigo)

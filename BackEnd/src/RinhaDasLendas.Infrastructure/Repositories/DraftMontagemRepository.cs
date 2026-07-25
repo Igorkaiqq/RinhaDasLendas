@@ -126,17 +126,36 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         {
             claimCommand.Transaction = dbTransaction;
             claimCommand.CommandText = """
+                WITH terminal AS (
+                    UPDATE draft_montagem_publicacoes_discord AS publication
+                    SET status = 'Falha',
+                        ultimo_erro_codigo = 'DRAFT_NOT_OPEN',
+                        claim_id = NULL,
+                        claim_expira_em = NULL,
+                        ultima_tentativa_em = @agora
+                    FROM draft_montagens AS draft
+                    WHERE publication.draft_montagem_id = draft.id
+                      AND draft.id = @draftMontagemId
+                      AND @tipo IN ('Presenca', 'ChamadaPresenca')
+                      AND draft.status <> 'PresencaAberta'
+                      AND publication.tipo = @tipo
+                      AND publication.status = 'Pendente'
+                )
                 INSERT INTO draft_montagem_publicacoes_discord
                     (id, draft_montagem_id, tipo, status, ultima_tentativa_em, claim_id, claim_expira_em)
                 SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId, @expiraEm
                 FROM draft_montagens
                 WHERE id = @draftMontagemId
+                  AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR status = 'PresencaAberta')
                 ON CONFLICT (draft_montagem_id, tipo) DO UPDATE
                 SET status = 'EmAndamento',
                     ultima_tentativa_em = @agora,
                     claim_id = @claimId,
                     claim_expira_em = @expiraEm
                 WHERE draft_montagem_publicacoes_discord.status = 'Pendente'
+                  AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
+                      SELECT 1 FROM draft_montagens AS draft
+                      WHERE draft.id = @draftMontagemId AND draft.status = 'PresencaAberta'))
                 RETURNING TRUE
                 """;
             AddParameter(claimCommand, "id", Guid.NewGuid());
@@ -199,6 +218,9 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND status = 'EmAndamento'
                   AND claim_id = @claimId
                   AND claim_expira_em > @agora
+                  AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
+                      SELECT 1 FROM draft_montagens AS draft
+                      WHERE draft.id = @draftMontagemId AND draft.status = 'PresencaAberta'))
                 RETURNING draft_montagem_id
             ), legacy AS (
                 UPDATE draft_montagens

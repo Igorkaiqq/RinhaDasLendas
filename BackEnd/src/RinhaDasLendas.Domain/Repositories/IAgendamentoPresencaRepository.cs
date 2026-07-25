@@ -25,7 +25,11 @@ public interface IAgendamentoPresencaRepository
         int limit,
         CancellationToken ct);
     Task<AgendamentoPresencaProcessingCandidate?> GetProcessingCandidateAsync(Guid id, CancellationToken ct);
-    Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(DateTimeOffset now, int limit, CancellationToken ct);
+    Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(
+        DateTimeOffset now,
+        int limit,
+        CancellationToken ct,
+        Guid? afterId = null);
     Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
@@ -34,7 +38,8 @@ public interface IAgendamentoPresencaRepository
         Guid claimId,
         DateTimeOffset claimExpiresAt,
         DateTimeOffset now,
-        CancellationToken ct);
+        CancellationToken ct,
+        string? expectedGuildId = null);
     Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertBlockedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
@@ -70,7 +75,8 @@ public interface IAgendamentoPresencaRepository
         Guid claimId,
         DraftMontagem draft,
         DateTimeOffset now,
-        CancellationToken ct);
+        CancellationToken ct,
+        string? expectedGuildId = null);
     Task<bool> TryMarkFailedAsync(
         Guid occurrenceId,
         Guid claimId,

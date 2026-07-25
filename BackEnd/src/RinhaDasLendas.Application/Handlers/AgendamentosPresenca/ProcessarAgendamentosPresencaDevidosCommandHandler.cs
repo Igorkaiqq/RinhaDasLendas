@@ -34,8 +34,8 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         try
         {
             var throughDate = timeZone.GetLocalDate(clock.UtcNow);
-            var configuration = await GetConfigurationAsync(totals, cancellationToken);
-            await ProcessBlockedBatchAsync(configuration, totals, cancellationToken);
+            var blockedCursor = await ProcessBlockedBatchAsync(
+                command.BlockedCursor, totals, cancellationToken);
 
             var candidates = await repository.ListCandidatesAsync(
                 clock.UtcNow, command.Cursor, options.MaxSchedulesPerCycle, cancellationToken);
@@ -52,7 +52,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                     if (processingCandidate is not null)
                     {
                         await ProcessScheduleAsync(
-                            processingCandidate, throughDate, configuration, totals, cancellationToken);
+                            processingCandidate, throughDate, totals, cancellationToken);
                     }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -69,7 +69,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                 }
             }
 
-            return totals.ToResult(cursor);
+            return totals.ToResult(cursor, blockedCursor);
         }
         finally
         {
@@ -77,18 +77,21 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         }
     }
 
-    private async Task ProcessBlockedBatchAsync(
-        ConfigurationLookup configuration,
+    private async Task<Guid?> ProcessBlockedBatchAsync(
+        Guid? cursor,
         CycleTotals totals,
         CancellationToken cancellationToken)
     {
         var blocked = await repository.ListBlockedAsync(
-            clock.UtcNow, options.MaxBlockedPerCycle, cancellationToken);
+            clock.UtcNow, options.MaxBlockedPerCycle, cancellationToken, cursor);
+        var nextCursor = cursor;
         foreach (var occurrence in blocked)
         {
+            nextCursor = occurrence.Id;
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                var configuration = await GetConfigurationAsync(totals, cancellationToken);
                 await ProcessBlockedAsync(occurrence, configuration, totals, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -104,12 +107,13 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                     StableCode(exception));
             }
         }
+
+        return nextCursor;
     }
 
     private async Task ProcessScheduleAsync(
         AgendamentoPresencaProcessingCandidate processingCandidate,
         DateOnly throughDate,
-        ConfigurationLookup configuration,
         CycleTotals totals,
         CancellationToken cancellationToken)
     {
@@ -172,6 +176,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
                 continue;
             }
 
+            var configuration = await GetConfigurationAsync(totals, cancellationToken);
             var classified = await ClassifyAsync(
                 schedule, date, publicationAt, closureAt, configuration, totals, cancellationToken);
             if (!classified)
@@ -281,7 +286,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         var claimId = Guid.NewGuid();
         var claim = await repository.TryClaimOccurrenceAsync(
             scheduleId, date, publicationAt, closureAt, claimId,
-            claimNow.AddMinutes(5), claimNow, cancellationToken);
+            claimNow.AddMinutes(5), claimNow, cancellationToken, configuration.GuildId);
         if (claim is null)
         {
             totals.Conflict(metrics);
@@ -315,7 +320,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         draft.ConfigurarEncerramentoPresenca(closureAt);
         draft.ConfigurarPublicacaoDiscord(configuration.GuildId, null);
         if (!await repository.TryCompleteWithDraftAsync(
-            claim.OcorrenciaId, claimId, draft, completionNow, cancellationToken))
+            claim.OcorrenciaId, claimId, draft, completionNow, cancellationToken, configuration.GuildId))
         {
             totals.Conflict(metrics);
             return false;
@@ -441,7 +446,7 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         public void Conflict(IAgendamentoPresencaMetrics value) =>
             value.RecordConflict(MessageCodes.PresenceScheduleOccurrenceConflict);
 
-        public AgendamentoPresencaCycleResult ToResult(Guid? cursor) =>
-            new(evaluated, created, blocked, missed, failed, cursor);
+        public AgendamentoPresencaCycleResult ToResult(Guid? cursor, Guid? blockedCursor) =>
+            new(evaluated, created, blocked, missed, failed, cursor, blockedCursor);
     }
 }

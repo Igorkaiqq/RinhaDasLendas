@@ -153,6 +153,7 @@ public sealed class AgendamentoPresencaHandlersTests
         var paused = CreateAgenda("Agenda B");
         paused.Pausar(Responsavel, Agora);
         _repository.Setup(item => item.CountAsync(true, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        _repository.Setup(item => item.CountAsync(false, It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _repository.Setup(item => item.ListAsync(true, 2, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new AgendamentoPresencaListItem(first, new DateTimeOffset(2026, 7, 31, 21, 0, 0, TimeSpan.Zero)),
@@ -170,6 +171,7 @@ public sealed class AgendamentoPresencaHandlersTests
         result.PageSize.Should().Be(2);
         result.TotalItems.Should().Be(3);
         result.TotalPages.Should().Be(2);
+        result.ActiveItems.Should().Be(1);
         result.Items.Select(item => item.Id).Should().Equal(first.Id, paused.Id);
         result.Items.Last().ProximaExecucaoEm.Should().BeNull();
         _repository.Verify(item => item.ListLatestOccurrencesAsync(

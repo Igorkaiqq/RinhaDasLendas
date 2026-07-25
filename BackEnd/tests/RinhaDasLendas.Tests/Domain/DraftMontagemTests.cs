@@ -9,6 +9,23 @@ namespace RinhaDasLendas.Tests.Domain;
 public sealed class DraftMontagemTests
 {
     [Theory]
+    [InlineData(DraftMontagemPublicacaoDiscordTipo.Presenca)]
+    [InlineData(DraftMontagemPublicacaoDiscordTipo.ChamadaPresenca)]
+    public void PublicacaoDePresencaNaoDeveIniciarAposCancelamento(
+        DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        var agora = new DateTimeOffset(2026, 7, 24, 18, 0, 0, TimeSpan.Zero);
+        var montagem = new DraftMontagem(
+            "Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        montagem.Cancelar("encerrada", Guid.NewGuid());
+
+        var act = () => montagem.IniciarTentativaPublicacaoDiscord(
+            tipo, "guild", "canal", Guid.NewGuid(), agora.AddMinutes(5), agora);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.PresenceAlreadyClosed);
+        montagem.PublicacoesDiscord.Should().BeEmpty();
+    }
+    [Theory]
     [InlineData(15, 5, 3, 0)]
     [InlineData(18, 5, 3, 3)]
     [InlineData(20, 5, 4, 0)]

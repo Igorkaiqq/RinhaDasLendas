@@ -156,14 +156,7 @@ public sealed class OcorrenciaAgendamentoPresenca
 
     public void MarcarPerdida(string codigo, DateTimeOffset agora)
     {
-        if (Status == OcorrenciaAgendamentoPresencaStatus.Processando)
-        {
-            if (ClaimExpiresAt is null || ClaimExpiresAt > agora)
-            {
-                throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
-            }
-        }
-        else
+        if (Status != OcorrenciaAgendamentoPresencaStatus.Processando)
         {
             ExigirStatus(OcorrenciaAgendamentoPresencaStatus.Bloqueada);
         }
