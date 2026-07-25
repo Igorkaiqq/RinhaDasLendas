@@ -859,6 +859,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.ToTable("discord_server_configurations");
             entity.HasKey(configuration => configuration.Id);
             entity.Property(configuration => configuration.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(configuration => configuration.SingletonKey)
+                .HasColumnName("singleton_key")
+                .HasDefaultValue(DiscordServerConfiguration.CanonicalSingletonKey)
+                .IsRequired();
             entity.Property(configuration => configuration.GuildId).HasColumnName("guild_id").HasMaxLength(40).IsRequired();
             entity.Property(configuration => configuration.PresenceChannelId).HasColumnName("presence_channel_id").HasMaxLength(40).IsRequired();
             entity.Property(configuration => configuration.NewsChannelId).HasColumnName("news_channel_id").HasMaxLength(40).IsRequired();
@@ -869,6 +873,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(configuration => configuration.CreatedAt).HasColumnName("created_at").IsRequired();
             entity.Property(configuration => configuration.UpdatedAt).HasColumnName("updated_at").IsRequired();
             entity.HasIndex(configuration => configuration.GuildId).IsUnique();
+            entity.HasIndex(configuration => configuration.SingletonKey).IsUnique();
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_discord_server_configurations_singleton_key",
+                "singleton_key = 1"));
         });
 
         modelBuilder.Entity<AuditoriaUsuario>(entity =>

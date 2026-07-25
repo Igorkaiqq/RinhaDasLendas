@@ -3,7 +3,9 @@ using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Moq;
 using Npgsql;
 using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
@@ -28,6 +30,41 @@ namespace RinhaDasLendas.Tests.Integration;
 public sealed class AgendamentoPresencaBehaviorIntegrationTests
 {
     private static readonly DateTimeOffset Agora = CurrentOpenInstant();
+
+    [Fact]
+    public async Task MigrationSingleton_DeveManterConfiguracaoMaisRecenteEPermitirRoundTrip()
+    {
+        const string previousMigration = "20260724174705_AddAgendamentoPresencaSnapshots";
+        await using var database = await PostgreSqlTestDatabase.CreateAtMigrationAsync(previousMigration);
+        await using (var before = database.CreateContext())
+        {
+            await before.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO discord_server_configurations
+                    (id, guild_id, presence_channel_id, news_channel_id, admin_channel_id,
+                     draft_channel_id, match_result_channel_id, bot_enabled, created_at, updated_at)
+                VALUES
+                    ('10000000-0000-0000-0000-000000000001', 'guild-antiga', 'presence-1', 'news-1', 'admin-1', 'draft-1', 'result-1', TRUE, '2026-07-20T10:00:00Z', '2026-07-20T10:00:00Z'),
+                    ('10000000-0000-0000-0000-000000000002', 'guild-recente', 'presence-2', 'news-2', 'admin-2', 'draft-2', 'result-2', TRUE, '2026-07-21T10:00:00Z', '2026-07-22T10:00:00Z'),
+                    ('10000000-0000-0000-0000-000000000003', 'guild-mais-recente', 'presence-3', 'news-3', 'admin-3', 'draft-3', 'result-3', TRUE, '2026-07-21T10:00:00Z', '2026-07-23T10:00:00Z');
+                """);
+            await before.Database.MigrateAsync();
+        }
+
+        await using (var migrated = database.CreateContext())
+        {
+            var configuration = await migrated.DiscordServerConfigurations.SingleAsync();
+            configuration.GuildId.Should().Be("guild-mais-recente");
+            configuration.SingletonKey.Should().Be(DiscordServerConfiguration.CanonicalSingletonKey);
+            var migrator = migrated.Database.GetService<IMigrator>();
+            await migrator.MigrateAsync(previousMigration);
+            await migrator.MigrateAsync();
+        }
+
+        await using var roundTripped = database.CreateContext();
+        (await roundTripped.DiscordServerConfigurations.SingleAsync()).GuildId
+            .Should().Be("guild-mais-recente");
+    }
 
     [Theory]
     [InlineData(DraftMontagemPublicacaoDiscordTipo.Presenca)]
@@ -59,6 +96,100 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         claim!.Adquirido.Should().BeFalse();
         claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
         (await repository.ListActiveForDiscordAsync(CancellationToken.None)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(DraftMontagemPublicacaoDiscordTipo.Presenca)]
+    [InlineData(DraftMontagemPublicacaoDiscordTipo.ChamadaPresenca)]
+    public async Task PublicacaoDePresencaExpirada_DeveTerminalizarSemClaim(
+        DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        Guid draftId;
+        await using (var seed = database.CreateContext())
+        {
+            var draft = new DraftMontagem(
+                "Draft expirado", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfigurarEncerramentoPresenca(now.AddMinutes(-1));
+            draft.ConfigurarPublicacaoDiscordPendente(tipo, "guild", "channel", now.AddMinutes(-2));
+            seed.DraftMontagens.Add(draft);
+            await seed.SaveChangesAsync();
+            draftId = draft.Id;
+        }
+
+        await using var db = database.CreateContext();
+        var claim = await new DraftMontagemRepository(db).TryClaimPublicacaoDiscordAsync(
+            draftId, tipo, Guid.NewGuid(), now.AddMinutes(5), now, CancellationToken.None);
+
+        claim.Should().NotBeNull();
+        claim!.Adquirido.Should().BeFalse();
+        claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
+        var publication = await db.DraftMontagemPublicacoesDiscord.AsNoTracking().SingleAsync();
+        publication.UltimoErroCodigo.Should().Be("PRESENCE_DEADLINE_EXPIRED");
+    }
+
+    [Fact]
+    public async Task ClaimDePresenca_DeveLimitarExpiracaoAoEncerramento()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var closure = now.AddMinutes(2);
+        Guid draftId;
+        await using (var seed = database.CreateContext())
+        {
+            var draft = new DraftMontagem(
+                "Draft com TTL limitado", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfigurarEncerramentoPresenca(closure);
+            draft.ConfigurarPublicacaoDiscordPendente(
+                DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "channel", now);
+            seed.DraftMontagens.Add(draft);
+            await seed.SaveChangesAsync();
+            draftId = draft.Id;
+        }
+
+        await using var db = database.CreateContext();
+        var claim = await new DraftMontagemRepository(db).TryClaimPublicacaoDiscordAsync(
+            draftId, DraftMontagemPublicacaoDiscordTipo.Presenca, Guid.NewGuid(),
+            now.AddMinutes(5), now, CancellationToken.None);
+
+        claim.Should().NotBeNull();
+        claim!.Adquirido.Should().BeTrue();
+        claim.ExpiraEm.Should().BeCloseTo(closure, TimeSpan.FromMicroseconds(1));
+    }
+
+    [Fact]
+    public async Task ConclusaoDePublicacao_DeveFalharSeEncerramentoExpirarAposClaim()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var claimId = Guid.NewGuid();
+        Guid draftId;
+        await using (var seed = database.CreateContext())
+        {
+            var draft = new DraftMontagem(
+                "Draft que expira", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfigurarEncerramentoPresenca(now.AddMinutes(2));
+            draft.ConfigurarPublicacaoDiscordPendente(
+                DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "channel", now);
+            seed.DraftMontagens.Add(draft);
+            await seed.SaveChangesAsync();
+            draftId = draft.Id;
+        }
+
+        await using var db = database.CreateContext();
+        var repository = new DraftMontagemRepository(db);
+        (await repository.TryClaimPublicacaoDiscordAsync(
+            draftId, DraftMontagemPublicacaoDiscordTipo.Presenca, claimId,
+            now.AddMinutes(1), now, CancellationToken.None))!.Adquirido.Should().BeTrue();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE draft_montagens SET horario_encerramento_presenca = {now.AddMinutes(-1)} WHERE id = {draftId}");
+
+        var completed = await repository.TryConcluirPublicacaoDiscordAsync(
+            draftId, DraftMontagemPublicacaoDiscordTipo.Presenca, claimId,
+            "guild", "channel", "message", now, CancellationToken.None);
+
+        completed.Should().BeFalse();
     }
 
     [Fact]
@@ -232,9 +363,10 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             var schedule = new AgendamentoPresenca(
                 "Agenda configuracao", null, publicationTime, closureTime, [day],
                 date.AddDays(-1), userId, publication.AddMinutes(-1));
-            var configuration = new DiscordServerConfiguration(
+            var configuration = await seed.DiscordServerConfigurations.SingleAsync();
+            configuration.Atualizar(
                 "guild-lida", "presence", "news", "admin", "draft", "result", true);
-            seed.AddRange(schedule, configuration);
+            seed.Add(schedule);
             await seed.SaveChangesAsync();
             scheduleId = schedule.Id;
 
@@ -246,7 +378,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         await using var db = database.CreateContext();
         var claim = await new AgendamentoPresencaRepository(db).TryClaimOccurrenceAsync(
             scheduleId, date, publication, closure, Guid.NewGuid(), now.AddMinutes(5), now,
-            CancellationToken.None, "guild-lida");
+            CancellationToken.None, "guild-lida", "presence");
 
         claim.Should().BeNull();
         (await db.OcorrenciasAgendamentosPresenca.CountAsync()).Should().Be(0);
@@ -269,9 +401,10 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
                 schedule.Id, new DateOnly(2026, 7, 24), now.AddMinutes(-1), now.AddMinutes(20),
                 claimId, now.AddMinutes(5), now, schedule.Nome, null);
             schedule.AdicionarOcorrencia(occurrence);
-            var configuration = new DiscordServerConfiguration(
+            var configuration = await seed.DiscordServerConfigurations.SingleAsync();
+            configuration.Atualizar(
                 "guild-lida", "presence", "news", "admin", "draft", "result", true);
-            seed.AddRange(schedule, configuration);
+            seed.Add(schedule);
             await seed.SaveChangesAsync();
             occurrenceId = occurrence.Id;
 
@@ -286,12 +419,52 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         draft.ConfigurarPublicacaoDiscord("guild-lida", null);
         await using var db = database.CreateContext();
         var completed = await new AgendamentoPresencaRepository(db).TryCompleteWithDraftAsync(
-            occurrenceId, claimId, draft, now, CancellationToken.None, "guild-lida");
+            occurrenceId, claimId, draft, now, CancellationToken.None, "guild-lida", "presence");
 
         completed.Should().BeFalse();
         (await db.DraftMontagens.CountAsync()).Should().Be(0);
         var occurrenceState = await db.OcorrenciasAgendamentosPresenca.AsNoTracking().SingleAsync();
         occurrenceState.Status.Should().Be(OcorrenciaAgendamentoPresencaStatus.Processando);
+    }
+
+    [Fact]
+    public async Task Conclusao_DeveRejeitarCanalDePresencaAlteradoDepoisDoClaim()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var claimId = Guid.NewGuid();
+        Guid occurrenceId;
+        await using (var seed = database.CreateContext())
+        {
+            var userId = await AddUserAsync(seed);
+            var schedule = new AgendamentoPresenca(
+                "Agenda canal", null, new TimeOnly(18, 0), new TimeOnly(20, 0),
+                [DiaSemanaIso.Sexta], new DateOnly(2026, 7, 23), userId, now.AddDays(-1));
+            var occurrence = OcorrenciaAgendamentoPresenca.Processando(
+                schedule.Id, new DateOnly(2026, 7, 24), now.AddMinutes(-1), now.AddMinutes(20),
+                claimId, now.AddMinutes(5), now, schedule.Nome, null);
+            schedule.AdicionarOcorrencia(occurrence);
+            var configuration = await seed.DiscordServerConfigurations.SingleAsync();
+            configuration.Atualizar(
+                "guild-1", "presence-new", "news-channel", "admin-channel",
+                "draft-channel", "result-channel", true);
+            seed.Add(schedule);
+            await seed.SaveChangesAsync();
+            occurrenceId = occurrence.Id;
+        }
+
+        var draft = new DraftMontagem(
+            "Draft nao persistido", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        draft.ConfigurarEncerramentoPresenca(now.AddMinutes(20));
+        draft.ConfigurarPublicacaoDiscord("guild-1", null);
+        await using var db = database.CreateContext();
+
+        var completed = await new AgendamentoPresencaRepository(db).TryCompleteWithDraftAsync(
+            occurrenceId, claimId, draft, now, CancellationToken.None,
+            "guild-1", "presence-channel");
+
+        completed.Should().BeFalse();
+        (await db.DraftMontagens.CountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -632,7 +805,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var secondClaimId = Guid.NewGuid();
 
         var first = await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2), firstClaimId,
-            Agora.AddMinutes(5), Agora, CancellationToken.None);
+            Agora.AddMinutes(5), Agora, CancellationToken.None, "guild-1", "presence-channel");
         var beforeExpiry = await repository.TryClaimOccurrenceAsync(schedule.Id, date, Agora, Agora.AddHours(2), secondClaimId,
             Agora.AddMinutes(9), Agora.AddMinutes(4), CancellationToken.None);
         await ExpireCurrentClaimAsync(database);
@@ -2162,7 +2335,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var local = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(value, "America/Sao_Paulo");
         if (local.Hour >= 22)
         {
-            value = value.AddHours(21 - local.Hour);
+            value = value.AddHours(21 - local.Hour).AddMinutes(59 - local.Minute);
         }
         return new DateTimeOffset(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0, TimeSpan.Zero);
     }
@@ -2196,7 +2369,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     {
         var discord = new Mock<IDiscordConfigurationService>();
         discord.Setup(item => item.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new DiscordConfigurationDto(
-            Guid.NewGuid(), "guild-1", "presence-1", "news-1", "admin-1", "draft-1", "result-1", true));
+            Guid.NewGuid(), "guild-1", "presence-channel", "news-1", "admin-1", "draft-1", "result-1", true));
         return new ProcessarAgendamentosPresencaDevidosCommandHandler(
             repository,
             new SaoPauloAgendamentoPresencaTimeZone(),
@@ -2562,6 +2735,22 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
                 "guild-1", "presence-channel", "news-channel", "admin-channel",
                 "draft-channel", "result-channel", true));
             await db.SaveChangesAsync();
+            return database;
+        }
+
+        public static async Task<PostgreSqlTestDatabase> CreateAtMigrationAsync(string migration)
+        {
+            var adminConnectionString = $"Host={Environment.GetEnvironmentVariable("TEST_POSTGRES_HOST") ?? "localhost"};Port={Environment.GetEnvironmentVariable("TEST_POSTGRES_PORT") ?? "5432"};Database=postgres;Username=postgres;Password=postgres";
+            var databaseName = $"rinha_schedule_{Guid.NewGuid():N}";
+            await using var connection = new NpgsqlConnection(adminConnectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"CREATE DATABASE \"{databaseName}\"";
+            await command.ExecuteNonQueryAsync();
+            var connectionString = new NpgsqlConnectionStringBuilder(adminConnectionString) { Database = databaseName }.ConnectionString;
+            var database = new PostgreSqlTestDatabase(databaseName, adminConnectionString, connectionString);
+            await using var db = database.CreateContext();
+            await db.Database.GetService<IMigrator>().MigrateAsync(migration);
             return database;
         }
 

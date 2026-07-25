@@ -288,7 +288,8 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DateTimeOffset claimExpiresAt,
         DateTimeOffset now,
         CancellationToken ct,
-        string? expectedGuildId = null)
+        string expectedGuildId,
+        string expectedPresenceChannelId)
     {
         OcorrenciaAgendamentoPresenca.ValidarClaimProcessamento(claimId, claimExpiresAt, now);
         await OpenConnectionAsync(ct);
@@ -299,6 +300,25 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         {
             AddParameter(lockCommand, "resource", $"presence-schedule:{agendaId:N}:{localDate:yyyy-MM-dd}");
             await lockCommand.ExecuteNonQueryAsync(ct);
+        }
+
+        await using (var configurationLock = CreateCommand(dbTransaction, """
+            SELECT id
+            FROM discord_server_configurations
+            WHERE singleton_key = 1
+              AND bot_enabled
+              AND BTRIM(guild_id) = BTRIM(CAST(@expectedGuildId AS text))
+              AND BTRIM(presence_channel_id) = BTRIM(CAST(@expectedPresenceChannelId AS text))
+            FOR SHARE
+            """))
+        {
+            AddParameter(configurationLock, "expectedGuildId", expectedGuildId);
+            AddParameter(configurationLock, "expectedPresenceChannelId", expectedPresenceChannelId);
+            if (await configurationLock.ExecuteScalarAsync(ct) is null)
+            {
+                await transaction.CommitAsync(ct);
+                return null;
+            }
         }
 
         AgendamentoPresencaOcorrenciaClaim? result = null;
@@ -335,13 +355,6 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                            AND schedule.ativado_em <= @publicationAt
                            AND db_time.now >= @publicationAt
                            AND db_time.now < @closureAt))
-                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
-                      SELECT 1
-                      FROM discord_server_configurations AS configuration
-                      WHERE configuration.bot_enabled
-                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
-                        AND BTRIM(configuration.presence_channel_id) <> ''
-                      FOR SHARE))
                 ON CONFLICT (agendamento_presenca_id, data_local) DO UPDATE
                 SET status = 0,
                     codigo_falha = NULL,
@@ -375,7 +388,6 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
             AddParameter(command, "closureAt", closureAt);
             AddParameter(command, "claimId", claimId);
             AddParameter(command, "now", now);
-            AddParameter(command, "expectedGuildId", expectedGuildId);
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
             {
@@ -601,12 +613,32 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
         DraftMontagem draft,
         DateTimeOffset now,
         CancellationToken ct,
-        string? expectedGuildId = null)
+        string expectedGuildId,
+        string expectedPresenceChannelId)
     {
         await OpenConnectionAsync(ct);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         try
         {
+            await using (var configurationLock = CreateCommand(transaction.GetDbTransaction(), """
+                SELECT id
+                FROM discord_server_configurations
+                WHERE singleton_key = 1
+                  AND bot_enabled
+                  AND BTRIM(guild_id) = BTRIM(CAST(@expectedGuildId AS text))
+                  AND BTRIM(presence_channel_id) = BTRIM(CAST(@expectedPresenceChannelId AS text))
+                FOR SHARE
+                """))
+            {
+                AddParameter(configurationLock, "expectedGuildId", expectedGuildId);
+                AddParameter(configurationLock, "expectedPresenceChannelId", expectedPresenceChannelId);
+                if (await configurationLock.ExecuteScalarAsync(ct) is null)
+                {
+                    await transaction.RollbackAsync(ct);
+                    return false;
+                }
+            }
+
             Guid? lockedOccurrenceId;
             await using (var lockCommand = CreateCommand(transaction.GetDbTransaction(), """
                 SELECT id
@@ -616,19 +648,11 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND claim_id = @claimId
                   AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
-                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
-                      SELECT 1
-                      FROM discord_server_configurations AS configuration
-                      WHERE configuration.bot_enabled
-                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
-                        AND BTRIM(configuration.presence_channel_id) <> ''
-                      FOR SHARE))
                 FOR UPDATE
                 """))
             {
                 AddParameter(lockCommand, "occurrenceId", occurrenceId);
                 AddParameter(lockCommand, "claimId", claimId);
-                AddParameter(lockCommand, "expectedGuildId", expectedGuildId);
                 AddParameter(lockCommand, "now", now);
                 lockedOccurrenceId = await lockCommand.ExecuteScalarAsync(ct) as Guid?;
             }
@@ -662,19 +686,12 @@ public sealed class AgendamentoPresencaRepository(RinhaDasLendasDbContext dbCont
                   AND claim_id = @claimId
                   AND claim_expires_at > clock_timestamp()
                   AND encerramento_previsto_em > clock_timestamp()
-                  AND (CAST(@expectedGuildId AS text) IS NULL OR EXISTS (
-                      SELECT 1
-                      FROM discord_server_configurations AS configuration
-                      WHERE configuration.bot_enabled
-                        AND BTRIM(configuration.guild_id) = CAST(@expectedGuildId AS text)
-                        AND BTRIM(configuration.presence_channel_id) <> ''))
                 RETURNING TRUE
                 """))
             {
                 AddParameter(updateCommand, "draftId", draft.Id);
                 AddParameter(updateCommand, "occurrenceId", occurrenceId);
                 AddParameter(updateCommand, "claimId", claimId);
-                AddParameter(updateCommand, "expectedGuildId", expectedGuildId);
                 AddParameter(updateCommand, "now", now);
                 updated = await updateCommand.ExecuteScalarAsync(ct) is true;
             }

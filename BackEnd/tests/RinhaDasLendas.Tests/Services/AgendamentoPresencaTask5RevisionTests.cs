@@ -48,7 +48,7 @@ public sealed class AgendamentoPresencaTask5RevisionTests
             schedule.HorarioEncerramentoLocal, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(item => item.TryCompleteWithDraftAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), It.IsAny<DateTimeOffset>(),
-            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Never);
+            It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -58,9 +58,9 @@ public sealed class AgendamentoPresencaTask5RevisionTests
         var repository = BaseRepository(schedule);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 schedule.Id, Today, Publication, Closure, It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(),
-                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((Guid _, DateOnly _, DateTimeOffset _, DateTimeOffset _, Guid claimId,
-                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string? _) =>
+                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string _, string _) =>
                 new AgendamentoPresencaOcorrenciaClaim(
                     Guid.NewGuid(), claimId, true, OcorrenciaAgendamentoPresencaStatus.Processando,
                     "Snapshot", "Observacao snapshot"));
@@ -78,7 +78,7 @@ public sealed class AgendamentoPresencaTask5RevisionTests
         result.Criadas.Should().Be(0);
         repository.Verify(item => item.TryCompleteWithDraftAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), It.IsAny<DateTimeOffset>(),
-            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Never);
+            It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -90,18 +90,18 @@ public sealed class AgendamentoPresencaTask5RevisionTests
         var repository = BaseRepository(schedule);
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 schedule.Id, Today, Publication, Closure, It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(),
-                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((Guid _, DateOnly _, DateTimeOffset _, DateTimeOffset _, Guid claimId,
-                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string? _) =>
+                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string _, string _) =>
                 new AgendamentoPresencaOcorrenciaClaim(
                     Guid.NewGuid(), claimId, true, OcorrenciaAgendamentoPresencaStatus.Processando,
                     "Nome original", "Observacao original"));
         DraftMontagem? completedDraft = null;
         repository.Setup(item => item.TryCompleteWithDraftAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), It.IsAny<DateTimeOffset>(),
-                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
-            .Callback<Guid, Guid, DraftMontagem, DateTimeOffset, CancellationToken, string?>(
-                (_, _, draft, _, _, _) => completedDraft = draft)
+                It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<Guid, Guid, DraftMontagem, DateTimeOffset, CancellationToken, string, string>(
+                (_, _, draft, _, _, _, _) => completedDraft = draft)
             .ReturnsAsync(true);
         var handler = CreateHandler(repository, new ConstantClock(Publication));
 
@@ -281,15 +281,15 @@ public sealed class AgendamentoPresencaTask5RevisionTests
             .ReturnsAsync(new AgendamentoPresencaProcessingCandidate(shortDue, 1));
         repository.Setup(item => item.TryClaimOccurrenceAsync(
                 shortDue.Id, Today, Publication, Closure, It.IsAny<Guid>(), Publication.AddMinutes(5),
-                Publication, It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                Publication, It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((Guid _, DateOnly _, DateTimeOffset _, DateTimeOffset _, Guid claimId,
-                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string? _) =>
+                DateTimeOffset _, DateTimeOffset _, CancellationToken _, string _, string _) =>
                 new AgendamentoPresencaOcorrenciaClaim(
                     Guid.NewGuid(), claimId, true, OcorrenciaAgendamentoPresencaStatus.Processando,
                     shortDue.Nome, shortDue.Observacao));
         repository.Setup(item => item.TryCompleteWithDraftAsync(
                 It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DraftMontagem>(), Publication,
-                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var handler = CreateHandler(repository, new ConstantClock(Publication), options: new()

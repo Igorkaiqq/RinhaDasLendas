@@ -1017,6 +1017,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 await dbContext.SaveChangesAsync();
             }
             var draft = new DraftMontagem("Draft de teste", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
             draft.SolicitarRepublicacaoDiscord(
                 DraftMontagemPublicacaoDiscordTipo.Presenca,
                 responsibleUserId,
@@ -1033,6 +1034,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             await using var scope = Services.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
             var draft = new DraftMontagem("Draft sem publicacao", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            draft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
             return draft.Id;
@@ -1124,9 +1126,11 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             var agora = DateTimeOffset.UtcNow.AddMinutes(-10);
             var expiraEm = agora.AddMinutes(5);
             var primeiroDraft = new DraftMontagem("Draft com duas publicacoes", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            primeiroDraft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
             primeiroDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, null, null, Guid.NewGuid(), expiraEm, agora);
             primeiroDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.TimesDefinidos, null, null, Guid.NewGuid(), expiraEm, agora);
             var segundoDraft = new DraftMontagem("Draft com uma publicacao", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            segundoDraft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
             segundoDraft.IniciarTentativaPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Presenca, null, null, Guid.NewGuid(), expiraEm, agora);
             dbContext.DraftMontagens.AddRange(primeiroDraft, segundoDraft);
             await dbContext.SaveChangesAsync();

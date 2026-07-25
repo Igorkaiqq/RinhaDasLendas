@@ -13,14 +13,19 @@ public sealed class DiscordConfigurationService(
 {
     public async Task<DiscordConfigurationDto?> GetAsync(CancellationToken cancellationToken)
     {
-        var configuration = await dbContext.DiscordServerConfigurations.AsNoTracking().OrderBy(item => item.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+        var configuration = await dbContext.DiscordServerConfigurations.AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.SingletonKey == DiscordServerConfiguration.CanonicalSingletonKey,
+                cancellationToken);
         return configuration is null ? null : ToDto(configuration);
     }
 
     public async Task<DiscordConfigurationDto> SaveAsync(DiscordConfigurationDto request, CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        var configuration = await dbContext.DiscordServerConfigurations.FirstOrDefaultAsync(item => item.GuildId == request.GuildId, cancellationToken);
+        var configuration = await dbContext.DiscordServerConfigurations.SingleOrDefaultAsync(
+            item => item.SingletonKey == DiscordServerConfiguration.CanonicalSingletonKey,
+            cancellationToken);
         if (configuration is null)
         {
             configuration = new DiscordServerConfiguration(request.GuildId, request.PresenceChannelId, request.NewsChannelId, request.AdminChannelId, request.DraftChannelId, request.MatchResultChannelId, request.BotEnabled);

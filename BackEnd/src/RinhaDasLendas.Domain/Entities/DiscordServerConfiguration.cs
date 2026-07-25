@@ -5,6 +5,8 @@ namespace RinhaDasLendas.Domain.Entities;
 
 public sealed class DiscordServerConfiguration
 {
+    public const short CanonicalSingletonKey = 1;
+
     private DiscordServerConfiguration()
     {
     }
@@ -12,12 +14,14 @@ public sealed class DiscordServerConfiguration
     public DiscordServerConfiguration(string guildId, string presenceChannelId, string newsChannelId, string adminChannelId, string draftChannelId, string matchResultChannelId, bool botEnabled)
     {
         Id = Guid.NewGuid();
+        SingletonKey = CanonicalSingletonKey;
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
         Atualizar(guildId, presenceChannelId, newsChannelId, adminChannelId, draftChannelId, matchResultChannelId, botEnabled);
     }
 
     public Guid Id { get; private set; }
+    public short SingletonKey { get; private set; }
     public string GuildId { get; private set; } = string.Empty;
     public string PresenceChannelId { get; private set; } = string.Empty;
     public string NewsChannelId { get; private set; } = string.Empty;

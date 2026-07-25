@@ -39,7 +39,8 @@ public interface IAgendamentoPresencaRepository
         DateTimeOffset claimExpiresAt,
         DateTimeOffset now,
         CancellationToken ct,
-        string? expectedGuildId = null);
+        string expectedGuildId,
+        string expectedPresenceChannelId);
     Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertBlockedOccurrenceAsync(
         Guid agendaId,
         DateOnly localDate,
@@ -76,7 +77,8 @@ public interface IAgendamentoPresencaRepository
         DraftMontagem draft,
         DateTimeOffset now,
         CancellationToken ct,
-        string? expectedGuildId = null);
+        string expectedGuildId,
+        string expectedPresenceChannelId);
     Task<bool> TryMarkFailedAsync(
         Guid occurrenceId,
         Guid claimId,

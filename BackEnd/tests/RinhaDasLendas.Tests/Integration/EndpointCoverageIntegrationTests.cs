@@ -329,10 +329,17 @@ public sealed class EndpointCoverageIntegrationTests
             "canal-resultado",
             true);
         (await admin.PutAsJsonAsync("/api/v1/discord/configuracoes", configuration)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedConfiguration = configuration with { GuildId = "guild-atualizada" };
+        (await admin.PutAsJsonAsync("/api/v1/discord/configuracoes", updatedConfiguration)).StatusCode.Should().Be(HttpStatusCode.OK);
 
         (await moderator.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await player.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await admin.GetAsync("/api/v1/discord/configuracoes")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var current = await admin.GetFromJsonAsync<DiscordConfigurationDto>("/api/v1/discord/configuracoes");
+        current.Should().NotBeNull();
+        current!.GuildId.Should().Be("guild-atualizada");
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        (await db.DiscordServerConfigurations.CountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -1070,12 +1077,12 @@ public sealed class EndpointCoverageIntegrationTests
         public Task<IReadOnlyCollection<AgendamentoPresenca>> ListCandidatesAsync(DateTimeOffset now, Guid? afterId, int limit, CancellationToken ct) => inner.ListCandidatesAsync(now, afterId, limit, ct);
         public Task<AgendamentoPresencaProcessingCandidate?> GetProcessingCandidateAsync(Guid id, CancellationToken ct) => inner.GetProcessingCandidateAsync(id, ct);
         public Task<IReadOnlyCollection<OcorrenciaAgendamentoPresenca>> ListBlockedAsync(DateTimeOffset now, int limit, CancellationToken ct, Guid? afterId = null) => inner.ListBlockedAsync(now, limit, ct, afterId);
-        public Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset now, CancellationToken ct, string? expectedGuildId = null) => inner.TryClaimOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, claimId, claimExpiresAt, now, ct, expectedGuildId);
+        public Task<AgendamentoPresencaOcorrenciaClaim?> TryClaimOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, Guid claimId, DateTimeOffset claimExpiresAt, DateTimeOffset now, CancellationToken ct, string expectedGuildId, string expectedPresenceChannelId) => inner.TryClaimOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, claimId, claimExpiresAt, now, ct, expectedGuildId, expectedPresenceChannelId);
         public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertBlockedOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, string code, DateTimeOffset now, CancellationToken ct) => inner.TryUpsertBlockedOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, code, now, ct);
         public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertMissedOccurrenceAsync(Guid agendaId, DateOnly localDate, DateTimeOffset publicationAt, DateTimeOffset closureAt, string code, DateTimeOffset now, CancellationToken ct) => inner.TryUpsertMissedOccurrenceAsync(agendaId, localDate, publicationAt, closureAt, code, now, ct);
         public Task<AgendamentoPresencaOccurrenceWriteResult> TryUpsertFailedTimeZoneOccurrenceAsync(Guid agendaId, DateOnly localDate, uint observedVersion, DiaSemanaIso observedDay, TimeOnly observedPublicationTime, TimeOnly observedClosureTime, DateTimeOffset now, CancellationToken ct) => inner.TryUpsertFailedTimeZoneOccurrenceAsync(agendaId, localDate, observedVersion, observedDay, observedPublicationTime, observedClosureTime, now, ct);
         public Task<AgendamentoPresencaOccurrenceWriteResult> TryMarkClaimedOccurrenceMissedAsync(Guid occurrenceId, Guid claimId, DateTimeOffset now, CancellationToken ct) => inner.TryMarkClaimedOccurrenceMissedAsync(occurrenceId, claimId, now, ct);
-        public Task<bool> TryCompleteWithDraftAsync(Guid occurrenceId, Guid claimId, DraftMontagem draft, DateTimeOffset now, CancellationToken ct, string? expectedGuildId = null) => inner.TryCompleteWithDraftAsync(occurrenceId, claimId, draft, now, ct, expectedGuildId);
+        public Task<bool> TryCompleteWithDraftAsync(Guid occurrenceId, Guid claimId, DraftMontagem draft, DateTimeOffset now, CancellationToken ct, string expectedGuildId, string expectedPresenceChannelId) => inner.TryCompleteWithDraftAsync(occurrenceId, claimId, draft, now, ct, expectedGuildId, expectedPresenceChannelId);
         public Task<bool> TryMarkFailedAsync(Guid occurrenceId, Guid claimId, string code, DateTimeOffset now, CancellationToken ct) => inner.TryMarkFailedAsync(occurrenceId, claimId, code, now, ct);
         public async Task SaveChangesAsync(CancellationToken ct)
         {

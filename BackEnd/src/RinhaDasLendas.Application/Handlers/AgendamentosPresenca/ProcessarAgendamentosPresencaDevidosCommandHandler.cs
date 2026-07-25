@@ -286,7 +286,8 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         var claimId = Guid.NewGuid();
         var claim = await repository.TryClaimOccurrenceAsync(
             scheduleId, date, publicationAt, closureAt, claimId,
-            claimNow.AddMinutes(5), claimNow, cancellationToken, configuration.GuildId);
+            claimNow.AddMinutes(5), claimNow, cancellationToken,
+            configuration.GuildId, configuration.PresenceChannelId);
         if (claim is null)
         {
             totals.Conflict(metrics);
@@ -320,7 +321,8 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
         draft.ConfigurarEncerramentoPresenca(closureAt);
         draft.ConfigurarPublicacaoDiscord(configuration.GuildId, null);
         if (!await repository.TryCompleteWithDraftAsync(
-            claim.OcorrenciaId, claimId, draft, completionNow, cancellationToken, configuration.GuildId))
+            claim.OcorrenciaId, claimId, draft, completionNow, cancellationToken,
+            configuration.GuildId, configuration.PresenceChannelId))
         {
             totals.Conflict(metrics);
             return false;

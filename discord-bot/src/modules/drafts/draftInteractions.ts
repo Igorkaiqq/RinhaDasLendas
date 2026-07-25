@@ -201,10 +201,10 @@ export async function runDraftPollingCycle(client: Client) {
 function publicationCandidates(drafts: DraftMontagem[]): PublicationCandidate[] {
   return drafts.flatMap((draft) => {
     const candidates: PublicationCandidate[] = []
-    if (canAttemptPublication(draft, 'Presenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
+    if (hasOpenPresenceDeadline(draft) && canAttemptPublication(draft, 'Presenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
       candidates.push({ draft, tipo: 'Presenca' })
     }
-    if (env.DRAFT_NOTIFY_ROLE_ID && canAttemptPublication(draft, 'ChamadaPresenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
+    if (env.DRAFT_NOTIFY_ROLE_ID && hasOpenPresenceDeadline(draft) && canAttemptPublication(draft, 'ChamadaPresenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
       candidates.push({ draft, tipo: 'ChamadaPresenca' })
     }
     if (canAttemptPublication(draft, 'TimesDefinidos', draft.status === DraftMontagemStatus.Finalized)) {
@@ -212,6 +212,12 @@ function publicationCandidates(drafts: DraftMontagem[]): PublicationCandidate[] 
     }
     return candidates
   })
+}
+
+function hasOpenPresenceDeadline(draft: DraftMontagem) {
+  if (!draft.horarioEncerramentoPresenca) return false
+  const deadline = Date.parse(draft.horarioEncerramentoPresenca)
+  return Number.isFinite(deadline) && deadline > Date.now()
 }
 
 function canAttemptPublication(draft: DraftMontagem, tipo: DiscordPublicationType, applicableWhenMissing: boolean) {
@@ -253,6 +259,17 @@ async function publishClaimedDraft(
       erroCodigo: getPublicationErrorCode(error),
     })
     throw error
+  }
+
+  if ((isPresence || isPresenceCta) && !hasOpenPresenceDeadline(candidate.draft)) {
+    await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
+      tipo: candidate.tipo,
+      claimId,
+      discordGuildId: configuration.guildId,
+      discordChannelId: channelId,
+      erroCodigo: 'PRESENCE_DEADLINE_EXPIRED',
+    })
+    return
   }
 
   let message: { id: string }

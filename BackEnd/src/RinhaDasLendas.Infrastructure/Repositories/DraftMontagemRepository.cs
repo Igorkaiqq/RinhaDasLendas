@@ -122,6 +122,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         }
 
         bool adquirido;
+        DateTimeOffset? acquiredExpiry;
         await using (var claimCommand = dbContext.Database.GetDbConnection().CreateCommand())
         {
             claimCommand.Transaction = dbTransaction;
@@ -129,7 +130,10 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                 WITH terminal AS (
                     UPDATE draft_montagem_publicacoes_discord AS publication
                     SET status = 'Falha',
-                        ultimo_erro_codigo = 'DRAFT_NOT_OPEN',
+                        ultimo_erro_codigo = CASE
+                            WHEN draft.status <> 'PresencaAberta' THEN 'DRAFT_NOT_OPEN'
+                            ELSE 'PRESENCE_DEADLINE_EXPIRED'
+                        END,
                         claim_id = NULL,
                         claim_expira_em = NULL,
                         ultima_tentativa_em = @agora
@@ -137,26 +141,40 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                     WHERE publication.draft_montagem_id = draft.id
                       AND draft.id = @draftMontagemId
                       AND @tipo IN ('Presenca', 'ChamadaPresenca')
-                      AND draft.status <> 'PresencaAberta'
+                      AND (draft.status <> 'PresencaAberta'
+                           OR draft.horario_encerramento_presenca IS NULL
+                           OR draft.horario_encerramento_presenca <= clock_timestamp())
                       AND publication.tipo = @tipo
                       AND publication.status = 'Pendente'
                 )
                 INSERT INTO draft_montagem_publicacoes_discord
                     (id, draft_montagem_id, tipo, status, ultima_tentativa_em, claim_id, claim_expira_em)
-                SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId, @expiraEm
+                SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId,
+                       CASE WHEN @tipo IN ('Presenca', 'ChamadaPresenca')
+                           THEN LEAST(@expiraEm, horario_encerramento_presenca)
+                           ELSE @expiraEm END
                 FROM draft_montagens
                 WHERE id = @draftMontagemId
-                  AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR status = 'PresencaAberta')
+                  AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR (
+                      status = 'PresencaAberta'
+                      AND horario_encerramento_presenca > clock_timestamp()))
                 ON CONFLICT (draft_montagem_id, tipo) DO UPDATE
                 SET status = 'EmAndamento',
                     ultima_tentativa_em = @agora,
                     claim_id = @claimId,
-                    claim_expira_em = @expiraEm
+                    claim_expira_em = CASE WHEN @tipo IN ('Presenca', 'ChamadaPresenca')
+                        THEN LEAST(@expiraEm, (
+                            SELECT horario_encerramento_presenca
+                            FROM draft_montagens
+                            WHERE id = @draftMontagemId))
+                        ELSE @expiraEm END
                 WHERE draft_montagem_publicacoes_discord.status = 'Pendente'
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
-                      WHERE draft.id = @draftMontagemId AND draft.status = 'PresencaAberta'))
-                RETURNING TRUE
+                      WHERE draft.id = @draftMontagemId
+                        AND draft.status = 'PresencaAberta'
+                        AND draft.horario_encerramento_presenca > clock_timestamp()))
+                RETURNING claim_expira_em
                 """;
             AddParameter(claimCommand, "id", Guid.NewGuid());
             AddParameter(claimCommand, "draftMontagemId", draftMontagemId);
@@ -164,7 +182,14 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             AddParameter(claimCommand, "claimId", claimId);
             AddParameter(claimCommand, "expiraEm", expiraEm);
             AddParameter(claimCommand, "agora", agora);
-            adquirido = await claimCommand.ExecuteScalarAsync(cancellationToken) is true;
+            var acquiredValue = await claimCommand.ExecuteScalarAsync(cancellationToken);
+            acquiredExpiry = acquiredValue switch
+            {
+                DateTimeOffset value => value,
+                DateTime value => new DateTimeOffset(value),
+                _ => null,
+            };
+            adquirido = acquiredExpiry.HasValue;
         }
 
         DraftMontagemPublicacaoClaim? result;
@@ -184,7 +209,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                 : new DraftMontagemPublicacaoClaim(
                     adquirido,
                     adquirido ? claimId : null,
-                    adquirido ? expiraEm : null,
+                    adquirido ? acquiredExpiry : null,
                     Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(status));
         }
 
@@ -220,7 +245,9 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND claim_expira_em > @agora
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
-                      WHERE draft.id = @draftMontagemId AND draft.status = 'PresencaAberta'))
+                      WHERE draft.id = @draftMontagemId
+                        AND draft.status = 'PresencaAberta'
+                        AND draft.horario_encerramento_presenca > clock_timestamp()))
                 RETURNING draft_montagem_id
             ), legacy AS (
                 UPDATE draft_montagens

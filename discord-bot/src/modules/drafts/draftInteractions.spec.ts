@@ -27,6 +27,7 @@ function pollingDraft(id: string, publicationStatus?: string, publicationType: '
     id,
     nome: `Rinha ${id}`,
     status: 'PresencaAberta',
+    horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     publicacoesDiscord: publicationStatus ? [{ tipo: publicationType, status: publicationStatus }] : [],
     presencas: [],
     times: [],
@@ -90,13 +91,50 @@ function deferred() {
 }
 
 describe('runDraftPollingCycle', () => {
+  it('does not claim or send an open draft whose presence deadline already passed', async () => {
+    const draft = pollingDraft('expired-before-claim')
+    draft.horarioEncerramentoPresenca = new Date(Date.now() - 1000).toISOString()
+    mockPollingApi([draft])
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: null, status: 'EmAndamento' }))
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(claim.mock.callCount(), 0)
+    assert.equal(send.mock.callCount(), 0)
+  })
+
+  it('registers failure without sending when deadline crosses after claim', async () => {
+    let now = Date.parse('2026-07-24T21:00:00Z')
+    mock.method(Date, 'now', () => now)
+    const draft = pollingDraft('expired-before-send')
+    draft.horarioEncerramentoPresenca = '2026-07-24T21:01:00Z'
+    mockPollingApi([draft])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-1', expiraEm: '2026-07-24T21:01:00Z', status: 'EmAndamento' }))
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => draft as never)
+    const send = mock.fn(async () => ({ id: 'message-1' }))
+    const client = pollingClient(send)
+    const originalFetch = client.channels.fetch.bind(client.channels)
+    mock.method(client.channels, 'fetch', async (...args: Parameters<typeof client.channels.fetch>) => {
+      const channel = await originalFetch(...args)
+      now = Date.parse('2026-07-24T21:01:00Z')
+      return channel
+    })
+
+    await runDraftPollingCycle(client)
+
+    assert.equal(send.mock.callCount(), 0)
+    assert.equal(failure.mock.callCount(), 1)
+    assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'PRESENCE_DEADLINE_EXPIRED')
+  })
+
   it('publishes scheduled presence and creates the missing CTA through the existing protocol only once', async () => {
     const backendResponses: DraftMontagemDiscordOperationalDto[][] = [
       [{
         id: 'scheduled-draft',
         nome: 'Rinha semanal - 24/07/2026',
         status: 'PresencaAberta',
-        horarioEncerramentoPresenca: '2026-07-24T23:00:00Z',
+        horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         discordPresenceMessageId: null,
         publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }],
         presencas: [],
@@ -107,7 +145,7 @@ describe('runDraftPollingCycle', () => {
         id: 'scheduled-draft',
         nome: 'Rinha semanal - 24/07/2026',
         status: 'PresencaAberta',
-        horarioEncerramentoPresenca: '2026-07-24T23:00:00Z',
+        horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         discordPresenceMessageId: 'message-1',
         publicacoesDiscord: [
           { tipo: 'Presenca', status: 'Publicada' },
