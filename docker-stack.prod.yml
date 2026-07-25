@@ -25,7 +25,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__RinhaDasLendas: Host=rinhadaslendas_postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       ConnectionStrings__DefaultConnection: Host=rinhadaslendas_postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      AllowedHosts: ${BACKEND_ALLOWED_HOSTS}
+      AllowedHosts: ${BACKEND_ALLOWED_HOSTS};backend
       FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL}
       Authentication__Jwt__Issuer: ${JWT_ISSUER}
