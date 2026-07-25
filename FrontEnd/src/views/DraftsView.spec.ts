@@ -11,6 +11,7 @@ import DraftsViewSource from './DraftsView.vue?raw'
 import DraftVisualBoardSource from '@/components/drafts/visual/DraftVisualBoard.vue?raw'
 import DraftPreparationPanelSource from '@/components/drafts/DraftPreparationPanel.vue?raw'
 import DraftDiscordPublicationPanelSource from '@/components/drafts/DraftDiscordPublicationPanel.vue?raw'
+import DraftNavigatorSource from '@/components/drafts/DraftNavigator.vue?raw'
 
 const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
@@ -895,6 +896,150 @@ describe('DraftsView reason actions', () => {
     expect(DraftsViewSource).toContain('<DraftDiscordPublicationPanel')
     expect(DraftPreparationPanelSource).not.toMatch(/@\/services\//)
     expect(DraftDiscordPublicationPanelSource).not.toMatch(/@\/services\//)
+  })
+
+  it('integrates the presentation-only navigator with filtered data and permissions', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+
+    expect(navigator.props()).toMatchObject({
+      drafts: [resumo, resumoB],
+      selectedDraftId: montagem.id,
+      searchTerm: '',
+      selectedStatus: '',
+      statusOptions: [
+        'PresencaAberta',
+        'PresencaEncerrada',
+        'CapitaesDefinidos',
+        'OrdemDefinida',
+        'Aberta',
+        'Finalizada',
+        'Cancelada',
+      ],
+      loading: false,
+      loadFailed: false,
+      canCreate: true,
+    })
+    expect(DraftNavigatorSource).not.toMatch(/@\/services\//)
+    expect(DraftNavigatorSource).not.toContain('useAuthState')
+    wrapper.unmount()
+  })
+
+  it('preserves search and status filter behavior through navigator v-model events', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+
+    navigator.vm.$emit('update:searchTerm', 'segunda')
+    await nextTick()
+    expect(navigator.props('drafts')).toEqual([resumoB])
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumoB])
+    navigator.vm.$emit('update:selectedStatus', 'Aberta')
+    await flushPromises()
+
+    expect(serviceMocks.listDraftMontagens).toHaveBeenLastCalledWith({ status: 'Aberta' })
+    expect((wrapper.vm as unknown as { searchTerm: string; selectedStatus: string }).searchTerm).toBe('segunda')
+    expect((wrapper.vm as unknown as { selectedStatus: string }).selectedStatus).toBe('Aberta')
+    expect(navigator.props('drafts')).toEqual([resumoB])
+    wrapper.unmount()
+  })
+
+  it('resets both navigator filters and reloads the unfiltered list', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    navigator.vm.$emit('update:searchTerm', 'segunda')
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumoB])
+    navigator.vm.$emit('update:selectedStatus', 'Aberta')
+    await flushPromises()
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    navigator.vm.$emit('reset')
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { searchTerm: string; selectedStatus: string })).toMatchObject({
+      searchTerm: '',
+      selectedStatus: '',
+    })
+    expect(serviceMocks.listDraftMontagens).toHaveBeenLastCalledWith({ status: '' })
+    expect(navigator.props('drafts')).toEqual([resumo, resumoB])
+    wrapper.unmount()
+  })
+
+  it('preserves exact selection and creation intents from the navigator', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection())
+    serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+
+    navigator.vm.$emit('select', montagemB.id)
+    await flushPromises()
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagemB.id)
+
+    navigator.vm.$emit('create')
+    await nextTick()
+    expect((wrapper.vm as unknown as { visualSetupOpen: boolean }).visualSetupOpen).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('tracks list failure independently and retries without clearing the selected workspace', async () => {
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    serviceMocks.listDraftMontagens.mockRejectedValueOnce(new Error('list unavailable'))
+
+    navigator.vm.$emit('retry')
+    await flushPromises()
+
+    expect(navigator.props('loadFailed')).toBe(true)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagem.id)
+    expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual([])
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    navigator.vm.$emit('retry')
+    await flushPromises()
+
+    expect(navigator.props('loadFailed')).toBe(false)
+    expect(navigator.props('drafts')).toEqual([resumo, resumoB])
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagem.id)
+    wrapper.unmount()
+  })
+
+  it('keeps the newest list result when an older retry fails later', async () => {
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    let rejectOlder!: (reason: Error) => void
+    let resolveNewest!: (value: DraftMontagemResumo[]) => void
+    serviceMocks.listDraftMontagens
+      .mockImplementationOnce(() => new Promise((_, reject) => { rejectOlder = reject }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveNewest = resolve }))
+
+    navigator.vm.$emit('retry')
+    navigator.vm.$emit('retry')
+    await vi.waitFor(() => expect(resolveNewest).toBeTypeOf('function'))
+    resolveNewest([resumo, resumoB])
+    await flushPromises()
+    rejectOlder(new Error('late list failure'))
+    await flushPromises()
+
+    expect(navigator.props('loadFailed')).toBe(false)
+    expect(navigator.props('drafts')).toEqual([resumo, resumoB])
+    expect(navigator.props('loading')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not conflate action errors with list-load failure', async () => {
+    serviceMocks.confirmDraftMontagemPresence.mockRejectedValueOnce(new Error('action unavailable'))
+    const wrapper = await mountView()
+
+    wrapper.getComponent({ name: 'DraftPreparationPanel' }).vm.$emit('confirm-presence')
+    await flushPromises()
+
+    expect(wrapper.getComponent({ name: 'DraftNavigator' }).props('loadFailed')).toBe(false)
+    expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual(['Não foi possível concluir a ação.'])
+    wrapper.unmount()
   })
 
   it('preserves confirmation, cancellation, and both close-presence payloads through the preparation panel', async () => {

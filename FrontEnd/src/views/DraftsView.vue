@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+import DraftNavigator from '@/components/drafts/DraftNavigator.vue'
 import DraftReasonDialog, { type DraftReasonDialogAction } from '@/components/drafts/DraftReasonDialog.vue'
 import DraftPreparationPanel from '@/components/drafts/DraftPreparationPanel.vue'
 import DraftDiscordPublicationPanel from '@/components/drafts/DraftDiscordPublicationPanel.vue'
@@ -47,11 +48,12 @@ import { DraftMontagemEstadoValues, DraftMontagemOrdemEscolhaModoValues, DraftMo
 import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const auth = useAuthState()
 const captains = ref<Player[]>([])
 const loading = ref(true)
+const listLoadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<string[]>([])
 const serviceErrors = ref<string[]>([])
@@ -74,6 +76,7 @@ let manualPresenceRequestVersion = 0
 let manualPresenceAbortController: AbortController | null = null
 let activeDraftId: string | null = null
 let activeDraftGeneration = 0
+let listRequestVersion = 0
 
 interface DraftUpdateContext {
   draftId: string
@@ -157,9 +160,13 @@ async function loadCaptains() {
 }
 
 async function loadVisualMontagens() {
+  const requestVersion = ++listRequestVersion
   loading.value = true
+  listLoadFailed.value = false
   try {
-    visualMontagens.value = await listDraftMontagens({ status: selectedStatus.value })
+    const montagens = await listDraftMontagens({ status: selectedStatus.value })
+    if (requestVersion !== listRequestVersion) return
+    visualMontagens.value = montagens
     if (!selectedMontagem.value) {
       const initialDraftId = resolveInitialDraftId(route.query.draftId)
       if (initialDraftId) {
@@ -171,10 +178,10 @@ async function loadVisualMontagens() {
         await openMontagem(visualMontagens.value[0].id)
       }
     }
-  } catch (error) {
-    captureError(error)
+  } catch {
+    if (requestVersion === listRequestVersion) listLoadFailed.value = true
   } finally {
-    loading.value = false
+    if (requestVersion === listRequestVersion) loading.value = false
   }
 }
 
@@ -674,9 +681,9 @@ function resetFilters() {
   void loadVisualMontagens()
 }
 
-function formatRinhaDate(value?: string | null) {
-  if (!value) return t('drafts.noRinhaDate')
-  return new Date(value).toLocaleDateString(locale.value, { day: '2-digit', month: '2-digit', year: 'numeric' })
+function updateStatusFilter(value: DraftMontagemStatus | '') {
+  selectedStatus.value = value
+  void loadVisualMontagens()
 }
 
 function discordPublicationStatus(tipo: DraftMontagemPublicacaoDiscordTipo): DraftMontagemPublicacaoDiscordStatus | null {
@@ -766,46 +773,27 @@ function captureError(error: unknown) {
 
     <PendingPlayerProfileNotice v-if="!hasPlayerProfile" />
 
-    <section class="filter-bar" :aria-label="t('drafts.filtersLabel')">
-      <label class="filter-field filter-field--wide">
-        {{ t('drafts.searchLabel') }}
-        <span>
-          <span aria-hidden="true">⌕</span>
-          <input v-model="searchTerm" type="search" :placeholder="t('drafts.searchPlaceholder')" />
-        </span>
-      </label>
-      <label class="filter-field">
-        {{ t('common.status') }}
-        <select v-model="selectedStatus" @change="loadVisualMontagens">
-          <option value="">{{ t('common.all') }}</option>
-          <option v-for="status in statusOptions" :key="status" :value="status">{{ t(`drafts.status.${status}`) }}</option>
-        </select>
-      </label>
-      <button class="filter-reset" type="button" :aria-label="t('common.clearFilters')" @click="resetFilters">↺</button>
-    </section>
-
     <div v-if="errors.length" class="form-errors" role="alert">
       <p v-for="error in errors" :key="error">{{ error }}</p>
     </div>
 
     <section class="draft-layout">
-      <aside class="draft-list" :aria-label="t('drafts.listLabel')">
-        <button
-          v-for="draft in filteredDrafts"
-          :key="draft.id"
-          type="button"
-          :class="{ 'is-selected': selectedMontagem?.id === draft.id }"
-          @click="openMontagem(draft.id)"
-        >
-          <strong>{{ draft.nome }}</strong>
-          <span class="team-status" :class="`team-status--${draft.status.toLowerCase()}`">{{ t(`drafts.status.${draft.status}`) }}</span>
-          <span>{{ t('drafts.rinhaDate', { date: formatRinhaDate(draft.dataRinha ?? draft.horarioEncerramentoPresenca) }) }}</span>
-        </button>
-        <div v-if="!loading && !filteredDrafts.length" class="draft-empty-card">
-          <h2>{{ t('drafts.emptyTitle') }}</h2>
-          <p>{{ t('drafts.emptyDescription') }}</p>
-        </div>
-      </aside>
+      <DraftNavigator
+        :drafts="filteredDrafts"
+        :selected-draft-id="selectedMontagem?.id ?? null"
+        :search-term="searchTerm"
+        :selected-status="selectedStatus"
+        :status-options="statusOptions"
+        :loading="loading"
+        :load-failed="listLoadFailed"
+        :can-create="canManageDrafts"
+        @update:search-term="searchTerm = $event"
+        @update:selected-status="updateStatusFilter"
+        @select="openMontagem"
+        @reset="resetFilters"
+        @retry="loadVisualMontagens"
+        @create="visualSetupOpen = true"
+      />
 
       <div class="draft-main">
         <DraftWorkspaceHeader

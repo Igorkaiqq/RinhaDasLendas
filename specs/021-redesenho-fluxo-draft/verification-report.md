@@ -304,3 +304,56 @@
 
 - `currentTurnCaptain` somente resolve o participante quando identidade e `capitao === true` coincidem, exatamente como a validação independente da view.
 - `DraftVisualBoard.spec.ts` passou 15/15: no estado inválido não há ação nem emissão; após corrigir apenas o flag na projeção local, sem ciclo de saving ou troca de projeção, o pick é emitido, comprovando que a tentativa negada não ativou o lock.
+
+## T024-T026 - Navegação entre drafts
+
+### Progresso
+
+| Tarefa | Estado | Evidência |
+|--------|--------|-----------|
+| T024 | Concluída | `DraftNavigator.spec.ts` cobre os sete status na ordem canônica, `v-model` de busca/status, seleção e `aria-current`, reset, retry, criação autorizada, data ausente, status desconhecido, skeleton, falha, vazio, nome longo, expansão compacta local e fronteira sem serviços/autorização. |
+| T025 | Concluída | `DraftNavigator.vue` implementa o contrato tipado com status aberto a strings, estados visuais mutuamente exclusivos, fallbacks PT/EN, nome em até duas linhas e expansão compacta mantida exclusivamente no filho. |
+| T026 | Concluída | `DraftsView.vue` fornece dados filtrados, permissões e estado de carregamento, mantém seleção/detalhe/realtime e processa seleção, criação, reset, retry e filtro de status sem mover serviços para o filho. |
+
+### RED
+
+- Componente isolado: `npm test -- --run src/components/drafts/DraftNavigator.spec.ts`; 1 suíte falhou antes de executar testes porque `DraftNavigator.vue` ainda não existia, exatamente a unidade exigida por T025.
+- Integração: `npm test -- --run src/views/DraftsView.spec.ts`; 5 testes falharam e 69 passaram porque a view ainda renderizava filtros/lista diretamente e não expunha `DraftNavigator` nem estado independente de falha da listagem.
+- Reset integrado: `npm test -- --run src/views/DraftsView.spec.ts -t "resets both navigator filters"`; 1 teste falhou e 75 foram ignorados depois da remoção do binding ainda não coberto. Busca e status permaneceram preenchidos e nenhuma recarga sem filtro ocorreu.
+
+### GREEN
+
+- Componente isolado: `DraftNavigator.spec.ts` passou 9/9 após a implementação mínima do contrato visual.
+- Integração inicial: `npm test -- --run src/components/drafts/DraftNavigator.spec.ts src/views/DraftsView.spec.ts`; 2 arquivos e 84 testes aprovados (`DraftNavigator`: 9; `DraftsView`: 75).
+- Focado final: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftStateRail.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts src/i18n/i18n.spec.ts`; 8 arquivos e 174 testes aprovados (`DraftsView`: 76; `DraftNavigator`: 9; i18n: 28).
+- A listagem usa versão de requisição própria: uma falha antiga não substitui o resultado nem os estados `loading`/`loadFailed` de uma tentativa mais nova.
+- Falha e retry da lista não limpam `selectedMontagem`, metadados personalizados, conexão realtime ou erros de ação; erros de ação também não ativam `loadFailed`.
+
+### Ledger de evidências
+
+| Critério | Evidência desta fase | Estado |
+|----------|----------------------|--------|
+| SC-002 | Estrutura compacta, expansão local e quebra de nome em duas linhas estão implementadas no filho. | Cobertura estrutural aprovada; alvos de toque, screenshots e overflow real permanecem em T029-T030. |
+| SC-004 | Os sete status usam a ordem canônica e qualquer string desconhecida recebe estado neutro localizado. | Aprovado para o navegador. |
+| SC-005 | Seleção, criação, reset e retry preservam payloads, permissão e bloqueios da view; falha concorrente obsoleta é ignorada. | Aprovado para ações de navegação automatizadas. |
+| SC-007 | Novas chaves de loading, falha, vazio e expansão existem em PT/EN; data e status desconhecido foram verificados nos dois idiomas. | Aprovado para T024-T026. |
+| SC-009 | O workspace selecionado e sua orquestração permanecem ativos durante falha e recuperação da lista. | Aprovado estruturalmente; jornada autenticada permanece em T030. |
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner em `DraftsView.vue` ou `components/drafts/**/*.vue`.
+- Sincronização `pt.json`/`en.json`: aprovada; as sete novas chaves de `drafts.navigator` existem em ambos.
+- Acentuação portuguesa: revisada em loading, falha, vazio, expansão e recolhimento.
+- Placeholders, botões, títulos, badges, toasts, validações e empty states: revisados; o navegador usa somente chaves de tradução.
+- Validações frontend: nenhuma validação nova; mensagens existentes permanecem localizadas.
+- Backend: nenhuma mensagem, validação ou resource alterado; atualização não necessária.
+- Novos arquivos: `DraftNavigator.vue` e `DraftNavigator.spec.ts` respeitam o padrão de internacionalização e a fronteira de apresentação.
+
+### Gates finais
+
+- Suíte completa: `npm test`; 37 arquivos e 333 testes aprovados, sem falhas.
+- Build: `npm run build`; 2.764 módulos transformados e build concluído. Permanecem somente os avisos não bloqueantes já conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos após adotar o padrão local de tipagem de eventos DOM.
+- Internacionalização: `npm test -- --run src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.
+- Whitespace: `git diff --check`; aprovado sem saída antes do fechamento documental; reexecutado após a atualização do relatório.
+- Escopo: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.

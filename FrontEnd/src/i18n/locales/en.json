@@ -565,6 +565,15 @@
       "clearFilters": "Clear filters",
       "retry": "Try again"
     },
+    "navigator": {
+      "loading": "Loading drafts",
+      "loadFailedTitle": "Could not load drafts",
+      "loadFailedDescription": "Try again to recover the list without interrupting the open draft.",
+      "emptyCreateDescription": "Create the first draft or adjust the filters.",
+      "emptyFilterDescription": "Select another filter to find a draft.",
+      "expand": "Expand draft list",
+      "collapse": "Collapse draft list"
+    },
     "accessibility": {
       "selectedDraft": "Selected draft: {name}",
       "currentStep": "Current step: {step}"

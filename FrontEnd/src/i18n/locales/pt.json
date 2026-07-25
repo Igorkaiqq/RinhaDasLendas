@@ -565,6 +565,15 @@
       "clearFilters": "Limpar filtros",
       "retry": "Tentar novamente"
     },
+    "navigator": {
+      "loading": "Carregando drafts",
+      "loadFailedTitle": "Não foi possível carregar os drafts",
+      "loadFailedDescription": "Tente novamente para recuperar a lista sem interromper o draft aberto.",
+      "emptyCreateDescription": "Crie o primeiro draft ou ajuste os filtros.",
+      "emptyFilterDescription": "Selecione outro filtro para encontrar um draft.",
+      "expand": "Expandir lista de drafts",
+      "collapse": "Recolher lista de drafts"
+    },
     "accessibility": {
       "selectedDraft": "Draft selecionado: {name}",
       "currentStep": "Etapa atual: {step}"

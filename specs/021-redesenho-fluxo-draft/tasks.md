@@ -118,12 +118,12 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 5
 
-- [ ] T024 [US5] Escrever testes falhos de filtros, sete status, seleção, fallback, loading, retry e vazio em `FrontEnd/src/components/drafts/DraftNavigator.spec.ts`
+- [X] T024 [US5] Escrever testes falhos de filtros, sete status, seleção, fallback, loading, retry e vazio em `FrontEnd/src/components/drafts/DraftNavigator.spec.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T025 [US5] Criar navegador responsivo conforme contrato em `FrontEnd/src/components/drafts/DraftNavigator.vue`
-- [ ] T026 [US5] Integrar filtros, falha de listagem, retry, seleção e criação em `FrontEnd/src/views/DraftsView.vue`
+- [X] T025 [US5] Criar navegador responsivo conforme contrato em `FrontEnd/src/components/drafts/DraftNavigator.vue`
+- [X] T026 [US5] Integrar filtros, falha de listagem, retry, seleção e criação em `FrontEnd/src/views/DraftsView.vue`
 
 **Checkpoint**: Navegação é independente e mantém o workspace intacto.
 
