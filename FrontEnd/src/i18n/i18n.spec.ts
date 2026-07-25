@@ -84,7 +84,7 @@ function hasVisibleCharacters(value: string): boolean {
 function boundStringLiteral(value: string): string | null {
   const expression = value.trim()
   const quote = expression[0]
-  if (!quote || !['"', "'", '`'].includes(quote) || expression.at(-1) !== quote) {
+  if (!quote || !['"', "'", '`'].includes(quote) || expression[expression.length - 1] !== quote) {
     return null
   }
   return expression.slice(1, -1)
@@ -121,7 +121,7 @@ function stringLiterals(source: string): Array<{ quote: string; value: string }>
       continue
     }
 
-    const quote = source[index]
+    const quote = source[index]!
     literals.push({ quote, value })
     index += 1
     while (index < source.length) {
@@ -150,7 +150,7 @@ function withoutI18nLookups(expression: string): string {
     let end = open + 1
 
     for (; end < expression.length && depth > 0; end += 1) {
-      const character = expression[end]
+      const character = expression[end]!
       if (quote) {
         if (character === '\\') {
           end += 1
@@ -216,22 +216,22 @@ function draftHardcodedTextViolations(source: string): string[] {
   }
 
   for (const match of template.matchAll(/{{([\s\S]*?)}}/g)) {
-    for (const literal of expressionLiterals(match[1])) {
+    for (const literal of expressionLiterals(match[1]!)) {
       violations.push(`interpolation: ${literal}`)
     }
   }
 
   const attributePattern = /(?:^|\s)(:|v-bind:)?(aria-label|title|placeholder|alt)\s*=\s*(["'])([\s\S]*?)\3/g
   for (const match of template.matchAll(attributePattern)) {
-    const literal = match[1] ? boundStringLiteral(match[4]) : match[4]
+    const literal = match[1] ? boundStringLiteral(match[4]!) : match[4]!
     if (literal !== null && hasVisibleCharacters(literal)) {
-      violations.push(`${match[2]}: ${literal}`)
+      violations.push(`${match[2]!}: ${literal}`)
     }
   }
 
   const vTextPattern = /(?:^|\s)v-text\s*=\s*(["'])([\s\S]*?)\1/g
   for (const match of template.matchAll(vTextPattern)) {
-    for (const literal of expressionLiterals(match[2])) {
+    for (const literal of expressionLiterals(match[2]!)) {
       violations.push(`v-text: ${literal}`)
     }
   }
