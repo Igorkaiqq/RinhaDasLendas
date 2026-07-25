@@ -11,19 +11,50 @@ using RinhaDasLendas.Domain.Repositories;
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
-    IDraftMontagemRepository repository) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemRepository repository,
+    IValidator<RegistrarPublicacaoDiscordDraftMontagemRequestDto> validator,
+    IDraftMontagemMetrics metrics,
+    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
-        var montagem = await repository.GetByIdAsync(command.Id, cancellationToken);
-        if (montagem is null)
+        await validator.ValidateAndThrowAsync(command.Request, cancellationToken);
+        if (!DraftMontagemPublicacaoDiscordTipoParser.TryParse(command.Request.Tipo, out var tipo))
         {
-            return null;
+            throw new DomainException(MessageCodes.FieldRequired);
+        }
+        var agora = DateTimeOffset.UtcNow;
+        var updated = await repository.TryConcluirPublicacaoDiscordAsync(
+            command.Id,
+            tipo,
+            command.Request.ClaimId,
+            command.Request.DiscordGuildId,
+            command.Request.DiscordChannelId,
+            command.Request.MessageId,
+            agora,
+            cancellationToken);
+        if (!updated)
+        {
+            var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+            await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(expirados, repository, notifier, cancellationToken);
+            if (await repository.GetByIdAsync(command.Id, cancellationToken) is null)
+            {
+                return null;
+            }
+
+            throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
-        montagem.ConfigurarPublicacaoDiscord(command.Request.DiscordGuildId ?? montagem.DiscordGuildId, command.Request.DiscordPresenceMessageId);
-        await repository.SaveChangesAsync(cancellationToken);
-        var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        return DraftMontagemResponseDto.FromEntity(updated);
+        var montagem = await repository.ReloadByIdAsync(command.Id, cancellationToken);
+        metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Publicada.ToString());
+        if (montagem is not null)
+        {
+            await notifier.StateUpdatedAsync(
+                command.Id,
+                DraftMontagemRealtimeStateFactory.Create(montagem, DateTimeOffset.UtcNow),
+                cancellationToken);
+        }
+
+        return montagem is null ? null : DraftMontagemResponseDto.FromEntity(montagem);
     }
 }

@@ -2,11 +2,12 @@ import { Client, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.j
 import { env } from './config/env.js'
 import { draftCommands } from './discord/commands/draftCommands.js'
 import { DiscordChannelAccessError, handleDraftCommand, handlePresenceButton, startDraftPolling } from './modules/drafts/draftInteractions.js'
+import { handleGuildMemberAdd } from './modules/welcome/welcomeInteractions.js'
 import { PresenceButtonPrefix } from './shared/constants/draftConstants/index.js'
 import { logger } from './shared/logger.js'
 import { t } from './shared/messages/index.js'
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] })
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] })
 
 client.once('clientReady', () => {
   logger.info('Discord bot online', { bot: client.user?.tag })
@@ -28,6 +29,15 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isRepliable() && !interaction.replied) {
       await interaction.reply({ content: error instanceof DiscordChannelAccessError ? error.userMessage : t.genericError, flags: MessageFlags.Ephemeral })
     }
+  }
+})
+
+client.on('guildMemberAdd', async (member) => {
+  try {
+    await handleGuildMemberAdd(member, env.FRONTEND_PUBLIC_URL)
+    logger.info('Welcome DM sent', { userId: member.user.id, guildId: member.guild.id })
+  } catch (error) {
+    logger.error('Welcome DM failed', error, { userId: member.user.id, guildId: member.guild.id })
   }
 })
 

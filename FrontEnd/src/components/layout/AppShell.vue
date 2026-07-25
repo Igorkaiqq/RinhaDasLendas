@@ -9,12 +9,22 @@ import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
 import { Permissions } from '@/constants/permissions'
 import { logout } from '@/services/auth'
 import { useAuthState } from '@/services/authState'
+import {
+  getLatestSystemUpdate,
+  markLatestSystemUpdateSeen,
+  readLastSeenSystemUpdate,
+} from '@/services/systemUpdates'
 import type { SidebarNavigationItem, TopbarUserSummary } from '@/types/layout'
 
 const { t } = useI18n()
 const auth = useAuthState()
 const router = useRouter()
 const route = useRoute()
+const latestSystemUpdate = getLatestSystemUpdate()
+const lastSeenSystemUpdate = ref(readLastSeenSystemUpdate())
+const hasUnseenSystemUpdate = computed(
+  () => lastSeenSystemUpdate.value !== latestSystemUpdate.version,
+)
 
 const navigationItems = computed<SidebarNavigationItem[]>(() => [
   {
@@ -48,6 +58,15 @@ const navigationItems = computed<SidebarNavigationItem[]>(() => [
     routeName: AppRouteNames.Draft,
     path: AppRoutes.Draft,
     status: 'available',
+  },
+  {
+    id: 'updates',
+    label: t('navigation.updates'),
+    icon: 'UP',
+    routeName: AppRouteNames.Updates,
+    path: AppRoutes.Updates,
+    status: 'available',
+    badge: hasUnseenSystemUpdate.value ? 'new' : undefined,
   },
   {
     id: 'matches',
@@ -108,6 +127,18 @@ const pageTitle = computed(() => t(String(route.meta.titleKey ?? 'routes.home.ti
 const sidebarCollapsed = ref(false)
 const showPlayerProfileModal = ref(false)
 const dismissedForPath = ref<string | null>(null)
+
+watch(
+  () => route.name,
+  (name) => {
+    if (name === AppRouteNames.Updates) {
+      lastSeenSystemUpdate.value = markLatestSystemUpdateSeen(
+        latestSystemUpdate.version,
+      )
+    }
+  },
+  { immediate: true },
+)
 
 const shouldAskForPlayerProfile = computed(() => {
   return Boolean(auth.isAuthenticated.value && auth.user.value && !auth.user.value.jogadorId && route.name !== AppRouteNames.Profile)

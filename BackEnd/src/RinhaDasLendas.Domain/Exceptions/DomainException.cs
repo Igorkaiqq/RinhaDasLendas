@@ -1,9 +1,6 @@
 namespace RinhaDasLendas.Domain.Exceptions;
 
-public sealed class DomainException : Exception
+public sealed class DomainException(string messageCode) : Exception(messageCode)
 {
-    public DomainException(string message)
-        : base(message)
-    {
-    }
+    public string MessageCode { get; } = messageCode;
 }

@@ -9,6 +9,7 @@ export interface SidebarNavigationItem {
   routeName: AppRouteName
   path: AppRoutePath
   status: NavigationStatus
+  badge?: 'new'
 }
 
 export interface ProfileMenuItem {

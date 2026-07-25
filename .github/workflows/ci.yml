@@ -7,6 +7,21 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: 5432
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +68,17 @@ jobs:
       - name: Build bot
         working-directory: discord-bot
         run: npm run build
+
+      - name: Test bot
+        working-directory: discord-bot
+        env:
+          DISCORD_TOKEN: ci-test-token
+          DISCORD_CLIENT_ID: ci-test-client
+          DISCORD_GUILD_ID: ci-test-guild
+          RINHA_API_BASE_URL: http://localhost:5000
+          RINHA_API_INTERNAL_TOKEN: ci-test-internal-token
+          NODE_ENV: test
+        run: npm test
 
       - name: Audit bot dependencies
         working-directory: discord-bot

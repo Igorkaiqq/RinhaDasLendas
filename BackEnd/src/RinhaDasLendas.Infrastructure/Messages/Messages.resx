@@ -76,6 +76,9 @@
   <data name="ME039" xml:space="preserve"><value>Authentication:BootstrapSuperAdmin exige Email e Senha quando Enabled=true.</value></data>
   <data name="ME040" xml:space="preserve"><value>Não foi possível criar o SuperAdmin padrão: {0}</value></data>
   <data name="ME041" xml:space="preserve"><value>Não foi possível atribuir SuperAdmin ao usuário padrão: {0}</value></data>
+  <data name="ME042" xml:space="preserve"><value>O token interno do bot não está configurado com segurança.</value></data>
+  <data name="ME043" xml:space="preserve"><value>Limite de requisições excedido. Tente novamente mais tarde.</value></data>
+  <data name="ME044" xml:space="preserve"><value>A configuração de rate limit exige PermitLimit e WindowSeconds maiores que zero.</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -126,7 +129,7 @@
   <data name="MV048" xml:space="preserve"><value>Informe um capitão para cada time gerado ou habilite o sorteio</value></data>
   <data name="MV049" xml:space="preserve"><value>Capitães devem ser distintos</value></data>
   <data name="MV050" xml:space="preserve"><value>Capitães devem fazer parte dos jogadores selecionados</value></data>
-  <data name="MV051" xml:space="preserve"><value>Motivo do cancelamento deve ter no máximo 500 caracteres</value></data>
+  <data name="MV051" xml:space="preserve"><value>O motivo deve ter no máximo 500 caracteres</value></data>
   <data name="MV052" xml:space="preserve"><value>Usuário não pode alterar as próprias roles</value></data>
   <data name="MV053" xml:space="preserve"><value>O sistema deve manter ao menos um SuperAdmin ativo</value></data>
   <data name="MC001" xml:space="preserve"><value>Confirmar esta ação?</value></data>
@@ -178,6 +181,27 @@
   <data name="MV077" xml:space="preserve"><value>Configuração do Discord não encontrada</value></data>
   <data name="MV078" xml:space="preserve"><value>Canal Discord inválido</value></data>
   <data name="MV079" xml:space="preserve"><value>Token interno do bot inválido</value></data>
+  <data name="MV080" xml:space="preserve"><value>A publicação do Discord não está pendente</value></data>
+  <data name="MV081" xml:space="preserve"><value>O claim da publicação do Discord é inválido</value></data>
+  <data name="MV082" xml:space="preserve"><value>O claim da publicação do Discord expirou</value></data>
+  <data name="MV083" xml:space="preserve"><value>O identificador do claim da publicação do Discord é inválido</value></data>
+  <data name="MV084" xml:space="preserve"><value>A expiração do claim da publicação do Discord deve ser futura</value></data>
+  <data name="MV085" xml:space="preserve"><value>A publicação do Discord está em andamento</value></data>
+  <data name="MV086" xml:space="preserve"><value>Confirme a ausência da publicação do Discord antes de republicar</value></data>
+  <data name="MV087" xml:space="preserve"><value>A publicação do Discord requer reconciliação administrativa</value></data>
+  <data name="MV088" xml:space="preserve"><value>A presença foi alterada por outra solicitação. Atualize o draft e tente novamente</value></data>
+  <data name="MV089" xml:space="preserve"><value>O nome da agenda é obrigatório</value></data>
+  <data name="MV090" xml:space="preserve"><value>O nome da agenda deve ter entre 3 e 100 caracteres</value></data>
+  <data name="MV091" xml:space="preserve"><value>A observação da agenda deve ter no máximo 500 caracteres</value></data>
+  <data name="MV092" xml:space="preserve"><value>Selecione ao menos um dia da semana válido</value></data>
+  <data name="MV093" xml:space="preserve"><value>Os dias da semana da agenda não podem se repetir</value></data>
+  <data name="MV094" xml:space="preserve"><value>O encerramento deve ocorrer após a publicação no mesmo dia, com precisão de minuto</value></data>
+  <data name="MV095" xml:space="preserve"><value>A agenda arquivada não pode ser alterada</value></data>
+  <data name="MV096" xml:space="preserve"><value>O horário local da agenda é inválido ou ambíguo</value></data>
+  <data name="MV097" xml:space="preserve"><value>A agenda ou ocorrência foi alterada por outro processamento. Atualize e tente novamente</value></data>
+  <data name="MV098" xml:space="preserve"><value>A configuração do Discord está indisponível para esta ocorrência</value></data>
+  <data name="MV099" xml:space="preserve"><value>Agenda de presença não encontrada</value></data>
+  <data name="MV100" xml:space="preserve"><value>A janela desta ocorrência já foi encerrada</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>

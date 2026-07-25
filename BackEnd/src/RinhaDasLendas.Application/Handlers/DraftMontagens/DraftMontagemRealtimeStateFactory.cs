@@ -5,7 +5,7 @@ using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
-internal static class DraftMontagemRealtimeStateFactory
+public static class DraftMontagemRealtimeStateFactory
 {
     public static async Task<DraftMontagemRealtimeStateDto> CreateAsync(
         DraftMontagem montagem,
@@ -19,6 +19,11 @@ internal static class DraftMontagemRealtimeStateFactory
             : null;
 
         var canPick = jogador is not null && montagem.TurnoAtualCapitaoId == jogador.Id;
-        return new DraftMontagemRealtimeStateDto(DraftMontagemResponseDto.FromEntity(montagem), now, canPick);
+        return Create(montagem, now, canPick);
+    }
+
+    public static DraftMontagemRealtimeStateDto Create(DraftMontagem montagem, DateTimeOffset now, bool canCurrentUserPick = false)
+    {
+        return new DraftMontagemRealtimeStateDto(DraftMontagemResponseDto.FromEntity(montagem), now, canCurrentUserPick);
     }
 }

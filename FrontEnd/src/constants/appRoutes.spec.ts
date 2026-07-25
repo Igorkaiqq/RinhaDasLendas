@@ -7,12 +7,14 @@ describe('app route constants', () => {
     expect(AppRoutes.Home).toBe('/')
     expect(AppRoutes.Players).toBe('/jogadores')
     expect(AppRoutes.Settings).toBe('/configuracoes')
+    expect(AppRoutes.Updates).toBe('/atualizacoes')
   })
 
   it('defines stable route names for router matching', () => {
     expect(AppRouteNames.Home).toBe('home')
     expect(AppRouteNames.Players).toBe('players')
     expect(AppRouteNames.Settings).toBe('settings')
+    expect(AppRouteNames.Updates).toBe('updates')
   })
 
   it('keeps route paths absolute', () => {

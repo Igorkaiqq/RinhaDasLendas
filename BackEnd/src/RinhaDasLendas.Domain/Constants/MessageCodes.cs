@@ -76,6 +76,9 @@ public static class MessageCodes
     public const string BootstrapSuperAdminCredentialsRequired = "ME039";
     public const string BootstrapSuperAdminCreateFailed = "ME040";
     public const string BootstrapSuperAdminRoleAssignFailed = "ME041";
+    public const string BotInternalTokenNotSecurelyConfigured = "ME042";
+    public const string RateLimitExceeded = "ME043";
+    public const string RateLimitConfigurationInvalid = "ME044";
 
     public const string FieldRequired = "MV001";
     public const string InvalidEmailFormat = "MV002";
@@ -156,6 +159,27 @@ public static class MessageCodes
     public const string DiscordConfigurationNotFound = "MV077";
     public const string DiscordChannelInvalid = "MV078";
     public const string BotInternalTokenInvalid = "MV079";
+    public const string DiscordPublicationNotPending = "MV080";
+    public const string DiscordPublicationClaimMismatch = "MV081";
+    public const string DiscordPublicationClaimExpired = "MV082";
+    public const string DiscordPublicationClaimInvalid = "MV083";
+    public const string DiscordPublicationClaimExpirationInvalid = "MV084";
+    public const string DiscordPublicationInProgress = "MV085";
+    public const string DiscordPublicationStillPublished = "MV086";
+    public const string DiscordPublicationRequiresReconciliation = "MV087";
+    public const string PresencePersistenceConflict = "MV088";
+    public const string PresenceScheduleNameRequired = "MV089";
+    public const string PresenceScheduleNameLengthInvalid = "MV090";
+    public const string PresenceScheduleObservationTooLong = "MV091";
+    public const string PresenceScheduleDayRequired = "MV092";
+    public const string PresenceScheduleDayDuplicated = "MV093";
+    public const string PresenceScheduleTimeRangeInvalid = "MV094";
+    public const string PresenceScheduleArchived = "MV095";
+    public const string PresenceScheduleTimeZoneInvalid = "MV096";
+    public const string PresenceScheduleOccurrenceConflict = "MV097";
+    public const string PresenceScheduleDiscordUnavailable = "MV098";
+    public const string PresenceScheduleNotFound = "MV099";
+    public const string PresenceScheduleWindowExpired = "MV100";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
     public const string PresenceConfirmed = "MSIS025";

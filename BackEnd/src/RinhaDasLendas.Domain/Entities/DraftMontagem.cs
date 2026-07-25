@@ -16,6 +16,8 @@ public sealed class DraftMontagem
     private readonly List<DraftMontagemPresenca> _presencas = [];
     private readonly List<DraftMontagemEscolha> _escolhas = [];
     private readonly List<DraftMontagemSubstituicao> _substituicoes = [];
+    private readonly List<DraftMontagemPublicacaoDiscord> _publicacoesDiscord = [];
+    private readonly List<DraftMontagemAcaoAdministrativa> _acoesAdministrativas = [];
 
     private DraftMontagem()
     {
@@ -73,6 +75,8 @@ public sealed class DraftMontagem
     public IReadOnlyCollection<DraftMontagemPresenca> Presencas => _presencas;
     public IReadOnlyCollection<DraftMontagemEscolha> Escolhas => _escolhas;
     public IReadOnlyCollection<DraftMontagemSubstituicao> Substituicoes => _substituicoes;
+    public IReadOnlyCollection<DraftMontagemPublicacaoDiscord> PublicacoesDiscord => _publicacoesDiscord;
+    public IReadOnlyCollection<DraftMontagemAcaoAdministrativa> AcoesAdministrativas => _acoesAdministrativas;
 
     public static (int QuantidadeTimes, int QuantidadeReservas) CalcularEstrutura(int totalJogadores, int tamanhoEquipe)
     {
@@ -91,6 +95,142 @@ public sealed class DraftMontagem
         Touch();
     }
 
+    public DraftMontagemPublicacaoDiscord ConfigurarPublicacaoDiscordPendente(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        string? guildId,
+        string? channelId,
+        DateTimeOffset agora)
+    {
+        if (_publicacoesDiscord.Any(publicacao => publicacao.Tipo == tipo))
+        {
+            throw new DomainException(MessageCodes.PresenceScheduleOccurrenceConflict);
+        }
+
+        var publicacao = new DraftMontagemPublicacaoDiscord(tipo, guildId, channelId, agora);
+        _publicacoesDiscord.Add(publicacao);
+        if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
+        {
+            DiscordGuildId = publicacao.GuildId;
+            DiscordPresenceMessageId = null;
+        }
+
+        Touch(agora);
+        return publicacao;
+    }
+
+    public void IniciarTentativaPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        string? guildId,
+        string? channelId,
+        Guid claimId,
+        DateTimeOffset expiraEm,
+        DateTimeOffset agora)
+    {
+        ExigirPresencaAbertaParaPublicacaoDePresenca(tipo);
+        DraftMontagemPublicacaoDiscord.ValidarInicioTentativa(claimId, expiraEm, agora);
+        var publicacao = ObterOuCriarPublicacaoDiscord(tipo, guildId, channelId);
+        publicacao.IniciarTentativa(claimId, expiraEm, agora);
+        Touch(agora);
+    }
+
+    public void RegistrarPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string messageId,
+        DateTimeOffset agora)
+    {
+        ExigirPresencaAbertaParaPublicacaoDePresenca(tipo);
+        var publicacao = ObterPublicacaoDiscord(tipo);
+        publicacao.RegistrarPublicada(claimId, guildId, channelId, messageId, agora);
+        if (tipo == DraftMontagemPublicacaoDiscordTipo.Presenca)
+        {
+            DiscordGuildId = string.IsNullOrWhiteSpace(guildId) ? null : guildId.Trim();
+            DiscordPresenceMessageId = string.IsNullOrWhiteSpace(messageId) ? null : messageId.Trim();
+        }
+        Touch(agora);
+    }
+
+    private void ExigirPresencaAbertaParaPublicacaoDePresenca(
+        DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        if (tipo is DraftMontagemPublicacaoDiscordTipo.Presenca
+                or DraftMontagemPublicacaoDiscordTipo.ChamadaPresenca
+            && Status != DraftMontagemStatus.PresencaAberta)
+        {
+            throw new DomainException(MessageCodes.PresenceAlreadyClosed);
+        }
+    }
+
+    public void RegistrarFalhaPublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid claimId,
+        string? guildId,
+        string? channelId,
+        string? erroCodigo,
+        DateTimeOffset agora)
+    {
+        var publicacao = ObterPublicacaoDiscord(tipo);
+        publicacao.RegistrarFalha(claimId, guildId, channelId, erroCodigo, agora);
+        Touch(agora);
+    }
+
+    public bool MarcarPublicacaoDiscordRequerReconciliacao(DraftMontagemPublicacaoDiscordTipo tipo, DateTimeOffset agora)
+    {
+        var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
+        if (publicacao is null || !publicacao.MarcarRequerReconciliacao(agora))
+        {
+            return false;
+        }
+
+        Touch(agora);
+        return true;
+    }
+
+    public void SolicitarRepublicacaoDiscord(
+        DraftMontagemPublicacaoDiscordTipo tipo,
+        Guid responsavelUsuarioId,
+        string? motivo,
+        DateTimeOffset agora,
+        bool confirmarAusenciaPublicacao = false)
+    {
+        var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
+        var criada = publicacao is null;
+        if (publicacao is null)
+        {
+            publicacao = new DraftMontagemPublicacaoDiscord(tipo, DiscordGuildId, null, agora);
+            _publicacoesDiscord.Add(publicacao);
+        }
+
+        if (!criada && !publicacao.SolicitarRepublicacao(agora, confirmarAusenciaPublicacao))
+        {
+            return;
+        }
+
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa($"RepublicacaoDiscord:{tipo}", responsavelUsuarioId, motivo));
+        Touch(agora);
+    }
+
+    private DraftMontagemPublicacaoDiscord ObterPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo)
+    {
+        return _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo)
+            ?? throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
+    }
+
+    private DraftMontagemPublicacaoDiscord ObterOuCriarPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo, string? guildId, string? channelId)
+    {
+        var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
+        if (publicacao is not null)
+        {
+            return publicacao;
+        }
+
+        publicacao = new DraftMontagemPublicacaoDiscord(tipo, guildId, channelId);
+        _publicacoesDiscord.Add(publicacao);
+        return publicacao;
+    }
+
     public void ConfigurarEncerramentoPresenca(DateTimeOffset? horarioEncerramentoPresenca)
     {
         HorarioEncerramentoPresenca = horarioEncerramentoPresenca;
@@ -107,9 +247,14 @@ public sealed class DraftMontagem
         var existente = _presencas.FirstOrDefault(presenca => presenca.UsuarioId == usuarioId || presenca.JogadorId == jogadorId);
         if (existente is not null)
         {
-            if (existente.Confirmada)
+            if (existente.Confirmada && existente.UsuarioId == usuarioId && existente.JogadorId == jogadorId)
             {
                 return existente;
+            }
+
+            if (existente.Confirmada)
+            {
+                throw new DomainException(MessageCodes.PlayerAlreadyInQueue);
             }
 
             _presencas.Remove(existente);
@@ -121,6 +266,57 @@ public sealed class DraftMontagem
         return presenca;
     }
 
+    public DraftMontagemPresenca AdicionarPresencaManual(
+        Guid usuarioId,
+        Guid jogadorId,
+        Guid responsavelUsuarioId,
+        string? motivo)
+    {
+        if (Status != DraftMontagemStatus.PresencaAberta)
+        {
+            throw new DomainException(MessageCodes.PresenceAlreadyClosed);
+        }
+
+        var existente = _presencas.FirstOrDefault(presenca => presenca.UsuarioId == usuarioId || presenca.JogadorId == jogadorId);
+        if (existente is not null && existente.Confirmada)
+        {
+            throw new DomainException(MessageCodes.PlayerAlreadyInQueue);
+        }
+
+        if (existente is not null)
+        {
+            _presencas.Remove(existente);
+        }
+
+        var presenca = new DraftMontagemPresenca(usuarioId, jogadorId, null, DraftMontagemPresencaOrigem.Manual, _presencas.Count + 1);
+        _presencas.Add(presenca);
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("AdicaoPresencaManual", responsavelUsuarioId, motivo, jogadorId));
+        Touch();
+        return presenca;
+    }
+
+    public void RemoverPresencaManual(Guid jogadorId)
+    {
+        RemoverPresencaManual(jogadorId, null, null);
+    }
+
+    public void RemoverPresencaManual(Guid jogadorId, Guid? responsavelUsuarioId, string? motivo)
+    {
+        if (Status != DraftMontagemStatus.PresencaAberta)
+        {
+            throw new DomainException(MessageCodes.PresenceAlreadyClosed);
+        }
+
+        var presenca = _presencas.FirstOrDefault(item => item.JogadorId == jogadorId && item.Confirmada)
+            ?? throw new DomainException(MessageCodes.PresenceNotFound);
+        presenca.Cancelar();
+        if (responsavelUsuarioId is Guid responsavel)
+        {
+            _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("RemocaoPresencaManual", responsavel, motivo, jogadorId));
+        }
+        Touch();
+    }
+
     public void CancelarPresenca(Guid usuarioId)
     {
         if (Status != DraftMontagemStatus.PresencaAberta)
@@ -128,8 +324,13 @@ public sealed class DraftMontagem
             throw new DomainException(MessageCodes.PresenceAlreadyClosed);
         }
 
-        var presenca = _presencas.FirstOrDefault(item => item.UsuarioId == usuarioId && item.Confirmada)
+        var presenca = _presencas.LastOrDefault(item => item.UsuarioId == usuarioId)
             ?? throw new DomainException(MessageCodes.PresenceNotFound);
+        if (!presenca.Confirmada)
+        {
+            return;
+        }
+
         presenca.Cancelar();
         Touch();
     }
@@ -448,6 +649,11 @@ public sealed class DraftMontagem
 
     public void Cancelar(string? motivo)
     {
+        Cancelar(motivo, null);
+    }
+
+    public void Cancelar(string? motivo, Guid? responsavelUsuarioId)
+    {
         if (Status is DraftMontagemStatus.Finalizada or DraftMontagemStatus.Cancelada)
         {
             throw new DomainException(MessageCodes.DraftClosed);
@@ -456,6 +662,10 @@ public sealed class DraftMontagem
         Status = DraftMontagemStatus.Cancelada;
         LimparTurno();
         MotivoCancelamento = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
+        if (responsavelUsuarioId is Guid responsavel)
+        {
+            _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("Cancelamento", responsavel, MotivoCancelamento));
+        }
         Touch();
     }
 
@@ -620,7 +830,12 @@ public sealed class DraftMontagem
 
     private void Touch()
     {
-        DataAtualizacao = DateTimeOffset.UtcNow;
+        Touch(DateTimeOffset.UtcNow);
+    }
+
+    private void Touch(DateTimeOffset agora)
+    {
+        DataAtualizacao = agora;
         VersaoEstado++;
     }
 }

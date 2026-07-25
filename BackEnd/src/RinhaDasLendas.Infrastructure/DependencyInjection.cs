@@ -13,6 +13,7 @@ using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Infrastructure.Discord;
+using RinhaDasLendas.Infrastructure.Time;
 
 namespace RinhaDasLendas.Infrastructure;
 
@@ -64,6 +65,8 @@ public static class DependencyInjection
         services.AddScoped<ITimeRepository, TimeRepository>();
         services.AddScoped<IDraftRepository, DraftRepository>();
         services.AddScoped<IDraftMontagemRepository, DraftMontagemRepository>();
+        services.AddScoped<IAgendamentoPresencaRepository, AgendamentoPresencaRepository>();
+        services.AddSingleton<IAgendamentoPresencaTimeZone, SaoPauloAgendamentoPresencaTimeZone>();
         services.AddSingleton<IMessageProvider, ResourceMessageProvider>();
 
         return services;

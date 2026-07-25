@@ -4,7 +4,6 @@ export const DraftOptionNames = {
   Time: 'horario',
   Note: 'observacao',
   DraftId: 'draft_id',
-  Reason: 'motivo',
   CaptainIds: 'capitaes_ids',
   Mode: 'modo',
 } as const

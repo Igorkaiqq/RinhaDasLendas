@@ -206,6 +206,35 @@ Controllers should only:
 
 ---
 
+# Development Environment
+
+The .NET 10 SDK and backend tooling are provided by the `app` service in `.devcontainer/docker-compose.yml`. Do not assume `dotnet` is installed in the WSL host.
+
+Before running backend commands:
+
+1. If `dotnet --version` succeeds, the agent is already inside the devcontainer and should run commands directly.
+2. Otherwise, run backend commands through the active devcontainer:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+docker compose -f .devcontainer/docker-compose.yml exec -T app dotnet build /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+```
+
+3. If the Linux `docker` command is unavailable, try Docker Desktop's Windows CLI with `docker.exe` before reporting a blocker. The VS Code devcontainer project uses these stable names:
+
+```bash
+docker.exe start rinhadaslendas_devcontainer-app-1
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet build /workspaces/RinhaDasLendas/BackEnd/RinhaDasLendas.sln --configuration Release
+```
+
+4. Before creating containers, inspect existing devcontainer containers with `docker.exe ps -a --filter "label=com.docker.compose.project=rinhadaslendas_devcontainer"`. Reuse/start them to avoid port conflicts and duplicate PostgreSQL volumes.
+5. Run EF Core commands through the same `app` container and use paths under `/workspaces/RinhaDasLendas`.
+6. Only report the backend environment as blocked after `dotnet`, `docker`, and `docker.exe` have all been checked. If none is available, request Docker Desktop WSL integration or an active devcontainer.
+7. Frontend and Discord bot npm commands may run from the host when Node.js is available; backend verification still uses the devcontainer unless the current shell already has `dotnet`.
+
+---
+
 # Frontend Standards
 
 Mandatory technologies:
@@ -472,7 +501,7 @@ Do not create new design tokens unless explicitly approved.
 # Current Feature Context
 
 <!-- SPECKIT START -->
-
-Implementation Plan: specs/013-integracao-discord/plan.md
-
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/020-agendamento-listas-presenca/plan.md
 <!-- SPECKIT END -->

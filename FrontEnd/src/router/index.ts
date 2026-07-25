@@ -6,6 +6,7 @@ import HomeView from '@/views/HomeView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 import PlayersView from '@/views/PlayersView.vue'
 import SettingsView from '@/views/SettingsView.vue'
+import SystemUpdatesView from '@/views/SystemUpdatesView.vue'
 import TeamsView from '@/views/TeamsView.vue'
 import DraftsView from '@/views/DraftsView.vue'
 import LoginView from '@/views/LoginView.vue'
@@ -43,6 +44,12 @@ const router = createRouter({
       name: AppRouteNames.Draft,
       component: DraftsView,
       meta: { titleKey: 'routes.draft.title', requiresAuth: true },
+    },
+    {
+      path: AppRoutes.Updates,
+      name: AppRouteNames.Updates,
+      component: SystemUpdatesView,
+      meta: { titleKey: 'routes.updates.title', requiresAuth: true },
     },
     {
       path: AppRoutes.Matches,

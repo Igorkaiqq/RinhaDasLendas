@@ -5,6 +5,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Infrastructure.Identity;
+using DomainTime = RinhaDasLendas.Domain.Entities.Time;
 
 namespace RinhaDasLendas.Infrastructure.Persistence;
 
@@ -13,7 +14,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
 {
     public DbSet<Jogador> Jogadores => Set<Jogador>();
     public DbSet<PreferenciaRota> PreferenciasRotas => Set<PreferenciaRota>();
-    public DbSet<Time> Times => Set<Time>();
+    public DbSet<DomainTime> Times => Set<DomainTime>();
     public DbSet<TimeMembro> TimeMembros => Set<TimeMembro>();
     public DbSet<DraftSessao> Drafts => Set<DraftSessao>();
     public DbSet<DraftParticipante> DraftParticipantes => Set<DraftParticipante>();
@@ -22,20 +23,28 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<DraftMontagemTime> DraftMontagemTimes => Set<DraftMontagemTime>();
     public DbSet<DraftMontagemParticipante> DraftMontagemParticipantes => Set<DraftMontagemParticipante>();
     public DbSet<DraftMontagemPresenca> DraftMontagemPresencas => Set<DraftMontagemPresenca>();
+    public DbSet<DraftMontagemPublicacaoDiscord> DraftMontagemPublicacoesDiscord => Set<DraftMontagemPublicacaoDiscord>();
     public DbSet<DraftMontagemEscolha> DraftMontagemEscolhas => Set<DraftMontagemEscolha>();
     public DbSet<DraftMontagemSubstituicao> DraftMontagemSubstituicoes => Set<DraftMontagemSubstituicao>();
+    public DbSet<DraftMontagemAcaoAdministrativa> DraftMontagemAcoesAdministrativas => Set<DraftMontagemAcaoAdministrativa>();
     public DbSet<DiscordServerConfiguration> DiscordServerConfigurations => Set<DiscordServerConfiguration>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalAccount> ExternalAccounts => Set<ExternalAccount>();
     public DbSet<ExternalAuthState> ExternalAuthStates => Set<ExternalAuthState>();
     public DbSet<VinculoDiscord> VinculosDiscord => Set<VinculoDiscord>();
     public DbSet<AuditoriaUsuario> AuditoriaUsuarios => Set<AuditoriaUsuario>();
+    public DbSet<AgendamentoPresenca> AgendamentosPresenca => Set<AgendamentoPresenca>();
+    public DbSet<AgendamentoPresencaDiaSemana> AgendamentosPresencaDiasSemana => Set<AgendamentoPresencaDiaSemana>();
+    public DbSet<OcorrenciaAgendamentoPresenca> OcorrenciasAgendamentosPresenca => Set<OcorrenciaAgendamentoPresenca>();
+    public DbSet<HistoricoAgendamentoPresenca> HistoricosAgendamentosPresenca => Set<HistoricoAgendamentoPresenca>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         ConfigureIdentity(modelBuilder);
+
+        ConfigureAgendamentosPresenca(modelBuilder);
 
         modelBuilder.Entity<Jogador>(entity =>
         {
@@ -92,7 +101,7 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(preferencia => preferencia.JogadorId);
         });
 
-        modelBuilder.Entity<Time>(entity =>
+        modelBuilder.Entity<DomainTime>(entity =>
         {
             entity.ToTable("times");
             entity.HasKey(time => time.Id);
@@ -300,6 +309,16 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
                 .HasForeignKey(substituicao => substituicao.DraftMontagemId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasMany(montagem => montagem.PublicacoesDiscord)
+                .WithOne()
+                .HasForeignKey(publicacao => publicacao.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(montagem => montagem.AcoesAdministrativas)
+                .WithOne()
+                .HasForeignKey(acao => acao.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasIndex(montagem => montagem.Status);
             entity.HasIndex(montagem => new { montagem.Status, montagem.HorarioEncerramentoPresenca });
             entity.HasIndex(montagem => new { montagem.Status, montagem.Modo, montagem.TurnoExpiraEm });
@@ -309,6 +328,57 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Navigation(montagem => montagem.Presencas).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Escolhas).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Substituicoes).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(montagem => montagem.PublicacoesDiscord).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(montagem => montagem.AcoesAdministrativas).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<DraftMontagemPublicacaoDiscord>(entity =>
+        {
+            entity.ToTable("draft_montagem_publicacoes_discord");
+            entity.HasKey(publicacao => publicacao.Id);
+            entity.Property(publicacao => publicacao.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(publicacao => publicacao.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
+            entity.Property(publicacao => publicacao.Tipo).HasColumnName("tipo").HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(publicacao => publicacao.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(publicacao => publicacao.GuildId).HasColumnName("guild_id").HasMaxLength(40);
+            entity.Property(publicacao => publicacao.ChannelId).HasColumnName("channel_id").HasMaxLength(40);
+            entity.Property(publicacao => publicacao.MessageId).HasColumnName("message_id").HasMaxLength(40);
+            entity.Property(publicacao => publicacao.UltimoErroCodigo).HasColumnName("ultimo_erro_codigo").HasMaxLength(120);
+            entity.Property(publicacao => publicacao.PublicadaEm).HasColumnName("publicada_em");
+            entity.Property(publicacao => publicacao.UltimaTentativaEm).HasColumnName("ultima_tentativa_em").IsRequired();
+            entity.Property(publicacao => publicacao.ClaimId).HasColumnName("claim_id");
+            entity.Property(publicacao => publicacao.ClaimExpiraEm).HasColumnName("claim_expira_em");
+
+            entity.HasIndex(publicacao => new { publicacao.DraftMontagemId, publicacao.Tipo }).IsUnique();
+            entity.HasIndex(publicacao => publicacao.Status);
+            entity.HasIndex(publicacao => new { publicacao.Status, publicacao.ClaimExpiraEm });
+        });
+
+        modelBuilder.Entity<DraftMontagemAcaoAdministrativa>(entity =>
+        {
+            entity.ToTable("draft_montagem_acoes_administrativas");
+            entity.HasKey(acao => acao.Id);
+            entity.Property(acao => acao.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(acao => acao.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
+            entity.Property(acao => acao.Tipo).HasColumnName("tipo").HasMaxLength(60).IsRequired();
+            entity.Property(acao => acao.ResponsavelUsuarioId).HasColumnName("responsavel_usuario_id").IsRequired();
+            entity.Property(acao => acao.JogadorAlvoId).HasColumnName("jogador_alvo_id");
+            entity.Property(acao => acao.Motivo).HasColumnName("motivo").HasMaxLength(500);
+            entity.Property(acao => acao.RegistradoEm).HasColumnName("registrado_em").IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(acao => acao.ResponsavelUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Jogador>()
+                .WithMany()
+                .HasForeignKey(acao => acao.JogadorAlvoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(acao => acao.DraftMontagemId);
+            entity.HasIndex(acao => acao.ResponsavelUsuarioId);
+            entity.HasIndex(acao => acao.JogadorAlvoId);
         });
 
         modelBuilder.Entity<DraftMontagemPresenca>(entity =>
@@ -470,6 +540,140 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(substituicao => substituicao.DraftMontagemId);
             entity.HasIndex(substituicao => substituicao.TimeId);
             entity.HasIndex(substituicao => substituicao.ReservaEntrouId);
+        });
+    }
+
+    private static void ConfigureAgendamentosPresenca(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AgendamentoPresenca>(entity =>
+        {
+            entity.ToTable("agendamentos_presenca", table =>
+            {
+                table.HasCheckConstraint("ck_agendamentos_presenca_status", "status BETWEEN 0 AND 2");
+                table.HasCheckConstraint(
+                    "ck_agendamentos_presenca_horarios",
+                    "horario_encerramento_local > horario_publicacao_local AND date_part('second', horario_publicacao_local) = 0 AND date_part('second', horario_encerramento_local) = 0");
+            });
+            entity.HasKey(schedule => schedule.Id);
+            entity.Property(schedule => schedule.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(schedule => schedule.Nome).HasColumnName("nome").HasMaxLength(100).IsRequired();
+            entity.Property(schedule => schedule.Observacao).HasColumnName("observacao").HasMaxLength(500);
+            entity.Property(schedule => schedule.HorarioPublicacaoLocal).HasColumnName("horario_publicacao_local").HasColumnType("time without time zone").IsRequired();
+            entity.Property(schedule => schedule.HorarioEncerramentoLocal).HasColumnName("horario_encerramento_local").HasColumnType("time without time zone").IsRequired();
+            entity.Property(schedule => schedule.Status).HasColumnName("status").HasConversion<short>().HasColumnType("smallint").IsRequired();
+            entity.Property(schedule => schedule.AtivadoEm).HasColumnName("ativado_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(schedule => schedule.PausadoEm).HasColumnName("pausado_em").HasColumnType("timestamp with time zone");
+            entity.Property(schedule => schedule.ArquivadoEm).HasColumnName("arquivado_em").HasColumnType("timestamp with time zone");
+            entity.Property(schedule => schedule.UltimaDataAvaliada).HasColumnName("ultima_data_avaliada").HasColumnType("date").IsRequired();
+            entity.Property(schedule => schedule.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
+            entity.Property(schedule => schedule.CriadoEm).HasColumnName("criado_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(schedule => schedule.AtualizadoEm).HasColumnName("atualizado_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property<uint>("xmin").IsRowVersion();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(schedule => schedule.CriadoPorUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(schedule => schedule.DiasSemana)
+                .WithOne()
+                .HasForeignKey(day => day.AgendamentoPresencaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(schedule => schedule.Ocorrencias)
+                .WithOne()
+                .HasForeignKey(occurrence => occurrence.AgendamentoPresencaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(schedule => schedule.Historicos)
+                .WithOne()
+                .HasForeignKey(history => history.AgendamentoPresencaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(schedule => schedule.CriadoPorUsuarioId);
+            entity.HasIndex(schedule => new
+                {
+                    schedule.UltimaDataAvaliada,
+                    schedule.HorarioPublicacaoLocal,
+                    schedule.HorarioEncerramentoLocal,
+                })
+                .HasFilter("status = 0");
+            entity.Navigation(schedule => schedule.DiasSemana).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(schedule => schedule.Ocorrencias).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(schedule => schedule.Historicos).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<AgendamentoPresencaDiaSemana>(entity =>
+        {
+            entity.ToTable("agendamentos_presenca_dias_semana", table =>
+                table.HasCheckConstraint("ck_agendamentos_presenca_dias_semana_dia", "dia_semana BETWEEN 1 AND 7"));
+            entity.HasKey(day => new { day.AgendamentoPresencaId, day.DiaSemana });
+            entity.Property(day => day.AgendamentoPresencaId).HasColumnName("agendamento_presenca_id");
+            entity.Property(day => day.DiaSemana).HasColumnName("dia_semana").HasConversion<short>().HasColumnType("smallint");
+        });
+
+        modelBuilder.Entity<OcorrenciaAgendamentoPresenca>(entity =>
+        {
+            entity.ToTable("ocorrencias_agendamentos_presenca", table =>
+            {
+                table.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_status", "status BETWEEN 0 AND 4");
+                table.HasCheckConstraint("ck_ocorrencias_agendamentos_presenca_janela", "encerramento_previsto_em > publicacao_prevista_em");
+                table.HasCheckConstraint(
+                    "ck_ocorrencias_agendamentos_presenca_draft_criada",
+                    "(status = 2 AND draft_montagem_id IS NOT NULL) OR (status <> 2 AND draft_montagem_id IS NULL)");
+                table.HasCheckConstraint(
+                    "ck_ocorrencias_agendamentos_presenca_claim",
+                    "(status = 0 AND claim_id IS NOT NULL AND claim_expires_at IS NOT NULL) OR (status <> 0 AND claim_id IS NULL AND claim_expires_at IS NULL)");
+            });
+            entity.HasKey(occurrence => occurrence.Id);
+            entity.Property(occurrence => occurrence.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(occurrence => occurrence.AgendamentoPresencaId).HasColumnName("agendamento_presenca_id").IsRequired();
+            entity.Property(occurrence => occurrence.DataLocal).HasColumnName("data_local").HasColumnType("date").IsRequired();
+            entity.Property(occurrence => occurrence.PublicacaoPrevistaEm).HasColumnName("publicacao_prevista_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(occurrence => occurrence.EncerramentoPrevistoEm).HasColumnName("encerramento_previsto_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(occurrence => occurrence.Status).HasColumnName("status").HasConversion<short>().HasColumnType("smallint").IsRequired();
+            entity.Property(occurrence => occurrence.DraftMontagemId).HasColumnName("draft_montagem_id");
+            entity.Property(occurrence => occurrence.CodigoFalha).HasColumnName("codigo_falha").HasMaxLength(16);
+            entity.Property(occurrence => occurrence.NomeSnapshot).HasColumnName("nome_snapshot").HasMaxLength(100).IsRequired();
+            entity.Property(occurrence => occurrence.ObservacaoSnapshot).HasColumnName("observacao_snapshot").HasMaxLength(500);
+            entity.Property(occurrence => occurrence.ClaimId).HasColumnName("claim_id");
+            entity.Property(occurrence => occurrence.ClaimExpiresAt).HasColumnName("claim_expires_at").HasColumnType("timestamp with time zone");
+            entity.Property(occurrence => occurrence.UltimaTentativaEm).HasColumnName("ultima_tentativa_em").HasColumnType("timestamp with time zone");
+            entity.Property(occurrence => occurrence.CriadaEm).HasColumnName("criada_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(occurrence => occurrence.AtualizadaEm).HasColumnName("atualizada_em").HasColumnType("timestamp with time zone").IsRequired();
+
+            entity.HasOne<DraftMontagem>()
+                .WithMany()
+                .HasForeignKey(occurrence => occurrence.DraftMontagemId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(occurrence => new { occurrence.AgendamentoPresencaId, occurrence.DataLocal }).IsUnique();
+            entity.HasIndex(occurrence => occurrence.DraftMontagemId).IsUnique().HasFilter("draft_montagem_id IS NOT NULL");
+            entity.HasIndex(occurrence => new
+                {
+                    occurrence.Status,
+                    occurrence.ClaimExpiresAt,
+                    occurrence.EncerramentoPrevistoEm,
+                })
+                .HasFilter("status IN (0, 1)");
+            entity.HasIndex(occurrence => new { occurrence.AgendamentoPresencaId, occurrence.DataLocal })
+                .IsDescending(false, true);
+        });
+
+        modelBuilder.Entity<HistoricoAgendamentoPresenca>(entity =>
+        {
+            entity.ToTable("historicos_agendamentos_presenca", table =>
+                table.HasCheckConstraint("ck_historicos_agendamentos_presenca_acao", "acao BETWEEN 0 AND 4"));
+            entity.HasKey(history => history.Id);
+            entity.Property(history => history.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(history => history.AgendamentoPresencaId).HasColumnName("agendamento_presenca_id").IsRequired();
+            entity.Property(history => history.Acao).HasColumnName("acao").HasConversion<short>().HasColumnType("smallint").IsRequired();
+            entity.Property(history => history.ResponsavelUsuarioId).HasColumnName("responsavel_usuario_id").IsRequired();
+            entity.Property(history => history.RegistradoEm).HasColumnName("registrado_em").HasColumnType("timestamp with time zone").IsRequired();
+            entity.Property(history => history.CamposAlterados).HasColumnName("campos_alterados").HasMaxLength(200).IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(history => history.ResponsavelUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(history => history.AgendamentoPresencaId);
+            entity.HasIndex(history => history.ResponsavelUsuarioId);
         });
     }
 
@@ -655,6 +859,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.ToTable("discord_server_configurations");
             entity.HasKey(configuration => configuration.Id);
             entity.Property(configuration => configuration.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(configuration => configuration.SingletonKey)
+                .HasColumnName("singleton_key")
+                .HasDefaultValue(DiscordServerConfiguration.CanonicalSingletonKey)
+                .IsRequired();
             entity.Property(configuration => configuration.GuildId).HasColumnName("guild_id").HasMaxLength(40).IsRequired();
             entity.Property(configuration => configuration.PresenceChannelId).HasColumnName("presence_channel_id").HasMaxLength(40).IsRequired();
             entity.Property(configuration => configuration.NewsChannelId).HasColumnName("news_channel_id").HasMaxLength(40).IsRequired();
@@ -665,6 +873,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(configuration => configuration.CreatedAt).HasColumnName("created_at").IsRequired();
             entity.Property(configuration => configuration.UpdatedAt).HasColumnName("updated_at").IsRequired();
             entity.HasIndex(configuration => configuration.GuildId).IsUnique();
+            entity.HasIndex(configuration => configuration.SingletonKey).IsUnique();
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_discord_server_configurations_singleton_key",
+                "singleton_key = 1"));
         });
 
         modelBuilder.Entity<AuditoriaUsuario>(entity =>

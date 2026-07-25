@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 
 import DiscordLinkSection from '@/components/users/DiscordLinkSection.vue'
 import DiscordAdminConfigurationSection from '@/components/users/DiscordAdminConfigurationSection.vue'
+import PresenceScheduleSection from '@/components/settings/PresenceScheduleSection.vue'
 import { Permissions } from '@/constants/permissions'
 import { useAuthState } from '@/services/authState'
 
@@ -42,5 +43,6 @@ const discordMessage = computed(() => {
       <DiscordLinkSection />
       <DiscordAdminConfigurationSection v-if="auth.hasPermission(Permissions.CanManageUsers)" />
     </section>
+    <PresenceScheduleSection v-if="auth.hasPermission(Permissions.CanManageDrafts)" />
   </section>
 </template>

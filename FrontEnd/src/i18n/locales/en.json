@@ -11,6 +11,8 @@
     "draft": "Draft",
     "matches": "Matches",
     "stats": "Statistics",
+    "updates": "Updates",
+    "new": "New",
     "users": "Users",
     "settings": "Settings",
     "support": "Support",
@@ -18,6 +20,8 @@
     "joinTournament": "Join Tournament",
     "joinTournamentSoon": "Tournament soon",
     "arena": "Arena",
+    "operations": "Operations",
+    "account": "Account",
     "soon": "Soon",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
@@ -156,6 +160,7 @@
     "forgotPassword": { "title": "Forgot password" },
     "resetPassword": { "title": "Reset password" },
     "profile": { "title": "Profile" },
+    "updates": { "title": "System updates" },
     "usersAdmin": { "title": "Users" },
     "forbidden": { "title": "Access denied" }
   },
@@ -244,6 +249,178 @@
           "link": "Could not start Discord linking.",
           "unlink": "Could not unlink Discord."
         }
+      }
+    },
+    "presenceSchedules": {
+      "eyebrow": "Automations",
+      "title": "Presence lists",
+      "description": "Organize weekly publications and follow each run without changing drafts already created.",
+      "loading": "Loading schedules…",
+      "error": "Could not load the schedules.",
+      "refreshError": "The change was saved, but the list could not be refreshed.",
+      "actions": {
+        "create": "New schedule",
+        "edit": "Edit",
+        "pause": "Pause",
+        "reactivate": "Reactivate",
+        "archive": "Archive",
+        "viewHistory": "View history",
+        "retry": "Try again",
+        "loadMore": "Load more schedules",
+        "loadingMore": "Loading more schedules…",
+        "refreshing": "Refreshing list…",
+        "previous": "Previous",
+        "next": "Next",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "processing": "Processing…"
+      },
+      "summary": {
+        "active": "Active schedules loaded",
+        "next": "Next run",
+        "none": "No run scheduled",
+        "timezoneLabel": "Time zone",
+        "timezone": "Brasília time"
+      },
+      "fields": {
+        "name": {
+          "label": "Name",
+          "placeholder": "E.g. Friday Rinha…"
+        },
+        "observation": {
+          "label": "Note",
+          "placeholder": "E.g. Team formation notes…",
+          "description": "This information follows the schedule and can guide organization."
+        },
+        "weekdays": {
+          "label": "Weekdays",
+          "description": "Select when the list should be published."
+        },
+        "publication": {
+          "label": "Publication time"
+        },
+        "closing": {
+          "label": "Closing time"
+        }
+      },
+      "weekdays": {
+        "Segunda": "Monday",
+        "Terca": "Tuesday",
+        "Quarta": "Wednesday",
+        "Quinta": "Thursday",
+        "Sexta": "Friday",
+        "Sabado": "Saturday",
+        "Domingo": "Sunday"
+      },
+      "statuses": {
+        "schedule": {
+          "Ativo": "Active",
+          "Pausado": "Paused"
+        },
+        "occurrence": {
+          "Processando": "Processing",
+          "Bloqueada": "Blocked",
+          "Criada": "Created",
+          "Perdida": "Missed",
+          "Falha": "Failed"
+        }
+      },
+      "form": {
+        "create": {
+          "title": "New schedule",
+          "description": "Define the weekly presence list window.",
+          "submit": "Create schedule"
+        },
+        "edit": {
+          "title": "Edit schedule",
+          "description": "The change applies to future runs.",
+          "submit": "Save changes"
+        },
+        "summary": "Brasília time · Teams of 5 · Repeats until paused"
+      },
+      "validation": {
+        "nameLength": "Enter a name between 3 and 100 characters.",
+        "observationLength": "The note must be at most 500 characters.",
+        "weekdayRequired": "Select at least one weekday.",
+        "publicationRequired": "Enter the publication time.",
+        "closingAfterPublication": "Closing must be later than publication."
+      },
+      "card": {
+        "days": "Recurrence",
+        "window": "Window",
+        "windowValue": "{publication}–{closing}",
+        "next": "Next run",
+        "noNext": "No next run while paused",
+        "latest": "Latest result",
+        "noOccurrence": "No runs recorded yet."
+      },
+      "empty": {
+        "title": "No schedules created yet.",
+        "description": "Create the first weekly routine to publish presence lists automatically.",
+        "action": "Create first schedule"
+      },
+      "confirm": {
+        "pause": {
+          "title": "Pause schedule",
+          "description": "New occurrences for {name} will no longer be created. Drafts already created remain available.",
+          "confirm": "Pause schedule"
+        },
+        "reactivate": {
+          "title": "Reactivate schedule",
+          "description": "{name} will generate occurrences again in the next eligible windows.",
+          "confirm": "Reactivate schedule"
+        },
+        "archive": {
+          "title": "Archive schedule",
+          "description": "{name} will leave this hub. Drafts already created and history will be preserved.",
+          "confirm": "Archive schedule"
+        }
+      },
+      "history": {
+        "title": "History for {name}",
+        "description": "Latest runs for this schedule, in the order provided by the server.",
+        "loading": "Loading history…",
+        "error": "Could not load history.",
+        "empty": {
+          "title": "No runs recorded yet.",
+          "description": "Occurrences will appear here after the first window is evaluated."
+        },
+        "window": "Publication: {publication} · Closing: {closing}",
+        "draft": "Draft {id}",
+        "total": "{total} runs",
+        "livePage": "Page {page} of {total} loaded."
+      },
+      "toasts": {
+        "created": "Schedule created.",
+        "updated": "Schedule updated.",
+        "paused": "Schedule paused.",
+        "reactivated": "Schedule reactivated.",
+        "archived": "Schedule archived.",
+        "saveError": "Could not save the schedule.",
+        "actionError": "Could not complete the action.",
+        "loadMoreError": "Could not load more schedules."
+      },
+      "messageCodes": {
+        "MV089": "Enter the schedule name.",
+        "MV090": "The schedule name must be between 3 and 100 characters.",
+        "MV091": "The note must be at most 500 characters.",
+        "MV092": "Select at least one weekday.",
+        "MV093": "The schedule contains duplicate weekdays.",
+        "MV094": "Closing must be later than publication on the same day.",
+        "MV095": "This schedule is archived.",
+        "MV096": "The local time for this run could not be processed.",
+        "MV097": "The schedule was changed by another operation. Refresh and try again.",
+        "MV098": "This run could not be processed now.",
+        "MV099": "Schedule not found.",
+        "MV100": "This occurrence window has already closed.",
+        "requestFailed": "The request could not be completed by the server.",
+        "unknown": "The run recorded a failure known by the server."
+      },
+      "accessibility": {
+        "summary": "Presence schedule summary",
+        "scheduleList": "Presence list schedules",
+        "historyList": "Run history",
+        "weekdayOptions": "Schedule weekdays"
       }
     },
     "discordAdmin": {
@@ -365,6 +542,16 @@
     "title": "Player Draft",
     "subtitle": "Build teams with captains, pick order, and transparent history.",
     "visualSubtitle": "Build teams visually with captains, reserves, routes, and persisted layout.",
+    "rail": {
+      "label": "Draft flow",
+      "presenceOpen": "Presence open",
+      "presenceClosed": "Presence closed",
+      "captains": "Captains",
+      "order": "Order",
+      "picking": "Picks",
+      "finished": "Finished",
+      "discord": "Discord"
+    },
     "create": "Create Draft",
     "createWithIcon": "+ Create Draft",
     "created": "Draft {name} created.",
@@ -379,7 +566,10 @@
     "noSelectionTitle": "No draft selected",
     "noSelectionDescription": "Create or select a draft to build the teams.",
     "cardSummary": "{teams} teams · {reserves} reserves",
+    "rinhaDate": "Rinha: {date}",
+    "noRinhaDate": "Date not informed",
     "cancelReason": "Draft canceled",
+    "cancelReasonPrompt": "Enter the reason for cancelling this draft.",
     "metrics": { "visible": "{total} drafts" },
     "messages": {
       "layoutSaved": "Draft layout saved.",
@@ -402,7 +592,8 @@
     },
     "errors": {
       "create": "Could not create draft.",
-      "action": "Could not complete the action."
+      "action": "Could not complete the action.",
+      "linkNotFound": "I could not find the draft from this link. Check if it still exists or choose another one from the list."
     },
     "presence": {
       "eyebrow": "Presence list",
@@ -418,9 +609,92 @@
       "drawOrder": "Draw pick order",
       "confirmed": "Presence confirmed.",
       "cancelled": "Presence cancelled.",
+      "manualPlayer": "Add player",
+      "searchPlayer": "Search eligible player",
+      "selectPlayer": "Select a player",
+      "addManual": "Add presence",
+      "removeManual": "Remove",
+      "removeManualReason": "Presence removed manually",
+      "removeManualReasonPrompt": "Enter the reason for removing this presence.",
+      "manualAdded": "Presence added manually.",
+      "manualRemoved": "Presence removed manually.",
       "closed": "Presence list closed.",
       "captainsDefined": "Captains defined.",
       "orderDefined": "Pick order defined."
+    },
+    "presenceOrigin": {
+      "Web": "Site",
+      "Discord": "Discord",
+      "Manual": "Manual"
+    },
+    "publication": {
+      "statusLabel": "Discord publication status",
+      "presence": "Discord presence: {status}",
+      "presenceCta": "Discord presence call: {status}",
+      "finalTeams": "Discord teams: {status}",
+      "status": {
+        "Pendente": "pending",
+        "EmAndamento": "in progress",
+        "Publicada": "published",
+        "Falha": "failed",
+        "RequerReconciliacao": "requires reconciliation",
+        "Ignorada": "skipped"
+      },
+      "republishPresence": "Republish presence",
+      "republishPresenceCta": "Republish presence call",
+      "republishFinalTeams": "Republish teams",
+      "republishReason": "Republish requested",
+      "republishReasonPrompt": "Enter the reason for republishing.",
+      "republishRequested": "Republish requested. The bot will publish again on the next processing run."
+    },
+    "reasonDialog": {
+      "administrativeKicker": "Administrative action",
+      "discordKicker": "Discord publication",
+      "reasonLabel": "Reason",
+      "reasonRequired": "Enter a reason to continue.",
+      "reasonMaxLength": "The reason must be at most 500 characters.",
+      "back": "Back",
+      "currentStatus": "Current status: {status}",
+      "affectedPlayer": "Affected player: {name}",
+      "cancelDraft": {
+        "title": "Cancel draft",
+        "description": "The draft will be canceled and will no longer appear in the default list.",
+        "defaultReason": "Draft canceled",
+        "confirm": "Cancel draft"
+      },
+      "addManualPresence": {
+        "title": "Add presence",
+        "description": "The player will be manually added to this draft's presence list.",
+        "defaultReason": "Presence added manually",
+        "confirm": "Add presence"
+      },
+      "removeManualPresence": {
+        "title": "Remove presence",
+        "description": "The player will be removed from this draft's presence list.",
+        "defaultReason": "Presence removed manually",
+        "confirm": "Remove presence"
+      },
+      "republishPresence": {
+        "title": "Republish presence list",
+        "description": "A new presence list message will be requested from the bot.",
+        "defaultReason": "Republish requested",
+        "confirm": "Republish presence",
+        "context": "Presence list"
+      },
+      "republishPresenceCta": {
+        "title": "Republish presence call",
+        "description": "A new role mention call will be requested from the bot without republishing the presence list.",
+        "defaultReason": "Presence call republish requested",
+        "confirm": "Republish presence call",
+        "context": "Presence call"
+      },
+      "republishTeams": {
+        "title": "Republish teams",
+        "description": "A new message with the defined teams will be requested from the bot.",
+        "defaultReason": "Republish requested",
+        "confirm": "Republish teams",
+        "context": "Defined teams"
+      }
     },
     "teams": {
       "teamA": "Team A",
@@ -706,6 +980,160 @@
     "title": "Delete {name}?",
     "description": "This action removes the player from temporary data. With the backend active, the action uses safe deactivation.",
     "confirm": "Confirm"
+  },
+  "updates": {
+    "eyebrow": "Product history",
+    "title": "System updates",
+    "description": "Follow new features, improvements, and fixes delivered to the community.",
+    "latest": "Latest update",
+    "searchLabel": "Search updates",
+    "searchPlaceholder": "Search by feature or improvement…",
+    "filterLabel": "Filter by category",
+    "allCategories": "All",
+    "resultCount": "{count} update | {count} updates",
+    "emptyTitle": "No updates found",
+    "emptyDescription": "Try another term or remove the selected filters.",
+    "clearFilters": "Clear filters",
+    "details": "View details",
+    "timelineLabel": "Update timeline",
+    "versionIndexLabel": "Version index",
+    "expandCategory": "Expand {category} details",
+    "collapseCategory": "Collapse {category} details",
+    "categories": {
+      "feature": "Feature",
+      "improvement": "Improvement",
+      "fix": "Fix",
+      "security": "Security",
+      "infrastructure": "Infrastructure"
+    },
+    "areas": {
+      "platform": "Platform",
+      "players": "Players",
+      "teams": "Teams",
+      "users": "Users",
+      "drafts": "Drafts",
+      "discord": "Discord",
+      "security": "Security",
+      "infrastructure": "Infrastructure"
+    },
+    "releases": {
+      "2026_07_2": {
+        "title": "Scheduled presence lists",
+        "summary": "Moderators can now organize weekly lists with defined times, history tracking, and safe recovery during the configured window.",
+        "details": {
+          "weekly-presence-scheduling": {
+            "title": "Weekly presence scheduling",
+            "description": "Create schedules for selected weekdays and let each new list enter the current Discord flow automatically."
+          },
+          "publication-closing-times": {
+            "title": "Clear publication and closing times",
+            "description": "Each schedule states when the list will be published and until what time players can confirm presence."
+          },
+          "moderator-management": {
+            "title": "Management available to Moderator+",
+            "description": "Authorized users can create, edit, pause, reactivate, and monitor schedules from the settings area."
+          },
+          "window-recovery": {
+            "title": "Recovery within the window",
+            "description": "If the platform is temporarily unavailable, the list can still be created when service returns before closing."
+          },
+          "duplicate-draft-protection": {
+            "title": "Duplicate list protection",
+            "description": "Each schedule and date creates at most one draft, even after restarts or simultaneous processing."
+          }
+        }
+      },
+      "2026_07_1": {
+        "title": "More reliable drafts and Discord",
+        "summary": "Draft operations gained direct access, clearer confirmations, recoverable publications, and synchronized presence, along with stronger security and stability.",
+        "details": {
+          "discord-draft-deep-link": { "title": "Direct draft access from Discord", "description": "Invitation links now open the matching draft automatically, removing manual selection from the list." },
+          "invalid-draft-link-feedback": { "title": "Invalid link handling", "description": "When a draft does not exist or is unavailable, the page explains the problem while keeping other drafts accessible." },
+          "contextual-admin-confirmations": { "title": "Contextual admin confirmations", "description": "Cancellations, presence removals, and republications use integrated dialogs that explain context and impact before confirmation." },
+          "discord-publication-statuses": { "title": "Separate publication statuses", "description": "Administrators can distinguish the presence list, role mention call, and final team publication states in Discord." },
+          "individual-publication-recovery": { "title": "Individual failure recovery", "description": "Each failed publication can be recovered separately without repeating messages that were already delivered." },
+          "duplicate-message-protection": { "title": "Duplicate message protection", "description": "Publications remain unique even during bot restarts or simultaneous execution." },
+          "realtime-presence": { "title": "Realtime presence updates", "description": "Confirmations, cancellations, and admin changes appear for everyone viewing the draft, including after reconnection." },
+          "consistent-presence-operations": { "title": "More consistent presence operations", "description": "Repeated or simultaneous actions preserve one presence per player and return predictable outcomes." },
+          "eligible-player-search": { "title": "More accurate manual player search", "description": "Search only shows eligible, unconfirmed players and discards stale results when the context changes." },
+          "admin-action-audit": { "title": "More transparent admin actions", "description": "Cancellations, removals, manual additions, and republications record their reason and responsible user when applicable." },
+          "clear-bot-messages": { "title": "Clearer bot messages", "description": "Disabled configuration, invalid dates, and known failures receive specific guidance instead of generic responses." },
+          "discord-permission-diagnostics": { "title": "Discord permission diagnostics", "description": "The bot distinguishes channel access, message, embed, and mention problems to make configuration easier to correct." },
+          "independent-presence-call": { "title": "Independent presence call", "description": "The role mention call has its own state and recovery; a failure does not repeat or invalidate the main list." },
+          "resilient-publication-queue": { "title": "More reliable publication queue", "description": "Pending publications continue processing across many drafts and after isolated failures elsewhere in the cycle." },
+          "security-stability-hardening": { "title": "Internal security and stability hardening", "description": "Stronger access protection, validation, and operational isolation make the platform safer and more predictable without changing how it is used." }
+        }
+      },
+      "2026_06_7": {
+        "title": "Security and visual identity",
+        "summary": "The platform advanced its protection, release readiness, operational visibility, and brand consistency.",
+        "details": {
+          "security-baseline": { "title": "Stronger security baseline", "description": "Preventive controls and secure standards now better protect internal workflows." },
+          "deployment-readiness": { "title": "More predictable releases", "description": "Environment preparation and deployment checks reduce risk when shipping new versions." },
+          "operational-observability": { "title": "Greater operational visibility", "description": "Operational signals and records help identify failures and monitor application health." },
+          "visual-identity": { "title": "Consolidated visual identity", "description": "Screens and components gained a visual language that better reflects the competitive arena." }
+        }
+      },
+      "2026_06_6": {
+        "title": "Discord and presence confirmation",
+        "summary": "Linked accounts, shared presence, and team publication brought the workflow closer to the community channel.",
+        "details": {
+          "discord-account-link": { "title": "Linked Discord account", "description": "Users can link Discord without losing traditional platform access." },
+          "shared-presence-list": { "title": "Presence across Web and Discord", "description": "Confirmations and cancellations share the same official state across both channels." },
+          "presence-closing": { "title": "Organized presence closing", "description": "The list can close at the scheduled time and prepare teams and reserves with clear rules." },
+          "final-teams-publication": { "title": "Teams published to Discord", "description": "When the draft finishes, the community receives team rosters in the configured channel." }
+        }
+      },
+      "2026_06_5": {
+        "title": "Realtime draft",
+        "summary": "Captains and participants can follow picks, turns, and the official draft state without refreshing the page.",
+        "details": {
+          "synchronized-picks": { "title": "Synchronized picks", "description": "Each valid pick updates teams, available players, and history for every connected participant." },
+          "captain-turns": { "title": "Captain turns", "description": "Only the current captain can pick, keeping the order fair and auditable." },
+          "turn-timer": { "title": "Controlled turn timer", "description": "The clock keeps the draft moving and advances the turn when time expires." },
+          "reconnection-state": { "title": "State restored after reconnection", "description": "Returning viewers receive the current official state, including turn, teams, and previous picks." }
+        }
+      },
+      "2026_06_4": {
+        "title": "Accounts, permissions, and profiles",
+        "summary": "Authentication, access levels, and player links made participation safer and more personal.",
+        "details": {
+          "account-access": { "title": "Protected accounts and sessions", "description": "Registration, login, and sessions provide individual access to protected platform areas." },
+          "role-permissions": { "title": "Responsibility-based permissions", "description": "Roles control admin actions while the server remains the source of truth for permissions." },
+          "player-profile-link": { "title": "Account linked to player", "description": "Each participant completes and maintains game details before joining drafts." },
+          "account-recovery": { "title": "Account recovery", "description": "Password reset and change flows help users securely recover their own accounts." }
+        }
+      },
+      "2026_06_3": {
+        "title": "Visual team building",
+        "summary": "The draft began using registered players in a visual workspace with dynamic teams and reserves.",
+        "details": {
+          "registered-player-pool": { "title": "Registered draft players", "description": "Selection reuses the active roster and removes manual participant entry." },
+          "visual-team-building": { "title": "Visual team building", "description": "Players can be organized directly across areas and teams without duplication." },
+          "dynamic-teams-reserves": { "title": "Dynamic teams and reserves", "description": "Participant count determines teams, required captains, and reserve players." },
+          "player-details": { "title": "Player details during setup", "description": "Elo, roles, and game identities remain available without leaving the draft." }
+        }
+      },
+      "2026_06_2": {
+        "title": "Players, roles, and teams",
+        "summary": "Structured records replaced loose lists and created a reusable foundation for organizing the community.",
+        "details": {
+          "player-directory": { "title": "Player directory", "description": "Profiles gather identity, elo, and useful links for lookup and organization." },
+          "route-preferences": { "title": "Role preferences", "description": "Each player ranks the five roles and can indicate one role they prefer to avoid." },
+          "player-availability": { "title": "Preserved availability history", "description": "Inactive players remain in history while leaving new operational flows." },
+          "reusable-teams": { "title": "Reusable teams", "description": "Name, tag, captain, and roster remain saved for matches, drafts, and future lookup." }
+        }
+      },
+      "2026_06_1": {
+        "title": "Foundation and internationalization",
+        "summary": "Architecture standards, shared contracts, and bilingual catalogs established the platform foundation.",
+        "details": {
+          "architecture-foundation": { "title": "Architecture foundation", "description": "Clear layers and responsibilities prepared the application to grow with safe maintenance." },
+          "localized-interface": { "title": "Portuguese and English interface", "description": "Navigation, pages, and messages began using synchronized translation catalogs." },
+          "shared-standards": { "title": "Shared standards", "description": "Routes, constants, messages, and the development process gained verifiable conventions." }
+        }
+      }
+    }
   },
   "messages": {
     "MI001": "Loading information",

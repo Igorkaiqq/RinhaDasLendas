@@ -5,11 +5,11 @@ using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
-public sealed class GetActiveDraftMontagensForDiscordQueryHandler(IDraftMontagemRepository repository) : IRequestHandler<GetActiveDraftMontagensForDiscordQuery, IReadOnlyCollection<DraftMontagemResponseDto>>
+public sealed class GetActiveDraftMontagensForDiscordQueryHandler(IDraftMontagemRepository repository) : IRequestHandler<GetActiveDraftMontagensForDiscordQuery, IReadOnlyCollection<DraftMontagemDiscordOperationalDto>>
 {
-    public async Task<IReadOnlyCollection<DraftMontagemResponseDto>> Handle(GetActiveDraftMontagensForDiscordQuery request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagemDiscordOperationalDto>> Handle(GetActiveDraftMontagensForDiscordQuery request, CancellationToken cancellationToken)
     {
         var montagens = await repository.ListActiveForDiscordAsync(cancellationToken);
-        return montagens.Select(DraftMontagemResponseDto.FromEntity).ToList();
+        return montagens.Select(DraftMontagemDiscordOperationalDto.FromEntity).ToList();
     }
 }

@@ -4,8 +4,11 @@ import { DraftMontagemPresencaOrigemValues } from '@/constants/draftMontagem'
 import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
+  DraftMontagemAdmin,
   DraftMontagemLayoutPayload,
+  DraftMontagemManualPresencePayload,
   DraftMontagemOrdemEscolhaModo,
+  DraftMontagemPublicacaoDiscordTipo,
   DraftMontagemPayload,
   DraftMontagemRealtimeState,
   DraftMontagemResumo,
@@ -14,11 +17,20 @@ import type {
 
 import { api } from './api'
 import { getMessage } from './messageService'
+import type { Player } from './players'
 
 interface PaginatedDraftMontagens {
   page: number
   pageSize: number
   items: DraftMontagemResumo[]
+  totalItems: number
+  totalPages: number
+}
+
+interface PaginatedEligiblePlayers {
+  page: number
+  pageSize: number
+  items: Pick<Player, 'id' | 'nomeExibicao'>[]
   totalItems: number
   totalPages: number
 }
@@ -30,12 +42,12 @@ interface ApiErrorResponse {
 }
 
 export class DraftMontagemServiceError extends Error {
-  constructor(public readonly errors: string[]) {
+  constructor(public readonly errors: string[], public readonly status?: number) {
     super(errors[0] ?? getMessage(MessageCode.RequestProcessingFailed))
   }
 }
 
-export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | '' } = {}): Promise<DraftMontagemResumo[]> {
+export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | ''; includeCancelled?: boolean } = {}): Promise<DraftMontagemResumo[]> {
   try {
     const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
       params: { ...filters, page: 1, pageSize: 100 },
@@ -49,6 +61,15 @@ export async function listDraftMontagens(filters: { search?: string; status?: Dr
 export async function getDraftMontagemById(id: string): Promise<DraftMontagem> {
   try {
     const response = await api.get<DraftMontagem>(`/api/v1/draft-montagens/${id}`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function getDraftMontagemAdminById(id: string): Promise<DraftMontagemAdmin> {
+  try {
+    const response = await api.get<DraftMontagemAdmin>(`/api/v1/draft-montagens/${id}/administracao`)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -85,6 +106,46 @@ export async function confirmDraftMontagemPresence(id: string): Promise<DraftMon
 export async function cancelDraftMontagemPresence(id: string): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/cancelar`, {})
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function addManualDraftMontagemPresence(id: string, jogadorId: string, motivo: string): Promise<DraftMontagem> {
+  try {
+    const payload: DraftMontagemManualPresencePayload = { jogadorId, motivo }
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/manual`, payload)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function removeManualDraftMontagemPresence(id: string, jogadorId: string, motivo: string | null = null): Promise<DraftMontagem> {
+  try {
+    const response = await api.delete<DraftMontagem>(`/api/v1/draft-montagens/${id}/presencas/${jogadorId}`, { data: { motivo } })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function listEligibleManualPresencePlayers(id: string, search = '', page = 1, pageSize = 20, signal?: AbortSignal): Promise<Pick<Player, 'id' | 'nomeExibicao'>[]> {
+  try {
+    const response = await api.get<PaginatedEligiblePlayers>(`/api/v1/draft-montagens/${id}/presencas/elegiveis`, {
+      params: { search, page, pageSize },
+      ...(signal ? { signal } : {}),
+    })
+    return response.data.items
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function republishDraftMontagemDiscordPublication(id: string, tipo: DraftMontagemPublicacaoDiscordTipo, motivo: string | null = null): Promise<DraftMontagem> {
+  try {
+    const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/discord/publicacoes/republicar`, { tipo, motivo })
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -192,14 +253,14 @@ function toDraftMontagemServiceError(error: unknown): DraftMontagemServiceError 
   if (error instanceof AxiosError) {
     const data = error.response?.data as ApiErrorResponse | undefined
     if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      return new DraftMontagemServiceError(data.errors)
+      return new DraftMontagemServiceError(data.errors, error.response?.status)
     }
     if (data?.messageCode) {
-      return new DraftMontagemServiceError([getMessage(data.messageCode)])
+      return new DraftMontagemServiceError([getMessage(data.messageCode)], error.response?.status)
     }
 
     if (data?.message) {
-      return new DraftMontagemServiceError([data.message])
+      return new DraftMontagemServiceError([data.message], error.response?.status)
     }
   }
 

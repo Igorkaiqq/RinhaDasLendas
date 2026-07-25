@@ -13,9 +13,28 @@ export function presenceEmbed(draft: DraftMontagem) {
     .addFields(
       { name: t.embeds.status, value: formatDraftStatus(draft.status), inline: true },
       { name: t.embeds.confirmedTotal, value: String(confirmed.length), inline: true },
-      { name: t.embeds.closing, value: draft.horarioEncerramentoPresenca ? new Date(draft.horarioEncerramentoPresenca).toLocaleString(t.locale) : t.embeds.notProvided },
+      { name: t.embeds.closing, value: draft.horarioEncerramentoPresenca ? formatDraftClosingTime(draft.horarioEncerramentoPresenca) : t.embeds.notProvided },
       { name: t.embeds.confirmed, value: players || t.embeds.noConfirmedYet },
     )
+}
+
+export function formatDraftClosingTime(value: string) {
+  return new Date(value).toLocaleString(t.locale, {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export function buildDraftPresenceCta(draftId: string, roleId: string, siteUrl: string) {
+  const normalizedUrl = siteUrl.replace(/\/$/, '')
+  const draftUrl = `${normalizedUrl}/drafts?draftId=${encodeURIComponent(draftId)}`
+  return t.draftPresenceCta
+    .replace('{role}', `<@&${roleId}>`)
+    .replace('{url}', draftUrl)
 }
 
 export function formatDraftStatus(status: string) {

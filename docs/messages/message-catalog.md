@@ -82,6 +82,18 @@ Catálogo inicial de mensagens do RinhaDasLendas. Códigos publicados são imut�
 | MV028 | Validation | Jogador já foi escolhido neste draft | Player has already been picked in this draft | Pick duplicado | warning |
 | MV029 | Validation | Draft não está aberto para escolhas | Draft is not open for picks | Status do draft | warning |
 | MV030 | Validation | Jogador inválido para este draft | Invalid player for this draft | Pick de jogador | warning |
+| MV089 | Validation | O nome da agenda é obrigatório | The schedule name is required | Criação e edição de agenda de presença | warning |
+| MV090 | Validation | O nome da agenda deve ter entre 3 e 100 caracteres | The schedule name must be between 3 and 100 characters | Criação e edição de agenda de presença | warning |
+| MV091 | Validation | A observação da agenda deve ter no máximo 500 caracteres | The schedule note must not exceed 500 characters | Criação e edição de agenda de presença | warning |
+| MV092 | Validation | Selecione ao menos um dia da semana válido | Select at least one valid day of the week | Recorrência semanal da agenda | warning |
+| MV093 | Validation | Os dias da semana da agenda não podem se repetir | Schedule days of the week must not be duplicated | Recorrência semanal da agenda | warning |
+| MV094 | Validation | O encerramento deve ocorrer após a publicação no mesmo dia, com precisão de minuto | Closing must occur after publication on the same day, with minute precision | Janela da agenda | warning |
+| MV095 | Validation | A agenda arquivada não pode ser alterada | An archived schedule cannot be changed | Alteração de agenda arquivada | warning |
+| MV096 | Validation | O horário local da agenda é inválido ou ambíguo | The schedule local time is invalid or ambiguous | Conversão de horário da agenda | warning |
+| MV097 | Validation | A agenda ou ocorrência foi alterada por outro processamento. Atualize e tente novamente | The schedule or occurrence was changed by another process. Refresh and try again | Conflito conhecido de persistência | warning |
+| MV098 | Validation | A configuração do Discord está indisponível para esta ocorrência | Discord configuration is unavailable for this occurrence | Ocorrência bloqueada | warning |
+| MV099 | Validation | Agenda de presença não encontrada | Presence schedule not found | Recurso ausente ou arquivado | warning |
+| MV100 | Validation | A janela desta ocorrência já foi encerrada | This occurrence window has already closed | Ocorrência perdida | warning |
 | MC001 | Confirmation | Confirmar esta ação? | Confirm this action? | Confirmação genérica | info |
 | MC002 | Confirmation | Deseja inativar este jogador? | Do you want to deactivate this player? | Inativação de jogador | warning |
 | MC003 | Confirmation | Deseja remover o jogador da fila? | Do you want to remove the player from the queue? | Fila/votação | warning |

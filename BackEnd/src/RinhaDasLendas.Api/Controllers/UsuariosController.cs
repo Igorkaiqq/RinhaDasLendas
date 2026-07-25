@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Services;
@@ -13,7 +12,7 @@ using RinhaDasLendas.Domain.Constants;
 namespace RinhaDasLendas.Api.Controllers;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + BotInternalAuthOptions.SchemeName)]
+[Authorize(Policy = ApiAuthenticationDefaults.AuthenticatedPolicyName)]
 [Route("api/v1/usuarios")]
 [Produces("application/json")]
 public sealed class UsuariosController(ISender sender, IMessageProvider messages, IDiscordIdentityLookupService discordIdentityLookup) : ControllerBase

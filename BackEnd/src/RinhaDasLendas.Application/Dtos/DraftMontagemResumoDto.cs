@@ -12,9 +12,8 @@ public sealed record DraftMontagemResumoDto(
     int QuantidadeTimes,
     int QuantidadeReservas,
     DateTimeOffset? HorarioEncerramentoPresenca,
-    string? DiscordGuildId,
-    string? DiscordPresenceMessageId,
     string? OrdemEscolhaModo,
     bool PresencaContinuadaManualmente,
+    DateTimeOffset? DataRinha,
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao);

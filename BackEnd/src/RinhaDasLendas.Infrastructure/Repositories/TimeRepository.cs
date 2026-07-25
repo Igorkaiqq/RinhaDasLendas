@@ -3,17 +3,18 @@ using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Persistence;
+using DomainTime = RinhaDasLendas.Domain.Entities.Time;
 
 namespace RinhaDasLendas.Infrastructure.Repositories;
 
 public sealed class TimeRepository(RinhaDasLendasDbContext dbContext) : ITimeRepository
 {
-    public async Task AddAsync(Time time, CancellationToken cancellationToken)
+    public async Task AddAsync(DomainTime time, CancellationToken cancellationToken)
     {
         await dbContext.Times.AddAsync(time, cancellationToken);
     }
 
-    public Task<Time?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public Task<DomainTime?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return dbContext.Times
             .Include(time => time.Membros)
@@ -21,7 +22,7 @@ public sealed class TimeRepository(RinhaDasLendasDbContext dbContext) : ITimeRep
             .FirstOrDefaultAsync(time => time.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<Time>> ListAsync(string? search, TimeStatus? status, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DomainTime>> ListAsync(string? search, TimeStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -42,7 +43,7 @@ public sealed class TimeRepository(RinhaDasLendasDbContext dbContext) : ITimeRep
         return ApplyFilters(dbContext.Times.AsNoTracking(), search, status).CountAsync(cancellationToken);
     }
 
-    private static IQueryable<Time> ApplyFilters(IQueryable<Time> query, string? search, TimeStatus? status)
+    private static IQueryable<DomainTime> ApplyFilters(IQueryable<DomainTime> query, string? search, TimeStatus? status)
     {
 
         if (status is not null)

@@ -29,7 +29,7 @@ const { t } = useI18n()
       :title="props.collapsed ? t('navigation.expandMenu') : t('navigation.collapseMenu')"
       @click="$emit('toggle')"
     >
-      <span aria-hidden="true">{{ props.collapsed ? '&gt;' : '&lt;' }}</span>
+      <span aria-hidden="true" class="sidebar__toggle-glyph">{{ props.collapsed ? '&gt;' : '&lt;' }}</span>
     </button>
     <div class="sidebar__brand-row">
       <RouterLink class="sidebar__brand" :to="AppRoutes.Home" :aria-label="t('app.name')">
@@ -56,11 +56,16 @@ const { t } = useI18n()
         <span class="sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
         <span class="sidebar__label">{{ item.label }}</span>
         <span v-if="item.status === 'placeholder'" class="sidebar__status">{{ t('navigation.soon') }}</span>
+        <span v-if="item.badge === 'new'" class="sidebar__status sidebar__status--new">
+          {{ t('navigation.new') }}
+        </span>
       </RouterLink>
     </nav>
 
     <div class="sidebar__footer">
+      <span class="sidebar__section-label">{{ t('navigation.operations') }}</span>
       <button type="button" class="sidebar__tournament" disabled>{{ t('navigation.joinTournamentSoon') }}</button>
+      <span class="sidebar__section-label">{{ t('navigation.account') }}</span>
       <RouterLink class="sidebar__item" :to="AppRoutes.Settings" :title="t('navigation.support')">
         <span class="sidebar__icon" aria-hidden="true">?</span>
         <span class="sidebar__label">{{ t('navigation.support') }}</span>

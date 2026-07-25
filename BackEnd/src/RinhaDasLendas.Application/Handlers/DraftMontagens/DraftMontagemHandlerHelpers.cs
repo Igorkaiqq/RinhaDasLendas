@@ -1,4 +1,5 @@
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -8,6 +9,13 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 internal static class DraftMontagemHandlerHelpers
 {
+    public static Guid ResolveRequiredCurrentUserId(ICurrentUser currentUser)
+    {
+        return currentUser.UserId is Guid userId && userId != Guid.Empty
+            ? userId
+            : throw new DomainException(MessageCodes.UnauthorizedAccess);
+    }
+
     public static void EnsureActivePlayers(IReadOnlyCollection<Jogador> jogadores, IReadOnlyCollection<Guid> jogadoresIds)
     {
         if (jogadores.Count != jogadoresIds.Count)

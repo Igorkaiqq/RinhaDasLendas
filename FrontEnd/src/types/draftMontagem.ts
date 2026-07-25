@@ -18,6 +18,8 @@ export type DraftMontagemEscolhaTipo = (typeof DraftMontagemEscolhaTipoValues)[k
 export type DraftMontagemOrdemEscolhaModo = (typeof DraftMontagemOrdemEscolhaModoValues)[keyof typeof DraftMontagemOrdemEscolhaModoValues]
 export type DraftMontagemPresencaStatus = (typeof DraftMontagemPresencaStatusValues)[keyof typeof DraftMontagemPresencaStatusValues]
 export type DraftMontagemPresencaOrigem = (typeof DraftMontagemPresencaOrigemValues)[keyof typeof DraftMontagemPresencaOrigemValues]
+export type DraftMontagemPublicacaoDiscordTipo = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
+export type DraftMontagemPublicacaoDiscordStatus = 'Pendente' | 'EmAndamento' | 'Publicada' | 'Falha' | 'RequerReconciliacao' | 'Ignorada'
 
 export interface DraftMontagemParticipante {
   jogadorId: string
@@ -64,8 +66,6 @@ export interface DraftMontagem {
   turnoExpiraEm?: string | null
   duracaoTurnoSegundos: number
   horarioEncerramentoPresenca?: string | null
-  discordGuildId?: string | null
-  discordPresenceMessageId?: string | null
   ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
   presencas: DraftMontagemPresenca[]
@@ -74,9 +74,54 @@ export interface DraftMontagem {
   reservas: DraftMontagemParticipante[]
   escolhas: DraftMontagemEscolha[]
   substituicoes: DraftMontagemSubstituicao[]
-  motivoCancelamento?: string | null
+  publicacoesDiscord?: DraftMontagemPublicacaoDiscord[]
   dataCadastro: string
   dataAtualizacao: string
+}
+
+export interface DraftMontagemPublicacaoDiscord {
+  tipo: DraftMontagemPublicacaoDiscordTipo
+  status: DraftMontagemPublicacaoDiscordStatus
+}
+
+export interface DraftMontagemAdminPublicacaoDiscord extends DraftMontagemPublicacaoDiscord {
+  id: string
+  guildId?: string | null
+  channelId?: string | null
+  messageId?: string | null
+  ultimoErroCodigo?: string | null
+  claimId?: string | null
+  claimExpiraEm?: string | null
+  publicadaEm?: string | null
+  ultimaTentativaEm: string
+}
+
+export interface DraftMontagemAcaoAdministrativa {
+  id: string
+  tipo: string
+  responsavelUsuarioId: string
+  jogadorAlvoId?: string | null
+  motivo?: string | null
+  registradoEm: string
+}
+
+export interface DraftMontagemAdminPresenca extends DraftMontagemPresenca {
+  discordUserId?: string | null
+}
+
+export interface DraftMontagemAdminSubstituicao extends DraftMontagemSubstituicao {
+  motivo?: string | null
+  responsavelUsuarioId: string
+}
+
+export interface DraftMontagemAdmin extends DraftMontagem {
+  discordGuildId?: string | null
+  discordPresenceMessageId?: string | null
+  presencas: DraftMontagemAdminPresenca[]
+  substituicoes: DraftMontagemAdminSubstituicao[]
+  publicacoesDiscord: DraftMontagemAdminPublicacaoDiscord[]
+  acoesAdministrativas: DraftMontagemAcaoAdministrativa[]
+  motivoCancelamento?: string | null
 }
 
 export interface DraftMontagemResumo {
@@ -88,10 +133,9 @@ export interface DraftMontagemResumo {
   quantidadeTimes: number
   quantidadeReservas: number
   horarioEncerramentoPresenca?: string | null
-  discordGuildId?: string | null
-  discordPresenceMessageId?: string | null
   ordemEscolhaModo?: DraftMontagemOrdemEscolhaModo | null
   presencaContinuadaManualmente: boolean
+  dataRinha?: string | null
   dataCadastro: string
   dataAtualizacao: string
 }
@@ -101,7 +145,6 @@ export interface DraftMontagemPresenca {
   usuarioId: string
   jogadorId: string
   nomeExibicao: string
-  discordUserId?: string | null
   origemConfirmacao: DraftMontagemPresencaOrigem
   status: DraftMontagemPresencaStatus
   confirmadoEm: string
@@ -127,8 +170,6 @@ export interface DraftMontagemSubstituicao {
   reservaEntrouId: string
   jogadorSaiuNome?: string | null
   reservaEntrouNome?: string | null
-  motivo?: string | null
-  responsavelUsuarioId: string
   registradoEm: string
 }
 
@@ -147,6 +188,11 @@ export interface DraftMontagemPayload {
   discordGuildId?: string | null
   capitaesIds: string[]
   jogadoresIds: string[]
+}
+
+export interface DraftMontagemManualPresencePayload {
+  jogadorId: string
+  motivo: string
 }
 
 export interface DraftMontagemLayoutParticipantePayload {

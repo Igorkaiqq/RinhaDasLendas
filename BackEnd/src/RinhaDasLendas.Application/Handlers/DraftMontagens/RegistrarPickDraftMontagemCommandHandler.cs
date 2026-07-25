@@ -13,7 +13,8 @@ public sealed class RegistrarPickDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     ICurrentUser currentUser,
     IValidator<RegistrarPickDraftMontagemRequestDto> validator,
-    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<RegistrarPickDraftMontagemCommand, DraftMontagemRealtimeStateDto?>
+    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemMetrics metrics) : IRequestHandler<RegistrarPickDraftMontagemCommand, DraftMontagemRealtimeStateDto?>
 {
     public async Task<DraftMontagemRealtimeStateDto?> Handle(RegistrarPickDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -36,6 +37,7 @@ public sealed class RegistrarPickDraftMontagemCommandHandler(
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         var state = await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, now, cancellationToken);
         await notifier.StateUpdatedAsync(command.Id, state, cancellationToken);
+        metrics.RecordPick(command.Id, "pick");
         return state;
     }
 }

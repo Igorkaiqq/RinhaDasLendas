@@ -9,7 +9,7 @@ Referência rápida para códigos de mensagens do RinhaDasLendas.
 | `MI` | Info | `MI001` a `MI009` | Estados neutros, carregamento e ausência de dados |
 | `MSIS` | Success | `MSIS001` a `MSIS009` | Operações concluídas com sucesso |
 | `ME` | Error | `ME001` a `ME020` | Erros inesperados, falhas de sistema e recursos ausentes |
-| `MV` | Validation | `MV001` a `MV019` | Validações de entrada e regras de formulário |
+| `MV` | Validation | `MV001` a `MV100` | Validações de entrada e regras de domínio |
 | `MC` | Confirmation | `MC001` a `MC009` | Confirmações antes de ações relevantes |
 | `MA` | Alert | `MA001` a `MA009` | Avisos e estados que exigem atenção |
 
@@ -21,6 +21,10 @@ Referência rápida para códigos de mensagens do RinhaDasLendas.
 | `MSIS002` | Jogador criado com sucesso |
 | `MV001` | Campo obrigatório |
 | `MV008` | Prioridades de rota devem ser únicas |
+| `MV089` | Nome da agenda de presença obrigatório |
+| `MV094` | Janela da agenda de presença inválida |
+| `MV097` | Conflito conhecido de agenda ou ocorrência |
+| `MV099` | Agenda de presença ausente ou arquivada |
 | `ME001` | Ocorreu um erro inesperado |
 | `ME003` | Jogador não encontrado |
 | `MC002` | Confirmar inativação de jogador |

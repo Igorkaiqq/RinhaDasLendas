@@ -24,7 +24,8 @@ public sealed class BotInternalAuthHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        if (!Request.Headers.TryGetValue(BotInternalAuthOptions.HeaderName, out var providedToken) || !validTokens.Contains(providedToken.ToString(), StringComparer.Ordinal))
+        if (!Request.Headers.TryGetValue(BotInternalAuthOptions.HeaderName, out var providedToken)
+            || !validTokens.Any(expected => InternalTokenSecurity.FixedTimeEquals(providedToken.ToString(), expected)))
         {
             metrics.RecordBotAuthFailure("invalid_token");
             return Task.FromResult(AuthenticateResult.Fail(MessageCodes.BotInternalTokenInvalid));

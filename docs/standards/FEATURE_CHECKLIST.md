@@ -51,6 +51,13 @@ Use este checklist em toda feature para garantir que mensagens, traduções, con
 - [ ] Revisar acentuação de textos em português.
 - [ ] Confirmar que validações do front-end e back-end usam i18n/resource.
 
+## Histórico de atualizações
+
+- [ ] Avaliar se a mudança visível exige entrada em `FrontEnd/src/constants/systemUpdates.ts`.
+- [ ] Confirmar que cada melhoria aparece individualmente quando usuários precisam identificá-la.
+- [ ] Atualizar português e inglês seguindo `docs/standards/SYSTEM_UPDATES.md`.
+- [ ] Agrupar mudanças exclusivamente internas quando uma entrada isolada gerar ruído editorial.
+
 ## Antes do commit
 
 - [ ] Revisar `git diff --check`.

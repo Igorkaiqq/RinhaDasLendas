@@ -13,8 +13,8 @@ public sealed class GetDraftMontagensQueryHandler(IDraftMontagemRepository repos
         var status = Enum.TryParse<DraftMontagemStatus>(query.Status, true, out var parsed) ? parsed : (DraftMontagemStatus?)null;
         var page = Math.Max(query.Page, 1);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
-        var montagens = await repository.ListAsync(query.Search, status, page, pageSize, cancellationToken);
-        var total = await repository.CountAsync(query.Search, status, cancellationToken);
+        var montagens = await repository.ListAsync(query.Search, status, query.IncludeCancelled, page, pageSize, cancellationToken);
+        var total = await repository.CountAsync(query.Search, status, query.IncludeCancelled, cancellationToken);
 
         return new PaginatedResponseDto<DraftMontagemResumoDto>(
             page,
@@ -28,10 +28,9 @@ public sealed class GetDraftMontagensQueryHandler(IDraftMontagemRepository repos
                 montagem.QuantidadeTimes,
                 montagem.QuantidadeReservas,
                 montagem.HorarioEncerramentoPresenca,
-                montagem.DiscordGuildId,
-                montagem.DiscordPresenceMessageId,
                 montagem.OrdemEscolhaModo?.ToString(),
                 montagem.PresencaContinuadaManualmente,
+                montagem.HorarioEncerramentoPresenca,
                 montagem.DataCadastro,
                 montagem.DataAtualizacao)).ToList(),
             total,

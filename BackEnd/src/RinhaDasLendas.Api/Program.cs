@@ -2,7 +2,10 @@ using System.Text.Json.Serialization;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -10,7 +13,9 @@ using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Hubs;
 using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Api.Services;
+using RinhaDasLendas.Api.Serialization;
 using RinhaDasLendas.Application;
+using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure;
@@ -23,13 +28,44 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ApiMetrics>();
+builder.Services.AddSingleton<IAgendamentoPresencaMetrics, AgendamentoPresencaMetrics>();
+builder.Services.AddSingleton<IAgendamentoPresencaDiagnostics, AgendamentoPresencaDiagnostics>();
+builder.Services.AddSingleton((builder.Configuration
+    .GetSection(AgendamentoPresencaProcessingOptions.SectionName)
+    .Get<AgendamentoPresencaProcessingOptions>() ?? new AgendamentoPresencaProcessingOptions()).Normalize());
+builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
+builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>();
+builder.Services.AddHostedService<AgendamentoPresencaExecutionService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var messages = context.HttpContext.RequestServices.GetRequiredService<IMessageProvider>();
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                ApiErrorResponse.FromCode(messages, MessageCodes.ValidationError));
+        };
+    });
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationMiddlewareResultHandler>();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { "pt-BR", "en-US" };
+    options.SetDefaultCulture("pt-BR")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    options.RequestCultureProviders = [new AcceptLanguageHeaderRequestCultureProvider()];
+});
 var jwtSection = builder.Configuration.GetSection("Authentication:Jwt");
 var startupMessages = new ResourceMessageProvider();
 var jwtKey = jwtSection.GetValue<string>("Key")
@@ -39,72 +75,75 @@ if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.JwtKeyNotConfigured));
 }
 
+var internalTokens = InternalTokenSecurity.ResolveTokens(builder.Configuration);
 builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.SchemeName, options =>
 {
-    options.Token = builder.Configuration["RINHA_API_INTERNAL_TOKEN"] ?? builder.Configuration["DiscordBot:InternalToken"] ?? string.Empty;
-    options.ValidTokens = new[]
-        {
-            builder.Configuration["RINHA_API_INTERNAL_TOKEN"],
-            builder.Configuration["DiscordBot:InternalToken"]
-        }
-        .Where(token => !string.IsNullOrWhiteSpace(token))
-        .Select(token => token!)
-        .Distinct(StringComparer.Ordinal)
-        .ToArray();
+    options.Token = internalTokens.FirstOrDefault() ?? string.Empty;
+    options.ValidTokens = internalTokens;
 });
+var fallbackAuthenticationScheme = builder.Environment.IsEnvironment("Testing")
+    ? TestingAuthHandler.SchemeName
+    : JwtBearerDefaults.AuthenticationScheme;
+var authentication = builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = ApiAuthenticationDefaults.SchemeName;
+        options.DefaultChallengeScheme = ApiAuthenticationDefaults.SchemeName;
+        options.DefaultScheme = ApiAuthenticationDefaults.SchemeName;
+    })
+    .AddPolicyScheme(ApiAuthenticationDefaults.SchemeName, null, options =>
+    {
+        options.ForwardDefaultSelector = context => context.Request.Headers.ContainsKey(BotInternalAuthOptions.HeaderName)
+            ? BotInternalAuthOptions.SchemeName
+            : fallbackAuthenticationScheme;
+    })
+    .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { });
 if (builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddAuthentication(TestingAuthHandler.SchemeName)
-        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.SchemeName, _ => { });
+    authentication.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.SchemeName, _ => { });
 }
 else
 {
-    builder.Services.AddAuthentication(options =>
+    authentication.AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { })
-        .AddJwtBearer(options =>
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtSection.GetValue<string>("Issuer"),
+            ValidAudience = jwtSection.GetValue<string>("Audience"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            AuthenticationType = JwtBearerDefaults.AuthenticationScheme,
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+        options.Events = new JwtBearerEvents
         {
-            options.TokenValidationParameters = new TokenValidationParameters
+            OnAuthenticationFailed = context =>
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateIssuerSigningKey = true,
-                ValidateLifetime = true,
-                ValidIssuer = jwtSection.GetValue<string>("Issuer"),
-                ValidAudience = jwtSection.GetValue<string>("Audience"),
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                ClockSkew = TimeSpan.FromSeconds(30),
-            };
-            options.Events = new JwtBearerEvents
+                context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordAuthFailure(JwtBearerDefaults.AuthenticationScheme);
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
             {
-                OnAuthenticationFailed = context =>
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/draft-montagens"))
                 {
-                    context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordAuthFailure(JwtBearerDefaults.AuthenticationScheme);
-                    return Task.CompletedTask;
-                },
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/draft-montagens"))
-                    {
-                        context.Token = accessToken;
-                    }
+                    context.Token = accessToken;
+                }
 
-                    return Task.CompletedTask;
-                },
-            };
-        });
+                return Task.CompletedTask;
+            },
+        };
+    });
 }
 builder.Services.AddAuthorization(options =>
 {
     if (builder.Environment.IsEnvironment("Testing"))
     {
         options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAssertion(_ => true).Build();
+        options.AddPolicy(ApiAuthenticationDefaults.AuthenticatedPolicyName, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageRoles, policy => policy.RequireAssertion(_ => true));
@@ -115,9 +154,18 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy.RequireAssertion(_ => true));
     }
     else
     {
+        options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context => context.User.Identities.Any(identity =>
+                identity.IsAuthenticated
+                && identity.AuthenticationType == JwtBearerDefaults.AuthenticationScheme))
+            .Build();
+        options.AddPolicy(ApiAuthenticationDefaults.AuthenticatedPolicyName, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAuthenticatedUser());
         options.AddPolicy(AuthPermissions.CanViewUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanManageUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageRoles, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
@@ -130,30 +178,47 @@ builder.Services.AddAuthorization(options =>
             .AddAuthenticationSchemes(BotInternalAuthOptions.SchemeName)
             .RequireClaim("scope", AuthPermissions.CanUseDiscordBotApi));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy
-            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, BotInternalAuthOptions.SchemeName)
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
             .RequireAssertion(context =>
                 context.User.IsInRole(AuthRoles.SuperAdmin)
                 || context.User.IsInRole(AuthRoles.Admin)
                 || context.User.IsInRole(AuthRoles.Moderador)
                 || context.User.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi)));
+        options.AddPolicy(AuthPermissions.CanConfirmPresence, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context => context.User.Identities.Any(identity =>
+                identity.IsAuthenticated
+                && identity.AuthenticationType == JwtBearerDefaults.AuthenticationScheme)));
     }
 });
 builder.Services.AddHealthChecks();
+var apiRateLimitOptions = builder.Configuration
+    .GetSection(ApiRateLimitOptions.SectionName)
+    .Get<ApiRateLimitOptions>() ?? new ApiRateLimitOptions();
+if (apiRateLimitOptions.PermitLimit <= 0 || apiRateLimitOptions.WindowSeconds <= 0)
+{
+    throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.RateLimitConfigurationInvalid));
+}
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.OnRejected = (context, _) =>
+    options.OnRejected = (context, cancellationToken) =>
     {
         context.HttpContext.RequestServices.GetRequiredService<ApiMetrics>().RecordRateLimitedRequest(context.HttpContext.Request.Path);
-        return ValueTask.CompletedTask;
+        var messages = context.HttpContext.RequestServices.GetRequiredService<IMessageProvider>();
+        return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(
+            ApiErrorResponse.FromCode(messages, MessageCodes.RateLimitExceeded),
+            cancellationToken));
     };
-    options.AddFixedWindowLimiter("api", limiterOptions =>
-    {
-        limiterOptions.PermitLimit = 120;
-        limiterOptions.Window = TimeSpan.FromMinutes(1);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 0;
-    });
+    options.AddPolicy("api", context => RateLimitPartition.GetFixedWindowLimiter(
+        ApiRateLimitPartition.GetPartitionKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = apiRateLimitOptions.PermitLimit,
+            Window = TimeSpan.FromSeconds(apiRateLimitOptions.WindowSeconds),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+        }));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -191,8 +256,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 var app = builder.Build();
 
 ValidateProductionConfiguration(app.Environment, app.Configuration, jwtKey);
+InternalTokenSecurity.ValidateProductionTokens(app.Environment, internalTokens, startupMessages);
 
 app.UseForwardedHeaders();
+app.UseRequestLocalization();
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
@@ -221,8 +288,8 @@ app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapHealthChecks("/health");
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 if (app.Environment.IsEnvironment("Testing"))
 {
     app.Use(async (context, next) =>
