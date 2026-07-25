@@ -5063,6 +5063,17 @@ p {
   border-radius: var(--radius-md);
 }
 
+.presence-schedule-form__weekdays [data-slot='toggle-group-item'][data-state='on'] {
+  border-color: var(--color-primary);
+  color: var(--color-ink);
+  background: var(--color-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.presence-schedule-form__weekdays [data-selection-indicator][data-visible='false'] {
+  visibility: hidden;
+}
+
 .presence-schedule-form__summary {
   margin: 0;
   border-inline-start: var(--space-xxs) solid var(--color-secondary);
