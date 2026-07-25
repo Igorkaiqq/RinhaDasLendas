@@ -127,6 +127,8 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **Checkpoint**: Navegação é independente e mantém o workspace intacto.
 
+**Revisão pós-T026 (2026-07-25)**: T024-T026 permanecem concluídas após RED adicional e correções para manter itens conhecidos durante refresh/falha, preservar `aria-current` durante carregamento ou falha do detalhe, separar zero resultados de coleção vazia e aplicar variantes semânticas aos sete status e ao fallback desconhecido. Evidências corrigidas em `verification-report.md`.
+
 ---
 
 ## Phase 7: User Story 4 - Usar todo o fluxo em qualquer viewport (Priority: P1)

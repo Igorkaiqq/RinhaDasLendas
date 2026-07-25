@@ -919,6 +919,7 @@ describe('DraftsView reason actions', () => {
       ],
       loading: false,
       loadFailed: false,
+      hasKnownDrafts: true,
       canCreate: true,
     })
     expect(DraftNavigatorSource).not.toMatch(/@\/services\//)
@@ -985,6 +986,29 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('keeps navigator selection while the new draft detail loads and after it fails', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    let rejectDetail!: (reason: Error) => void
+    serviceMocks.getDraftMontagemAdminById.mockImplementationOnce(() => new Promise((_, reject) => { rejectDetail = reject }))
+
+    navigator.vm.$emit('select', montagemB.id)
+    await vi.waitFor(() => expect(rejectDetail).toBeTypeOf('function'))
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem).toBeNull()
+    expect(navigator.props('selectedDraftId')).toBe(montagemB.id)
+    expect(navigator.get(`[data-draft-id="${montagemB.id}"]`).attributes('aria-current')).toBe('true')
+
+    rejectDetail(new Error('detail unavailable'))
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem).toBeNull()
+    expect(navigator.props('selectedDraftId')).toBe(montagemB.id)
+    expect(navigator.get(`[data-draft-id="${montagemB.id}"]`).attributes('aria-current')).toBe('true')
+    wrapper.unmount()
+  })
+
   it('tracks list failure independently and retries without clearing the selected workspace', async () => {
     const wrapper = await mountView()
     const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
@@ -1004,6 +1028,47 @@ describe('DraftsView reason actions', () => {
     expect(navigator.props('loadFailed')).toBe(false)
     expect(navigator.props('drafts')).toEqual([resumo, resumoB])
     expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagem.id)
+    wrapper.unmount()
+  })
+
+  it('keeps known draft items rendered during refresh and after list failure', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    let rejectRefresh!: (reason: Error) => void
+    serviceMocks.listDraftMontagens.mockImplementationOnce(() => new Promise((_, reject) => { rejectRefresh = reject }))
+
+    navigator.vm.$emit('retry')
+    await vi.waitFor(() => expect(rejectRefresh).toBeTypeOf('function'))
+
+    expect(navigator.props('loading')).toBe(true)
+    expect(navigator.findAll('[data-draft-id]')).toHaveLength(2)
+    expect(navigator.find('[data-slot="skeleton"]').exists()).toBe(false)
+    expect(navigator.get('[data-navigator-feedback="loading"]')).toBeTruthy()
+
+    rejectRefresh(new Error('refresh unavailable'))
+    await flushPromises()
+
+    expect(navigator.props('loadFailed')).toBe(true)
+    expect(navigator.findAll('[data-draft-id]')).toHaveLength(2)
+    expect(navigator.get('[data-navigator-feedback="error"]')).toBeTruthy()
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagem.id)
+    wrapper.unmount()
+  })
+
+  it('keeps collection knowledge when a status filter returns zero results', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([])
+
+    navigator.vm.$emit('update:selectedStatus', 'Cancelada')
+    await flushPromises()
+
+    expect(navigator.props('drafts')).toEqual([])
+    expect(navigator.props('hasKnownDrafts')).toBe(true)
+    expect(navigator.get('[data-navigator-no-results]').text()).toContain('Nenhum draft corresponde aos filtros')
+    expect(navigator.find('[data-navigator-create]').exists()).toBe(false)
     wrapper.unmount()
   })
 

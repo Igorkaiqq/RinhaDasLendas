@@ -17,6 +17,7 @@ defineProps<{
   statusOptions: readonly DraftMontagemStatus[]
   loading: boolean
   loadFailed: boolean
+  hasKnownDrafts: boolean
   canCreate: boolean
 }>()
 
@@ -33,6 +34,16 @@ const { locale, t } = useI18n()
 const compactExpanded = ref(false)
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const compactToggleLabel = computed(() => t(compactExpanded.value ? 'drafts.navigator.collapse' : 'drafts.navigator.expand'))
+type DraftStatusVariant = 'neutral' | 'info' | 'warning' | 'success' | 'danger'
+const statusVariants: Record<DraftMontagemStatus, DraftStatusVariant> = {
+  PresencaAberta: 'info',
+  PresencaEncerrada: 'warning',
+  CapitaesDefinidos: 'warning',
+  OrdemDefinida: 'info',
+  Aberta: 'info',
+  Finalizada: 'success',
+  Cancelada: 'danger',
+}
 
 type ControlEvent = InstanceType<typeof globalThis.Event>
 
@@ -46,6 +57,10 @@ function updateStatus(event: ControlEvent) {
 
 function statusLabel(status: string) {
   return t(knownStatuses.has(status) ? `drafts.status.${status}` : 'drafts.status.unknown')
+}
+
+function statusVariant(status: string): DraftStatusVariant {
+  return knownStatuses.has(status) ? statusVariants[status as DraftMontagemStatus] : 'neutral'
 }
 
 function formatDate(draft: DraftNavigatorItem) {
@@ -105,11 +120,11 @@ function formatDate(draft: DraftNavigatorItem) {
     </section>
 
     <div id="draft-navigator-list" class="draft-navigator__list">
-      <div v-if="loading" class="draft-navigator__loading" data-navigator-loading role="status" :aria-label="t('drafts.navigator.loading')">
+      <div v-if="loading && !hasKnownDrafts" class="draft-navigator__loading" data-navigator-loading role="status" :aria-label="t('drafts.navigator.loading')">
         <Skeleton v-for="index in 3" :key="index" class="draft-navigator__skeleton" />
       </div>
 
-      <div v-else-if="loadFailed" class="draft-navigator__state" role="alert">
+      <div v-else-if="loadFailed && !hasKnownDrafts" class="draft-navigator__state" data-navigator-load-failure role="alert">
         <h3>{{ t('drafts.navigator.loadFailedTitle') }}</h3>
         <p>{{ t('drafts.navigator.loadFailedDescription') }}</p>
         <Button type="button" variant="outline" data-navigator-retry @click="emit('retry')">
@@ -117,35 +132,60 @@ function formatDate(draft: DraftNavigatorItem) {
         </Button>
       </div>
 
-      <div v-else-if="!drafts.length" class="draft-navigator__state" data-navigator-empty>
-        <h3>{{ t('drafts.emptyTitle') }}</h3>
-        <p>{{ t(canCreate ? 'drafts.navigator.emptyCreateDescription' : 'drafts.navigator.emptyFilterDescription') }}</p>
-        <Button v-if="canCreate" type="button" data-navigator-create @click="emit('create')">
-          {{ t('drafts.create') }}
-        </Button>
-      </div>
+      <template v-else>
+        <div v-if="loading" class="draft-navigator__feedback" data-navigator-feedback="loading" role="status">
+          {{ t('drafts.navigator.refreshing') }}
+        </div>
+        <div v-else-if="loadFailed" class="draft-navigator__feedback" data-navigator-feedback="error" role="alert">
+          <div>
+            <strong>{{ t('drafts.navigator.refreshFailedTitle') }}</strong>
+            <p>{{ t('drafts.navigator.refreshFailedDescription') }}</p>
+          </div>
+          <Button type="button" variant="outline" data-navigator-retry @click="emit('retry')">
+            {{ t('drafts.actions.retry') }}
+          </Button>
+        </div>
 
-      <button
-        v-for="draft in drafts"
-        v-else
-        :key="draft.id"
-        type="button"
-        class="draft-navigator__item"
-        :class="{ 'is-selected': selectedDraftId === draft.id }"
-        :data-draft-id="draft.id"
-        :aria-current="selectedDraftId === draft.id ? 'true' : undefined"
-        @click="emit('select', draft.id)"
-      >
-        <strong data-draft-name>{{ draft.nome }}</strong>
-        <span
-          class="draft-navigator__status"
-          data-draft-status
-          :data-status="knownStatuses.has(draft.status) ? draft.status : 'unknown'"
+        <div v-if="!drafts.length && hasKnownDrafts" class="draft-navigator__state" data-navigator-no-results>
+          <h3>{{ t('drafts.navigator.noResultsTitle') }}</h3>
+          <p>{{ t('drafts.navigator.noResultsDescription') }}</p>
+          <Button type="button" variant="outline" data-navigator-clear-results @click="emit('reset')">
+            {{ t('drafts.actions.clearFilters') }}
+          </Button>
+        </div>
+
+        <div v-else-if="!drafts.length" class="draft-navigator__state" data-navigator-empty>
+          <h3>{{ t('drafts.emptyTitle') }}</h3>
+          <p>{{ t(canCreate ? 'drafts.navigator.emptyCreateDescription' : 'drafts.navigator.emptyUnauthorizedDescription') }}</p>
+          <Button v-if="canCreate" type="button" data-navigator-create @click="emit('create')">
+            {{ t('drafts.create') }}
+          </Button>
+        </div>
+
+        <button
+          v-for="draft in drafts"
+          v-else
+          :key="draft.id"
+          type="button"
+          class="draft-navigator__item"
+          :class="{ 'is-selected': selectedDraftId === draft.id }"
+          :data-draft-id="draft.id"
+          :aria-current="selectedDraftId === draft.id ? 'true' : undefined"
+          @click="emit('select', draft.id)"
         >
-          {{ statusLabel(draft.status) }}
-        </span>
-        <span class="draft-navigator__date" data-draft-date>{{ t('drafts.rinhaDate', { date: formatDate(draft) }) }}</span>
-      </button>
+          <strong data-draft-name>{{ draft.nome }}</strong>
+          <span
+            class="draft-navigator__status team-status"
+            :class="`draft-navigator__status--${statusVariant(draft.status)}`"
+            data-draft-status
+            :data-status="knownStatuses.has(draft.status) ? draft.status : 'unknown'"
+            :data-variant="statusVariant(draft.status)"
+          >
+            {{ statusLabel(draft.status) }}
+          </span>
+          <span class="draft-navigator__date" data-draft-date>{{ t('drafts.rinhaDate', { date: formatDate(draft) }) }}</span>
+        </button>
+      </template>
     </div>
   </nav>
 </template>
@@ -247,7 +287,36 @@ function formatDate(draft: DraftNavigatorItem) {
 
 .draft-navigator__status {
   align-self: start;
+}
+
+.draft-navigator__status--neutral {
+  border-color: var(--color-hairline-soft);
   color: var(--color-ink-muted);
+  background: var(--color-canvas-raised);
+}
+
+.draft-navigator__status--info {
+  border-color: color-mix(in srgb, var(--color-info) 35%, transparent);
+  color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+}
+
+.draft-navigator__status--warning {
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.draft-navigator__status--success {
+  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+
+.draft-navigator__status--danger {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
 
 .draft-navigator__date {
@@ -271,6 +340,22 @@ function formatDate(draft: DraftNavigatorItem) {
 
 .draft-navigator__state p {
   color: var(--color-ink-muted);
+}
+
+.draft-navigator__feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  color: var(--color-ink-muted);
+  background: var(--color-canvas-raised);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: 0.5rem;
+}
+
+.draft-navigator__feedback p {
+  margin: 0.25rem 0 0;
 }
 
 .draft-navigator__skeleton {

@@ -567,10 +567,15 @@
     },
     "navigator": {
       "loading": "Carregando drafts",
+      "refreshing": "Atualizando lista de drafts",
       "loadFailedTitle": "Não foi possível carregar os drafts",
       "loadFailedDescription": "Tente novamente para recuperar a lista sem interromper o draft aberto.",
-      "emptyCreateDescription": "Crie o primeiro draft ou ajuste os filtros.",
-      "emptyFilterDescription": "Selecione outro filtro para encontrar um draft.",
+      "refreshFailedTitle": "Não foi possível atualizar os drafts",
+      "refreshFailedDescription": "Os drafts conhecidos continuam disponíveis. Tente novamente.",
+      "noResultsTitle": "Nenhum draft corresponde aos filtros",
+      "noResultsDescription": "Limpe os filtros para voltar à lista completa.",
+      "emptyCreateDescription": "Ainda não há drafts. Crie o primeiro para começar.",
+      "emptyUnauthorizedDescription": "Ainda não há drafts disponíveis.",
       "expand": "Expandir lista de drafts",
       "collapse": "Recolher lista de drafts"
     },

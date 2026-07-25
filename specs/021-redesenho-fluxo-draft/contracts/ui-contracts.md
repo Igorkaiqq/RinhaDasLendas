@@ -21,6 +21,7 @@ interface DraftNavigatorProps {
   statusOptions: readonly DraftMontagemStatus[]
   loading: boolean
   loadFailed: boolean
+  hasKnownDrafts: boolean
   canCreate: boolean
 }
 
@@ -38,9 +39,12 @@ Garantias:
 
 - item selecionado usa `aria-current`;
 - status desconhecido é neutro;
+- os sete status conhecidos usam variantes semânticas e status desconhecido usa variante neutra;
 - data ausente é localizada;
 - opções de filtro incluem os sete status suportados, na ordem do ciclo, incluindo `OrdemDefinida` e `Cancelada`;
-- vazio oferece criação quando autorizada ou orientação de seleção quando aplicável.
+- loading ou falha de atualização preservam itens conhecidos com feedback não bloqueante; skeleton é exclusivo da ausência de dados conhecidos;
+- zero resultados por filtro oferece limpeza dos filtros sem criação;
+- coleção genuinamente vazia oferece criação somente quando autorizada ou orientação neutra quando não autorizada.
 
 ## `DraftWorkspaceHeader`
 

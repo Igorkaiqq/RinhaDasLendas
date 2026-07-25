@@ -34,6 +34,7 @@ function mountNavigator(overrides: Partial<{
   statusOptions: readonly DraftMontagemStatus[]
   loading: boolean
   loadFailed: boolean
+  hasKnownDrafts: boolean
   canCreate: boolean
 }> = {}) {
   return mount(DraftNavigator, {
@@ -45,6 +46,7 @@ function mountNavigator(overrides: Partial<{
       statusOptions: DRAFT_MONTAGEM_STATUS_OPTIONS,
       loading: false,
       loadFailed: false,
+      hasKnownDrafts: true,
       canCreate: true,
       ...overrides,
     },
@@ -104,7 +106,7 @@ describe('DraftNavigator', () => {
   })
 
   it('shows a localized skeleton state before list, failure, or empty content', () => {
-    const wrapper = mountNavigator({ drafts: [], loading: true, loadFailed: true })
+    const wrapper = mountNavigator({ drafts: [], loading: true, hasKnownDrafts: false })
 
     expect(wrapper.get('[data-navigator-loading]').attributes('aria-label')).toBe('Carregando drafts')
     expect(wrapper.findAll('[data-slot="skeleton"]')).toHaveLength(3)
@@ -112,24 +114,71 @@ describe('DraftNavigator', () => {
     expect(wrapper.find('[data-navigator-empty]').exists()).toBe(false)
   })
 
-  it('shows load failure independently and emits retry', async () => {
-    const wrapper = mountNavigator({ drafts: [], loadFailed: true })
+  it('keeps known drafts visible with nonblocking loading feedback and no skeleton', () => {
+    const wrapper = mountNavigator({ loading: true })
 
-    expect(wrapper.get('[role="alert"]').text()).toContain('Não foi possível carregar os drafts')
+    expect(wrapper.get('[data-draft-id="draft-1"]').text()).toContain(longName)
+    expect(wrapper.get('[data-navigator-feedback="loading"]').text()).toContain('Atualizando lista de drafts')
+    expect(wrapper.find('[data-slot="skeleton"]').exists()).toBe(false)
+  })
+
+  it('keeps known drafts visible with nonblocking failure feedback and emits retry', async () => {
+    const wrapper = mountNavigator({ loadFailed: true })
+
+    expect(wrapper.get('[data-draft-id="draft-1"]').text()).toContain(longName)
+    expect(wrapper.get('[data-navigator-feedback="error"][role="alert"]').text()).toContain('Não foi possível atualizar os drafts')
     await wrapper.get('[data-navigator-retry]').trigger('click')
 
     expect(wrapper.emitted('retry')).toHaveLength(1)
     expect(wrapper.find('[data-navigator-empty]').exists()).toBe(false)
   })
 
-  it('offers the empty creation CTA only when creation is authorized', async () => {
-    const authorized = mountNavigator({ drafts: [] })
-    const unauthorized = mountNavigator({ drafts: [], canCreate: false })
+  it('shows blocking failure and retry when no draft data is known', async () => {
+    const wrapper = mountNavigator({ drafts: [], hasKnownDrafts: false, loadFailed: true })
+
+    expect(wrapper.get('[data-navigator-load-failure][role="alert"]').text()).toContain('Não foi possível carregar os drafts')
+    await wrapper.get('[data-navigator-retry]').trigger('click')
+
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+    expect(wrapper.find('[data-navigator-empty]').exists()).toBe(false)
+  })
+
+  it('distinguishes filtered zero results and emits clear filters without creation', async () => {
+    const wrapper = mountNavigator({ drafts: [], hasKnownDrafts: true, searchTerm: 'inexistente' })
+
+    expect(wrapper.get('[data-navigator-no-results]').text()).toContain('Nenhum draft corresponde aos filtros')
+    expect(wrapper.find('[data-navigator-create]').exists()).toBe(false)
+    await wrapper.get('[data-navigator-clear-results]').trigger('click')
+
+    expect(wrapper.emitted('reset')).toHaveLength(1)
+  })
+
+  it('offers creation only for a genuinely empty authorized collection', async () => {
+    const authorized = mountNavigator({ drafts: [], hasKnownDrafts: false })
+    const unauthorized = mountNavigator({ drafts: [], hasKnownDrafts: false, canCreate: false })
 
     await authorized.get('[data-navigator-create]').trigger('click')
     expect(authorized.emitted('create')).toHaveLength(1)
     expect(unauthorized.find('[data-navigator-create]').exists()).toBe(false)
-    expect(unauthorized.get('[data-navigator-empty]').text()).toContain('Selecione outro filtro')
+    expect(unauthorized.get('[data-navigator-empty]').text()).toContain('Ainda não há drafts disponíveis')
+  })
+
+  it.each([
+    ['PresencaAberta', 'info'],
+    ['PresencaEncerrada', 'warning'],
+    ['CapitaesDefinidos', 'warning'],
+    ['OrdemDefinida', 'info'],
+    ['Aberta', 'info'],
+    ['Finalizada', 'success'],
+    ['Cancelada', 'danger'],
+    ['EstadoLegado', 'neutral'],
+  ] as const)('uses the semantic %s status variant %s', (status, variant) => {
+    const wrapper = mountNavigator({ drafts: [{ ...baseDraft, status }] })
+    const badge = wrapper.get('[data-draft-status]')
+
+    expect(badge.attributes('data-variant')).toBe(variant)
+    expect(badge.classes()).toContain('team-status')
+    expect(badge.classes()).toContain(`draft-navigator__status--${variant}`)
   })
 
   it('emits reset and keeps compact expansion and long-name presentation inside the child', async () => {

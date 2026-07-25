@@ -62,9 +62,11 @@ const visualSetupOpen = ref(false)
 const searchTerm = ref('')
 const selectedStatus = ref<DraftMontagemStatus | ''>('')
 const selectedMontagem = ref<DraftMontagem | null>(null)
+const selectedDraftId = ref<string | null>(null)
 const canCurrentUserPick = ref<boolean | null>(null)
 const serverClockOffsetMs = ref(0)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
+const hasKnownDrafts = ref(false)
 const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
@@ -141,6 +143,7 @@ onMounted(async () => {
 
 onUnmounted(async () => {
   activeDraftId = null
+  selectedDraftId.value = null
   activeDraftGeneration++
   detailRequestVersion = 0
   manualPresenceAbortController?.abort()
@@ -167,6 +170,8 @@ async function loadVisualMontagens() {
     const montagens = await listDraftMontagens({ status: selectedStatus.value })
     if (requestVersion !== listRequestVersion) return
     visualMontagens.value = montagens
+    if (!selectedStatus.value) hasKnownDrafts.value = montagens.length > 0
+    else if (montagens.length > 0) hasKnownDrafts.value = true
     if (!selectedMontagem.value) {
       const initialDraftId = resolveInitialDraftId(route.query.draftId)
       if (initialDraftId) {
@@ -195,6 +200,7 @@ async function openMontagemFromLink(id: string) {
 async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   const generation = ++activeDraftGeneration
   activeDraftId = id
+  selectedDraftId.value = id
   detailRequestVersion = 0
   manualPresenceAbortController?.abort()
   manualPresenceAbortController = null
@@ -780,12 +786,13 @@ function captureError(error: unknown) {
     <section class="draft-layout">
       <DraftNavigator
         :drafts="filteredDrafts"
-        :selected-draft-id="selectedMontagem?.id ?? null"
+        :selected-draft-id="selectedDraftId"
         :search-term="searchTerm"
         :selected-status="selectedStatus"
         :status-options="statusOptions"
         :loading="loading"
         :load-failed="listLoadFailed"
+        :has-known-drafts="hasKnownDrafts"
         :can-create="canManageDrafts"
         @update:search-term="searchTerm = $event"
         @update:selected-status="updateStatusFilter"
