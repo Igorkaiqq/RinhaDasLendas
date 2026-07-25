@@ -144,6 +144,27 @@ const resumoB: DraftMontagemResumo = {
   status: montagemB.status,
 }
 
+const realtimeCaptain: DraftMontagem['times'][number]['jogadores'][number] = {
+  jogadorId: 'capitao-atual',
+  nomeExibicao: 'Capitão atual',
+  status: 'Ativo',
+  preferencias: [],
+  estado: 'Time',
+  capitao: true,
+  ordem: 1,
+  dataCadastro: montagem.dataCadastro,
+  dataAtualizacao: montagem.dataAtualizacao,
+}
+
+const realtimeTeam: DraftMontagem['times'][number] = {
+  id: 'time-1',
+  nome: 'Time atual',
+  ordem: 1,
+  cor: 'blue',
+  capitaoId: realtimeCaptain.jogadorId,
+  jogadores: [realtimeCaptain],
+}
+
 function adminProjection(status: DraftMontagemStatus = montagem.status, auditReason = 'auditoria inicial'): DraftMontagemAdmin {
   return {
     ...montagem,
@@ -220,7 +241,13 @@ function adminProjectionB(auditReason = 'auditoria B'): DraftMontagemAdmin {
   }
 }
 
-async function emitRealtime(id: string, projection: DraftMontagem, canCurrentUserPick = false) {
+async function emitRealtime(
+  id: string,
+  projection: DraftMontagem,
+  canCurrentUserPick = false,
+  personalizedState: DraftMontagemRealtimeState | null = { montagem: projection, canCurrentUserPick, serverNow: projection.dataAtualizacao },
+) {
+  if (personalizedState) serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce(personalizedState)
   await realtimeMock.handlers.get(id)?.({ montagem: projection, canCurrentUserPick, serverNow: projection.dataAtualizacao })
 }
 
@@ -367,7 +394,9 @@ describe('DraftsView reason actions', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve }))
 
     const firstRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Aberta' })
+    await vi.waitFor(() => expect(resolveFirst).toBeTypeOf('function'))
     const secondRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
+    await vi.waitFor(() => expect(resolveSecond).toBeTypeOf('function'))
     resolveSecond(adminProjection('Finalizada', 'evento mais novo'))
     await secondRefresh
     resolveFirst(adminProjection('Aberta', 'evento antigo'))
@@ -392,9 +421,10 @@ describe('DraftsView reason actions', () => {
       .mockResolvedValue(adminProjectionB('B realtime'))
 
     const oldARefresh = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
+    await vi.waitFor(() => expect(resolveOldA).toBeTypeOf('function'))
     const openB = wrapper.findAll('button').find((button) => button.text().includes('Rinha de segunda'))!.trigger('click')
     await vi.waitFor(() => expect(realtimeMock.disconnected).toContain('montagem-1'))
-    const lateAEvent = emitRealtime('montagem-1', { ...montagem, status: 'Cancelada' })
+    const lateAEvent = emitRealtime('montagem-1', { ...montagem, status: 'Cancelada' }, false, null)
     resolveOldA(adminProjection('Finalizada', 'resposta antiga A'))
     await oldARefresh
     await lateAEvent
@@ -404,6 +434,9 @@ describe('DraftsView reason actions', () => {
     resolveB(adminProjectionB('B assumiu'))
     await openB
     await flushPromises()
+    await vi.waitFor(() => expect(
+      (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem.acoesAdministrativas[0]?.motivo,
+    ).toBe('B realtime'))
 
     const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
     expect(selected.id).toBe('montagem-2')
@@ -479,6 +512,7 @@ describe('DraftsView reason actions', () => {
     expect(serviceMocks.cancelDraftMontagem).toHaveBeenCalledTimes(1)
 
     const realtime = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' })
+    await vi.waitFor(() => expect(resolveRealtimeRefresh).toBeTypeOf('function'))
     resolveRealtimeRefresh(adminProjection('Finalizada', 'realtime novo'))
     await realtime
     resolveMutationRefresh(adminProjection('Cancelada', 'refresh antigo da mutacao'))
@@ -1122,6 +1156,8 @@ describe('DraftsView reason actions', () => {
   })
 
   it('allows only the current realtime captain to pick and blocks rapid duplicates', async () => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
     authMock.canManageDrafts = false
     authMock.jogadorId = 'capitao-atual'
     const available = {
@@ -1141,11 +1177,13 @@ describe('DraftsView reason actions', () => {
       modo: 'TempoReal',
       turnoAtualTimeId: 'time-1',
       turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: '2026-07-25T12:20:00Z',
+      times: [realtimeTeam],
       livres: [available],
     }
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
-    let resolvePick!: (value: { montagem: DraftMontagem; canCurrentUserPick: boolean }) => void
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true, serverNow: '2026-07-25T12:00:00Z' })
+    let resolvePick!: (value: DraftMontagemRealtimeState) => void
     serviceMocks.registerDraftMontagemPick.mockReturnValueOnce(new Promise((resolve) => { resolvePick = resolve }))
     const wrapper = await mountView()
     const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
@@ -1158,13 +1196,15 @@ describe('DraftsView reason actions', () => {
 
     expect(serviceMocks.registerDraftMontagemPick).toHaveBeenCalledTimes(1)
     expect(serviceMocks.registerDraftMontagemPick).toHaveBeenCalledWith('montagem-1', 'jogador-livre')
-    resolvePick({ montagem: realtimeDraft, canCurrentUserPick: false })
+    resolvePick({ montagem: realtimeDraft, canCurrentUserPick: false, serverNow: '2026-07-25T12:05:00Z' })
     await flushPromises()
+    dateNow.mockRestore()
     expect(board.props('canCurrentUserPick')).toBe(false)
+    expect(board.props('serverClockOffsetMs')).toBe(5 * 60 * 1000)
     wrapper.unmount()
   })
 
-  it('updates authoritative pick permission from realtime callbacks', async () => {
+  it('uses personalized GET permission instead of the SignalR broadcast permission', async () => {
     authMock.canManageDrafts = false
     authMock.jogadorId = 'capitao-atual'
     const realtimeDraft: DraftMontagem = {
@@ -1175,15 +1215,148 @@ describe('DraftsView reason actions', () => {
       turnoAtualCapitaoId: 'capitao-atual',
     }
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockResolvedValueOnce({ montagem: realtimeDraft, canCurrentUserPick: true, serverNow: montagem.dataAtualizacao })
+      .mockResolvedValueOnce({ montagem: realtimeDraft, canCurrentUserPick: false, serverNow: montagem.dataAtualizacao })
     const wrapper = await mountView()
     const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
 
     expect(board.props('canCurrentUserPick')).toBe(true)
-    await emitRealtime('montagem-1', realtimeDraft, false)
+    await emitRealtime('montagem-1', realtimeDraft, true, null)
     await flushPromises()
 
+    expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2)
     expect(board.props('canCurrentUserPick')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('ignores broadcast permission and fetches a personalized realtime state for the active draft', async () => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
+    authMock.canManageDrafts = false
+    authMock.jogadorId = 'capitao-atual'
+    const personalizedDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      turnoAtualTimeId: 'time-1',
+      turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: '2026-07-25T12:20:00Z',
+      times: [realtimeTeam],
+    }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(personalizedDraft)
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockResolvedValueOnce({ montagem: personalizedDraft, canCurrentUserPick: false, serverNow: '2026-07-25T12:00:00Z' })
+      .mockResolvedValueOnce({ montagem: personalizedDraft, canCurrentUserPick: true, serverNow: '2026-07-25T12:10:00Z' })
+    const wrapper = await mountView()
+
+    await emitRealtime('montagem-1', { ...personalizedDraft, status: 'Finalizada' }, false, null)
+    await flushPromises()
+    dateNow.mockRestore()
+
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.status).toBe('Aberta')
+    expect(board.props('canCurrentUserPick')).toBe(true)
+    expect(board.props('serverClockOffsetMs')).toBe(10 * 60 * 1000)
+    wrapper.unmount()
+  })
+
+  it('ignores an older personalized GET response that resolves after a newer broadcast refresh', async () => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
+    authMock.canManageDrafts = false
+    const wrapper = await mountView()
+    let resolveOlder!: (state: DraftMontagemRealtimeState) => void
+    let resolveNewer!: (state: DraftMontagemRealtimeState) => void
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOlder = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveNewer = resolve }))
+
+    const olderRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Aberta' }, true, null)
+    await vi.waitFor(() => expect(resolveOlder).toBeTypeOf('function'))
+    const newerRefresh = emitRealtime('montagem-1', { ...montagem, status: 'Finalizada' }, false, null)
+    await vi.waitFor(() => expect(resolveNewer).toBeTypeOf('function'))
+    resolveNewer({ montagem: { ...montagem, status: 'Finalizada' }, canCurrentUserPick: false, serverNow: '2026-07-25T12:05:00Z' })
+    await newerRefresh
+    resolveOlder({ montagem: { ...montagem, status: 'Aberta' }, canCurrentUserPick: true, serverNow: '2026-07-25T12:01:00Z' })
+    await olderRefresh
+    await flushPromises()
+    dateNow.mockRestore()
+
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.status).toBe('Finalizada')
+    expect(board.props('canCurrentUserPick')).toBe(false)
+    expect(board.props('serverClockOffsetMs')).toBe(5 * 60 * 1000)
+    wrapper.unmount()
+  })
+
+  it('refreshes personalized permission and server clock offset after reconnect', async () => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
+    authMock.canManageDrafts = false
+    const realtimeDraft: DraftMontagem = { ...montagem, status: 'Aberta', modo: 'TempoReal' }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockResolvedValueOnce({ montagem: realtimeDraft, canCurrentUserPick: true, serverNow: '2026-07-25T12:00:00Z' })
+      .mockResolvedValueOnce({ montagem: realtimeDraft, canCurrentUserPick: false, serverNow: '2026-07-25T12:03:00Z' })
+    const wrapper = await mountView()
+
+    await realtimeMock.reconnectHandlers.get('montagem-1')?.()
+    await flushPromises()
+    dateNow.mockRestore()
+
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2)
+    expect(board.props('canCurrentUserPick')).toBe(false)
+    expect(board.props('serverClockOffsetMs')).toBe(3 * 60 * 1000)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['current team is missing', { times: [] as DraftMontagem['times'], expiresAt: '2026-07-25T12:20:00Z', playerState: 'Livre' as const }],
+    ['captain mismatches the current team', { times: [{ ...realtimeTeam, capitaoId: 'outro-capitao' }], expiresAt: '2026-07-25T12:20:00Z', playerState: 'Livre' as const }],
+    ['turn is expired against the server clock', { times: [realtimeTeam], expiresAt: '2026-07-25T12:05:00Z', playerState: 'Livre' as const }],
+    ['requested player is not eligible and free', { times: [realtimeTeam], expiresAt: '2026-07-25T12:20:00Z', playerState: 'Time' as const }],
+  ])('rejects a parent pick when %s', async (_, scenario) => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
+    authMock.canManageDrafts = false
+    authMock.jogadorId = 'capitao-atual'
+    const available = {
+      jogadorId: 'jogador-livre',
+      nomeExibicao: 'Jogador livre',
+      status: 'Ativo',
+      preferencias: [],
+      estado: scenario.playerState,
+      capitao: false,
+      ordem: 1,
+      dataCadastro: montagem.dataCadastro,
+      dataAtualizacao: montagem.dataAtualizacao,
+    }
+    const realtimeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      turnoAtualTimeId: 'time-1',
+      turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: scenario.expiresAt,
+      times: scenario.times,
+      livres: [available],
+    }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({
+      montagem: realtimeDraft,
+      canCurrentUserPick: true,
+      serverNow: '2026-07-25T12:10:00Z',
+    })
+    const wrapper = await mountView()
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('pick', 'jogador-livre')
+    await flushPromises()
+    dateNow.mockRestore()
+
+    expect(serviceMocks.registerDraftMontagemPick).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -1207,6 +1380,8 @@ describe('DraftsView reason actions', () => {
       modo: 'TempoReal',
       turnoAtualTimeId: 'time-1',
       turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
+      times: [realtimeTeam],
       livres: [available],
     }
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
@@ -1264,6 +1439,8 @@ describe('DraftsView reason actions', () => {
       modo: 'TempoReal',
       turnoAtualTimeId: 'time-1',
       turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
+      times: [realtimeTeam],
       livres: [available],
     }
     const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError

@@ -43,7 +43,7 @@ import {
 } from '@/services/draftMontagens'
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
-import { DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
+import { DraftMontagemEstadoValues, DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
 import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
@@ -61,6 +61,7 @@ const searchTerm = ref('')
 const selectedStatus = ref<DraftMontagemStatus | ''>('')
 const selectedMontagem = ref<DraftMontagem | null>(null)
 const canCurrentUserPick = ref<boolean | null>(null)
+const serverClockOffsetMs = ref(0)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
 const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 const selectedManualPresencePlayerId = ref('')
@@ -193,6 +194,7 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   manualPresenceRequestVersion++
   selectedMontagem.value = null
   canCurrentUserPick.value = null
+  serverClockOffsetMs.value = 0
   pendingReasonAction.value = null
   captainSelection.value = []
   manualPresencePlayers.value = []
@@ -243,15 +245,31 @@ async function applyMutationProjection(context: DraftUpdateContext, montagem: Dr
 
 async function applyMutationRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
   if (!(await applyMutationProjection(context, state.montagem))) return false
-  canCurrentUserPick.value = state.canCurrentUserPick
+  if (!isCurrentUpdate(context)) return false
+  applyPersonalizedRealtimeMetadata(state)
   return true
 }
 
-async function applyRealtimeState(id: string, generation: number, state: DraftMontagemRealtimeState) {
-  if (!(await refreshMontagemDetail(id, generation, state.montagem))) return false
-  if (!isActiveDraft(id, generation)) return false
+function applyPersonalizedRealtimeMetadata(state: DraftMontagemRealtimeState) {
   canCurrentUserPick.value = state.canCurrentUserPick
+  const serverNow = Date.parse(state.serverNow)
+  if (Number.isFinite(serverNow)) serverClockOffsetMs.value = serverNow - Date.now()
+}
+
+async function applyPersonalizedRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
+  if (!isCurrentUpdate(context) || state.montagem.id !== context.draftId) return false
+  if (!(await refreshMontagemDetail(context.draftId, context.generation, state.montagem, context))) return false
+  if (!isCurrentUpdate(context)) return false
+  applyPersonalizedRealtimeMetadata(state)
   return true
+}
+
+async function loadPersonalizedRealtimeState(id: string, generation: number) {
+  const context = beginDraftUpdate(id, generation)
+  if (!context) return false
+  const state = await getDraftMontagemRealtimeState(id)
+  if (!isCurrentUpdate(context)) return false
+  return applyPersonalizedRealtimeState(context, state)
 }
 
 async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem, existingContext?: DraftUpdateContext) {
@@ -451,9 +469,7 @@ async function drawPickOrder() {
 async function connectRealtime(id: string, generation: number) {
   if (!isActiveDraft(id, generation)) return
   try {
-    const state = await getDraftMontagemRealtimeState(id)
-    if (!isActiveDraft(id, generation)) return
-    await applyRealtimeState(id, generation, state)
+    await loadPersonalizedRealtimeState(id, generation)
   } catch {
     // The regular detail endpoint already loaded the board; realtime state errors are shown by later actions.
   }
@@ -462,18 +478,17 @@ async function connectRealtime(id: string, generation: number) {
   const connection = new DraftMontagemRealtimeConnection(id)
   realtimeConnection.value = connection
   await connection.connect(
-    async (state) => {
+    async () => {
       if (!isActiveDraft(id, generation)) return
       try {
-        await applyRealtimeState(id, generation, state)
+        await loadPersonalizedRealtimeState(id, generation)
       } catch {
-        // Keep the last complete administrative projection if its refresh fails.
+        // Keep the last personalized projection if its refresh fails.
       }
     },
     async () => {
       if (!isActiveDraft(id, generation)) return
-      const state = await getDraftMontagemRealtimeState(id)
-      await applyRealtimeState(id, generation, state)
+      await loadPersonalizedRealtimeState(id, generation)
     },
   )
   if (!isActiveDraft(id, generation)) {
@@ -561,14 +576,23 @@ async function startRealtime() {
 
 async function pickRealtime(jogadorId: string) {
   const current = selectedMontagem.value
+  const activeTeam = current?.times.find((team) => team.id === current.turnoAtualTimeId)
+  const activeCaptainId = current?.turnoAtualCapitaoId
+  const turnExpiresAt = current?.turnoExpiraEm ? Date.parse(current.turnoExpiraEm) : Number.NaN
   if (
     saving.value
     || !current
     || current.status !== DraftMontagemStatusValues.Aberta
     || current.modo !== 'TempoReal'
     || canCurrentUserPick.value !== true
-    || current.turnoAtualCapitaoId !== currentPlayerId.value
-    || !current.livres.some((player) => player.jogadorId === jogadorId)
+    || !activeTeam
+    || !activeCaptainId
+    || activeTeam.capitaoId !== activeCaptainId
+    || activeCaptainId !== currentPlayerId.value
+    || !activeTeam.jogadores.some((player) => player.jogadorId === activeCaptainId && player.capitao)
+    || !current.livres.some((player) => player.jogadorId === jogadorId && player.estado === DraftMontagemEstadoValues.Livre)
+    || !Number.isFinite(turnExpiresAt)
+    || turnExpiresAt <= Date.now() + serverClockOffsetMs.value
   ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
@@ -836,6 +860,7 @@ function captureError(error: unknown) {
           :can-manage="canManageDrafts"
           :current-player-id="currentPlayerId"
           :can-current-user-pick="canCurrentUserPick"
+          :server-clock-offset-ms="serverClockOffsetMs"
           @save="saveMontagemLayout"
           @start-realtime="startRealtime"
           @pick="pickRealtime"

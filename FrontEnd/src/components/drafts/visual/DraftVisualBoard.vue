@@ -19,7 +19,7 @@ import type {
 
 import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
-const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null }>()
+const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number }>()
 const { t } = useI18n()
 const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
@@ -69,7 +69,7 @@ const remainingSeconds = computed(() => {
     return 0
   }
 
-  return Math.max(0, Math.ceil((new Date(localMontagem.value.turnoExpiraEm).getTime() - now.value) / 1000))
+  return Math.max(0, Math.ceil((new Date(localMontagem.value.turnoExpiraEm).getTime() - (now.value + (props.serverClockOffsetMs ?? 0))) / 1000))
 })
 const hasActiveTurn = computed(() => isRealtime.value && isOpen.value && Boolean(currentTurnTeam.value && currentTurnCaptain.value && remainingSeconds.value > 0))
 const canPick = computed(() => props.canCurrentUserPick === true && hasActiveTurn.value && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)

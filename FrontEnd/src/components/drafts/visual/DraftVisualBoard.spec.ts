@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem, DraftMontagemParticipante, DraftMontagemStatus } from '@/types/draftMontagem'
@@ -84,7 +84,7 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
   }
 }
 
-function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null } = {}) {
+function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number } = {}) {
   return mount(DraftVisualBoard, {
     props: {
       montagem: draft,
@@ -92,6 +92,7 @@ function mountBoard(draft = montagem(), overrides: { canManage?: boolean; curren
       canManage: overrides.canManage ?? true,
       currentPlayerId: overrides.currentPlayerId ?? null,
       canCurrentUserPick: overrides.canCurrentUserPick,
+      serverClockOffsetMs: overrides.serverClockOffsetMs,
     },
     global: { plugins: [i18n] },
   })
@@ -214,6 +215,27 @@ describe('DraftVisualBoard', () => {
     await wrapper.setProps({ montagem: { ...draft, turnoSequencia: 4 } })
     await wrapper.get('.draft-pick-action').trigger('click')
     expect(wrapper.emitted('pick')).toEqual([['available-1'], ['available-1'], ['available-1']])
+    wrapper.unmount()
+  })
+
+  it('uses the server clock offset to reject a locally future but server-expired turn', () => {
+    const localNow = Date.parse('2026-07-25T12:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(localNow)
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.turnoAtualTimeId = 'team-a'
+    draft.turnoAtualCapitaoId = 'captain-a'
+    draft.turnoSequencia = 3
+    draft.turnoExpiraEm = '2026-07-25T12:05:00Z'
+
+    const wrapper = mountBoard(draft, {
+      currentPlayerId: 'captain-a',
+      canCurrentUserPick: true,
+      serverClockOffsetMs: 10 * 60 * 1000,
+    })
+    dateNow.mockRestore()
+
+    expect(wrapper.find('.draft-pick-action').exists()).toBe(false)
+    expect(wrapper.find('[data-active-turn]').exists()).toBe(false)
     wrapper.unmount()
   })
 
