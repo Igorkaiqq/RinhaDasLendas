@@ -250,17 +250,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var timeZone = new SaoPauloAgendamentoPresencaTimeZone();
-        var now = await database.GetClockAsync();
-        var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo");
-        var date = DateOnly.FromDateTime(localNow.DateTime);
-        var publicationLocal = localNow.AddMinutes(-2);
-        var closureLocal = localNow.AddMinutes(20);
-        var publicationTime = new TimeOnly(publicationLocal.Hour, publicationLocal.Minute);
-        var closureTime = new TimeOnly(closureLocal.Hour, closureLocal.Minute);
-        if (closureTime <= publicationTime)
-        {
-            return;
-        }
+        var (now, date, publicationTime, closureTime) = await GetCurrentSameDayWindowAsync(database);
         var publication = timeZone.ToUtc(date, publicationTime);
         var closure = timeZone.ToUtc(date, closureTime);
         Guid scheduleId;
@@ -356,17 +346,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var timeZone = new SaoPauloAgendamentoPresencaTimeZone();
-        var now = await database.GetClockAsync();
-        var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo");
-        var date = DateOnly.FromDateTime(localNow.DateTime);
-        var publicationLocal = localNow.AddMinutes(-2);
-        var closureLocal = localNow.AddMinutes(20);
-        if (DateOnly.FromDateTime(closureLocal.DateTime) != date)
-        {
-            return;
-        }
-        var publicationTime = new TimeOnly(publicationLocal.Hour, publicationLocal.Minute);
-        var closureTime = new TimeOnly(closureLocal.Hour, closureLocal.Minute);
+        var (now, date, publicationTime, closureTime) = await GetCurrentSameDayWindowAsync(database);
         var publication = timeZone.ToUtc(date, publicationTime);
         var closure = timeZone.ToUtc(date, closureTime);
         Guid scheduleId;
@@ -2359,6 +2339,23 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
 
     private static DiaSemanaIso ToIsoDay(DayOfWeek day) =>
         (DiaSemanaIso)(day == DayOfWeek.Sunday ? 7 : (int)day);
+
+    private static async Task<(DateTimeOffset Now, DateOnly Date, TimeOnly Publication, TimeOnly Closure)>
+        GetCurrentSameDayWindowAsync(PostgreSqlTestDatabase database)
+    {
+        while (true)
+        {
+            var now = await database.GetClockAsync();
+            var localNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now, "America/Sao_Paulo");
+            if (localNow.TimeOfDay < new TimeSpan(23, 55, 0))
+            {
+                return (now, DateOnly.FromDateTime(localNow.DateTime), TimeOnly.MinValue, new TimeOnly(23, 59));
+            }
+
+            var nextDay = localNow.Date.AddDays(1).AddSeconds(1);
+            await Task.Delay(nextDay - localNow.DateTime);
+        }
+    }
 
     private TimeOnly SchedulePublicationTime() =>
         TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(Agora, "America/Sao_Paulo").DateTime);
