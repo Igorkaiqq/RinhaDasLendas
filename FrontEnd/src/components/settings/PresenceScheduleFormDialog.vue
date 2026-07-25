@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon } from '@lucide/vue'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -264,10 +265,12 @@ async function restoreFocus() {
               <ToggleGroupItem
                 v-for="day in weekdays"
                 :key="day"
+                v-slot="{ pressed }"
                 :value="day"
                 :data-weekday="day"
                 :aria-pressed="form.diasSemana.includes(day)"
               >
+                <CheckIcon :data-visible="pressed" data-selection-indicator data-icon="inline-start" aria-hidden="true" />
                 {{ t(`settings.presenceSchedules.weekdays.${day}`) }}
               </ToggleGroupItem>
             </ToggleGroup>

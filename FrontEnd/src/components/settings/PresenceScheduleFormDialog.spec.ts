@@ -37,10 +37,13 @@ describe('PresenceScheduleFormDialog', () => {
   it('exposes an accessible weekday option set and normalizes a valid payload', async () => {
     const wrapper = await mountDialog()
     const friday = wrapper.get('button[data-weekday="Sexta"]')
+    const indicator = friday.get('[data-selection-indicator]')
 
     expect(friday.attributes('aria-pressed')).toBe('false')
+    expect(indicator.attributes('data-visible')).toBe('false')
     await friday.trigger('click')
     expect(friday.attributes('aria-pressed')).toBe('true')
+    expect(indicator.attributes('data-visible')).toBe('true')
     await wrapper.get('#presence-schedule-name').setValue('  Sexta da Rinha  ')
     await wrapper.get('#presence-schedule-observation').setValue('  Formar times  ')
     await wrapper.get('#presence-schedule-publication').setValue('18:00')
