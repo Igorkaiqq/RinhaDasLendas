@@ -343,6 +343,66 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         (await factory.GetPublicationStatusAsync(failedDraftId)).Should().Be("Falha");
     }
 
+    [Fact]
+    public async Task FalhaDeDeadlineAposExpiracaoDoClaim_DeveUsarCasExatoSemReconciliacao()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        using var client = factory.CreateBotClient();
+        var deadline = DateTimeOffset.UtcNow.AddMinutes(2);
+        var draftId = await factory.SeedPendingPublicationAsync(deadline);
+        var claimId = await AcquireClaimIdAsync(client, draftId);
+        var claimed = await factory.GetPublicationPersistenceStateAsync(draftId);
+        claimed.ClaimExpiresAt.Should().BeCloseTo(deadline, TimeSpan.FromMilliseconds(1));
+        await factory.ExpirePresenceWindowAndClaimAsync(draftId);
+
+        var failurePayload = new
+        {
+            Tipo = "Presenca",
+            ClaimId = claimId,
+            DiscordGuildId = "guild-1",
+            DiscordChannelId = "channel-1",
+            ErroCodigo = "PRESENCE_DEADLINE_EXPIRED",
+        };
+        var response = await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{draftId}/discord/publicacao/falha",
+            failurePayload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var failed = await factory.GetPublicationPersistenceStateAsync(draftId);
+        failed.Status.Should().Be("Falha");
+        failed.ErrorCode.Should().Be("PRESENCE_DEADLINE_EXPIRED");
+        failed.MessageId.Should().BeNull();
+        failed.ClaimExpiresAt.Should().BeNull();
+        (await client.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{draftId}/discord/publicacao/falha",
+            failurePayload)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await factory.GetPublicationPersistenceStateAsync(draftId)).Status.Should().Be("Falha");
+
+        foreach (var invalid in new[]
+        {
+            (Type: "Presenca", DivergentClaim: false, Code: "Timeout"),
+            (Type: "Presenca", DivergentClaim: true, Code: "PRESENCE_DEADLINE_EXPIRED"),
+            (Type: "ChamadaPresenca", DivergentClaim: false, Code: "PRESENCE_DEADLINE_EXPIRED"),
+        })
+        {
+            var invalidDraftId = await factory.SeedPendingPublicationAsync(DateTimeOffset.UtcNow.AddMinutes(2));
+            var invalidClaimId = await AcquireClaimIdAsync(client, invalidDraftId);
+            await factory.ExpirePresenceWindowAndClaimAsync(invalidDraftId);
+            var invalidResponse = await client.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{invalidDraftId}/discord/publicacao/falha",
+                new
+                {
+                    Tipo = invalid.Type,
+                    ClaimId = invalid.DivergentClaim ? Guid.NewGuid() : invalidClaimId,
+                    ErroCodigo = invalid.Code,
+                });
+
+            invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await factory.GetPublicationPersistenceStateAsync(invalidDraftId)).Status
+                .Should().NotBe("Falha");
+        }
+    }
+
     [Theory]
     [InlineData("Invalido")]
     [InlineData("1")]
@@ -996,7 +1056,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 reloaded.HorarioEncerramentoPresenca);
         }
 
-        public async Task<Guid> SeedPendingPublicationAsync()
+        public async Task<Guid> SeedPendingPublicationAsync(DateTimeOffset? presenceDeadline = null)
         {
             _ = CreateClient();
             await using var scope = Services.CreateAsyncScope();
@@ -1017,7 +1077,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 await dbContext.SaveChangesAsync();
             }
             var draft = new DraftMontagem("Draft de teste", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
-            draft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
+            draft.ConfigurarEncerramentoPresenca(presenceDeadline ?? DateTimeOffset.UtcNow.AddHours(1));
             draft.SolicitarRepublicacaoDiscord(
                 DraftMontagemPublicacaoDiscordTipo.Presenca,
                 responsibleUserId,
@@ -1104,6 +1164,44 @@ public sealed class DraftMontagemBehaviorIntegrationTests
                 """;
             command.Parameters.AddWithValue("draftId", draftId);
             await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task ExpirePresenceWindowAndClaimAsync(Guid draftId)
+        {
+            await using var connection = new NpgsqlConnection(ConnectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE draft_montagens
+                SET horario_encerramento_presenca = clock_timestamp() - INTERVAL '1 minute'
+                WHERE id = @draftId;
+
+                UPDATE draft_montagem_publicacoes_discord
+                SET claim_expira_em = clock_timestamp() - INTERVAL '1 minute'
+                WHERE draft_montagem_id = @draftId AND tipo = 'Presenca';
+                """;
+            command.Parameters.AddWithValue("draftId", draftId);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task<(string Status, string? ErrorCode, DateTimeOffset? ClaimExpiresAt, string? MessageId)> GetPublicationPersistenceStateAsync(Guid draftId)
+        {
+            await using var connection = new NpgsqlConnection(ConnectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT status, ultimo_erro_codigo, claim_expira_em, message_id
+                FROM draft_montagem_publicacoes_discord
+                WHERE draft_montagem_id = @draftId AND tipo = 'Presenca'
+                """;
+            command.Parameters.AddWithValue("draftId", draftId);
+            await using var reader = await command.ExecuteReaderAsync();
+            (await reader.ReadAsync()).Should().BeTrue();
+            return (
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetFieldValue<DateTimeOffset>(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3));
         }
 
         public async Task<int> ReconcileExpiredClaimsAsync()

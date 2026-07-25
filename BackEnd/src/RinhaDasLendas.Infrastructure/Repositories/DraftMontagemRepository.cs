@@ -287,7 +287,18 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND tipo = @tipo
                   AND status = 'EmAndamento'
                   AND claim_id = @claimId
-                  AND claim_expira_em > @agora
+                  AND (
+                      claim_expira_em > clock_timestamp()
+                      OR (
+                          @erroCodigo = 'PRESENCE_DEADLINE_EXPIRED'
+                          AND @tipo IN ('Presenca', 'ChamadaPresenca')
+                          AND message_id IS NULL
+                          AND EXISTS (
+                              SELECT 1
+                              FROM draft_montagens AS draft
+                              WHERE draft.id = @draftMontagemId
+                                AND draft.horario_encerramento_presenca <= clock_timestamp()
+                                AND (@tipo <> 'Presenca' OR draft.discord_presence_message_id IS NULL))))
                 RETURNING 1
             )
             SELECT EXISTS (SELECT 1 FROM updated)
