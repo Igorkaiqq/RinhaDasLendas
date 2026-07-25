@@ -201,10 +201,10 @@
 
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
-| T020 | Concluída | O novo `DraftVisualBoard.spec.ts` cobre clone local imutável, cópia ordenada de times, ordem original do payload, progresso e sequência por `escolhas`, capitães, preferências, identidade do pick e leitura terminal. |
-| T021 | Concluída | `DraftsView.spec.ts` cobre payload exato, estados válidos, permissão/identidade, duplicidade rápida, escolha inválida e as proteções existentes contra respostas realtime obsoletas. |
-| T022 | Concluída | O board ordena cópias por `time.ordem`, explicita ordem/capitão/progresso/sequência, mantém rotas no pool e substitui renomeação e demais affordances mutáveis por leitura em `Finalizada` e `Cancelada`. |
-| T023 | Concluída | A view mantém serviços e contratos, valida o contexto de cada intenção e bloqueia reenvios de capitães, ordem, pick e finalização sem alterar a arbitragem de projeções públicas, administrativas ou realtime. |
+| T020 | Concluída | `DraftVisualBoard.spec.ts` cobre clone local imutável, cópia ordenada, payload, progresso, preferências, leitura terminal, autorização oficial, turno válido/não expirado, lock local e filtros de rota em inglês. |
+| T021 | Concluída | `DraftsView.spec.ts` cobre payload, estados, duplicidade, escolha inválida, cancelamento obsoleto após transição realtime e preservação de `canCurrentUserPick` em estado inicial, callbacks e mutações. |
+| T022 | Concluída | O board preserva props/emits com a prop opcional de autorização, ordena cópias, mantém rotas, restringe picks ao turno oficial ativo e usa lock resetado por ciclo de salvamento ou nova projeção. |
+| T023 | Concluída | A view mantém serviços e contratos, revalida cancelamento imediatamente antes da mutação e conserva autorização oficial junto às proteções de identidade, geração e versão de requisição. |
 
 ### RED
 
@@ -215,12 +215,12 @@
 - Motivos adicionais esperados: capitães e ordem eram aceitos fora das etapas correspondentes, e intenções do board eram encaminhadas antes de o draft estar aberto.
 - RED de timeout, executado em `FrontEnd/`: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts`; 1 teste falhou e 5 passaram porque o timeout era contado como jogador escolhido (`3 / 4` em vez de `2 / 4`).
 
-### GREEN focado
+### GREEN focado inicial
 
 - Comando: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts`.
 - Resultado: 2 arquivos aprovados, 64 testes aprovados e 0 falhas (`DraftVisualBoard`: 6; `DraftsView`: 58).
 - O teste de payload confirma que a apresentação usa `team-a`, `team-b` por `ordem`, enquanto `save` mantém a ordem funcional recebida `team-b`, `team-a` e os mesmos `jogadorId`.
-- O teste realtime confirma que somente o capitão identificado em `currentPlayerId` encaminha o `jogadorId`; uma segunda emissão rápida não cria outra chamada.
+- O teste realtime inicial confirmou o bloqueio duplicado na integração da view; a revisão posterior acrescentou lock independente no próprio board.
 - A escolha rejeitada pelo serviço mantém turno, pool e projeção atuais, apresenta o erro retornado e não interfere nas proteções existentes contra refresh obsoleto.
 - Timeouts permanecem na sequência auditável, mas somente registros com `jogadorId` avançam o progresso de jogadores escolhidos.
 
@@ -229,9 +229,9 @@
 | Critério | Evidência desta fase | Estado |
 |----------|----------------------|--------|
 | SC-001 | `Finalizada` e `Cancelada` mantêm resultado, ordem e capitães, sem renomear, arrastar, substituir, salvar, escolher, finalizar ou cancelar. | Aprovado estruturalmente para o board; inspeção visual permanece em T030. |
-| SC-005 | Matriz cobre cancelamento já protegido, capitães, ordem, pick e finalização com permissão/identidade, estado válido e bloqueio de duplicidade rápida. | Aprovado para as ações de US3. |
-| SC-007 | Quatro chaves novas possuem equivalentes PT/EN; ordem, progresso, sequência e timeout usam i18n e o scanner completo foi aprovado. | Aprovado para T020-T023. |
-| SC-009 | Props/emits, `jogadorId`, ordem do payload, projeção inválida e identidade realtime permanecem preservados nos testes focados e completos. | Aprovado para a jornada automatizada de US3; jornada real permanece em T030. |
+| SC-005 | Matriz cobre cancelamento revalidado após transição terminal, capitães, ordem, pick e finalização com permissão/identidade, estado válido e bloqueio de duplicidade rápida na view e no board. | Aprovado para as ações automatizadas de US3. |
+| SC-007 | Dez strings adicionadas nesta fase possuem equivalentes PT/EN; ordem, progresso, sequência, timeout e seis filtros de rota usam i18n e o scanner completo foi aprovado. | Aprovado para T020-T023. |
+| SC-009 | Props/emits, `jogadorId`, ordem do payload, projeção inválida, autorização oficial e identidade realtime permanecem preservados nos testes focados e completos. | Aprovado para a jornada automatizada de US3; jornada real permanece em T030. |
 
 ### Gates da fase
 
@@ -243,3 +243,29 @@
 - Fronteiras: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.
 - Textos visíveis: ordem dos times, progresso, sequência e timeout foram adicionados em PT/EN; preferências, botões, títulos, badges, estados vazios e mensagens de validação existentes foram revisados.
 - Backend: nenhuma mensagem ou resource foi alterado; nenhuma atualização é necessária para esta fase exclusivamente frontend.
+
+### Revisão pós-T023
+
+#### RED
+
+- Cancelamento obsoleto: `npm test -- src/views/DraftsView.spec.ts`; 2 testes falharam e 58 passaram. `confirmReasonAction` ainda chamava o serviço depois de uma atualização realtime mudar o draft para `Finalizada` ou `Cancelada`.
+- Autorização e lock de pick: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts`; 9 testes falharam e 64 passaram. A flag `canCurrentUserPick` era descartada, turno expirado ou sem atores válidos ainda oferecia pick, eventos rápidos duplicavam o emit local e a view não rejeitava a negação oficial mais recente.
+- Filtros em inglês: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts`; 1 teste falhou e 11 passaram porque `TODAS AS ROTAS` e `SUPORTE` eram renderizados diretamente dos valores internos.
+- Capitão incompatível com o time atual: o mesmo teste focado executou 13 casos; 1 falhou e 12 passaram porque um capitão existente em outro time ainda qualificava o turno.
+
+#### GREEN
+
+- Cancelamento obsoleto: `DraftsView.spec.ts` passou 60/60 após a revalidação terminal limpar a ação sem mutação.
+- Focado final: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 103 testes aprovados (`DraftVisualBoard`: 13; `DraftsView`: 62; i18n: 28).
+- A autorização oficial é preservada no carregamento realtime inicial, callbacks SignalR, reconexão e respostas de iniciar, escolher e substituir; a view e o board exigem valor `true`.
+- O board exige time atual existente, capitão pertencente e marcado como capitão desse time e tempo positivo; seu lock bloqueia emits rápidos e é liberado somente após ciclo de salvamento ou atualização da projeção.
+- Os rótulos dos seis filtros usam chaves PT/EN, enquanto `DraftRouteFilterValues` e `DRAFT_MONTAGEM_ROUTE_BY_FILTER` permanecem inalterados para seleção e filtragem.
+
+#### Gates corrigidos
+
+- Suíte completa: `npm test`; 36 arquivos aprovados, 308 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído, com os avisos não bloqueantes já conhecidos.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
+- Whitespace: `git diff --check`; aprovado sem saída.
+- Escopo: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.

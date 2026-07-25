@@ -106,6 +106,8 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **Checkpoint**: Todo o ciclo operacional do Draft funciona no novo shell.
 
+**Revisão pós-T023 (2026-07-25)**: T020-T023 permanecem concluídas após testes RED adicionais e correções para cancelamento obsoleto após atualização realtime, preservação de `canCurrentUserPick`, lock local de pick, validade temporal/identidade do turno e localização PT/EN dos filtros de rota. Evidências corrigidas em `verification-report.md`.
+
 ---
 
 ## Phase 6: User Story 5 - Navegar entre drafts com contexto suficiente (Priority: P2)
