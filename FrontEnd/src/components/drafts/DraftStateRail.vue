@@ -22,27 +22,41 @@ const labels: Record<string, string> = {
 }
 
 const steps = computed<DraftRailStep[]>(() => {
-  const activeIndex = Math.max(order.indexOf(props.status), 0)
-  const base = order.map((status, index) => ({
+  if (props.status === 'Cancelada') {
+    return [
+      { id: 'cancelled', label: t('drafts.rail.cancelled'), state: 'terminal' },
+      discordStep.value,
+    ]
+  }
+
+  const activeIndex = order.indexOf(props.status)
+  if (activeIndex === -1) {
+    return [
+      { id: 'unknown', label: t('drafts.rail.unknown'), state: 'unknown' },
+      discordStep.value,
+    ]
+  }
+
+  const base: DraftRailStep[] = order.map((status, index) => ({
     id: status,
     label: t(labels[status] ?? status),
-    state: (index < activeIndex ? 'done' : index === activeIndex ? 'active' : 'pending') as DraftRailStep['state'],
-  }) satisfies DraftRailStep)
+    state: (index < activeIndex ? 'done' : index === activeIndex ? status === 'Finalizada' ? 'terminal' : 'active' : 'pending') as DraftRailStep['state'],
+    current: index === activeIndex,
+  }))
 
-  base.push({
-    id: 'discord',
-    label: t('drafts.rail.discord'),
-    state: (
-      props.publicationStatus === 'Falha' || props.publicationStatus === 'Pendente'
-        ? 'attention'
-        : props.publicationStatus === 'Publicada'
-          ? 'done'
-          : 'pending'
-    ) as DraftRailStep['state'],
-  })
-
+  base.push(discordStep.value)
   return base
 })
+
+const discordStep = computed<DraftRailStep>(() => ({
+  id: 'discord',
+  label: t('drafts.rail.discord'),
+  state: props.publicationStatus === 'Falha' || props.publicationStatus === 'Pendente'
+    ? 'attention'
+    : props.publicationStatus === 'Publicada'
+      ? 'done'
+      : 'pending',
+}))
 </script>
 
 <template>

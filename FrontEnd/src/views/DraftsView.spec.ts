@@ -8,6 +8,7 @@ import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemResumo, DraftMonta
 
 import DraftsView from './DraftsView.vue'
 import DraftsViewSource from './DraftsView.vue?raw'
+import DraftVisualBoardSource from '@/components/drafts/visual/DraftVisualBoard.vue?raw'
 
 const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
@@ -704,5 +705,36 @@ describe('DraftsView reason actions', () => {
 
   it('does not use native prompts', () => {
     expect(DraftsViewSource).not.toContain('window.prompt')
+  })
+
+  it.each([
+    'PresencaAberta',
+    'PresencaEncerrada',
+    'CapitaesDefinidos',
+    'OrdemDefinida',
+    'Aberta',
+    'Finalizada',
+    'Cancelada',
+  ] satisfies DraftMontagemStatus[])('keeps one workspace hierarchy and at most one primary action for %s', async (status) => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection(status))
+
+    const wrapper = await mountView()
+    const workspace = wrapper.get('[data-testid="draft-workspace-header"]')
+
+    expect(workspace.get('h1').text()).toBe(montagem.nome)
+    expect(workspace.get('[data-workspace-status]').text()).toBe(i18n.global.t(`drafts.status.${status}`))
+    expect(workspace.get('[data-action-group="primary"]').findAll('button').length).toBeLessThanOrEqual(1)
+    if (status === 'Finalizada' || status === 'Cancelada') {
+      expect(workspace.get('[data-action-group="primary"]').find('button').exists()).toBe(false)
+      expect(workspace.get('[data-action-group="danger"]').find('button').exists()).toBe(false)
+    } else {
+      expect(workspace.get('[data-action-group="danger"] button').attributes('data-variant')).toBe('destructive')
+    }
+    wrapper.unmount()
+  })
+
+  it('uses the application landmark and workspace identity only once', () => {
+    expect(DraftsViewSource).not.toMatch(/<main\b/)
+    expect(DraftVisualBoardSource).not.toContain('{{ localMontagem.nome }}')
   })
 })

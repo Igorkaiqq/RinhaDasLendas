@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import DraftReasonDialog, { type DraftReasonDialogAction } from '@/components/drafts/DraftReasonDialog.vue'
-import DraftStateRail from '@/components/drafts/DraftStateRail.vue'
+import DraftWorkspaceHeader from '@/components/drafts/DraftWorkspaceHeader.vue'
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
 import PageFrame from '@/components/layout/PageFrame.vue'
@@ -706,21 +706,29 @@ function captureError(error: unknown) {
         </div>
       </aside>
 
-      <main class="draft-main">
-        <section v-if="selectedMontagem" class="panel-card presence-panel">
-          <div>
-            <span class="eyebrow">{{ t('drafts.presence.eyebrow') }}</span>
-            <h2>{{ t('drafts.presence.title') }}</h2>
-            <p>{{ t('drafts.presence.summary', { count: confirmedPresences.length, teams: selectedMontagem.quantidadeTimes, reserves: selectedMontagem.quantidadeReservas }) }}</p>
-          </div>
-          <DraftStateRail :status="selectedMontagem.status" :publication-status="finalTeamsPublicationStatus" />
-          <div class="draft-hero-actions">
+      <div class="draft-main">
+        <DraftWorkspaceHeader
+          v-if="selectedMontagem"
+          :draft="selectedMontagem"
+          :confirmed-count="confirmedPresences.length"
+          :final-teams-publication-status="finalTeamsPublicationStatus"
+        >
+          <template #primary-action>
             <button v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && !myPresence" type="button" :disabled="saving" @click="confirmPresence">{{ t('drafts.presence.confirm') }}</button>
+            <button v-else-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaEncerrada" type="button" :disabled="saving || captainSelection.length !== selectedMontagem.quantidadeTimes" @click="defineCaptains">{{ t('drafts.presence.defineCaptains') }}</button>
+            <button v-else-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.CapitaesDefinidos" type="button" :disabled="saving" @click="drawPickOrder">{{ t('drafts.presence.drawOrder') }}</button>
+          </template>
+          <template #secondary-actions>
             <button v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && myPresence" type="button" class="button-secondary" :disabled="saving" @click="cancelPresence">{{ t('drafts.presence.cancel') }}</button>
             <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" type="button" class="button-secondary" :disabled="saving" @click="closePresence(false)">{{ t('drafts.presence.close') }}</button>
             <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && confirmedPresences.length < 10" type="button" class="button-secondary" :disabled="saving" @click="closePresence(true)">{{ t('drafts.presence.continueManual') }}</button>
-            <button v-if="canManageDrafts && selectedMontagem.status !== DraftMontagemStatusValues.Finalizada && selectedMontagem.status !== DraftMontagemStatusValues.Cancelada" type="button" class="button-secondary" :disabled="saving" @click="requestDraftCancellation">{{ t('common.cancel') }}</button>
-          </div>
+          </template>
+          <template #danger-action>
+            <Button v-if="canManageDrafts && selectedMontagem.status !== DraftMontagemStatusValues.Finalizada && selectedMontagem.status !== DraftMontagemStatusValues.Cancelada" type="button" variant="destructive" :disabled="saving" @click="requestDraftCancellation">{{ t('common.cancel') }}</Button>
+          </template>
+        </DraftWorkspaceHeader>
+
+        <section v-if="selectedMontagem" class="panel-card presence-panel">
           <p v-if="selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta && confirmedPresences.length < 10" class="profile-inline-message">{{ t('drafts.presence.lessThanTen') }}</p>
           <div v-if="canManageDrafts" class="draft-hero-actions" :aria-label="t('drafts.publication.statusLabel')">
             <span class="team-status">{{ t('drafts.publication.presence', { status: t(`drafts.publication.status.${publicationStatus('Presenca')}`) }) }}</span>
@@ -750,12 +758,6 @@ function captureError(error: unknown) {
               <button v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaAberta" type="button" class="button-secondary" :disabled="saving" @click.stop="requestManualPresenceRemoval(presence.jogadorId, presence.nomeExibicao)">{{ t('drafts.presence.removeManual') }}</button>
             </div>
           </div>
-          <div v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.PresencaEncerrada" class="draft-hero-actions">
-            <button type="button" :disabled="saving || captainSelection.length !== selectedMontagem.quantidadeTimes" @click="defineCaptains">{{ t('drafts.presence.defineCaptains') }}</button>
-          </div>
-          <div v-if="canManageDrafts && selectedMontagem.status === DraftMontagemStatusValues.CapitaesDefinidos" class="draft-hero-actions">
-            <button type="button" :disabled="saving" @click="drawPickOrder">{{ t('drafts.presence.drawOrder') }}</button>
-          </div>
         </section>
         <DraftVisualBoard
           v-if="selectedMontagem && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada && selectedMontagem.status !== DraftMontagemStatusValues.CapitaesDefinidos"
@@ -775,7 +777,7 @@ function captureError(error: unknown) {
           <h2>{{ t('drafts.noSelectionTitle') }}</h2>
           <p>{{ t('drafts.noSelectionDescription') }}</p>
         </section>
-      </main>
+      </div>
     </section>
 
     <DraftVisualSetup

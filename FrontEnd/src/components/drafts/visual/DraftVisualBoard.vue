@@ -329,21 +329,14 @@ async function exportImage() {
 
 <template>
   <section class="draft-visual-shell draft-panel">
-    <header class="draft-summary draft-visual-summary">
-      <div>
-        <span class="draft-status draft-status--aberto">{{ localMontagem.status }}</span>
-        <h2>{{ localMontagem.nome }}</h2>
-        <p>{{ t('drafts.visualBoard.summary', { teams: localMontagem.quantidadeTimes, reserves: localMontagem.quantidadeReservas }) }}</p>
-      </div>
-      <div class="draft-visual-actions">
-        <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
-        <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
-        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
-        <button type="button" class="button-secondary" @click="exportImage">{{ t('drafts.visualBoard.exportImage') }}</button>
-        <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
-        <button v-if="canManage && isOpen && !isRealtime" type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
-      </div>
-    </header>
+    <div class="draft-visual-actions">
+      <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
+      <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
+      <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
+      <button type="button" class="button-secondary" @click="exportImage">{{ t('drafts.visualBoard.exportImage') }}</button>
+      <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="saving" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+      <button v-if="canManage && isOpen && !isRealtime" type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
+    </div>
 
     <section v-if="hasActiveTurn" class="draft-turn-clock" :aria-label="t('drafts.realtime.turnClock')">
       <div class="draft-turn-clock__pulse" aria-hidden="true" />

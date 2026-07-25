@@ -51,16 +51,16 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Escrever matriz falha de progresso, cancelamento, desconhecido, Discord e `aria-current` em `FrontEnd/src/components/drafts/DraftStateRail.spec.ts`
-- [ ] T008 [P] [US1] Escrever testes falhos do cabeçalho, métricas, slots de ação e nomes longos em `FrontEnd/src/components/drafts/DraftWorkspaceHeader.spec.ts`
-- [ ] T009 [US1] Escrever testes integrados falhos da hierarquia nos sete estados em `FrontEnd/src/views/DraftsView.spec.ts`
+- [X] T007 [P] [US1] Escrever matriz falha de progresso, cancelamento, desconhecido, Discord e `aria-current` em `FrontEnd/src/components/drafts/DraftStateRail.spec.ts`
+- [X] T008 [P] [US1] Escrever testes falhos do cabeçalho, métricas, slots de ação e nomes longos em `FrontEnd/src/components/drafts/DraftWorkspaceHeader.spec.ts`
+- [X] T009 [US1] Escrever testes integrados falhos da hierarquia nos sete estados em `FrontEnd/src/views/DraftsView.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] Implementar estados `terminal` e `unknown` e `aria-current` em `FrontEnd/src/components/layout/DraftRail.vue`
-- [ ] T011 [US1] Implementar mapeamento canônico, cancelamento e fallback neutro em `FrontEnd/src/components/drafts/DraftStateRail.vue`
-- [ ] T012 [P] [US1] Criar contexto estável e grupos de ação em `FrontEnd/src/components/drafts/DraftWorkspaceHeader.vue`
-- [ ] T013 [US1] Integrar o shell operacional e remover landmarks/cabeçalhos duplicados em `FrontEnd/src/views/DraftsView.vue` e `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
+- [X] T010 [P] [US1] Implementar estados `terminal` e `unknown` e `aria-current` em `FrontEnd/src/components/layout/DraftRail.vue`
+- [X] T011 [US1] Implementar mapeamento canônico, cancelamento e fallback neutro em `FrontEnd/src/components/drafts/DraftStateRail.vue`
+- [X] T012 [P] [US1] Criar contexto estável e grupos de ação em `FrontEnd/src/components/drafts/DraftWorkspaceHeader.vue`
+- [X] T013 [US1] Integrar o shell operacional e remover landmarks/cabeçalhos duplicados em `FrontEnd/src/views/DraftsView.vue` e `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
 
 **Checkpoint**: Contexto e progresso funcionam independentemente do conteúdo das etapas.
 
