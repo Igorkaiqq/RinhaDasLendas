@@ -112,6 +112,75 @@ function stringLiteralAt(source: string, start: number): string | null {
   return null
 }
 
+function stringLiterals(source: string): Array<{ quote: string; value: string }> {
+  const literals: Array<{ quote: string; value: string }> = []
+
+  for (let index = 0; index < source.length; index += 1) {
+    const value = stringLiteralAt(source, index)
+    if (value === null) {
+      continue
+    }
+
+    const quote = source[index]
+    literals.push({ quote, value })
+    index += 1
+    while (index < source.length) {
+      if (source[index] === '\\') {
+        index += 2
+      } else if (source[index] === quote) {
+        break
+      } else {
+        index += 1
+      }
+    }
+  }
+
+  return literals
+}
+
+function withoutI18nLookups(expression: string): string {
+  const source = [...expression]
+  const lookup = /(?:^|[^\w$])\$?t\s*\(/g
+  let match: RegExpExecArray | null
+
+  while ((match = lookup.exec(expression))) {
+    const open = match.index + match[0].lastIndexOf('(')
+    let depth = 1
+    let quote: string | null = null
+    let end = open + 1
+
+    for (; end < expression.length && depth > 0; end += 1) {
+      const character = expression[end]
+      if (quote) {
+        if (character === '\\') {
+          end += 1
+        } else if (character === quote) {
+          quote = null
+        }
+      } else if (['"', "'", '`'].includes(character)) {
+        quote = character
+      } else if (character === '(') {
+        depth += 1
+      } else if (character === ')') {
+        depth -= 1
+      }
+    }
+
+    if (depth === 0) {
+      source.fill(' ', match.index, end)
+      lookup.lastIndex = end
+    }
+  }
+
+  return source.join('')
+}
+
+function expressionLiterals(expression: string): string[] {
+  return stringLiterals(withoutI18nLookups(expression))
+    .map(({ quote, value }) => quote === '`' ? value.replace(/\$\{[\s\S]*?}/g, '') : value)
+    .filter(hasVisibleCharacters)
+}
+
 function visibleTemplateText(template: string): string[] {
   const source = template.replace(/{{[\s\S]*?}}/g, '')
   const textNodes: string[] = []
@@ -146,11 +215,24 @@ function draftHardcodedTextViolations(source: string): string[] {
     violations.push(`visible text: ${text}`)
   }
 
+  for (const match of template.matchAll(/{{([\s\S]*?)}}/g)) {
+    for (const literal of expressionLiterals(match[1])) {
+      violations.push(`interpolation: ${literal}`)
+    }
+  }
+
   const attributePattern = /(?:^|\s)(:|v-bind:)?(aria-label|title|placeholder|alt)\s*=\s*(["'])([\s\S]*?)\3/g
   for (const match of template.matchAll(attributePattern)) {
     const literal = match[1] ? boundStringLiteral(match[4]) : match[4]
     if (literal !== null && hasVisibleCharacters(literal)) {
       violations.push(`${match[2]}: ${literal}`)
+    }
+  }
+
+  const vTextPattern = /(?:^|\s)v-text\s*=\s*(["'])([\s\S]*?)\1/g
+  for (const match of template.matchAll(vTextPattern)) {
+    for (const literal of expressionLiterals(match[2])) {
+      violations.push(`v-text: ${literal}`)
     }
   }
 
@@ -303,12 +385,36 @@ describe('i18n', () => {
       name: 'notification literal',
       source: `<script setup>notification.value = "Saved"</script><template><div /></template>`,
     },
+    {
+      name: 'string literal interpolation',
+      source: `<template><span>{{ 'Saved' }}</span></template>`,
+    },
+    {
+      name: 'conditional string literal interpolation',
+      source: `<template><span>{{ condition ? 'Saved' : 'Failed' }}</span></template>`,
+    },
+    {
+      name: 'v-text string literal',
+      source: `<template><span v-text="'Saved'" /></template>`,
+    },
   ])('detects $name', ({ source }) => {
     expect(draftHardcodedTextViolations(source)).not.toEqual([])
   })
 
   it('does not treat greater-than operators inside attributes as visible text', () => {
     const source = `<template><Dialog @update:open="(value) => close(value)">{{ t('common.close') }}</Dialog></template>`
+
+    expect(draftHardcodedTextViolations(source)).toEqual([])
+  })
+
+  it('allows translated interpolation expressions', () => {
+    const source = `<template><h1>{{ t('drafts.title') }}</h1></template>`
+
+    expect(draftHardcodedTextViolations(source)).toEqual([])
+  })
+
+  it('allows dynamic template literals without visible copy', () => {
+    const source = "<template><span>{{ player.elo ? `${player.elo} ${player.divisao ?? ''}` : t('common.eloNotInformed') }}</span></template>"
 
     expect(draftHardcodedTextViolations(source)).toEqual([])
   })
