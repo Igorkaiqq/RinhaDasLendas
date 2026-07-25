@@ -19,7 +19,7 @@ import type {
 
 import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
-const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null }>()
+const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null }>()
 const { t } = useI18n()
 const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
@@ -39,20 +39,31 @@ const playerSearch = ref('')
 const selectedRoute = ref<DraftRouteFilterValue>(DraftRouteFilterValues.All)
 const now = ref(Date.now())
 const soundEnabled = ref(false)
+const pickLocked = ref(false)
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
 let audioContext: AudioContext | null = null
 let lastTickSecond: number | null = null
 const routeFilters = DRAFT_ROUTE_FILTER_OPTIONS
 const routeByFilter = DRAFT_MONTAGEM_ROUTE_BY_FILTER
+const routeFilterI18nKeys: Record<DraftRouteFilterValue, string> = {
+  [DraftRouteFilterValues.All]: 'drafts.visualBoard.routeFilters.all',
+  [DraftRouteFilterValues.Top]: 'drafts.visualBoard.routeFilters.top',
+  [DraftRouteFilterValues.Jungle]: 'drafts.visualBoard.routeFilters.jungle',
+  [DraftRouteFilterValues.Mid]: 'drafts.visualBoard.routeFilters.mid',
+  [DraftRouteFilterValues.Adc]: 'drafts.visualBoard.routeFilters.adc',
+  [DraftRouteFilterValues.Support]: 'drafts.visualBoard.routeFilters.support',
+}
 
 const isRealtime = computed(() => localMontagem.value.modo === DraftMontagemModoValues.TempoReal)
 const isTerminal = computed(() => localMontagem.value.status === DraftMontagemStatusValues.Finalizada || localMontagem.value.status === DraftMontagemStatusValues.Cancelada)
 const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== DraftMontagemStatusValues.Aberta || isRealtime.value)
 const isOpen = computed(() => localMontagem.value.status === DraftMontagemStatusValues.Aberta)
-const hasActiveTurn = computed(() => isRealtime.value && isOpen.value && Boolean(localMontagem.value.turnoAtualTimeId && localMontagem.value.turnoAtualCapitaoId && localMontagem.value.turnoExpiraEm))
-const canPick = computed(() => isRealtime.value && localMontagem.value.status === DraftMontagemStatusValues.Aberta && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)
 const currentTurnTeam = computed(() => localMontagem.value.times.find((time) => time.id === localMontagem.value.turnoAtualTimeId) ?? null)
-const currentTurnCaptain = computed(() => allPlayers().find((player) => player.jogadorId === localMontagem.value.turnoAtualCapitaoId) ?? null)
+const currentTurnCaptain = computed(() => {
+  const team = currentTurnTeam.value
+  if (!team || team.capitaoId !== localMontagem.value.turnoAtualCapitaoId) return null
+  return team.jogadores.find((player) => player.jogadorId === team.capitaoId) ?? null
+})
 const remainingSeconds = computed(() => {
   if (!localMontagem.value.turnoExpiraEm) {
     return 0
@@ -60,6 +71,8 @@ const remainingSeconds = computed(() => {
 
   return Math.max(0, Math.ceil((new Date(localMontagem.value.turnoExpiraEm).getTime() - now.value) / 1000))
 })
+const hasActiveTurn = computed(() => isRealtime.value && isOpen.value && Boolean(currentTurnTeam.value && currentTurnCaptain.value && remainingSeconds.value > 0))
+const canPick = computed(() => props.canCurrentUserPick === true && hasActiveTurn.value && localMontagem.value.turnoAtualCapitaoId === props.currentPlayerId)
 const turnProgress = computed(() => {
   if (!hasActiveTurn.value || !localMontagem.value.turnoExpiraEm) {
     return 0
@@ -96,6 +109,14 @@ watch(
   (montagem) => {
     localMontagem.value = cloneMontagem(montagem)
     dirty.value = false
+    pickLocked.value = false
+  },
+)
+
+watch(
+  () => props.saving,
+  (saving, wasSaving) => {
+    if (wasSaving && !saving) pickLocked.value = false
   },
 )
 
@@ -184,7 +205,13 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
 }
 
 function canPickPlayer(player: DraftMontagemParticipante) {
-  return canPick.value && player.estado === DraftMontagemEstadoValues.Livre && !props.saving
+  return canPick.value && player.estado === DraftMontagemEstadoValues.Livre && !props.saving && !pickLocked.value
+}
+
+function pickPlayer(player: DraftMontagemParticipante) {
+  if (!canPickPlayer(player)) return
+  pickLocked.value = true
+  emit('pick', player.jogadorId)
 }
 
 async function toggleTimerSound() {
@@ -286,6 +313,10 @@ function eloSummary(player: DraftMontagemParticipante) {
 
 function participantRoleLabel(isCaptain: boolean) {
   return isCaptain ? t('drafts.roles.captain') : t('drafts.roles.player')
+}
+
+function routeFilterLabel(route: DraftRouteFilterValue) {
+  return t(routeFilterI18nKeys[route])
 }
 
 function captainName(time: DraftMontagem['times'][number]) {
@@ -419,7 +450,7 @@ async function exportImage() {
           </label>
           <div class="draft-route-filters" :aria-label="t('drafts.visualBoard.displayedRoutes')">
             <button v-for="route in routeFilters" :key="route" type="button" :class="{ 'is-active': selectedRoute === route }" @click="selectedRoute = route">
-              {{ route }}
+              {{ routeFilterLabel(route) }}
             </button>
           </div>
         </header>
@@ -449,7 +480,7 @@ async function exportImage() {
                 </span>
               </span>
             </span>
-            <button v-if="canPickPlayer(player)" type="button" class="draft-pick-action" @click.stop="emit('pick', player.jogadorId)">{{ t('drafts.realtime.pick') }}</button>
+            <button v-if="canPickPlayer(player)" type="button" class="draft-pick-action" @click.stop="pickPlayer(player)">{{ t('drafts.realtime.pick') }}</button>
             <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
           </article>
         </div>

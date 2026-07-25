@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem, DraftMontagemParticipante, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftVisualBoard from './DraftVisualBoard.vue'
@@ -84,19 +84,29 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
   }
 }
 
-function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null } = {}) {
+function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null } = {}) {
   return mount(DraftVisualBoard, {
     props: {
       montagem: draft,
       saving: false,
       canManage: overrides.canManage ?? true,
       currentPlayerId: overrides.currentPlayerId ?? null,
+      canCurrentUserPick: overrides.canCurrentUserPick,
     },
     global: { plugins: [i18n] },
   })
 }
 
+interface PickDenialScenario {
+  canCurrentUserPick: boolean
+  teamId?: string
+  captainId?: string
+  expired?: boolean
+}
+
 describe('DraftVisualBoard', () => {
+  afterEach(() => setLocale('pt'))
+
   it('edits only its local clone', async () => {
     const draft = montagem()
     const wrapper = mountBoard(draft)
@@ -152,13 +162,74 @@ describe('DraftVisualBoard', () => {
     draft.turnoAtualCapitaoId = 'captain-a'
     draft.turnoSequencia = 3
     draft.turnoExpiraEm = new Date(Date.now() + 60_000).toISOString()
-    const wrapper = mountBoard(draft, { currentPlayerId: 'captain-a' })
+    const wrapper = mountBoard(draft, { currentPlayerId: 'captain-a', canCurrentUserPick: true })
 
     expect(wrapper.get('[data-active-turn]').text()).toContain('Captain A')
     expect(wrapper.get('[data-available-pool]').text()).toContain('Jogadores Disponíveis')
     await wrapper.get('[data-player-id="available-1"] .draft-pick-action').trigger('click')
 
     expect(wrapper.emitted('pick')).toEqual([['available-1']])
+    wrapper.unmount()
+  })
+
+  it.each<[string, PickDenialScenario]>([
+    ['server authorization is false', { canCurrentUserPick: false }],
+    ['current team is missing', { canCurrentUserPick: true, teamId: 'missing-team' }],
+    ['current captain is missing', { canCurrentUserPick: true, captainId: 'missing-captain' }],
+    ['captain does not belong to the current team', { canCurrentUserPick: true, captainId: 'captain-b' }],
+    ['turn is expired', { canCurrentUserPick: true, expired: true }],
+  ])('does not offer picks when %s', (_, scenario) => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.turnoAtualTimeId = scenario.teamId ?? 'team-a'
+    draft.turnoAtualCapitaoId = scenario.captainId ?? 'captain-a'
+    draft.turnoSequencia = 3
+    draft.turnoExpiraEm = new Date(Date.now() + (scenario.expired ? -1_000 : 60_000)).toISOString()
+
+    const wrapper = mountBoard(draft, {
+      currentPlayerId: draft.turnoAtualCapitaoId,
+      canCurrentUserPick: scenario.canCurrentUserPick,
+    })
+
+    expect(wrapper.find('.draft-pick-action').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('locks rapid pick events until a saving cycle or projection update resets it', async () => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.turnoAtualTimeId = 'team-a'
+    draft.turnoAtualCapitaoId = 'captain-a'
+    draft.turnoSequencia = 3
+    draft.turnoExpiraEm = new Date(Date.now() + 60_000).toISOString()
+    const wrapper = mountBoard(draft, { currentPlayerId: 'captain-a', canCurrentUserPick: true })
+
+    const pick = wrapper.get('.draft-pick-action')
+    await Promise.all([pick.trigger('click'), pick.trigger('click')])
+    expect(wrapper.emitted('pick')).toEqual([['available-1']])
+
+    await wrapper.setProps({ saving: true })
+    await wrapper.setProps({ saving: false })
+    await wrapper.get('.draft-pick-action').trigger('click')
+    expect(wrapper.emitted('pick')).toEqual([['available-1'], ['available-1']])
+
+    await wrapper.setProps({ montagem: { ...draft, turnoSequencia: 4 } })
+    await wrapper.get('.draft-pick-action').trigger('click')
+    expect(wrapper.emitted('pick')).toEqual([['available-1'], ['available-1'], ['available-1']])
+    wrapper.unmount()
+  })
+
+  it('localizes route filter labels in English without changing their filtering values', async () => {
+    setLocale('en')
+    const wrapper = mountBoard()
+    const filters = wrapper.findAll('.draft-route-filters button')
+
+    expect(filters.map((filter) => filter.text())).toEqual(['ALL ROUTES', 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'])
+    await filters.find((filter) => filter.text() === 'SUPPORT')!.trigger('click')
+    expect(filters.find((filter) => filter.text() === 'SUPPORT')!.classes()).toContain('is-active')
+    expect(wrapper.find('[data-player-id="available-1"]').exists()).toBe(true)
+
+    await filters.find((filter) => filter.text() === 'ADC')!.trigger('click')
+    expect(wrapper.find('[data-player-id="available-1"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('No available players for the current filter.')
     wrapper.unmount()
   })
 

@@ -4,7 +4,7 @@ import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftsView from './DraftsView.vue'
 import DraftsViewSource from './DraftsView.vue?raw'
@@ -34,7 +34,7 @@ const serviceMocks = vi.hoisted(() => ({
 }))
 const authMock = vi.hoisted(() => ({ canManageDrafts: true, jogadorId: null as string | null }))
 const realtimeMock = vi.hoisted(() => ({
-  handlers: new Map<string, (state: { montagem: DraftMontagem }) => void | Promise<void>>(),
+  handlers: new Map<string, (state: DraftMontagemRealtimeState) => void | Promise<void>>(),
   reconnectHandlers: new Map<string, () => void | Promise<void>>(),
   disconnected: [] as string[],
 }))
@@ -220,8 +220,8 @@ function adminProjectionB(auditReason = 'auditoria B'): DraftMontagemAdmin {
   }
 }
 
-async function emitRealtime(id: string, projection: DraftMontagem) {
-  await realtimeMock.handlers.get(id)?.({ montagem: projection })
+async function emitRealtime(id: string, projection: DraftMontagem, canCurrentUserPick = false) {
+  await realtimeMock.handlers.get(id)?.({ montagem: projection, canCurrentUserPick, serverNow: projection.dataAtualizacao })
 }
 
 async function mountView() {
@@ -274,7 +274,7 @@ describe('DraftsView reason actions', () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo])
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection())
     serviceMocks.getDraftMontagemById.mockResolvedValue(montagem)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem, canCurrentUserPick: false })
     serviceMocks.listEligibleManualPresencePlayers.mockResolvedValue([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
     serviceMocks.addManualDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.cancelDraftMontagem.mockResolvedValue(montagem)
@@ -286,9 +286,9 @@ describe('DraftsView reason actions', () => {
     serviceMocks.defineDraftMontagemCaptains.mockResolvedValue(montagem)
     serviceMocks.defineDraftMontagemPickOrder.mockResolvedValue(montagem)
     serviceMocks.finalizeDraftMontagem.mockResolvedValue(montagem)
-    serviceMocks.registerDraftMontagemPick.mockResolvedValue({ montagem })
+    serviceMocks.registerDraftMontagemPick.mockResolvedValue({ montagem, canCurrentUserPick: false })
     serviceMocks.saveDraftMontagemLayout.mockResolvedValue(montagem)
-    serviceMocks.startDraftMontagemRealtime.mockResolvedValue({ montagem })
+    serviceMocks.startDraftMontagemRealtime.mockResolvedValue({ montagem, canCurrentUserPick: false })
   })
 
   it('loads only the administrative endpoint when the user can manage drafts', async () => {
@@ -721,6 +721,25 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it.each(['Finalizada', 'Cancelada'] as const)('clears a stale cancel action when realtime changes the draft to %s before confirmation', async (status) => {
+    const wrapper = await mountView()
+    await openReasonDialog(wrapper, 'Cancelar')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValueOnce(adminProjection(status))
+
+    await emitRealtime('montagem-1', { ...montagem, status })
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+
+    await wrapper.get('textarea').setValue('cancelamento obsoleto')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.cancelDraftMontagem).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { pendingReasonAction: unknown }).pendingReasonAction).toBeNull()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('removes the selected manual presence with player context and exact reason', async () => {
     const wrapper = await mountView()
 
@@ -1125,21 +1144,81 @@ describe('DraftsView reason actions', () => {
       livres: [available],
     }
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft })
-    let resolvePick!: (value: { montagem: DraftMontagem }) => void
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
+    let resolvePick!: (value: { montagem: DraftMontagem; canCurrentUserPick: boolean }) => void
     serviceMocks.registerDraftMontagemPick.mockReturnValueOnce(new Promise((resolve) => { resolvePick = resolve }))
     const wrapper = await mountView()
     const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
 
     expect(board.props('currentPlayerId')).toBe('capitao-atual')
+    expect(board.props('canCurrentUserPick')).toBe(true)
     board.vm.$emit('pick', 'jogador-livre')
     board.vm.$emit('pick', 'jogador-livre')
     await nextTick()
 
     expect(serviceMocks.registerDraftMontagemPick).toHaveBeenCalledTimes(1)
     expect(serviceMocks.registerDraftMontagemPick).toHaveBeenCalledWith('montagem-1', 'jogador-livre')
-    resolvePick({ montagem: realtimeDraft })
+    resolvePick({ montagem: realtimeDraft, canCurrentUserPick: false })
     await flushPromises()
+    expect(board.props('canCurrentUserPick')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('updates authoritative pick permission from realtime callbacks', async () => {
+    authMock.canManageDrafts = false
+    authMock.jogadorId = 'capitao-atual'
+    const realtimeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      turnoAtualTimeId: 'time-1',
+      turnoAtualCapitaoId: 'capitao-atual',
+    }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+
+    expect(board.props('canCurrentUserPick')).toBe(true)
+    await emitRealtime('montagem-1', realtimeDraft, false)
+    await flushPromises()
+
+    expect(board.props('canCurrentUserPick')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('rejects pick intents when the latest realtime state denies permission', async () => {
+    authMock.canManageDrafts = false
+    authMock.jogadorId = 'capitao-atual'
+    const available = {
+      jogadorId: 'jogador-livre',
+      nomeExibicao: 'Jogador livre',
+      status: 'Ativo',
+      preferencias: [],
+      estado: 'Livre' as const,
+      capitao: false,
+      ordem: 1,
+      dataCadastro: montagem.dataCadastro,
+      dataAtualizacao: montagem.dataAtualizacao,
+    }
+    const realtimeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      turnoAtualTimeId: 'time-1',
+      turnoAtualCapitaoId: 'capitao-atual',
+      livres: [available],
+    }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: false })
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+
+    expect(board.props('canCurrentUserPick')).toBe(false)
+    board.vm.$emit('pick', 'jogador-livre')
+    await flushPromises()
+
+    expect(serviceMocks.registerDraftMontagemPick).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -1155,7 +1234,7 @@ describe('DraftsView reason actions', () => {
       livres: [],
     }
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
     const wrapper = await mountView()
 
     wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('pick', 'jogador-invalido')
@@ -1189,7 +1268,7 @@ describe('DraftsView reason actions', () => {
     }
     const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
     serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true })
     serviceMocks.registerDraftMontagemPick.mockRejectedValueOnce(new ServiceError(['Escolha inválida']))
     const wrapper = await mountView()
 

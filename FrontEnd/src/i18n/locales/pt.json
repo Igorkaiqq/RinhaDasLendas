@@ -828,7 +828,15 @@
       "teamOrder": "Ordem {order}",
       "pickProgress": "{current} / {total} escolhas",
       "pickSequence": "Sequência de escolhas",
-      "timeout": "Tempo esgotado"
+      "timeout": "Tempo esgotado",
+      "routeFilters": {
+        "all": "TODAS AS ROTAS",
+        "top": "TOP",
+        "jungle": "JUNGLE",
+        "mid": "MID",
+        "adc": "ADC",
+        "support": "SUPORTE"
+      }
     },
     "playerDetails": {
       "dialogLabel": "Detalhes de {name}",

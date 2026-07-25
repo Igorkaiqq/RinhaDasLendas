@@ -828,7 +828,15 @@
       "teamOrder": "Order {order}",
       "pickProgress": "{current} / {total} picks",
       "pickSequence": "Pick sequence",
-      "timeout": "Turn timed out"
+      "timeout": "Turn timed out",
+      "routeFilters": {
+        "all": "ALL ROUTES",
+        "top": "TOP",
+        "jungle": "JUNGLE",
+        "mid": "MID",
+        "adc": "ADC",
+        "support": "SUPPORT"
+      }
     },
     "playerDetails": {
       "dialogLabel": "Details for {name}",
