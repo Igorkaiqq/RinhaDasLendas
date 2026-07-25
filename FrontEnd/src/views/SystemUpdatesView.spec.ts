@@ -52,21 +52,21 @@ describe('SystemUpdatesView', () => {
     const releases = wrapper.findAll('[data-system-update]')
 
     expect(wrapper.get('h1').text()).toBe('Atualizações do sistema')
-    expect(hero.text()).toContain('2026.07.1')
-    expect(hero.text()).toContain('Drafts e Discord mais confiáveis')
+    expect(hero.text()).toContain('2026.07.2')
+    expect(hero.text()).toContain('Listas de presença agendadas')
     expect(hero.get('[data-latest-summary]').text()).toBe(
-      'A operação de drafts ganhou acesso direto, confirmações mais claras, publicações recuperáveis e presença sincronizada, com reforços de segurança e estabilidade.',
+      'Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.',
     )
-    expect(hero.get('[data-latest-categories]').text()).toContain('Correção')
-    expect(hero.get('[data-latest-categories]').text()).toContain('Segurança')
-    expect(hero.get('[data-latest-areas]').text()).toContain('Jogadores')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Novidade')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Melhoria')
+    expect(hero.get('[data-latest-areas]').text()).toContain('Drafts')
     expect(hero.get('[data-latest-areas]').text()).toContain('Discord')
-    expect(hero.get('time').attributes('datetime')).toBe('2026-07-22')
-    expect(releases).toHaveLength(8)
+    expect(hero.get('time').attributes('datetime')).toBe('2026-07-23')
+    expect(releases).toHaveLength(SYSTEM_UPDATES.length)
     expect(releases.map((release) => release.attributes('id'))).toEqual(
       SYSTEM_UPDATES.map((release) => `update-${release.id}`),
     )
-    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(15)
+    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(5)
   })
 
   it('groups the semantic timeline and links every indexed version to its release', () => {
@@ -96,7 +96,9 @@ describe('SystemUpdatesView', () => {
     expect(index.findAll('a').map((link) => link.attributes('href'))).toEqual(
       SYSTEM_UPDATES.map((release) => `#update-${release.id}`),
     )
-    expect(wrapper.findAll('li[data-system-update]')).toHaveLength(8)
+    expect(wrapper.findAll('li[data-system-update]')).toHaveLength(
+      SYSTEM_UPDATES.length,
+    )
   })
 
   it('combines localized search with multiple category filters using OR and clears them', async () => {
@@ -112,7 +114,9 @@ describe('SystemUpdatesView', () => {
     expect(fixChip.attributes('aria-pressed')).toBe('false')
     expect(featureChip.attributes('aria-pressed')).toBe('false')
     expect(allChip.attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('[data-result-count]').text()).toBe('8 atualizações')
+    expect(wrapper.get('[data-result-count]').text()).toBe(
+      `${SYSTEM_UPDATES.length} atualizações`,
+    )
 
     await search.setValue('Discord')
     await fixChip.trigger('click')
@@ -149,7 +153,9 @@ describe('SystemUpdatesView', () => {
 
     expect((search.element as HTMLInputElement).value).toBe('')
     expect(fixChip.attributes('aria-pressed')).toBe('false')
-    expect(wrapper.findAll('[data-system-update]')).toHaveLength(8)
+    expect(wrapper.findAll('[data-system-update]')).toHaveLength(
+      SYSTEM_UPDATES.length,
+    )
   })
 
   it('configures the localized search field for deliberate text entry', async () => {
@@ -216,6 +222,8 @@ describe('SystemUpdatesView', () => {
 
     await wrapper.get('[data-clear-filters]').trigger('click')
 
-    expect(wrapper.findAll('[data-system-update]')).toHaveLength(8)
+    expect(wrapper.findAll('[data-system-update]')).toHaveLength(
+      SYSTEM_UPDATES.length,
+    )
   })
 })

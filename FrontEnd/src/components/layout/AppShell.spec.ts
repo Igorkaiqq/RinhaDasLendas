@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppRouteNames, AppRoutes } from '@/constants/appRoutes'
+import { SYSTEM_UPDATES } from '@/constants/systemUpdates'
 import { i18n, setLocale } from '@/i18n'
 import {
   LAST_SEEN_SYSTEM_UPDATE_KEY,
@@ -85,7 +86,9 @@ describe('AppShell update badge', () => {
 
     await router.push(AppRoutes.Updates)
 
-    expect(localStorage.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY)).toBe('2026.07.1')
+    expect(localStorage.getItem(LAST_SEEN_SYSTEM_UPDATE_KEY)).toBe(
+      SYSTEM_UPDATES[0].version,
+    )
     expect(updateItem()?.badge).toBeUndefined()
     expect(wrapper.vm).toBe(mountedShell)
   })
@@ -105,7 +108,7 @@ describe('AppShell update badge', () => {
 
     expect(storageWrite).toHaveBeenCalledWith(
       LAST_SEEN_SYSTEM_UPDATE_KEY,
-      '2026.07.1',
+      SYSTEM_UPDATES[0].version,
     )
     expect(updateItem()?.badge).toBeUndefined()
     expect(wrapper.exists()).toBe(true)

@@ -37,17 +37,17 @@ describe('SystemUpdateCard', () => {
     expect(wrapper.get('[data-slot="card-header"]').classes()).toContain(
       'system-update-card__header',
     )
-    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-22')
-    expect(wrapper.get('time').text()).toBe('22 de julho de 2026')
-    expect(wrapper.get('h2').text()).toBe('Drafts e Discord mais confiáveis')
-    expect(wrapper.text()).toContain('2026.07.1')
+    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-23')
+    expect(wrapper.get('time').text()).toBe('23 de julho de 2026')
+    expect(wrapper.get('h2').text()).toBe('Listas de presença agendadas')
+    expect(wrapper.text()).toContain('2026.07.2')
     expect(wrapper.text()).toContain(
-      'A operação de drafts ganhou acesso direto, confirmações mais claras',
+      'Moderadores agora podem organizar listas semanais com horários definidos',
     )
     expect(wrapper.text()).toContain('Melhoria')
-    expect(wrapper.text()).toContain('Jogadores')
-    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(15)
-    expect(wrapper.text()).toContain('Acesso direto ao draft pelo Discord')
+    expect(wrapper.text()).toContain('Drafts')
+    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(5)
+    expect(wrapper.text()).toContain('Agendamento semanal de presença')
   })
 
   it('groups every detail by category in native disclosure controls', async () => {
@@ -57,10 +57,10 @@ describe('SystemUpdateCard', () => {
     const firstDetails = wrapper.get('details')
     const firstSummary = wrapper.get('summary')
 
-    expect(details).toHaveLength(5)
-    expect(summaries).toHaveLength(5)
+    expect(details).toHaveLength(2)
+    expect(summaries).toHaveLength(2)
     expect(summaries.every((summary) => summary.attributes('tabindex') === undefined)).toBe(true)
-    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(15)
+    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(5)
 
     ;(firstSummary.element as HTMLElement).click()
     await nextTick()
@@ -88,9 +88,9 @@ describe('SystemUpdateCard', () => {
     await nextTick()
 
     expect(wrapper.get('article').classes()).not.toContain('system-update-card--latest')
-    expect(wrapper.get('time').text()).toBe('July 22, 2026')
-    expect(wrapper.get('h2').text()).toBe('More reliable drafts and Discord')
+    expect(wrapper.get('time').text()).toBe('July 23, 2026')
+    expect(wrapper.get('h2').text()).toBe('Scheduled presence lists')
     expect(wrapper.text()).toContain('Improvement')
-    expect(wrapper.text()).toContain('Players')
+    expect(wrapper.text()).toContain('Drafts')
   })
 })
