@@ -14,7 +14,7 @@ RUN dotnet publish "BackEnd/src/RinhaDasLendas.Api/RinhaDasLendas.Api.csproj" -c
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache icu-data-full icu-libs krb5-libs
+RUN apk add --no-cache icu-data-full icu-libs krb5-libs tzdata
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
