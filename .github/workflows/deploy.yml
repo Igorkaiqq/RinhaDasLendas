@@ -28,6 +28,9 @@ jobs:
             docker build -t rinhadaslendas/frontend:prod --build-arg VITE_API_URL="$VITE_API_URL" --build-arg VITE_ENABLE_FAKE_FALLBACK="$VITE_ENABLE_FAKE_FALLBACK" -f FrontEnd/Dockerfile .
             docker build -t rinhadaslendas/discord-bot:prod -f discord-bot/Dockerfile discord-bot
             docker stack deploy -c docker-stack.prod.yml rinhadaslendas --resolve-image never
+            docker service update --force --detach=false rinhadaslendas_backend
+            docker service update --force --detach=false rinhadaslendas_frontend
+            docker service update --force --detach=false rinhadaslendas_discord-bot
             docker image prune -f
             docker service ls --filter label=com.docker.stack.namespace=rinhadaslendas
             docker service logs rinhadaslendas_backend --tail 80 || true
