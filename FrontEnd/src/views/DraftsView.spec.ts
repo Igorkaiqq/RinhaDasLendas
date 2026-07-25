@@ -619,6 +619,41 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it.each([
+    ['pt', 'Publicação no Discord: Estado de publicação desconhecido'],
+    ['en', 'Discord publication: Unknown publication status'],
+  ] as const)('keeps one neutral noncanonical publication row without actions in %s', async (locale, expectedText) => {
+    setLocale(locale)
+    const projection = adminProjection()
+    const legacyPublication = {
+      id: 'publicacao-legada-1',
+      tipo: 'IntegracaoLegada',
+      status: 'Falha',
+      ultimaTentativaEm: '2026-07-21T12:00:00Z',
+    }
+    projection.publicacoesDiscord = [
+      projection.publicacoesDiscord.find((publication) => publication.tipo === 'Presenca')!,
+      { ...projection.publicacoesDiscord.find((publication) => publication.tipo === 'Presenca')!, id: 'publicacao-presenca-duplicada', status: 'Publicada' },
+      legacyPublication,
+      { ...legacyPublication, id: 'publicacao-legada-duplicada', status: 'Publicada' },
+    ] as unknown as DraftMontagemAdmin['publicacoesDiscord']
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(projection)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftDiscordPublicationPanel' })
+
+    expect(panel.props('publications')).toEqual([
+      { tipo: 'Presenca', status: 'Falha' },
+      { tipo: 'ChamadaPresenca', status: null },
+      { tipo: 'TimesDefinidos', status: null },
+      legacyPublication,
+    ])
+    const legacyRow = panel.get('[data-publication-type="IntegracaoLegada"]')
+    expect(legacyRow.get('[data-publication-status]').attributes('data-publication-status')).toBe('unknown')
+    expect(legacyRow.text()).toBe(expectedText)
+    expect(legacyRow.find('button').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('keeps results from the newest manual presence search when it resolves first', async () => {
     const wrapper = await mountView()
     serviceMocks.listEligibleManualPresencePlayers.mockClear()

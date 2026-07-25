@@ -105,11 +105,11 @@
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
 | T014 | Concluída | `DraftPreparationPanel.spec.ts` cobre listas com 0, 1, 10, 14 e 30 participantes e valida identidade, origem, ação aplicável e estrutura de cada linha, além de busca agrupada, metadados dos campos, payloads e `aria-pressed`. |
-| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre renderização da matriz canônica recebida, localização, fallback neutro, disponibilidade legada de republicação, permissão, `saving` e os três tipos exatos. |
-| T016 | Concluída | `DraftsView.spec.ts` cobre projeções Discord vazias/parciais em PT/EN, preservação de `null` até o diálogo, integração sem serviços, duplicidade rápida, perda de permissão, payloads e fallbacks. |
+| T015 | Concluída | `DraftDiscordPublicationPanel.spec.ts` cobre renderização da matriz recebida, tipos desconhecidos neutros sem ação, localização, disponibilidade legada de republicação, permissão, `saving` e os três tipos exatos. |
+| T016 | Concluída | `DraftsView.spec.ts` cobre projeções Discord vazias/parciais e `IntegracaoLegada` em PT/EN, deduplicação, preservação de dados e de `null`, integração, concorrência, permissão e fallbacks. |
 | T017 | Concluída | O roster separa identidade, origem e ações em colunas estruturais consistentes e reúne busca, seleção e inclusão manual em um grupo operável; largura visual real permanece para T030. |
 | T018 | Concluída | O painel Discord é subordinado, usa somente ações secundárias, localiza estados e mantém fallback desconhecido neutro. |
-| T019 | Concluída | `DraftsView.vue` é a única origem da matriz Discord canônica usada pelo painel, ações e diálogo; preserva serviços, IDs, motivos, request generations e guards de concorrência/permissão. |
+| T019 | Concluída | `DraftsView.vue` é a única origem da matriz Discord: três linhas canônicas seguidas dos primeiros registros não canônicos preservados; painel, ações e diálogo compartilham essa projeção. |
 
 ### RED
 
@@ -173,6 +173,24 @@
 - Resultado: 3 arquivos aprovados, 90 testes aprovados e 0 falhas (`DraftDiscordPublicationPanel`: 10; `DraftReasonDialog`: 33; `DraftsView`: 47).
 - Projeções vazias e parciais foram verificadas em português e inglês; registros ausentes permanecem `null` na matriz, na ação pendente e no diálogo.
 - Suíte completa: `npm test`; 35 arquivos aprovados, 280 testes aprovados e 0 falhas.
+- Build: `npm run build`; 2.761 módulos transformados e build concluído, com os avisos não bloqueantes já registrados.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.
+
+### Fechamento de publicações Discord não canônicas
+
+#### RED
+
+- Comando: `npm test -- src/views/DraftsView.spec.ts`.
+- Resultado: 1 arquivo com falha; 2 testes falharam e 47 passaram.
+- Motivo esperado: `discordPublicationMatrix` mantinha somente os três tipos canônicos e descartava `IntegracaoLegada`.
+
+#### GREEN
+
+- Comando focado: `npm test -- src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/views/DraftsView.spec.ts`.
+- Resultado: 2 arquivos aprovados, 59 testes aprovados e 0 falhas (`DraftDiscordPublicationPanel`: 10; `DraftsView`: 49).
+- Evidência: linhas canônicas aparecem primeiro; tipos canônicos e não canônicos repetidos usam o primeiro registro; `IntegracaoLegada` mantém os dados originais, usa fallback neutro localizado em PT/EN e não recebe ação.
+- Suíte completa: `npm test`; 35 arquivos aprovados, 282 testes aprovados e 0 falhas.
 - Build: `npm run build`; 2.761 módulos transformados e build concluído, com os avisos não bloqueantes já registrados.
 - Lint: `npm run lint:check`; aprovado sem erros ou avisos.
 - Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados e 0 falhas.

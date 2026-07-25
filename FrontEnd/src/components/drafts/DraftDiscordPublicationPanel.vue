@@ -31,8 +31,12 @@ function statusKey(status: string | null) {
   return key && te(key) ? key : 'drafts.publication.status.unknown'
 }
 
+function publicationStatusKey(publication: DraftPublicationPresentation) {
+  return isKnownType(publication.tipo) ? statusKey(publication.status) : 'drafts.publication.status.unknown'
+}
+
 function publicationText(publication: DraftPublicationPresentation) {
-  if (!isKnownType(publication.tipo)) return t('drafts.publication.unknownType', { status: t(statusKey(publication.status)) })
+  if (!isKnownType(publication.tipo)) return t('drafts.publication.unknownType', { status: t(publicationStatusKey(publication)) })
   const keys: Record<DraftMontagemPublicacaoDiscordTipo, string> = {
     Presenca: 'drafts.publication.presence',
     ChamadaPresenca: 'drafts.publication.presenceCta',
@@ -74,7 +78,7 @@ function actionTestId(tipo: DraftMontagemPublicacaoDiscordTipo) {
       <li v-for="publication in publications" :key="publication.tipo" :data-publication-type="publication.tipo">
         <span
           class="team-status"
-          :data-publication-status="statusKey(publication.status).endsWith('.unknown') ? 'unknown' : publication.status"
+          :data-publication-status="publicationStatusKey(publication).endsWith('.unknown') ? 'unknown' : publication.status"
         >
           {{ publicationText(publication) }}
         </span>

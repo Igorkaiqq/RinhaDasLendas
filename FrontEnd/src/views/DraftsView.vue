@@ -104,10 +104,21 @@ const availableManualPresencePlayers = computed(() => {
   const confirmed = new Set(confirmedPresences.value.map((presence) => presence.jogadorId))
   return manualPresencePlayers.value.filter((player) => !confirmed.has(player.id))
 })
-const discordPublicationMatrix = computed(() => discordPublicationTypes.map((tipo) => ({
-  tipo,
-  status: selectedMontagem.value?.publicacoesDiscord?.find((publication) => publication.tipo === tipo)?.status ?? null,
-})))
+const discordPublicationMatrix = computed(() => {
+  const publications = selectedMontagem.value?.publicacoesDiscord ?? []
+  const canonical = discordPublicationTypes.map((tipo) => ({
+    tipo,
+    status: publications.find((publication) => publication.tipo === tipo)?.status ?? null,
+  }))
+  const seenTypes = new Set<string>(discordPublicationTypes)
+  const noncanonical = publications.filter((publication) => {
+    const tipo = publication.tipo as string
+    if (seenTypes.has(tipo)) return false
+    seenTypes.add(tipo)
+    return true
+  })
+  return [...canonical, ...noncanonical]
+})
 const finalTeamsPublicationStatus = computed(() => discordPublicationStatus('TimesDefinidos'))
 
 const filteredDrafts = computed(() => {
