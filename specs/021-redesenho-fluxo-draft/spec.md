@@ -69,7 +69,7 @@ Como usuário, quero operar o draft por mouse, teclado ou toque em desktop, tabl
 
 **Why this priority**: O fluxo é usado durante a organização da partida e precisa continuar funcional fora de um desktop amplo.
 
-**Independent Test**: O mesmo draft é operado em 1440px, 1024px, 760px e 320px sem overflow horizontal obrigatório, controles sobrepostos ou conteúdo inacessível.
+**Independent Test**: O mesmo draft é operado em 1440px, 1024px, 768px e 320px sem overflow horizontal obrigatório, controles sobrepostos ou conteúdo inacessível.
 
 **Acceptance Scenarios**:
 
@@ -166,8 +166,8 @@ Como usuário, quero encontrar no histórico a melhoria entregue na seleção de
 
 ### Measurable Outcomes
 
-- **SC-001**: Em uma avaliação com pelo menos cinco usuários representativos e todas as etapas suportadas, ao menos 90% identificam draft, estado atual e ação principal em até cinco segundos por cenário, sem instrução externa.
-- **SC-002**: Em viewports de 1440px, 1024px, 760px e 320px, 100% das etapas permanecem operáveis sem overflow horizontal obrigatório, controles sobrepostos ou ações inacessíveis.
+- **SC-001**: Em 100% dos sete estados conhecidos, nome e estado atual aparecem em regiões identificadas; estados operacionais exibem no máximo uma ação primária antes das secundárias, e estados terminais não exibem ação de avanço.
+- **SC-002**: Em viewports de 1440px, 1024px, 768px e 320px, 100% das etapas permanecem operáveis sem overflow horizontal obrigatório, controles sobrepostos ou ações inacessíveis.
 - **SC-003**: Em listas com zero, um, dez, quatorze e trinta participantes, 100% dos jogadores mantêm nome, origem e ação permitida disponíveis, e nenhuma interação altera a largura dos itens ou provoca rolagem horizontal da página.
 - **SC-004**: Todos os status conhecidos, incluindo cancelamento, apresentam texto localizado e estado visual correto; nenhum fallback ativa uma etapa incorreta.
 - **SC-005**: Em 100% dos cenários críticos de confirmar, encerrar, cancelar, definir capitães, estabelecer ordem, escolher, remover, finalizar e republicar, permissões, bloqueio de duplicidade e resultado permanecem iguais aos anteriores ao redesenho.
