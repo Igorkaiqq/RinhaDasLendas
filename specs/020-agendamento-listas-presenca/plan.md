@@ -122,7 +122,8 @@ specs/020-agendamento-listas-presenca/
 │   ├── backend-api.md
 │   ├── frontend-ui.md
 │   └── discord-bot.md
-└── tasks.md
+├── tasks.md
+└── verification-report.md
 ```
 
 ### Source Code (repository root)
@@ -188,6 +189,8 @@ docs/domain/{DRAFT_DISCORD_OPERATIONS,AGENDAMENTO_LISTAS_PRESENCA}.md
 7. Testar frontend para paginação de agendas, histórico paginado, permissões, CRUD, estados, i18n, foco, teclado, toque, 320px e paridade PT/EN.
 8. Comprovar por regressão que o bot processa draft agendado uma vez pelo polling e claim existentes, sem código de produção quando desnecessário.
 9. Executar suites, builds, lint, migration, browser real, auditorias de segurança/i18n e `git diff --check` somente na fase de implementação aprovada.
+
+O resultado consolidado, os comandos reproduzíveis e os riscos remanescentes estão em [verification-report.md](./verification-report.md).
 
 ## Complexity Tracking
 

@@ -7,7 +7,7 @@ description: "Tarefas TDD do agendamento recorrente de listas de presença"
 
 **Input**: `specs/020-agendamento-listas-presenca/spec.md`, `plan.md`, `data-model.md`, `contracts/` e design aprovado
 
-**Prerequisites**: estes artefatos devem receber aprovação explícita antes de T001; o baseline .NET indisponível nesta sessão bloqueia qualquer implementação backend
+**Prerequisites**: estes artefatos receberam aprovação explícita antes de T001. A indisponibilidade inicial do baseline .NET foi resolvida com o devcontainer e permanece registrada abaixo apenas como contexto histórico.
 
 **Tests**: cada comportamento deve ter teste RED escrito e executado antes da implementação correspondente; não aceitar falha por ambiente como evidência RED do comportamento
 
@@ -242,17 +242,17 @@ npm test -- src/services/presenceSchedules.spec.ts \
 
 **Purpose**: produzir evidência final reproduzível sem ampliar escopo.
 
-- [X] T088 Executar testes e build Release do backend pelo devcontainer e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T089 Executar testes, build e lint sem fix do frontend e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T090 Executar testes e build completos do bot e registrar resultados em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T091 Aplicar migration em PostgreSQL descartável e comprovar enums `smallint`, histórico, índices únicos, rollback e reaplicação em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T092 Executar matriz HTTP real com duas páginas ordenadas, empate, pausadas e paginação de ocorrências para anônimo, Jogador, Moderador e Admin em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T093 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T094 Validar recuperação de múltiplos dias, bloqueada com marcador avançado, claim expirado e inicialização antes/no/depois da publicação em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T095 Validar `/configuracoes`, carregar mais e `Ver histórico` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T096 Auditar autorização, autoria, DTOs, rate limiting, logs, contadores/tags de métricas e ausência de segredos em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T097 Auditar textos hardcoded frontend/backend, paginação, `Ver histórico`, paridade `pt.json`/`en.json`, resources PT/EN, acentuação e validações em `specs/020-agendamento-listas-presenca/tasks.md`
-- [X] T098 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas em `specs/020-agendamento-listas-presenca/tasks.md`
+- [X] T088 Executar testes e build Release do backend pelo devcontainer. Comandos, contagens e risco temporal atual: [relatório, Backend](./verification-report.md#backend).
+- [X] T089 Executar testes, build e lint sem fix do frontend. Comandos e contagens: [relatório, Frontend](./verification-report.md#frontend).
+- [X] T090 Executar testes e build completos do bot. Comandos e contagem histórica reproduzível: [relatório, Bot](./verification-report.md#bot).
+- [X] T091 Aplicar migration em PostgreSQL descartável e comprovar enums `smallint`, histórico, índices únicos, rollback e reaplicação. Procedimento: [relatório, Migration](./verification-report.md#migration-e-postgresql).
+- [X] T092 Executar matriz HTTP real com duas páginas ordenadas, empate, pausadas e paginação de ocorrências para anônimo, Jogador, Moderador e Admin. Filtro reproduzível: [relatório, API e autorização](./verification-report.md#api-e-autorização).
+- [X] T093 Disparar dois ciclos simultâneos e comprovar uma ocorrência, um draft, uma publicação pendente e um claim vencedor. Filtro PostgreSQL: [relatório, Concorrência e recuperação](./verification-report.md#concorrência-e-recuperação).
+- [X] T094 Validar recuperação de múltiplos dias, bloqueada com marcador avançado, claim expirado e inicialização antes/no/depois da publicação. Filtro reproduzível: [relatório, Concorrência e recuperação](./verification-report.md#concorrência-e-recuperação).
+- [X] T095 Validar `/configuracoes`, carregar mais e `Ver histórico` com browser real para Jogador/Moderador/Admin em 1440x900, 768x1024, 390x844 e 320px. Roteiro e comandos: [relatório, Browser real](./verification-report.md#browser-real).
+- [X] T096 Auditar autorização, autoria, DTOs, rate limiting, logs, contadores/tags de métricas e ausência de segredos. Evidência: [relatório, API e autorização](./verification-report.md#api-e-autorização).
+- [X] T097 Auditar textos hardcoded frontend/backend, paginação, `Ver histórico`, paridade `pt.json`/`en.json`, resources PT/EN, acentuação e validações. Comandos: [relatório, Auditoria de internacionalização](./verification-report.md#auditoria-de-internacionalização).
+- [X] T098 Executar `git diff --check`, revisar somente arquivos da feature e marcar tarefas comprovadas. Comando e escopo: [relatório, Diff e escopo](./verification-report.md#diff-e-escopo).
 
 **Checkpoint**: nenhuma tarefa é concluída com `Não` na auditoria de internacionalização ou sem evidência de paginação, segurança, concorrência e recuperação.
 
@@ -349,5 +349,5 @@ T085: Criar docs/domain/AGENDAMENTO_LISTAS_PRESENCA.md
 ## Gate
 
 - Não iniciar T001 até aprovação explícita de `spec.md`, `plan.md`, `data-model.md`, `contracts/` e `tasks.md`.
-- Não executar backend nesta sessão: o baseline .NET está indisponível.
+- Baseline inicial resolvido: o SDK .NET 10 e PostgreSQL estão disponíveis pelo devcontainer; manter esta nota apenas como registro da condição encontrada antes de T001.
 - Preservar `docs/prompts/`, `specs/018-importacao-partidas-lcu/` e qualquer mudança não relacionada.

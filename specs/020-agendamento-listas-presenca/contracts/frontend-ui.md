@@ -53,7 +53,11 @@ export interface PaginatedResponse<T> {
   totalPages: number
 }
 
-export function listPresenceSchedules(page: number, pageSize: number): Promise<PaginatedResponse<PresenceScheduleSummary>>
+export interface PresenceSchedulePaginatedResponse extends PaginatedResponse<PresenceScheduleSummary> {
+  activeItems: number
+}
+
+export function listPresenceSchedules(page: number, pageSize: number): Promise<PresenceSchedulePaginatedResponse>
 export function listPresenceScheduleOccurrences(id: string, page: number, pageSize: number): Promise<PaginatedResponse<PresenceScheduleOccurrenceSummary>>
 export function createPresenceSchedule(payload: SavePresenceScheduleRequest): Promise<PresenceScheduleSummary>
 export function updatePresenceSchedule(id: string, payload: SavePresenceScheduleRequest): Promise<PresenceScheduleSummary>
@@ -65,7 +69,8 @@ export function archivePresenceSchedule(id: string): Promise<void>
 - Horários são serializados como `HH:mm`.
 - Erros preservam `messageCode`; `403` e `500` nunca são convertidos silenciosamente em lista vazia.
 - Status arquivado não integra `PresenceScheduleStatus` porque agendas arquivadas deixam a coleção normal.
-- Listagens preservam `page`, `pageSize`, `totalItems` e `totalPages`; carregar mais concatena itens sem duplicação e mantém exatamente a ordem `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` recebida do backend, sem reordenação no cliente.
+- A listagem de agendas também preserva `activeItems`, o total global de agendas ativas retornado pelo backend. O resumo nunca deriva esse total dos cards já carregados.
+- Listagens preservam `page`, `pageSize`, `totalItems` e `totalPages`; carregar mais concatena itens sem duplicação e mantém exatamente a ordem `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` recebida do backend, sem reordenação no cliente. Respostas stale de carregar mais não substituem itens nem `activeItems`; respostas atuais de página ou refresh atualizam ambos.
 
 ## PresenceScheduleSection
 
@@ -74,7 +79,7 @@ export function archivePresenceSchedule(id: string): Promise<void>
 - Eyebrow localizado equivalente a `Automações`.
 - Título localizado equivalente a `Listas de presença` e descrição curta.
 - Ação principal `Novo agendamento`.
-- Resumo de agendas ativas, próxima execução e fuso Brasília.
+- Resumo do total global de agendas ativas (`activeItems`), próxima execução e fuso Brasília.
 - Cards não tabulares preservam `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC`, incluindo pausadas na porção de próxima execução nula.
 - Cada card mostra nome, observação quando presente, dias, intervalo, status, próxima execução e resultado recente.
 - Ações condicionais: `Ver histórico` em todas, editar e pausar em ativa, editar e reativar em pausada, excluir em ambas.

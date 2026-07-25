@@ -30,6 +30,14 @@ public sealed record OcorrenciaAgendamentoPresencaSummaryDto(
     DateTimeOffset EncerramentoPrevistoEm, OcorrenciaAgendamentoPresencaStatus Status,
     Guid? DraftMontagemId, string? MessageCode);
 
+public sealed record PaginatedAgendamentoPresencaResponseDto(
+    int Page,
+    int PageSize,
+    IReadOnlyCollection<AgendamentoPresencaSummaryDto> Items,
+    int TotalItems,
+    int TotalPages,
+    int ActiveItems);
+
 public sealed record PaginatedResponseDto<T>(
     int Page,
     int PageSize,
@@ -50,7 +58,7 @@ Para ambas as listagens, `page` inicia em `1`, `pageSize` usa default `20` e lim
 GET /api/v1/discord/agendamentos-presenca?page=1&pageSize=20
 ```
 
-- **200**: `PaginatedResponseDto<AgendamentoPresencaSummaryDto>` de não arquivados, incluindo pausados, ordenada obrigatoriamente por `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` e com última ocorrência; `TotalItems` vem de count com os mesmos filtros.
+- **200**: `PaginatedAgendamentoPresencaResponseDto` de não arquivados, incluindo pausados, ordenada obrigatoriamente por `ProximaExecucaoEm ASC NULLS LAST, Nome ASC, Id ASC` e com última ocorrência; `TotalItems` vem de count com os mesmos filtros e `ActiveItems` é o total global de agendas ativas, independente da página carregada.
 - **400**: `page` ou `pageSize` inválido.
 - **401/403**: conforme autorização.
 

@@ -4,7 +4,9 @@
 
 **Created**: 2026-07-23
 
-**Status**: Draft - aguardando aprovação dos artefatos
+**Status**: Implemented / Verified
+
+**Approval**: artefatos aprovados antes da implementação; entrega verificada em 2026-07-25. Evidências e riscos atuais estão em [verification-report.md](./verification-report.md).
 
 **Input**: Agendas semanais administradas por Moderador+ que criam drafts com presença aberta e os encaminham ao fluxo existente de publicação no Discord sem duplicações.
 
@@ -132,7 +134,7 @@ Como responsável pela plataforma, quero restringir agendas e dados operacionais
 - **FR-017**: O sistema MUST percorrer todas as datas posteriores a `UltimaDataAvaliada` até a data local atual, inclusive após indisponibilidade de múltiplos dias, sem horizonte arbitrário.
 - **FR-018**: `UltimaDataAvaliada` MUST avançar somente depois que todas as ocorrências esperadas da data forem confirmadas ou classificadas; data atual antes da publicação MUST permanecer pendente.
 - **FR-019**: Uma ocorrência atrasada MUST ser criada antes do encerramento quando a agenda estava ativa no horário previsto ou foi ativada exatamente nesse instante; somente `AtivadoEm > PublicacaoPrevistaEm` bloqueia a ocorrência do mesmo dia, e após o encerramento ela MUST ser perdida sem draft.
-- **FR-020**: A interface em `/configuracoes` MUST apresentar central responsiva com resumo, cards, próxima execução, resultado recente, paginação ou ação localizada para carregar mais agendas, estado vazio, formulário e confirmações para `CanManageDrafts`.
+- **FR-020**: A interface em `/configuracoes` MUST apresentar central responsiva com resumo do total global de agendas ativas fornecido pelo backend, cards, próxima execução, resultado recente, paginação ou ação localizada para carregar mais agendas, estado vazio, formulário e confirmações para `CanManageDrafts`.
 - **FR-021**: Consultas MUST expor somente DTOs administrativos seguros e códigos públicos `messageCode`; claims, tokens, IDs de mensagem, payloads e falhas técnicas Discord MUST NOT ser retornados.
 - **FR-022**: Todos os textos visíveis do frontend MUST usar chaves equivalentes em `pt.json` e `en.json`, e todas as mensagens backend MUST usar recursos equivalentes em português e inglês.
 - **FR-023**: Datas, horários e dias da semana MUST respeitar o locale ativo; português MUST ter acentuação revisada e valores inseridos pelo usuário MUST NOT ser traduzidos.
