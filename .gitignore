@@ -28,6 +28,7 @@ Thumbs.db
 # Test artifacts
 BackEnd/tests/**/TestResults/
 .superpowers/
+.worktrees/
 
 # Logs
 *.log
