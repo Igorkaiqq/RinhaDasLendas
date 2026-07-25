@@ -2,6 +2,7 @@ import { AxiosError } from 'axios'
 
 import type {
   PaginatedResponse,
+  PresenceSchedulePaginatedResponse,
   PresenceScheduleOccurrenceSummary,
   PresenceScheduleSummary,
   SavePresenceScheduleRequest,
@@ -27,7 +28,7 @@ export class PresenceScheduleServiceError extends Error {
 export async function listPresenceSchedules(
   page: number,
   pageSize: number,
-): Promise<PaginatedResponse<PresenceScheduleSummary>> {
+): Promise<PresenceSchedulePaginatedResponse> {
   return request(() => api.get(basePath, { params: { page, pageSize } }))
 }
 

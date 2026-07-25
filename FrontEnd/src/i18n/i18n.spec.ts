@@ -94,6 +94,13 @@ describe('i18n', () => {
     expect(en.settings.presenceSchedules.fields.observation.placeholder).toMatch(/…$/)
   })
 
+  it('maps MV100 to the closed occurrence window meaning in both locales', () => {
+    expect(pt.settings.presenceSchedules.messageCodes.MV100)
+      .toBe('A janela desta ocorrência já foi encerrada.')
+    expect(en.settings.presenceSchedules.messageCodes.MV100)
+      .toBe('This occurrence window has already closed.')
+  })
+
   it('keeps presence schedule visible text and accessible names in i18n', () => {
     for (const [path, source] of Object.entries(settingsComponents)) {
       const template = source.match(/<template>([\s\S]*?)<\/template>/)?.[1] ?? ''

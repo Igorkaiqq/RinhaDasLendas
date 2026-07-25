@@ -57,6 +57,7 @@ const schedules = ref<PresenceScheduleSummary[]>([])
 const page = ref(1)
 const totalPages = ref(0)
 const totalItems = ref(0)
+const activeItems = ref(0)
 const loading = ref(true)
 const loadingMore = ref(false)
 const loadError = ref(false)
@@ -80,7 +81,6 @@ const returnFocusTarget: FocusTarget = {
   },
 }
 
-const activeCount = computed(() => schedules.value.filter(({ status }) => status === 'Ativo').length)
 const nextSchedule = computed(() => schedules.value.find(({ proximaExecucaoEm }) => proximaExecucaoEm))
 const canLoadMore = computed(() => page.value < totalPages.value)
 
@@ -98,6 +98,7 @@ async function loadInitial() {
     page.value = response.page
     totalPages.value = response.totalPages
     totalItems.value = response.totalItems
+    activeItems.value = response.activeItems
   } catch {
     if (generation !== listGeneration) return
     loadError.value = true
@@ -118,6 +119,7 @@ async function loadMore() {
     page.value = response.page
     totalPages.value = response.totalPages
     totalItems.value = response.totalItems
+    activeItems.value = response.activeItems
   } catch {
     if (generation !== listGeneration) return
     toast.error(t('settings.presenceSchedules.toasts.loadMoreError'))
@@ -148,6 +150,7 @@ async function reloadLoadedPages(generation: number) {
   page.value = lastResponse.page
   totalPages.value = lastResponse.totalPages
   totalItems.value = lastResponse.totalItems
+  activeItems.value = lastResponse.activeItems
   return true
 }
 
@@ -339,7 +342,7 @@ async function focusListRetry() {
     <div class="presence-schedule-summary" :aria-label="t('settings.presenceSchedules.accessibility.summary')">
       <Card>
         <CardHeader><CardDescription>{{ t('settings.presenceSchedules.summary.active') }}</CardDescription></CardHeader>
-        <CardContent><strong>{{ activeCount }}</strong></CardContent>
+        <CardContent><strong>{{ activeItems }}</strong></CardContent>
       </Card>
       <Card>
         <CardHeader><CardDescription>{{ t('settings.presenceSchedules.summary.next') }}</CardDescription></CardHeader>

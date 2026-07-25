@@ -53,3 +53,7 @@ export interface PaginatedResponse<T> {
   totalItems: number
   totalPages: number
 }
+
+export interface PresenceSchedulePaginatedResponse extends PaginatedResponse<PresenceScheduleSummary> {
+  activeItems: number
+}

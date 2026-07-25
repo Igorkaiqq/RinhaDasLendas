@@ -36,7 +36,14 @@ function deferred<T>() {
 }
 
 function pageWith(items: PresenceScheduleSummary[], page = 1, totalPages = 1) {
-  return { page, pageSize: 6, items, totalItems: items.length, totalPages }
+  return {
+    page,
+    pageSize: 6,
+    items,
+    totalItems: items.length,
+    totalPages,
+    activeItems: items.filter(({ status }) => status === 'Ativo').length,
+  }
 }
 
 async function fillCreateForm(wrapper: Awaited<ReturnType<typeof mountSection>>, name = 'Nova agenda') {
@@ -73,6 +80,7 @@ describe('PresenceScheduleSection', () => {
         ],
         totalItems: 4,
         totalPages: 2,
+        activeItems: 4,
       })
       .mockResolvedValueOnce({
         page: 2,
@@ -84,6 +92,7 @@ describe('PresenceScheduleSection', () => {
         ],
         totalItems: 4,
         totalPages: 2,
+        activeItems: 3,
       })
     const wrapper = await mountSection()
     await flushPromises()
@@ -94,8 +103,30 @@ describe('PresenceScheduleSection', () => {
     const ids = wrapper.findAll('[data-schedule-id]').map((card) => card.attributes('data-schedule-id'))
     expect(ids).toEqual(['agenda-a', 'agenda-b', 'agenda-c', 'agenda-d'])
     expect(new Set(ids).size).toBe(4)
+    expect(wrapper.findAll('.presence-schedule-summary strong')[0]?.text()).toBe('3')
     expect(wrapper.text()).toContain('Pausado')
     expect(wrapper.find('[data-load-more]').exists()).toBe(false)
+  })
+
+  it('shows the global active total instead of counting the six loaded cards', async () => {
+    const firstPage = Array.from({ length: 6 }, (_, index) => ({
+      ...baseSchedule,
+      id: `agenda-${index + 1}`,
+    }))
+    vi.mocked(service.listPresenceSchedules).mockResolvedValue({
+      page: 1,
+      pageSize: 6,
+      items: firstPage,
+      totalItems: 20,
+      totalPages: 4,
+      activeItems: 20,
+    })
+
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-schedule-id]')).toHaveLength(6)
+    expect(wrapper.findAll('.presence-schedule-summary strong')[0]?.text()).toBe('20')
   })
 
   it('closes create after a successful write and retries only a failed refresh', async () => {
@@ -229,7 +260,7 @@ describe('PresenceScheduleSection', () => {
         id: 'occ-1', dataLocal: '2026-07-18', publicacaoPrevistaEm: '2026-07-18T21:00:00Z',
         encerramentoPrevistoEm: '2026-07-18T23:00:00Z', status, draftMontagemId: null,
         messageCode: status === 'Falha' ? 'MV096' : null,
-      } }], totalItems: 1, totalPages: 1,
+      } }], totalItems: 1, totalPages: 1, activeItems: 1,
     })
     const wrapper = await mountSection()
     await flushPromises()
@@ -247,7 +278,7 @@ describe('PresenceScheduleSection', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Não foi possível carregar os agendamentos.')
 
-    vi.mocked(service.listPresenceSchedules).mockResolvedValueOnce({ page: 1, pageSize: 6, items: [], totalItems: 0, totalPages: 0 })
+    vi.mocked(service.listPresenceSchedules).mockResolvedValueOnce({ page: 1, pageSize: 6, items: [], totalItems: 0, totalPages: 0, activeItems: 0 })
     await wrapper.get('[data-schedule-retry]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Nenhum agendamento criado ainda.')
@@ -268,7 +299,7 @@ describe('PresenceScheduleSection', () => {
   it('announces incremental loading and marks the list busy', async () => {
     const nextPage = deferred<Awaited<ReturnType<typeof service.listPresenceSchedules>>>()
     vi.mocked(service.listPresenceSchedules)
-      .mockResolvedValueOnce({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 2, totalPages: 2, activeItems: 2 })
       .mockReturnValueOnce(nextPage.promise)
     const wrapper = await mountSection()
     await flushPromises()
@@ -276,7 +307,7 @@ describe('PresenceScheduleSection', () => {
     await wrapper.get('[data-load-more]').trigger('click')
     expect(wrapper.get('[data-schedule-list]').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('[data-load-more-status]').attributes()).toMatchObject({ role: 'status', 'aria-live': 'polite' })
-    nextPage.resolve({ page: 2, pageSize: 6, items: [{ ...baseSchedule, id: 'agenda-b' }], totalItems: 2, totalPages: 2 })
+    nextPage.resolve({ page: 2, pageSize: 6, items: [{ ...baseSchedule, id: 'agenda-b' }], totalItems: 2, totalPages: 2, activeItems: 2 })
     await flushPromises()
   })
 
@@ -284,7 +315,7 @@ describe('PresenceScheduleSection', () => {
     const staleLoadMore = deferred<Awaited<ReturnType<typeof service.listPresenceSchedules>>>()
     const mutationReload = deferred<Awaited<ReturnType<typeof service.listPresenceSchedules>>>()
     vi.mocked(service.listPresenceSchedules)
-      .mockResolvedValueOnce({ page: 1, pageSize: 6, items: [baseSchedule, { ...baseSchedule, id: 'agenda-b' }], totalItems: 3, totalPages: 2 })
+      .mockResolvedValueOnce({ page: 1, pageSize: 6, items: [baseSchedule, { ...baseSchedule, id: 'agenda-b' }], totalItems: 3, totalPages: 2, activeItems: 2 })
       .mockReturnValueOnce(staleLoadMore.promise)
       .mockReturnValueOnce(mutationReload.promise)
     vi.mocked(service.pausePresenceSchedule).mockResolvedValue({ ...baseSchedule, status: 'Pausado' })
@@ -300,18 +331,20 @@ describe('PresenceScheduleSection', () => {
       items: [{ ...baseSchedule, status: 'Pausado' }, { ...baseSchedule, id: 'agenda-b' }],
       totalItems: 2,
       totalPages: 1,
+      activeItems: 1,
     })
     await flushPromises()
-    staleLoadMore.resolve({ page: 2, pageSize: 6, items: [{ ...baseSchedule, id: 'stale-agenda' }], totalItems: 3, totalPages: 2 })
+    staleLoadMore.resolve({ page: 2, pageSize: 6, items: [{ ...baseSchedule, id: 'stale-agenda' }], totalItems: 3, totalPages: 2, activeItems: 99 })
     await flushPromises()
 
     expect(wrapper.findAll('[data-schedule-id]').map((card) => card.attributes('data-schedule-id'))).toEqual(['agenda-a', 'agenda-b'])
     expect(wrapper.find('[data-schedule-id="stale-agenda"]').exists()).toBe(false)
     expect(wrapper.get('[data-schedule-id="agenda-a"]').text()).toContain('Pausado')
+    expect(wrapper.findAll('.presence-schedule-summary strong')[0]?.text()).toBe('1')
   })
 
   it('supports create, edit, pause, reactivate, archive and history actions', async () => {
-    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule, { ...baseSchedule, id: 'agenda-b', status: 'Pausado' }], totalItems: 2, totalPages: 1 })
+    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule, { ...baseSchedule, id: 'agenda-b', status: 'Pausado' }], totalItems: 2, totalPages: 1, activeItems: 1 })
     vi.mocked(service.pausePresenceSchedule).mockResolvedValue({ ...baseSchedule, status: 'Pausado' })
     vi.mocked(service.reactivatePresenceSchedule).mockResolvedValue({ ...baseSchedule, id: 'agenda-b' })
     vi.mocked(service.archivePresenceSchedule).mockResolvedValue()
@@ -437,7 +470,7 @@ describe('PresenceScheduleSection', () => {
   })
 
   it('uses semantic single-column-ready cards and touch-sized actions', async () => {
-    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 1, totalPages: 1 })
+    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 1, totalPages: 1, activeItems: 1 })
     const wrapper = await mountSection()
     await flushPromises()
     expect(wrapper.find('ul[data-schedule-list]').exists()).toBe(true)
@@ -462,7 +495,7 @@ describe('PresenceScheduleSection', () => {
   })
 
   it('closes history with Escape and restores the history trigger', async () => {
-    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 1, totalPages: 1 })
+    vi.mocked(service.listPresenceSchedules).mockResolvedValue({ page: 1, pageSize: 6, items: [baseSchedule], totalItems: 1, totalPages: 1, activeItems: 1 })
     vi.mocked(service.listPresenceScheduleOccurrences).mockResolvedValue({ page: 1, pageSize: 10, items: [], totalItems: 0, totalPages: 0 })
     const wrapper = await mountSection()
     await flushPromises()

@@ -412,7 +412,7 @@
         "MV097": "O agendamento foi alterado por outra operação. Atualize e tente novamente.",
         "MV098": "Não foi possível processar esta execução agora.",
         "MV099": "Agendamento não encontrado.",
-        "MV100": "A ocorrência do agendamento não foi encontrada.",
+        "MV100": "A janela desta ocorrência já foi encerrada.",
         "requestFailed": "A solicitação não pôde ser concluída pelo servidor.",
         "unknown": "A execução registrou uma falha conhecida pelo servidor."
       },

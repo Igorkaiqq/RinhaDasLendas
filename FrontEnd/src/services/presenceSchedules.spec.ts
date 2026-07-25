@@ -43,6 +43,7 @@ describe('presence schedules service', () => {
       items: [{ ...schedule, id: 'agenda-a' }, schedule],
       totalItems: 4,
       totalPages: 2,
+      activeItems: 2,
     }
     const secondPage = {
       page: 2,
@@ -53,6 +54,7 @@ describe('presence schedules service', () => {
       ],
       totalItems: 4,
       totalPages: 2,
+      activeItems: 2,
     }
     vi.mocked(api.get).mockResolvedValueOnce({ data: firstPage }).mockResolvedValueOnce({ data: secondPage })
 
