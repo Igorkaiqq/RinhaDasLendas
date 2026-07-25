@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
@@ -192,6 +193,30 @@ describe('DraftVisualBoard', () => {
     })
 
     expect(wrapper.find('.draft-pick-action').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not offer, emit, or lock a pick when the matching participant is not marked as captain', async () => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.turnoAtualTimeId = 'team-a'
+    draft.turnoAtualCapitaoId = 'captain-a'
+    draft.turnoSequencia = 3
+    draft.turnoExpiraEm = new Date(Date.now() + 60_000).toISOString()
+    draft.times[1]!.jogadores[0]!.capitao = false
+    const wrapper = mountBoard(draft, { currentPlayerId: 'captain-a', canCurrentUserPick: true })
+    const vm = wrapper.vm as unknown as {
+      localMontagem: DraftMontagem
+      pickPlayer: (player: DraftMontagemParticipante) => void
+    }
+
+    expect(wrapper.find('.draft-pick-action').exists()).toBe(false)
+    vm.pickPlayer(draft.livres[0]!)
+    expect(wrapper.emitted('pick')).toBeUndefined()
+
+    vm.localMontagem.times.find((team) => team.id === 'team-a')!.jogadores[0]!.capitao = true
+    await nextTick()
+    await wrapper.get('.draft-pick-action').trigger('click')
+    expect(wrapper.emitted('pick')).toEqual([['available-1']])
     wrapper.unmount()
   })
 

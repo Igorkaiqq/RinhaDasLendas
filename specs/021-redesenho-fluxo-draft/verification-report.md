@@ -258,7 +258,7 @@
 - Cancelamento obsoleto: `DraftsView.spec.ts` passou 60/60 após a revalidação terminal limpar a ação sem mutação.
 - Focado final: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 103 testes aprovados (`DraftVisualBoard`: 13; `DraftsView`: 62; i18n: 28).
 - A autorização oficial é preservada no carregamento realtime inicial, reconexão e respostas de iniciar, escolher e substituir; broadcasts SignalR não são fonte de autorização e exigem nova consulta personalizada antes da aplicação.
-- O board exige time atual existente, capitão pertencente e marcado como capitão desse time e tempo positivo calculado pelo relógio ajustado do servidor; seu lock bloqueia emits rápidos e é liberado somente após ciclo de salvamento ou atualização da projeção.
+- O board exige time atual existente, `capitaoId` igual a `turnoAtualCapitaoId` e participante correspondente com `capitao === true`, além de tempo positivo calculado pelo relógio ajustado do servidor; seu lock bloqueia emits rápidos e é liberado somente após ciclo de salvamento ou atualização da projeção.
 - Os rótulos dos seis filtros usam chaves PT/EN, enquanto `DraftRouteFilterValues` e `DRAFT_MONTAGEM_ROUTE_BY_FILTER` permanecem inalterados para seleção e filtragem.
 
 #### Gates corrigidos
@@ -282,14 +282,25 @@
 
 - Cada broadcast do draft ativo dispara `getDraftMontagemRealtimeState`; nenhum campo do payload SignalR é aplicado, e somente o retorno personalizado atual pode atualizar projeção, autorização e offset.
 - Estado inicial, mutações e reconexões atualizam o offset como `Date.parse(serverNow) - Date.now()` sob as proteções existentes de draft, geração e versão de requisição.
-- View e board usam `Date.now() + serverClockOffsetMs`; a view também exige time atual, cadeia de identidade do capitão, participação do capitão no time, jogador com estado `Livre` e expiração futura.
+- View e board usam `Date.now() + serverClockOffsetMs` e exigem que o participante correspondente do time tenha `capitao === true`; a view também exige a cadeia de identidade do capitão, jogador com estado `Livre` e expiração futura.
 - Payloads, endpoints, serviços, backend e regras de domínio permanecem inalterados.
 
 #### Gates finais
 
-- Focado: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 111 testes aprovados (`DraftVisualBoard`: 14; `DraftsView`: 69; i18n: 28).
-- Suíte completa: `npm test`; 36 arquivos e 316 testes aprovados, sem falhas.
+- Focado: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 3 arquivos e 112 testes aprovados (`DraftVisualBoard`: 15; `DraftsView`: 69; i18n: 28).
+- Suíte completa: `npm test`; 36 arquivos e 317 testes aprovados, sem falhas.
 - Build: `npm run build`; 2.761 módulos transformados e build concluído, somente com os avisos não bloqueantes já conhecidos de anotações `PURE` e chunk acima de 500 kB.
 - Lint: `npm run lint:check`; aprovado sem erros ou avisos.
 - Internacionalização: `npm test -- src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.
 - Whitespace: `git diff --check`; aprovado sem saída.
+
+### Fechamento final T020-T023
+
+#### RED
+
+- Capitão apenas por identidade: `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts`; 1 teste falhou e 14 passaram. Mesmo com `capitaoId` e jogador atual coincidentes, o board ainda exibia a ação quando o participante correspondente tinha `capitao === false`.
+
+#### GREEN
+
+- `currentTurnCaptain` somente resolve o participante quando identidade e `capitao === true` coincidem, exatamente como a validação independente da view.
+- `DraftVisualBoard.spec.ts` passou 15/15: no estado inválido não há ação nem emissão; após corrigir apenas o flag na projeção local, sem ciclo de saving ou troca de projeção, o pick é emitido, comprovando que a tentativa negada não ativou o lock.

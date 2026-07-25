@@ -62,7 +62,7 @@ const currentTurnTeam = computed(() => localMontagem.value.times.find((time) => 
 const currentTurnCaptain = computed(() => {
   const team = currentTurnTeam.value
   if (!team || team.capitaoId !== localMontagem.value.turnoAtualCapitaoId) return null
-  return team.jogadores.find((player) => player.jogadorId === team.capitaoId) ?? null
+  return team.jogadores.find((player) => player.jogadorId === team.capitaoId && player.capitao) ?? null
 })
 const remainingSeconds = computed(() => {
   if (!localMontagem.value.turnoExpiraEm) {
