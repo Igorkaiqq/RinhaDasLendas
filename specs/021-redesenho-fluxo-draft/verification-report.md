@@ -535,18 +535,26 @@
 - Reexecução final: 2026-07-26, `agent-browser 0.29.1`, Chromium 150, Node.js 22.22.1 e npm 9.2.0.
 - Aplicação real: Vite em `http://127.0.0.1:4174`, usando router, `AppShell`, autenticação, `DraftsView`, serviços e componentes de produção nas rotas `/drafts`, `/atualizacoes` e `/configuracoes`.
 - Backend temporário: HTTP/SignalR determinístico em `http://127.0.0.1:4311`, exclusivamente sob `/tmp/opencode/feature021-e2e`; nenhum código alternativo foi criado no repositório.
-- `run-all.sh` executa cleanup inicial, setup de processos, toda a validação de navegador, gates, verificador de evidências e cleanup final. A execução final terminou com `25` assertions aprovadas e `0` falhas em `evidence-summary.json`.
+- `run-all.sh` executa cleanup inicial, setup de processos, toda a validação de navegador, gates, verificador de evidências e cleanup final. A execução final terminou com `28` assertions aprovadas e `0` falhas em `evidence-summary.json`.
 - Scripts reproduzíveis: `setup.sh`, `cleanup.sh`, `browser-helpers.sh`, `run-keyboard-traversal.sh`, `run-bilingual-journeys.sh`, `run-roster-validation.sh`, `run-viewport-actions.sh`, `run-cross-checks.sh`, `run-gates.sh`, `verify-evidence.js` e `run-all.sh`.
 
 ### Teclado sem foco forçado
 
 - Nenhum script contém `agent-browser focus`, alias equivalente ou chamada DOM `.focus()`. O verificador lê todos os scripts `.sh` e rejeita qualquer ocorrência.
 - Cada cenário navega novamente, espera `document.activeElement === document.body`, registra o body inicial e avança exclusivamente com `Tab` ou `Shift+Tab`. Ações são ativadas somente com Enter ou Espaço; texto no campo já focado usa `keyboard type`.
-- Foram preservados `499` registros em `keyboard-traversal.jsonl`: `456` são transições Tab/Shift+Tab. Cada registro contém cenário, sequência, evento, tag, id, name, role, test ID, classe, texto, outline calculado, box shadow e dimensões.
-- Os `456` alvos focados tiveram indicador calculado: zero registro ficou simultaneamente sem outline e sem box shadow.
+- Foram preservados `417` registros em `keyboard-traversal.jsonl`: `361` são transições Tab/Shift+Tab e `12` são checkpoints após a conclusão de comandos. Cada registro contém cenário, sequência, evento, tag, id, name, role, test ID, classe, texto, outline calculado, box shadow e dimensões.
+- Todo registro posterior a uma ação possui `body: false` e `outline.style` diferente de `none`. Os 12 checkpoints pós-comando usam outline `solid`: confirmar presença, incluir/remover presença por diálogo, encerrar presença, definir capitães, definir ordem, escolher, finalizar, republicar e cancelar.
 - A travessia alcançou e operou navegador compacto, busca, filtro de status, confirmação, busca/seleção/inclusão manual, diálogos, remoção, encerramento, dois capitães, definição de capitães, ordem, pick realtime, finalização, republicação Discord e cancelamento.
 - O backend foi resetado antes de cada cenário funcional. Os cenários de diálogo esperam também a remoção real do overlay antes de continuar.
 - Evidência bruta: `keyboard-traversal.jsonl`, `logs/keyboard-command.log`, `evals/keyboard-*.json.txt` e `screenshots/keyboard-final-cancelled.png`.
+
+### Correção de restauração de foco
+
+- Causa raiz: controles de comando eram removidos ou substituídos após mutações bem-sucedidas; sem sucessor explícito, a restauração do opener do diálogo e o foco do botão removido terminavam em `body`.
+- RED dos componentes: `DraftWorkspaceHeader.spec.ts` e `DraftReasonDialog.spec.ts` executaram 46 testes; 3 falharam porque `focusStage()` e o tratamento de `close-auto-focus` ainda não existiam.
+- RED integrado: `DraftsView.spec.ts` executou 90 testes; 8 falharam reproduzindo `document.activeElement === document.body` após confirmação, inclusão, remoção, republicação, cancelamento, encerramento, capitães, ordem, pick e finalização. O caso de SignalR passivo já passou, comprovando que atualização remota não deve mover foco.
+- GREEN focado: `DraftWorkspaceHeader.spec.ts`, `DraftReasonDialog.spec.ts` e `DraftsView.spec.ts` aprovaram 136 testes. O cabeçalho expõe `focusStage()`, prioriza a ação principal habilitada da etapa e usa o próprio cabeçalho focável como fallback visível.
+- `DraftReasonDialog` intercepta `close-auto-focus` somente após confirmação válida concluída; cancelamento preserva a restauração padrão do opener. `DraftsView` solicita restauração somente após mutações locais bem-sucedidas e não o faz em callbacks SignalR.
 
 ### Seis jornadas em PT e EN
 
@@ -597,15 +605,15 @@
 
 - `setup.sh` grava PIDs, aguarda health checks, abre a sessão e limpa console/erros. `cleanup.sh` fecha a sessão e encerra os grupos de processo do Vite e backend; `run-all.sh` usa trap para executar cleanup também em falha.
 - `final-errors.txt` está vazio. `final-console.txt` contém somente mensagens de conexão do Vite.
-- `final-network.txt` contém 15.640 registros; nenhuma resposta da API ou do hub foi 4xx/5xx. A única resposta não 2xx foi o pedido automático opcional de `/favicon.ico` (404).
+- `final-network.txt` contém 15.655 registros; nenhuma resposta da API ou do hub foi 4xx/5xx. A única resposta não 2xx foi o pedido automático opcional de `/favicon.ico` (404).
 - O fake backend implementa também os reads de Discord/agendamentos usados após o click real de Atualizações, evitando mascarar falhas de rede da rota de destino.
 
 ### Gates e logs brutos
 
 | Gate | Resultado | Log bruto |
 |------|-----------|-----------|
-| Suíte focada | 8 arquivos, 181 testes, 0 falhas | `logs/test-focused.log` |
-| Suíte completa | 38 arquivos, 369 testes, 0 falhas | `logs/test-full.log` |
+| Suíte focada | 8 arquivos, 192 testes, 0 falhas | `logs/test-focused.log` |
+| Suíte completa | 38 arquivos, 382 testes, 0 falhas | `logs/test-full.log` |
 | Build | 2.764 módulos, concluído | `logs/build.log` |
 | Lint | aprovado | `logs/lint.log` |
 | i18n | 28 testes, 0 falhas | `logs/i18n.log` |
@@ -613,7 +621,7 @@
 | Whitespace | sem saída | `logs/diff-check.log` |
 
 - O build mantém apenas os avisos já conhecidos de anotações `PURE` em dependências e chunk acima de 500kB.
-- `logs/verify-evidence.log` registra o resumo final `25` aprovadas e `0` falhas; detalhes e valores usados pelo verificador estão em `evidence-summary.json`.
+- `logs/verify-evidence.log` registra o resumo final `28` aprovadas e `0` falhas; detalhes e valores usados pelo verificador estão em `evidence-summary.json`.
 
 ### Ledger conservador T030
 
@@ -624,7 +632,7 @@
 | SC-003 | Matriz 0/1/10/14/30 e jornada 30→31→30→30 com largura de cada linha. | Aprovado localmente. |
 | SC-004 | Rail/`aria-current` medidos nos oito estados pela matriz estática. | Aprovado localmente. |
 | SC-005 | 41 requests de mutação reais nesta execução; guards continuam cobertos pela suíte automatizada. | Aprovado localmente; backend produtivo não foi exercitado. |
-| SC-006 | 456 transições Tab/Shift+Tab sem foco forçado, ativações Enter/Espaço e zero indicador ausente. | Aprovado localmente. |
+| SC-006 | 361 transições Tab/Shift+Tab sem foco forçado, 12 checkpoints pós-comando, zero foco no body e zero `outlineStyle: none` após ações. | Aprovado localmente. |
 | SC-007 | Seis jornadas PT/EN com feedback visível mais scanner/paridade de 28 testes. | Aprovado localmente. |
 | SC-008 | Card `.3` expandido em PT/EN e link clicado até Configurações/Settings. | Aprovado localmente. |
 | SC-009 | Seis jornadas funcionais repetidas com interações reais nos dois idiomas. | Aprovado localmente contra backend determinístico. |
@@ -632,7 +640,7 @@
 
 ### Defeitos e limites
 
-- Nenhum novo defeito de produção foi encontrado nesta reexecução; portanto, não foi adicionada nova alteração de código de produção.
+- A reexecução rejeitada revelou perda de foco para `body` após comandos que removiam o controle ativo. O defeito foi reproduzido por testes RED e corrigido com restauração centralizada para a ação principal da etapa ou para o cabeçalho do workspace.
 - O click inicial do link de Atualizações falhou apenas no harness em 320px porque o texto inline quebrado tinha o centro geométrico no espaço entre linhas. A mesma interação real foi estabilizada em 1440px, onde o hit target é contínuo, e navegou para `/configuracoes` nos dois idiomas.
 - Duas lacunas do fake backend para a rota Configurações e uma corrida de fechamento de overlay foram corrigidas somente nos scripts temporários.
 - Esta aprovação é local e autenticada contra backend determinístico; não afirma validação contra backend ou deploy produtivo.
@@ -646,4 +654,4 @@
 - Acentuação portuguesa: revisada nos feedbacks, diálogos, status, botões, títulos e Atualizações capturados.
 - Placeholders, botões, títulos, badges, toasts e estados vazios: exercitados ou revisados em PT e EN.
 - Validações frontend/backend: nenhuma validação nova; mensagens existentes continuam localizadas.
-- Novos arquivos duráveis: somente documentação/tarefas; todos respeitam o padrão.
+- Novos arquivos duráveis: nenhum. As alterações de produção e testes não introduzem texto visível nem novas chaves de tradução.

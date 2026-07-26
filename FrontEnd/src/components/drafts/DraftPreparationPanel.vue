@@ -76,6 +76,7 @@ function updateManualSelection(event: ControlEvent) {
       <button
         v-if="!currentUserHasPresence"
         data-testid="confirm-presence"
+        data-stage-primary-action
         type="button"
         :disabled="saving"
         @click="emitUnlessSaving('confirm-presence')"
@@ -95,6 +96,7 @@ function updateManualSelection(event: ControlEvent) {
       <button
         v-if="canManage"
         data-testid="close-presence"
+        data-stage-primary-action
         type="button"
         class="button-secondary"
         :disabled="saving"
@@ -181,6 +183,7 @@ function updateManualSelection(event: ControlEvent) {
     <div v-if="canManage && draft.status === 'PresencaEncerrada'" class="draft-preparation__footer">
       <button
         data-testid="define-captains"
+        data-stage-primary-action
         type="button"
         :disabled="saving || captainSelection.length !== draft.quantidadeTimes"
         @click="emitUnlessSaving('define-captains')"
@@ -189,7 +192,7 @@ function updateManualSelection(event: ControlEvent) {
       </button>
     </div>
     <div v-else-if="canManage && draft.status === 'CapitaesDefinidos'" class="draft-preparation__footer">
-      <button data-testid="draw-order" type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">
+      <button data-testid="draw-order" data-stage-primary-action type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">
         {{ t('drafts.presence.drawOrder') }}
       </button>
     </div>

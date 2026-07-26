@@ -215,6 +215,36 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it('requests stage focus instead of a removed opener after a completed command', async () => {
+    const wrapper = await mountDialog({ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' })
+    const content = wrapper.findComponent(DialogContent)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.setProps({ open: false })
+    const closeEvent = new Event('closeAutoFocus', { cancelable: true })
+
+    content.vm.$emit('closeAutoFocus', closeEvent)
+    await nextTick()
+
+    expect(closeEvent.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('restore-focus')).toEqual([[]])
+    wrapper.unmount()
+  })
+
+  it('preserves default opener restoration when the dialog is cancelled', async () => {
+    const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const content = wrapper.findComponent(DialogContent)
+    await wrapper.get('[data-testid="draft-reason-cancel"]').trigger('click')
+    await wrapper.setProps({ open: false })
+    const closeEvent = new Event('closeAutoFocus', { cancelable: true })
+
+    content.vm.$emit('closeAutoFocus', closeEvent)
+    await nextTick()
+
+    expect(closeEvent.defaultPrevented).toBe(false)
+    expect(wrapper.emitted('restore-focus')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it.each([
     [{ type: 'cancelDraft' }, 'destructive'],
     [{ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'default'],

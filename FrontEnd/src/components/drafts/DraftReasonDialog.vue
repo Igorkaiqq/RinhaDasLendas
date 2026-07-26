@@ -22,13 +22,15 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 
 type ReasonKeyboardEvent = InstanceType<typeof globalThis.KeyboardEvent>
+type CloseAutoFocusEvent = InstanceType<typeof globalThis.Event>
 
 const props = defineProps<{ open: boolean; action: DraftReasonDialogAction | null; saving: boolean }>()
-const emit = defineEmits<{ confirm: [reason: string]; cancel: [] }>()
+const emit = defineEmits<{ confirm: [reason: string]; cancel: []; 'restore-focus': [] }>()
 const { t, te } = useI18n()
 
 const reason = ref('')
 const submitted = ref(false)
+const commandSubmitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
 const translationKey = computed(() => (props.action ? `drafts.reasonDialog.${props.action.type}` : ''))
 const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishPresenceCta' || props.action?.type === 'republishTeams')
@@ -49,6 +51,7 @@ watch(
   () => [props.open, props.action] as const,
   ([open]) => {
     submitted.value = false
+    if (open) commandSubmitted.value = false
     reason.value = open && props.action ? t(`${translationKey.value}.defaultReason`) : ''
   },
   { immediate: true },
@@ -59,6 +62,7 @@ function cancel() {
 
   reason.value = ''
   submitted.value = false
+  commandSubmitted.value = false
   emit('cancel')
 }
 
@@ -70,6 +74,7 @@ function confirm() {
   }
   if (props.saving) return
 
+  commandSubmitted.value = true
   emit('confirm', reason.value.trim())
 }
 
@@ -78,6 +83,14 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
 
   if (valid.value && !props.saving) event.preventDefault()
   confirm()
+}
+
+function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
+  if (!commandSubmitted.value) return
+
+  event.preventDefault()
+  commandSubmitted.value = false
+  emit('restore-focus')
 }
 
 </script>
@@ -90,6 +103,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
       class="draft-reason-dialog sm:max-w-lg"
       @escape-key-down="saving && $event.preventDefault()"
       @interact-outside="saving && $event.preventDefault()"
+      @close-auto-focus="handleCloseAutoFocus"
     >
       <form class="flex flex-col gap-5" @submit.prevent="confirm">
         <DialogHeader>

@@ -374,7 +374,7 @@ async function exportImage() {
       <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
       <button v-if="canManage && isOpen" type="button" class="button-secondary" :disabled="!dirty || saving" @click="save">{{ saving ? t('common.saving') : t('drafts.visualBoard.saveLayout') }}</button>
       <button type="button" class="button-secondary" @click="exportImage">{{ t('drafts.visualBoard.exportImage') }}</button>
-      <button v-if="canManage && isOpen && !isRealtime" type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
+      <button v-if="canManage && isOpen && !isRealtime" data-stage-primary-action type="button" :disabled="dirty || saving" @click="emit('finalize')">{{ t('drafts.visualBoard.finalize') }}</button>
     </div>
 
     <section v-if="hasActiveTurn" class="draft-turn-clock" data-active-turn :aria-label="t('drafts.realtime.turnClock')">
@@ -495,7 +495,7 @@ async function exportImage() {
                 </span>
               </span>
             </span>
-            <button v-if="canPickPlayer(player)" type="button" class="draft-pick-action" @click.stop="pickPlayer(player)">{{ t('drafts.realtime.pick') }}</button>
+            <button v-if="canPickPlayer(player)" data-stage-primary-action type="button" class="draft-pick-action" @click.stop="pickPlayer(player)">{{ t('drafts.realtime.pick') }}</button>
             <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
           </article>
         </div>

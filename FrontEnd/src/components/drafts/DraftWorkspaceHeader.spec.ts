@@ -2,7 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem } from '@/types/draftMontagem'
@@ -34,6 +34,10 @@ const draft = {
 } satisfies DraftMontagem
 
 describe('DraftWorkspaceHeader', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('keeps identity, date, status, counts, and progress together', () => {
     const wrapper = mount(DraftWorkspaceHeader, {
       props: { draft, confirmedCount: 7, finalTeamsPublicationStatus: 'Pendente' },
@@ -123,5 +127,40 @@ describe('DraftWorkspaceHeader', () => {
     expect(children[2]?.classList.contains('draft-hero-actions')).toBe(true)
     expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='primary'\][\s\S]*?var\(--color-primary\)/s)
     expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='danger'\][\s\S]*?var\(--color-danger\)/s)
+  })
+
+  it('focuses the enabled primary action for the current stage', async () => {
+    const workspace = document.createElement('div')
+    workspace.dataset.draftWorkspace = ''
+    document.body.append(workspace)
+    const wrapper = mount(DraftWorkspaceHeader, {
+      attachTo: workspace,
+      props: { draft, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      global: { plugins: [i18n] },
+    })
+    const primaryAction = document.createElement('button')
+    primaryAction.dataset.stagePrimaryAction = ''
+    workspace.append(primaryAction)
+
+    await (wrapper.vm as unknown as { focusStage: () => Promise<void> }).focusStage()
+
+    expect(document.activeElement).toBe(primaryAction)
+    wrapper.unmount()
+  })
+
+  it('focuses its visible fallback when the stage has no enabled primary action', async () => {
+    const wrapper = mount(DraftWorkspaceHeader, {
+      attachTo: document.body,
+      props: { draft, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      global: { plugins: [i18n] },
+    })
+    const header = wrapper.get('[data-testid="draft-workspace-header"]')
+
+    await (wrapper.vm as unknown as { focusStage: () => Promise<void> }).focusStage()
+
+    expect(document.activeElement).toBe(header.element)
+    expect(header.attributes('tabindex')).toBe('-1')
+    expect(MainCss).toMatch(/\[tabindex\]:focus-visible\s*{[^}]*outline:\s*2px solid var\(--color-focus-ring\)/s)
+    wrapper.unmount()
   })
 })

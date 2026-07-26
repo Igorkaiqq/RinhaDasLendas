@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -72,6 +72,7 @@ const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
+const workspaceHeader = useTemplateRef<InstanceType<typeof DraftWorkspaceHeader>>('workspaceHeader')
 const adminAccessDenied = ref(false)
 let detailRequestVersion = 0
 let manualPresenceRequestVersion = 0
@@ -372,14 +373,21 @@ async function confirmPresence() {
   if (saving.value) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
+  let completed = false
   saving.value = true
   try {
     const montagem = await confirmDraftMontagemPresence(context.draftId)
-    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.confirmed')
+    if (await applyMutationProjection(context, montagem)) {
+      notification.value = t('drafts.presence.confirmed')
+      completed = true
+    }
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -417,14 +425,21 @@ async function closePresence(continueWithLess = false) {
   const montagemAtual = selectedMontagem.value
   const context = beginSelectedDraftUpdate()
   if (!montagemAtual || !context || !canManageDrafts.value) return
+  let completed = false
   saving.value = true
   try {
     const montagem = await closeDraftMontagemPresence(context.draftId, continueWithLess, montagemAtual.tamanhoEquipe)
-    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.closed')
+    if (await applyMutationProjection(context, montagem)) {
+      notification.value = t('drafts.presence.closed')
+      completed = true
+    }
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -453,14 +468,21 @@ async function defineCaptains() {
   ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
+  let completed = false
   saving.value = true
   try {
     const montagem = await defineDraftMontagemCaptains(context.draftId, captainSelection.value)
-    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.captainsDefined')
+    if (await applyMutationProjection(context, montagem)) {
+      notification.value = t('drafts.presence.captainsDefined')
+      completed = true
+    }
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -468,14 +490,21 @@ async function drawPickOrder() {
   if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.CapitaesDefinidos) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
+  let completed = false
   saving.value = true
   try {
     const montagem = await defineDraftMontagemPickOrder(context.draftId, DraftMontagemOrdemEscolhaModoValues.Sorteado)
-    if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.orderDefined')
+    if (await applyMutationProjection(context, montagem)) {
+      notification.value = t('drafts.presence.orderDefined')
+      completed = true
+    }
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -610,15 +639,19 @@ async function pickRealtime(jogadorId: string) {
   const context = beginSelectedDraftUpdate()
   if (!context) return
 
+  let completed = false
   saving.value = true
   errors.value = []
   try {
     const state = await registerDraftMontagemPick(context.draftId, jogadorId)
-    await applyMutationRealtimeState(context, state)
+    completed = await applyMutationRealtimeState(context, state)
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -656,16 +689,21 @@ async function finalizeMontagem() {
   if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
+  let completed = false
   saving.value = true
   try {
     const montagem = await finalizeDraftMontagem(context.draftId)
     if (!(await applyMutationProjection(context, montagem))) return
     await loadVisualMontagens()
     notification.value = t('drafts.messages.finished')
+    completed = true
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
   }
 }
 
@@ -757,6 +795,11 @@ async function confirmReasonAction(reason: string) {
   }
 }
 
+async function restoreStageFocus() {
+  await nextTick()
+  await workspaceHeader.value?.focusStage()
+}
+
 function captureError(error: unknown) {
   errors.value = error instanceof DraftMontagemServiceError ? error.errors : [t('drafts.errors.action')]
 }
@@ -805,6 +848,7 @@ function captureError(error: unknown) {
       <div class="draft-main" data-draft-workspace>
         <DraftWorkspaceHeader
           v-if="selectedMontagem"
+          ref="workspaceHeader"
           :draft="selectedMontagem"
           :confirmed-count="confirmedPresences.length"
           :final-teams-publication-status="finalTeamsPublicationStatus"
@@ -886,6 +930,7 @@ function captureError(error: unknown) {
       :saving="saving"
       @cancel="pendingReasonAction = null"
       @confirm="confirmReasonAction"
+      @restore-focus="restoreStageFocus"
     />
   </PageFrame>
 </template>

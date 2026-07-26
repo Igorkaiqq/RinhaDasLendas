@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const { locale, t } = useI18n()
+const header = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('header')
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const statusLabel = computed(() => t(knownStatuses.has(props.draft.status) ? `drafts.status.${props.draft.status}` : 'drafts.status.unknown'))
 const draftDate = computed(() => {
@@ -28,10 +29,19 @@ const draftDate = computed(() => {
     timeZone: 'UTC',
   })
 })
+
+async function focusStage() {
+  await nextTick()
+  const workspace = header.value?.closest('[data-draft-workspace]')
+  const primaryAction = workspace?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-stage-primary-action]:not(:disabled):not([aria-disabled="true"])')
+  ;(primaryAction ?? header.value)?.focus()
+}
+
+defineExpose({ focusStage })
 </script>
 
 <template>
-  <header class="panel-card presence-panel" data-testid="draft-workspace-header">
+  <header ref="header" class="panel-card presence-panel" data-testid="draft-workspace-header" tabindex="-1">
     <div class="draft-summary">
       <div>
         <span class="eyebrow">{{ t('drafts.kicker') }}</span>

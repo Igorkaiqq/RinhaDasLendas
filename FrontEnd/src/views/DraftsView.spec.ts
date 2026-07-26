@@ -281,6 +281,16 @@ function findButton(wrapper: VueWrapper, text: string) {
   return button!
 }
 
+function expectStageFocus(wrapper: VueWrapper) {
+  const activeElement = document.activeElement
+  const workspace = wrapper.get('[data-draft-workspace]').element
+  const header = wrapper.get('[data-testid="draft-workspace-header"]').element
+
+  expect(activeElement).not.toBe(document.body)
+  expect(workspace.contains(activeElement)).toBe(true)
+  expect(activeElement === header || activeElement?.matches('[data-stage-primary-action]')).toBe(true)
+}
+
 async function openReasonDialog(wrapper: VueWrapper, buttonText: string) {
   await findButton(wrapper, buttonText).trigger('click')
   await flushPromises()
@@ -1751,6 +1761,151 @@ describe('DraftsView reason actions', () => {
     board.vm.$emit('finalize')
     await nextTick()
     expect(serviceMocks.finalizeDraftMontagem).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('restores stage focus after confirming and closing presence', async () => {
+    const ownPresence = {
+      ...montagem.presencas[0]!,
+      id: 'presenca-organizador',
+      usuarioId: 'organizador-1',
+      jogadorId: 'jogador-organizador',
+      nomeExibicao: 'Organizador',
+    }
+    const confirmed = { ...adminProjection(), presencas: [...montagem.presencas, ownPresence] }
+    serviceMocks.confirmDraftMontagemPresence.mockResolvedValueOnce(confirmed)
+    serviceMocks.getDraftMontagemAdminById
+      .mockResolvedValueOnce(adminProjection())
+      .mockResolvedValueOnce(adminProjection())
+      .mockResolvedValue(confirmed)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('confirm-presence')
+    await flushPromises()
+    expectStageFocus(wrapper)
+
+    const closed = { ...confirmed, status: 'PresencaEncerrada' as const }
+    serviceMocks.closeDraftMontagemPresence.mockResolvedValueOnce(closed)
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    panel.vm.$emit('close-presence', false)
+    await flushPromises()
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('restores stage focus after defining captains and pick order', async () => {
+    const secondPresence = {
+      ...montagem.presencas[0]!,
+      id: 'presenca-2',
+      usuarioId: 'usuario-2',
+      jogadorId: 'jogador-2',
+      nomeExibicao: 'Lux',
+      ordemConfirmacao: 2,
+    }
+    const closed = { ...adminProjection('PresencaEncerrada'), presencas: [...montagem.presencas, secondPresence] }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    const captainsDefined = { ...closed, status: 'CapitaesDefinidos' as const }
+    serviceMocks.defineDraftMontagemCaptains.mockResolvedValueOnce(captainsDefined)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    panel.vm.$emit('toggle-captain', 'jogador-2')
+    panel.vm.$emit('define-captains')
+    await flushPromises()
+    expectStageFocus(wrapper)
+
+    const orderDefined = { ...captainsDefined, status: 'OrdemDefinida' as const }
+    serviceMocks.defineDraftMontagemPickOrder.mockResolvedValueOnce(orderDefined)
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(orderDefined)
+    wrapper.getComponent({ name: 'DraftPreparationPanel' }).vm.$emit('draw-order')
+    await flushPromises()
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('restores stage focus after a successful realtime pick', async () => {
+    authMock.canManageDrafts = false
+    authMock.jogadorId = 'capitao-atual'
+    const available = {
+      jogadorId: 'jogador-livre',
+      nomeExibicao: 'Jogador livre',
+      status: 'Ativo',
+      preferencias: [],
+      estado: 'Livre' as const,
+      capitao: false,
+      ordem: 1,
+      dataCadastro: montagem.dataCadastro,
+      dataAtualizacao: montagem.dataAtualizacao,
+    }
+    const realtimeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      turnoAtualTimeId: 'time-1',
+      turnoAtualCapitaoId: 'capitao-atual',
+      turnoExpiraEm: new Date(Date.now() + 60_000).toISOString(),
+      times: [realtimeTeam],
+      livres: [available],
+    }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(realtimeDraft)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: realtimeDraft, canCurrentUserPick: true, serverNow: new Date().toISOString() })
+    serviceMocks.registerDraftMontagemPick.mockResolvedValueOnce({ montagem: realtimeDraft, canCurrentUserPick: false, serverNow: new Date().toISOString() })
+    const wrapper = await mountView()
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('pick', 'jogador-livre')
+    await flushPromises()
+
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('restores stage focus after finalizing the draft', async () => {
+    const open = adminProjection('Aberta')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(open)
+    serviceMocks.finalizeDraftMontagem.mockResolvedValueOnce({ ...open, status: 'Finalizada' })
+    const wrapper = await mountView()
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('finalize')
+    await flushPromises()
+
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('restores stage focus after adding a manual presence through the reason dialog', async () => {
+    const wrapper = await mountView()
+    await wrapper.get('select[name="manual-presence-player"]').setValue('jogador-2')
+
+    await confirmReasonAction(wrapper, 'Adicionar presença', 'inclusão administrativa')
+
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['Remover', 'remoção administrativa'],
+    ['Republicar presença', 'republicação administrativa'],
+    ['Cancelar', 'cancelamento administrativo'],
+  ])('restores stage focus after completing the reason action %s', async (buttonText, reason) => {
+    const wrapper = await mountView()
+
+    await confirmReasonAction(wrapper, buttonText, reason)
+
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('does not steal focus when a passive realtime update arrives', async () => {
+    const wrapper = await mountView()
+    const createButton = findButton(wrapper, 'Criar Draft').element as HTMLButtonElement
+    createButton.focus()
+
+    await emitRealtime('montagem-1', { ...montagem, dataAtualizacao: '2026-07-26T12:00:00Z' })
+    await flushPromises()
+
+    expect(document.activeElement).toBe(createButton)
     wrapper.unmount()
   })
 
