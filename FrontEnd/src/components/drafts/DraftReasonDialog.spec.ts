@@ -193,13 +193,16 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
-  it('scopes 44px targets to the portaled reason dialog', async () => {
+  it('scopes 44px button targets to every portaled reason-dialog action', async () => {
     const wrapper = await mountDialog({ type: 'cancelDraft' })
     const dialog = wrapper.get('[role="dialog"]')
+    const buttons = dialog.findAll('button')
 
     expect(dialog.classes()).toContain('draft-reason-dialog')
-    expect(dialog.findAll('button')).not.toHaveLength(0)
-    expect(MainCss).toMatch(/\.draft-reason-dialog\s+:is\(button,\s*textarea\)\s*{[^}]*min-height:\s*44px/s)
+    expect(buttons).toHaveLength(3)
+    expect(dialog.get('button[data-slot="dialog-close"]')).toBeTruthy()
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s+button\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s+textarea\s*{[^}]*min-height:\s*44px/s)
     wrapper.unmount()
   })
 

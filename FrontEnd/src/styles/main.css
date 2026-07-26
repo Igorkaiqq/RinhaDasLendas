@@ -4657,7 +4657,12 @@ p {
   min-height: 16px;
 }
 
-.draft-reason-dialog :is(button, textarea) {
+.draft-reason-dialog button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.draft-reason-dialog textarea {
   min-height: 44px;
 }
 

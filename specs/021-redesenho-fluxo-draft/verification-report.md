@@ -453,3 +453,24 @@
 - Lint: `npm run lint:check` aprovado sem erros ou avisos.
 - Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas; scanner de texto hardcoded e paridade PT/EN aprovados.
 - Diff: `git diff --check` aprovado sem saída antes do fechamento documental.
+
+### Fechamento final de T027-T029
+
+#### RED
+
+- `DraftReasonDialog.spec.ts` executou o caso focado com 1 falha e 33 testes ignorados: o diálogo portado renderizava três botões, incluindo o fechamento `icon-sm`, mas o contrato CSS garantia somente altura mínima.
+
+#### GREEN
+
+- O teste renderizado confirma os três botões e identifica explicitamente `button[data-slot="dialog-close"]`.
+- `.draft-reason-dialog button` agora impõe `min-width: 44px` e `min-height: 44px`; o contrato separado de `textarea` preserva sua altura mínima.
+- T030 permanece pendente; nenhuma validação em navegador, screenshot ou medição real foi executada neste fechamento.
+
+#### Gates finais do fechamento
+
+- Suíte focada: 10 arquivos e 241 testes aprovados, sem falhas.
+- Suíte completa: 38 arquivos e 367 testes aprovados, sem falhas.
+- Build: 2.764 módulos transformados e build concluído; permanecem somente os avisos não bloqueantes conhecidos de anotações `PURE` e chunk acima de 500 kB.
+- Lint: `npm run lint:check` aprovado sem erros ou avisos.
+- Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas; nenhuma chave ou mensagem localizada foi alterada neste fechamento.
+- Diff: `git diff --check` aprovado sem saída antes da atualização final deste relatório.
