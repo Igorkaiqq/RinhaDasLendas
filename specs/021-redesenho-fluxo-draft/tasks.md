@@ -145,7 +145,7 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 - [X] T028 [US4] Substituir seletores legados por estilos escopados do shell, roster, ações, rail e board em `FrontEnd/src/styles/main.css`
 - [X] T029 [US4] Implementar breakpoints 1024px e 768px, coluna única em 320px, alvos de 44px e redução de movimento em `FrontEnd/src/styles/main.css`
-- [ ] T030 [US4] Validar teclado, overflow e screenshots nos quatro viewports com `agent-browser` e registrar evidências locais em `specs/021-redesenho-fluxo-draft/verification-report.md`
+- [X] T030 [US4] Validar teclado, overflow e screenshots nos quatro viewports com `agent-browser` e registrar evidências locais em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
 **Checkpoint**: Fluxo responsivo e acessível aprovado localmente.
 
