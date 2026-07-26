@@ -203,7 +203,9 @@ Garantias adicionais:
 
 ## Atualizações
 
-Contrato editorial de `2026.07.3`:
+Contrato editorial em duas etapas.
+
+Estágio 1, antes do gate de FR-027, para `2026.07.3`:
 
 - topo do registro;
 - uma categoria `fix` e uma área `drafts`;
@@ -212,3 +214,22 @@ Contrato editorial de `2026.07.3`:
 - somente `2026.07.3` destacada;
 - mesmas folhas de tradução em `pt.json` e `en.json`;
 - conteúdo não menciona o redesenho ainda não publicado.
+
+Estágio final, depois da validação do redesenho, para `2026.07.4`:
+
+- topo do registro e data `2026-07-26`;
+- ID `clearer-draft-operation`;
+- uma categoria `improvement` e uma área `drafts`;
+- detalhes `operational-hierarchy`, `presence-roster`, `stage-accessibility-clarity` e `responsive-mobile-operation`;
+- todos os quatro detalhes com link `AppRoutes.Draft`;
+- somente `2026.07.4` destacada;
+- mesmas folhas de tradução em `pt.json` e `en.json`, com título, resumo e detalhes equivalentes;
+- conteúdo orientado a benefícios, sem detalhes técnicos internos;
+- `2026.07.3` integralmente preservada, exceto por `featured: false`.
+
+Invariantes compartilhadas:
+
+- exatamente uma release destacada em cada estágio;
+- IDs, versões e IDs de detalhes únicos;
+- ordem cronológica decrescente e ordem numérica decrescente para versões válidas `AAAA.MM.N` na mesma data;
+- estágio final somente após SC-001 a SC-010 e FR-027 aprovados.

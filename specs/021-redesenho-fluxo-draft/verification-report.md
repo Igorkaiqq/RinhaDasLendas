@@ -821,3 +821,30 @@
 
 - O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
 - A validação autenticada pós-deploy continua pendente conforme o quickstart; as duas etapas editoriais e todos os gates locais estão documentados separadamente.
+
+## Fechamento final de consistência dos artefatos T035-T040
+
+### Achado e correção
+
+- A revisão final encontrou uma inconsistência exclusivamente documental: SC-008 e o quickstart já definiam os dois estágios, mas o teste independente e os cenários da User Story 6, FR-026, `data-model.md` e `contracts/ui-contracts.md` ainda descreviam somente `.3` no topo e destacada.
+- Os requisitos históricos de `.3` foram preservados integralmente como estágio 1, anterior ao gate de FR-027.
+- O estágio final foi explicitado nos quatro artefatos: `.4` no topo e destacada após a validação do redesenho; `.3` imutável exceto por `featured: false`.
+- `data-model.md` e o contrato de UI registram a metadata final de `.4`: ID `clearer-draft-operation`, versão `2026.07.4`, data `2026-07-26`, categoria `improvement`, área `drafts` e quatro detalhes ligados a `AppRoutes.Draft`.
+- Nenhuma regra de produção, tradução, teste ou evidência histórica anterior foi alterada neste fechamento.
+
+### Matriz de consistência final
+
+| Artefato | Estágio 1 | Estágio final | Estado |
+|----------|-----------|---------------|--------|
+| `spec.md` User Story 6 | `.3` no topo/destaque, correção e Configurações antes de FR-027 | `.4` no topo/destaque em `2026-07-26`, Drafts e `.3` preservada | Consistente |
+| `spec.md` FR-026 e SC-008 | Requisitos históricos de `.3` mantidos | Transição pós-FR-027 definida explicitamente | Consistente |
+| `data-model.md` | Metadata e invariantes de `.3` mantidos | Metadata, detalhes, links e invariantes de `.4` definidos | Consistente |
+| `contracts/ui-contracts.md` | Contrato anterior ao gate preservado | Contrato final e invariantes compartilhadas definidos | Consistente |
+| `quickstart.md` | Validação pré-FR-027 de `.3` | Validação pós-FR-027 de `.4` | Consistente |
+
+### Escopo de verificação
+
+- Gate obrigatório: `git diff --check`; aprovado sem saída.
+- Regressão editorial: `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`; 5 arquivos e 58 testes aprovados, 0 falhas.
+- Internacionalização incluída na regressão editorial: `i18n.spec.ts` aprovou 30 testes, 0 falhas.
+- Locales `pt.json` e `en.json`: não alterados; nenhuma execução adicional separada de i18n é necessária além da suíte focada solicitada.

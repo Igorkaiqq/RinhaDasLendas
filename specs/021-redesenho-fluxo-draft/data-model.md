@@ -81,7 +81,9 @@ Apresentação derivada:
 - variante neutra, informativa, de sucesso, atenção ou erro;
 - republicação disponível conforme permissão e regras atuais.
 
-## Atualização `2026.07.3`
+## Atualizações editoriais em duas etapas
+
+### Estágio 1: correção `2026.07.3`
 
 Entrada estática:
 
@@ -100,3 +102,24 @@ Invariantes:
 - registro permanece em ordem cronológica decrescente;
 - existe exatamente uma release destacada;
 - `2026.07.2` permanece imutável, exceto por `featured: false`.
+
+### Estágio final: redesenho `2026.07.4`
+
+Entrada estática criada somente após a aprovação de SC-001 a SC-010 e do gate de FR-027:
+
+- `id`: `clearer-draft-operation`;
+- `version`: `2026.07.4`;
+- `publishedAt`: `2026-07-26`;
+- `featured`: `true`;
+- `categories`: `improvement`;
+- `areas`: `drafts`;
+- detalhes `operational-hierarchy`, `presence-roster`, `stage-accessibility-clarity` e `responsive-mobile-operation`, todos com link para `AppRoutes.Draft`;
+- título, resumo e quatro detalhes equivalentes em português e inglês.
+
+Invariantes finais:
+
+- `2026.07.4` ocupa o topo e é a única release destacada;
+- `2026.07.3` mantém ID, versão, data, categoria, área, detalhe, link e conteúdo localizados, alterando somente `featured` para `false`;
+- `2026.07.2` e todas as releases anteriores permanecem imutáveis;
+- IDs, versões e detalhes permanecem únicos;
+- o registro permanece em ordem cronológica decrescente e, para datas iguais com versões válidas `AAAA.MM.N`, em ordem numérica decrescente de versão.

@@ -103,13 +103,14 @@ Como usuário, quero encontrar no histórico a melhoria entregue na seleção de
 
 **Why this priority**: A correção já está em produção e precisa ser comunicada no canal oficial do produto sem esperar o redesenho completo.
 
-**Independent Test**: A página Atualizações apresenta `2026.07.3` no topo, em português e inglês, com categoria de correção, link para Configurações e somente uma versão em destaque.
+**Independent Test**: A página Atualizações comprova as duas etapas editoriais em português e inglês: antes do gate de FR-027, `2026.07.3` aparece no topo, com categoria de correção, link para Configurações e destaque único; depois da validação do redesenho, `2026.07.4` assume topo e destaque, com data `2026-07-26` e link para Drafts, enquanto `.3` permanece imutável exceto por `featured: false`.
 
 **Acceptance Scenarios**:
 
 1. **Given** a correção dos dias já publicada, **When** o usuário abre Atualizações, **Then** vê uma descrição orientada ao benefício, sem mensagem de commit ou detalhe técnico interno.
 2. **Given** locale português ou inglês, **When** a versão `2026.07.3` é exibida, **Then** título, resumo e detalhe possuem estrutura e significado equivalentes.
-3. **Given** a nova versão destacada, **When** o histórico é validado, **Then** a versão destacada anterior deixa de ser destaque e a ordem cronológica permanece correta.
+3. **Given** que o gate de FR-027 ainda não foi aprovado, **When** o histórico é validado, **Then** `2026.07.3` permanece no topo como única versão destacada e nenhuma descrição antecipa o redesenho.
+4. **Given** que o redesenho passou por todos os cenários de aceitação e critérios de sucesso, **When** a publicação final é validada, **Then** `2026.07.4` aparece no topo como única versão destacada, com data `2026-07-26` e link para Drafts, a versão anteriormente destacada perde o destaque, `2026.07.3` permanece imutável exceto por `featured: false` e a ordem cronológica permanece correta.
 
 ### Edge Cases
 
@@ -152,7 +153,7 @@ Como usuário, quero encontrar no histórico a melhoria entregue na seleção de
 - **FR-023**: Cores, espaçamentos, tipografia, formas, elevação e estados MUST respeitar integralmente os padrões visuais oficiais do produto, sem criar uma identidade paralela.
 - **FR-024**: Todo texto visível novo ou alterado MUST apresentar conteúdo compreensível e equivalente em português e inglês, com acentuação portuguesa revisada.
 - **FR-025**: O histórico MUST adicionar a versão `2026.07.3`, publicada em `2026-07-25`, descrevendo a confirmação visual dos dias selecionados em agendamentos.
-- **FR-026**: A versão `2026.07.3` MUST ser a única destacada, usar categoria de correção, classificação editorial `drafts` por abranger listas de presença e link para Configurações onde o agendamento é operado.
+- **FR-026**: O histórico MUST preservar duas etapas editoriais: antes do gate de FR-027, `2026.07.3` MUST ser a única destacada, usar categoria de correção, classificação editorial `drafts` por abranger listas de presença e link para Configurações onde o agendamento é operado; depois da validação do redesenho, `2026.07.4`, publicada em `2026-07-26`, MUST assumir topo e destaque único, usar categoria de melhoria, área `drafts` e link para Drafts, enquanto `2026.07.3` MUST permanecer imutável exceto por `featured: false`.
 - **FR-027**: O redesenho completo MUST ser publicado em versão posterior própria somente depois que todos os cenários de aceitação e critérios de sucesso desta especificação forem atendidos, sem ser anunciado antecipadamente em `2026.07.3`.
 
 ### Key Entities
