@@ -1069,7 +1069,8 @@ p {
   display: flex;
   gap: var(--space-sm);
   align-items: center;
-  min-width: 0;
+  min-width: 44px;
+  min-height: 44px;
   color: var(--color-ink);
   text-decoration: none;
 }
@@ -1080,9 +1081,9 @@ p {
   right: 0;
   z-index: 25;
   display: grid;
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   place-items: center;
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
@@ -1332,6 +1333,7 @@ p {
 
 .topbar__search input {
   width: 100%;
+  min-height: 44px;
   border-radius: var(--radius-pill);
   padding-left: 42px;
   border-color: var(--color-hairline-soft);
@@ -1352,6 +1354,9 @@ p {
 }
 
 .topbar__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   border: 1px solid rgb(88 101 242 / 28%);
   border-radius: var(--radius-pill);
   padding: 8px 12px;
@@ -1381,9 +1386,9 @@ p {
 
 .topbar__icon {
   display: grid;
-  width: 38px;
-  min-width: 38px;
-  min-height: 38px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   place-items: center;
   border: 1px solid var(--color-hairline-soft);
   border-radius: var(--radius-pill);
@@ -1452,7 +1457,8 @@ p {
 }
 
 .profile-menu__trigger {
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   border: 0;
   padding: 0 var(--space-xs);
   background: transparent;
@@ -1475,6 +1481,7 @@ p {
 
 .profile-menu__panel button {
   justify-content: start;
+  min-height: 44px;
   border: 0;
   background: transparent;
   text-align: left;
@@ -3851,7 +3858,7 @@ p {
   .app-shell:not(.app-shell--collapsed) .sidebar__item.router-link-active {
     flex: 0 0 auto;
     width: auto;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 var(--space-sm);
     box-shadow: none;
   }
@@ -4109,7 +4116,7 @@ p {
   }
 
   .sidebar__item {
-    min-height: 38px;
+    min-height: 44px;
   }
 
   .sidebar__label {
