@@ -27,6 +27,8 @@ const baseDraft: DraftNavigatorItem = {
   dataRinha: '2026-07-26T18:00:00Z',
   dataCadastro: '2026-07-25T12:00:00Z',
   dataAtualizacao: '2026-07-25T12:00:00Z',
+  arquivado: false,
+  versaoEstado: 3,
 }
 
 function mountNavigator(overrides: Partial<{
@@ -39,6 +41,8 @@ function mountNavigator(overrides: Partial<{
   loadFailed: boolean
   hasKnownDrafts: boolean
   canCreate: boolean
+  canIncludeArchived: boolean
+  includeArchived: boolean
 }> = {}) {
   return mount(DraftNavigator, {
     props: {
@@ -51,6 +55,8 @@ function mountNavigator(overrides: Partial<{
       loadFailed: false,
       hasKnownDrafts: true,
       canCreate: true,
+      canIncludeArchived: true,
+      includeArchived: false,
       ...overrides,
     },
     global: { plugins: [i18n] },
@@ -94,6 +100,28 @@ describe('DraftNavigator', () => {
 
     await items[1]!.trigger('click')
     expect(wrapper.emitted('select')).toEqual([['draft-2']])
+  })
+
+  it('shows the Admin-only archived filter and emits its controlled value', async () => {
+    const wrapper = mountNavigator()
+
+    await wrapper.get('[data-include-archived]').setValue(true)
+
+    expect(wrapper.emitted('update:includeArchived')).toEqual([[true]])
+    expect(mountNavigator({ canIncludeArchived: false }).find('[data-include-archived]').exists()).toBe(false)
+  })
+
+  it('shows archived and operational badges independently', () => {
+    const wrapper = mountNavigator({ drafts: [{ ...baseDraft, arquivado: true, status: 'Cancelada' }] })
+
+    expect(wrapper.get('[data-draft-archived]').text()).toBe('Arquivado')
+    expect(wrapper.get('[data-draft-status]').text()).toBe('Cancelada')
+  })
+
+  it('uses the archived empty state when that administrative filter has no results', () => {
+    const wrapper = mountNavigator({ drafts: [], includeArchived: true, hasKnownDrafts: false })
+
+    expect(wrapper.get('[data-navigator-archived-empty]').text()).toContain('Nenhum draft arquivado')
   })
 
   it.each([

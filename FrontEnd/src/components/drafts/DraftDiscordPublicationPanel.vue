@@ -11,6 +11,7 @@ interface DraftPublicationPresentation {
 const props = defineProps<{
   publications: readonly DraftPublicationPresentation[]
   republishableTypes: readonly DraftMontagemPublicacaoDiscordTipo[]
+  archived: boolean
   saving: boolean
 }>()
 
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, te } = useI18n()
-const knownTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos']
+const knownTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos', 'Cancelamento']
 
 function isKnownType(tipo: string): tipo is DraftMontagemPublicacaoDiscordTipo {
   return knownTypes.includes(tipo as DraftMontagemPublicacaoDiscordTipo)
@@ -40,12 +41,15 @@ function publicationText(publication: DraftPublicationPresentation) {
     Presenca: 'drafts.publication.presence',
     ChamadaPresenca: 'drafts.publication.presenceCta',
     TimesDefinidos: 'drafts.publication.finalTeams',
+    Cancelamento: 'drafts.publication.cancellation',
   }
   return t(keys[publication.tipo], { status: t(statusKey(publication.status)) })
 }
 
 function canRepublish(publication: DraftPublicationPresentation) {
-  return isKnownType(publication.tipo) && props.republishableTypes.includes(publication.tipo)
+  if (!isKnownType(publication.tipo) || !props.republishableTypes.includes(publication.tipo)) return false
+  if (!props.archived) return publication.tipo !== 'Cancelamento'
+  return publication.tipo === 'Cancelamento' && ['Falha', 'RequerReconciliacao'].includes(publication.status ?? '')
 }
 
 function republish(publication: DraftPublicationPresentation) {
@@ -55,6 +59,7 @@ function republish(publication: DraftPublicationPresentation) {
 }
 
 function actionKey(tipo: DraftMontagemPublicacaoDiscordTipo) {
+  if (tipo === 'Cancelamento') return 'drafts.publication.republishCancellation'
   return tipo === 'Presenca'
     ? 'drafts.publication.republishPresence'
     : tipo === 'ChamadaPresenca'
@@ -63,6 +68,7 @@ function actionKey(tipo: DraftMontagemPublicacaoDiscordTipo) {
 }
 
 function actionTestId(tipo: DraftMontagemPublicacaoDiscordTipo) {
+  if (tipo === 'Cancelamento') return 'republish-cancellation'
   return tipo === 'Presenca' ? 'republish-presence' : tipo === 'ChamadaPresenca' ? 'republish-presence-cta' : 'republish-final-teams'
 }
 </script>

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishDraftMontagemDiscordPublication } from './draftMontagens'
+import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -38,6 +38,8 @@ const montagem: DraftMontagem = {
   reservas: [],
   escolhas: [],
   substituicoes: [],
+  arquivado: false,
+  versaoEstado: 7,
   dataCadastro: '2026-06-20T00:00:00Z',
   dataAtualizacao: '2026-06-20T00:00:00Z',
 }
@@ -55,7 +57,7 @@ describe('draftMontagens service', () => {
 
     const result = await listDraftMontagens()
 
-    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', { params: { page: 1, pageSize: 100 } })
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', { params: { includeArchived: false, page: 1, pageSize: 100 } })
     expect(result).toEqual([montagem])
   })
 
@@ -120,6 +122,46 @@ describe('draftMontagens service', () => {
     await republishDraftMontagemDiscordPublication('montagem-1', 'TimesDefinidos', 'permissão corrigida')
 
     expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/discord/publicacoes/republicar', { tipo: 'TimesDefinidos', motivo: 'permissão corrigida' })
+  })
+
+  it('lists archived drafts only when explicitly requested', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0, items: [] } })
+
+    await listDraftMontagens({ includeArchived: true })
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', {
+      params: { includeArchived: true, page: 1, pageSize: 100 },
+    })
+  })
+
+  it('archives with a trimmed reason and observed state version', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 8 } })
+
+    await archiveDraftMontagem('draft/id', '  organização concluída  ', 7)
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/arquivar', {
+      motivo: 'organização concluída',
+      versaoEstado: 7,
+    })
+  })
+
+  it('restores without a reason and retains the observed state version contract', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 } })
+
+    await restoreDraftMontagem('draft/id', 8)
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/restaurar', { versaoEstado: 8 })
+  })
+
+  it('loads dedicated archive details and republishes archived cancellation', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: { draft: montagem, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] } })
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 9 } })
+
+    await getDraftMontagemArchivingById('draft/id')
+    await republishArchivedDraftCancellation('draft/id')
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/arquivamento')
+    expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/discord/publicacoes/cancelamento/republicar')
   })
 })
 

@@ -18,7 +18,7 @@ const publications = [
 
 function mountPanel(overrides: Record<string, unknown> = {}) {
   return mount(DraftDiscordPublicationPanel, {
-    props: { publications, republishableTypes: ['Presenca', 'ChamadaPresenca', 'TimesDefinidos'], saving: false, ...overrides },
+    props: { publications, republishableTypes: ['Presenca', 'ChamadaPresenca', 'TimesDefinidos'], archived: false, saving: false, ...overrides },
     global: { plugins: [i18n] },
   })
 }
@@ -104,6 +104,27 @@ describe('DraftDiscordPublicationPanel', () => {
     })
 
     expect(wrapper.find('[data-testid="republish-presence-cta"]').exists()).toBe(false)
+  })
+
+  it.each(['Falha', 'RequerReconciliacao'] as const)('allows only archived cancellation in recoverable status %s', (status) => {
+    const wrapper = mountPanel({
+      archived: true,
+      publications: [...publications, { tipo: 'Cancelamento', status }],
+      republishableTypes: ['Presenca', 'Cancelamento'],
+    })
+
+    expect(wrapper.findAll('button')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="republish-cancellation"]')).toBeTruthy()
+  })
+
+  it.each(['Pendente', 'EmAndamento', 'Publicada', 'Ignorada'] as const)('hides archived cancellation action in %s', (status) => {
+    const wrapper = mountPanel({
+      archived: true,
+      publications: [{ tipo: 'Cancelamento', status }],
+      republishableTypes: ['Cancelamento'],
+    })
+
+    expect(wrapper.findAll('button')).toHaveLength(0)
   })
 
   it('renders only parent-provided capabilities and blocks duplicate actions while saving', async () => {

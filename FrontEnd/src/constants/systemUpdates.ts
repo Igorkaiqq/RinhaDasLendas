@@ -28,10 +28,27 @@ function releaseDetails(
 
 export const SYSTEM_UPDATES = [
   {
+    id: 'administrative-draft-archiving',
+    version: '2026.07.5',
+    publishedAt: '2026-07-26',
+    featured: true,
+    categories: ['feature'],
+    areas: ['drafts'],
+    titleKey: `${releaseKeys('2026.07.5')}.title`,
+    summaryKey: `${releaseKeys('2026.07.5')}.summary`,
+    details: releaseDetails('2026.07.5', [
+      {
+        id: 'archive-and-restore',
+        category: 'feature',
+        link: AppRoutes.Draft,
+      },
+    ]),
+  },
+  {
     id: 'clearer-draft-operation',
     version: '2026.07.4',
     publishedAt: '2026-07-26',
-    featured: true,
+    featured: false,
     categories: ['improvement'],
     areas: ['drafts'],
     titleKey: `${releaseKeys('2026.07.4')}.title`,

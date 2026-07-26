@@ -592,6 +592,29 @@ describe('i18n', () => {
     }
   })
 
+  it('provides equivalent archive, restore, permission, conflict, and cancellation copy', () => {
+    const requiredPaths = [
+      'drafts.archive.filter',
+      'drafts.archive.badge',
+      'drafts.archive.activeWarning',
+      'drafts.archive.historyTitle',
+      'drafts.archive.errors.unauthorized',
+      'drafts.archive.errors.forbidden',
+      'drafts.archive.errors.conflict',
+      'drafts.publication.cancellation',
+      'drafts.publication.republishCancellation',
+      'drafts.reasonDialog.archiveDraft.title',
+      'drafts.reasonDialog.restoreDraft.title',
+      'updates.releases.2026_07_5.details.archive-and-restore.title',
+    ]
+
+    for (const path of requiredPaths) {
+      expect(leafPaths(pt)).toContain(path)
+      expect(leafPaths(en)).toContain(path)
+      expect(i18n.global.t(path)).not.toContain(path)
+    }
+  })
+
   it('uses the ellipsis character for reviewed loading and saving copy', () => {
     const reviewed = [
       pt.common.saving,

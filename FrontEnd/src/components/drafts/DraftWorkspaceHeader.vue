@@ -51,6 +51,7 @@ defineExpose({ focusStage })
         <p data-workspace-date>{{ t('drafts.rinhaDate', { date: draftDate }) }}</p>
       </div>
       <div class="draft-hero-actions">
+        <Badge v-if="draft.arquivado" variant="secondary" data-workspace-archived>{{ t('drafts.archive.badge') }}</Badge>
         <Badge variant="outline" data-workspace-status>{{ statusLabel }}</Badge>
         <span data-workspace-counts><span>{{ t('drafts.metrics.confirmed', confirmedCount) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.teams', draft.quantidadeTimes) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.reserves', draft.quantidadeReservas) }}</span></span>
       </div>

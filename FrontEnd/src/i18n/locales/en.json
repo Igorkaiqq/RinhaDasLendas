@@ -566,6 +566,35 @@
       "clearFilters": "Clear filters",
       "retry": "Try again"
     },
+    "archive": {
+      "filter": "Include archived",
+      "badge": "Archived",
+      "action": "Archive",
+      "restore": "Restore",
+      "activeWarning": "This draft is active and will also be canceled. Presence, turns, and picks will no longer continue.",
+      "emptyTitle": "No archived drafts",
+      "emptyDescription": "Archived drafts will appear here when they exist.",
+      "historyTitle": "Archive history",
+      "actionTypes": {
+        "Arquivamento": "Archived",
+        "Restauracao": "Restored",
+        "CancelamentoPorArquivamento": "Canceled by archiving",
+        "unknown": "Administrative action"
+      },
+      "archivedAt": "Archived at: {date}",
+      "eventAt": "Recorded at: {date}",
+      "responsible": "Responsible user: {id}",
+      "reason": "Reason: {reason}",
+      "eventReason": "Event reason: {reason}",
+      "archived": "Draft {name} archived.",
+      "restored": "Draft {name} restored.",
+      "readOnly": "This draft is archived. Operational actions remain unavailable.",
+      "errors": {
+        "unauthorized": "Your session needs to be renewed. Sign in again to continue.",
+        "forbidden": "You no longer have permission to manage archived drafts.",
+        "conflict": "The draft was changed by another operation. Review the updated state and confirm again."
+      }
+    },
     "navigator": {
       "loading": "Loading drafts",
       "refreshing": "Updating draft list",
@@ -678,6 +707,7 @@
       "presence": "Discord presence: {status}",
       "presenceCta": "Discord presence call: {status}",
       "finalTeams": "Discord teams: {status}",
+      "cancellation": "Discord cancellation: {status}",
       "status": {
         "Pendente": "pending",
         "EmAndamento": "in progress",
@@ -691,6 +721,7 @@
       "republishPresence": "Republish presence",
       "republishPresenceCta": "Republish presence call",
       "republishFinalTeams": "Republish teams",
+      "republishCancellation": "Republish cancellation",
       "republishReason": "Republish requested",
       "republishReasonPrompt": "Enter the reason for republishing.",
       "republishRequested": "Republish requested. The bot will publish again on the next processing run."
@@ -709,6 +740,23 @@
         "description": "The draft will be canceled and will no longer appear in the default list.",
         "defaultReason": "Draft canceled",
         "confirm": "Cancel draft"
+      },
+      "archiveDraft": {
+        "title": "Archive draft",
+        "description": "{draftName} will leave daily operation, while its data and history remain preserved.",
+        "confirm": "Archive draft"
+      },
+      "restoreDraft": {
+        "title": "Restore draft",
+        "description": "{draftName} will return to the normal list with its current status preserved.",
+        "confirm": "Restore draft"
+      },
+      "republishCancellation": {
+        "title": "Republish cancellation",
+        "description": "The bot will try to publish this archived draft cancellation again.",
+        "defaultReason": "Cancellation republish requested",
+        "confirm": "Republish cancellation",
+        "context": "Draft cancellation"
       },
       "addManualPresence": {
         "title": "Add presence",
@@ -1087,6 +1135,16 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_5": {
+        "title": "Archived drafts without losing history",
+        "summary": "Administrators can organize old drafts, review what was preserved, and restore them when needed.",
+        "details": {
+          "archive-and-restore": {
+            "title": "Safe, reversible archiving",
+            "description": "Archive drafts with a reason, keep status and history available, and restore visibility without resuming closed stages."
+          }
+        }
+      },
       "2026_07_4": {
         "title": "A clearer draft from start to finish",
         "summary": "Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.",

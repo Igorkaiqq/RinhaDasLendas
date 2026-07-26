@@ -36,6 +36,8 @@ describe('DraftReasonDialog', () => {
     ['republishPresence', { type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Falha' }, 'Republicar lista de presença'],
     ['republishPresenceCta', { type: 'republishDiscord', publicationType: 'ChamadaPresenca', publicationStatus: 'Falha' }, 'Republicar chamada de presença'],
     ['republishTeams', { type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: 'Pendente' }, 'Republicar times'],
+    ['archiveDraft', { type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: true }, 'Arquivar draft'],
+    ['restoreDraft', { type: 'restoreDraft', draftName: 'Rinha' }, 'Restaurar draft'],
   ] as const)('renders the %s context', async (_, action, title) => {
     const wrapper = await mountDialog(action)
 
@@ -167,6 +169,42 @@ describe('DraftReasonDialog', () => {
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('confirm')).toEqual([['motivo válido']])
+    wrapper.unmount()
+  })
+
+  it('starts archive with an empty reason and warns when an active draft will be cancelled', async () => {
+    const wrapper = await mountDialog({ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: true })
+
+    expect(wrapper.get('textarea').element.value).toBe('')
+    expect(wrapper.get('[data-archive-active-warning]').text()).toContain('também será cancelado')
+    expect(wrapper.get('[data-testid="draft-reason-confirm"]').attributes('data-variant')).toBe('destructive')
+    wrapper.unmount()
+  })
+
+  it('does not show the active warning when archiving a terminal draft', async () => {
+    const wrapper = await mountDialog({ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: false })
+
+    expect(wrapper.find('[data-archive-active-warning]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('accepts exactly 500 trimmed characters for archive', async () => {
+    const wrapper = await mountDialog({ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: false })
+
+    await wrapper.get('textarea').setValue(`  ${'a'.repeat(500)}  `)
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('confirm')).toEqual([[`${'a'.repeat(500)}`]])
+    wrapper.unmount()
+  })
+
+  it('restores without rendering a reason and emits null', async () => {
+    const wrapper = await mountDialog({ type: 'restoreDraft', draftName: 'Rinha' })
+
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('confirm')).toEqual([[null]])
     wrapper.unmount()
   })
 
@@ -302,6 +340,8 @@ describe('DraftReasonDialog', () => {
     [{ type: 'cancelDraft' }, 'destructive'],
     [{ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'default'],
     [{ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'destructive'],
+    [{ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: true }, 'destructive'],
+    [{ type: 'restoreDraft', draftName: 'Rinha' }, 'default'],
       [{ type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Falha' }, 'default'],
       [{ type: 'republishDiscord', publicationType: 'ChamadaPresenca', publicationStatus: 'Falha' }, 'default'],
       [{ type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: 'Pendente' }, 'default'],
