@@ -655,3 +655,108 @@
 - Placeholders, botões, títulos, badges, toasts e estados vazios: exercitados ou revisados em PT e EN.
 - Validações frontend/backend: nenhuma validação nova; mensagens existentes continuam localizadas.
 - Novos arquivos duráveis: nenhum. As alterações de produção e testes não introduzem texto visível nem novas chaves de tradução.
+
+## T035-T040 - Fechamento local e publicação editorial do redesenho
+
+### Ambiente e revisão inicial
+
+- Execução: 2026-07-26, entre 02:01 e 02:14 no fuso `-03:00`.
+- Revisão inicial: `7fbde8bb30a2099c4735eb3cbbc545775330aa6d` em `feature/021-redesenho-fluxo-draft`, com worktree limpa.
+- Sistema: Linux 6.6.114.1-microsoft-standard-WSL2 x86_64.
+- Node.js: 22.22.1; npm: 9.2.0; Vitest: 4.1.8.
+- Checklist de requisitos: 16 itens concluídos, 0 pendentes.
+- SC-001 a SC-010 já estavam aprovados localmente pelas evidências reproduzíveis de T030 antes da criação da entrada editorial.
+
+### Gates antes das alterações
+
+| Gate | Comando na raiz | Resultado |
+|------|-----------------|-----------|
+| Baseline focado | `npm test --prefix FrontEnd -- src/views/DraftsView.spec.ts src/components/drafts/DraftStateRail.spec.ts src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/views/SystemUpdatesView.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/i18n/i18n.spec.ts` | 7 arquivos, 164 testes aprovados, 0 falhas |
+| Atualizações | `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/views/SystemUpdatesView.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/i18n/i18n.spec.ts` | 5 arquivos, 53 testes aprovados, 0 falhas |
+| Jornadas de Draft | `npm test --prefix FrontEnd -- src/views/DraftsView.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftStateRail.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts` | 7 arquivos, 188 testes aprovados, 0 falhas |
+| Suíte completa | `npm test --prefix FrontEnd` | 38 arquivos, 382 testes aprovados, 0 falhas |
+| Build | `npm run build --prefix FrontEnd` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check --prefix FrontEnd` | aprovado sem erros ou avisos |
+| i18n | `npm test --prefix FrontEnd -- src/i18n/i18n.spec.ts` | 1 arquivo, 28 testes aprovados, 0 falhas |
+| Dependências | `npm audit --prefix FrontEnd -- --audit-level=moderate` | 0 vulnerabilidades |
+| Diff | `git diff --check` | aprovado sem saída |
+
+- O build apresentou somente os avisos não bloqueantes já conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
+
+### Revisão de responsabilidades, duplicações, regressões e design
+
+| Área | Evidência | Resultado |
+|------|-----------|-----------|
+| Responsabilidades | `DraftsView.vue` continua responsável por serviços, autorização, concorrência, realtime, notificações e diálogos; filhos de `components/drafts/` recebem dados e emitem intenções. | Conforme; nenhum deslocamento necessário. |
+| Dependências | Componentes do fluxo não importam serviços executáveis; os únicos imports encontrados em filhos são tipos existentes de jogador. | Conforme. |
+| Duplicações | Navegação, contexto, presença, Discord e board permanecem em regiões coesas; nenhuma repetição concreta justificou nova abstração. | Conforme; nenhuma refatoração especulativa. |
+| Regressões | Matriz de 188 testes de Draft e suíte completa cobrem estados, permissões, duplicidade, realtime, foco, roster e responsividade estrutural. | Conforme. |
+| Design system | CSS do fluxo permanece escopado por `.drafts-page`, reutiliza tokens oficiais, breakpoints de 1024/768px, alvos de 44px e movimento reduzido. | Conforme; nenhum token ou estilo paralelo. |
+| Histórico editorial | A cobertura anterior congelava apenas ID e IDs de detalhes de `.2`. | Follow-up concreto resolvido com snapshots exatos de metadados e conteúdo PT/EN. |
+
+- Nenhuma alteração foi feita em `DraftsView.vue`, `components/drafts/` ou `main.css`, pois a revisão não encontrou defeito concreto não coberto pelos gates.
+
+### TDD da versão 2026.07.4
+
+#### RED
+
+- Comando: `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`.
+- Resultado: 5 arquivos falharam; 10 testes falharam e 46 passaram.
+- Motivos esperados: `.4` ausente, `.3` ainda destacada, hero/card/serviço apontando para `.3`, quatro detalhes ausentes e conteúdo PT/EN de `.4` inexistente.
+- O novo congelamento exato de metadados e conteúdo PT/EN de `2026.07.2` passou já no RED, comprovando preservação histórica sem exigir mudança de produção.
+- RED complementar: `npm test --prefix FrontEnd -- src/services/systemUpdates.spec.ts -t "accepts sequential releases published on the same day"`; 1 teste falhou e 8 foram ignorados porque a validação rejeitava a data compartilhada por `.4` e `.3`.
+
+#### GREEN
+
+- Comando focado final: o mesmo comando dos cinco arquivos aprovou 57 testes e 0 falhas (`constants`: 7; `services`: 9; card: 4; view: 7; i18n: 30).
+- `2026.07.4` foi adicionada no topo com data `2026-07-25`, categoria `improvement`, área `drafts`, destaque único e quatro detalhes ligados a `AppRoutes.Draft`.
+- O conteúdo PT/EN descreve benefícios de hierarquia operacional, roster de presença, clareza de etapas/acessibilidade e operação responsiva/mobile, sem expor detalhes técnicos.
+- Releases sequenciais na mesma data agora são válidas; unicidade de ID e versão, validade da data e ordem cronológica continuam verificadas.
+- `2026.07.3` foi preservada integralmente por snapshot exato e alterada somente para `featured: false`.
+- `2026.07.2` passou a ter metadados completos e todo o conteúdo editorial PT/EN congelados por testes exatos.
+
+### Gates finais
+
+| Gate | Comando na raiz | Resultado final |
+|------|-----------------|-----------------|
+| Baseline focado | `npm test --prefix FrontEnd -- src/views/DraftsView.spec.ts src/components/drafts/DraftStateRail.spec.ts src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/views/SystemUpdatesView.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/i18n/i18n.spec.ts` | 7 arquivos, 168 testes aprovados, 0 falhas |
+| Atualizações | `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts` | 5 arquivos, 57 testes aprovados, 0 falhas |
+| Jornadas de Draft | `npm test --prefix FrontEnd -- src/views/DraftsView.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftStateRail.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts` | 7 arquivos, 188 testes aprovados, 0 falhas |
+| Suíte completa | `npm test --prefix FrontEnd` | 38 arquivos, 386 testes aprovados, 0 falhas |
+| Build | `npm run build --prefix FrontEnd` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check --prefix FrontEnd` | aprovado sem erros ou avisos |
+| i18n | `npm test --prefix FrontEnd -- src/i18n/i18n.spec.ts` | 1 arquivo, 30 testes aprovados, 0 falhas |
+| Dependências | `npm audit --prefix FrontEnd -- --audit-level=moderate` | 0 vulnerabilidades |
+| Diff | `git diff --check` | aprovado sem saída |
+
+### Ledger final
+
+| Critério | Evidência acumulada e de fechamento | Estado |
+|----------|-------------------------------------|--------|
+| SC-001 | Matriz automatizada dos sete estados, ações e terminais mais T030. | Aprovado localmente. |
+| SC-002 | Contratos responsivos e 32 casos reais nos quatro viewports em T030. | Aprovado localmente. |
+| SC-003 | Testes 0/1/10/14/30 e jornada real 30→31→30→30. | Aprovado localmente. |
+| SC-004 | Rail conhecido/desconhecido/cancelado, texto e `aria-current`. | Aprovado localmente. |
+| SC-005 | Testes de ações, permissões, locks e 41 mutações reais em T030. | Aprovado localmente. |
+| SC-006 | Estrutura acessível e travessia real de 361 transições de foco. | Aprovado localmente. |
+| SC-007 | Scanner, paridade integral e 30 testes de i18n; conteúdo `.4` exato em PT/EN. | Aprovado localmente. |
+| SC-008 | `.3` continua preservada no histórico; `.4` assume topo e destaque após aprovação local. | Aprovado localmente. |
+| SC-009 | Seis jornadas PT/EN e suíte final de 386 testes. | Aprovado localmente contra backend determinístico. |
+| SC-010 | Inclusão, remoção e avanço com roster extenso sem scroller concorrente. | Aprovado localmente. |
+
+### Auditoria completa de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados em `DraftsView.vue` ou `components/drafts/**/*.vue`; scanner aprovado.
+- Textos visíveis hardcoded no backend: não encontrados nas alterações; nenhum arquivo backend foi modificado.
+- Sincronização `pt.json`/`en.json`: sim, paridade integral aprovada por `i18n.spec.ts`.
+- Conteúdo editorial PT/EN: sim, `.4`, `.3` e `.2` possuem contratos exatos e equivalentes.
+- Resources backend: sim, permanecem conformes; nenhuma atualização foi necessária.
+- Acentuação portuguesa: sim, revisada em “presença”, “próxima ação”, “inclusão”, “fáceis”, “navegação”, “operação” e “preferências”.
+- Placeholders, botões, títulos, badges, toasts e estados vazios: sim, revisados; a mudança adiciona somente título, resumo e detalhes editoriais localizados.
+- Validações frontend e backend: sim, nenhuma mensagem de validação nova; as existentes continuam em i18n/resources.
+- Novos arquivos: sim, conformes; nenhum arquivo novo foi criado.
+
+### Limites restantes
+
+- A validação autenticada em produção permanece posterior à integração em `main`, conforme o quickstart; este fechamento comprova os gates locais.
+- O build mantém o aviso conhecido de chunk principal acima de 500 kB e avisos `PURE` de dependências; não foram introduzidos por esta release editorial.

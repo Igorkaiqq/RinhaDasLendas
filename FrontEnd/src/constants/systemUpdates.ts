@@ -28,10 +28,42 @@ function releaseDetails(
 
 export const SYSTEM_UPDATES = [
   {
+    id: 'clearer-draft-operation',
+    version: '2026.07.4',
+    publishedAt: '2026-07-25',
+    featured: true,
+    categories: ['improvement'],
+    areas: ['drafts'],
+    titleKey: `${releaseKeys('2026.07.4')}.title`,
+    summaryKey: `${releaseKeys('2026.07.4')}.summary`,
+    details: releaseDetails('2026.07.4', [
+      {
+        id: 'operational-hierarchy',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'presence-roster',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'stage-accessibility-clarity',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'responsive-mobile-operation',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+    ]),
+  },
+  {
     id: 'presence-schedule-weekday-selection-fix',
     version: '2026.07.3',
     publishedAt: '2026-07-25',
-    featured: true,
+    featured: false,
     categories: ['fix'],
     areas: ['drafts'],
     titleKey: `${releaseKeys('2026.07.3')}.title`,

@@ -274,6 +274,139 @@ describe('i18n', () => {
     ).not.toContain('updates.')
   })
 
+  it('provides exact benefit-oriented draft redesign content in both locales', () => {
+    expect(pt.updates.releases['2026_07_4']).toEqual({
+      title: 'Draft mais claro do início ao fim',
+      summary:
+        'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
+      details: {
+        'operational-hierarchy': {
+          title: 'Hierarquia para conduzir a partida',
+          description:
+            'O draft destaca contexto, progresso e próxima ação, ajudando a organizar cada decisão sem perder o momento atual.',
+        },
+        'presence-roster': {
+          title: 'Lista de presença mais organizada',
+          description:
+            'Confirmados, reservas e inclusão manual ficam reunidos para facilitar ajustes antes da formação dos times.',
+        },
+        'stage-accessibility-clarity': {
+          title: 'Etapas mais fáceis de acompanhar',
+          description:
+            'Estados, ações e avisos ganharam sinais mais claros para navegação por teclado e leitura assistida.',
+        },
+        'responsive-mobile-operation': {
+          title: 'Operação confortável em qualquer tela',
+          description:
+            'O fluxo se adapta do desktop ao celular, mantendo jogadores, preferências e ações essenciais ao alcance.',
+        },
+      },
+    })
+    expect(en.updates.releases['2026_07_4']).toEqual({
+      title: 'A clearer draft from start to finish',
+      summary:
+        'Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.',
+      details: {
+        'operational-hierarchy': {
+          title: 'A clear hierarchy for running the match',
+          description:
+            'The draft highlights context, progress, and the next action so every decision stays connected to the current stage.',
+        },
+        'presence-roster': {
+          title: 'A more organized presence roster',
+          description:
+            'Confirmed players, reserves, and manual additions stay together, making adjustments easier before teams are formed.',
+        },
+        'stage-accessibility-clarity': {
+          title: 'Stages that are easier to follow',
+          description:
+            'Statuses, actions, and notices now use clearer signals for keyboard navigation and assisted reading.',
+        },
+        'responsive-mobile-operation': {
+          title: 'Comfortable operation on any screen',
+          description:
+            'The flow adapts from desktop to mobile while keeping players, preferences, and essential actions within reach.',
+        },
+      },
+    })
+
+    for (const release of [
+      pt.updates.releases['2026_07_4'],
+      en.updates.releases['2026_07_4'],
+    ]) {
+      expect(JSON.stringify(release)).not.toMatch(
+        /(?:api|css|component|endpoint|payload|signalr|vue|breakpoint)/i,
+      )
+    }
+  })
+
+  it('freezes the complete localized presence scheduling release', () => {
+    expect(pt.updates.releases['2026_07_2']).toEqual({
+      title: 'Listas de presença agendadas',
+      summary:
+        'Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.',
+      details: {
+        'weekly-presence-scheduling': {
+          title: 'Agendamento semanal de presença',
+          description:
+            'Crie agendas para os dias da semana escolhidos e deixe cada nova lista entrar automaticamente no fluxo atual do Discord.',
+        },
+        'publication-closing-times': {
+          title: 'Horários claros para publicar e encerrar',
+          description:
+            'Cada agenda informa quando a lista será publicada e até que horário os jogadores poderão confirmar presença.',
+        },
+        'moderator-management': {
+          title: 'Gestão disponível para Moderador+',
+          description:
+            'Usuários autorizados podem criar, editar, pausar, reativar e acompanhar agendas pela área de configurações.',
+        },
+        'window-recovery': {
+          title: 'Recuperação dentro da janela',
+          description:
+            'Se a plataforma ficar temporariamente indisponível, a lista ainda pode ser criada quando o serviço voltar antes do encerramento.',
+        },
+        'duplicate-draft-protection': {
+          title: 'Proteção contra listas duplicadas',
+          description:
+            'Cada agenda e data gera no máximo um draft, mesmo após reinícios ou processamentos simultâneos.',
+        },
+      },
+    })
+    expect(en.updates.releases['2026_07_2']).toEqual({
+      title: 'Scheduled presence lists',
+      summary:
+        'Moderators can now organize weekly lists with defined times, history tracking, and safe recovery during the configured window.',
+      details: {
+        'weekly-presence-scheduling': {
+          title: 'Weekly presence scheduling',
+          description:
+            'Create schedules for selected weekdays and let each new list enter the current Discord flow automatically.',
+        },
+        'publication-closing-times': {
+          title: 'Clear publication and closing times',
+          description:
+            'Each schedule states when the list will be published and until what time players can confirm presence.',
+        },
+        'moderator-management': {
+          title: 'Management available to Moderator+',
+          description:
+            'Authorized users can create, edit, pause, reactivate, and monitor schedules from the settings area.',
+        },
+        'window-recovery': {
+          title: 'Recovery within the window',
+          description:
+            'If the platform is temporarily unavailable, the list can still be created when service returns before closing.',
+        },
+        'duplicate-draft-protection': {
+          title: 'Duplicate list protection',
+          description:
+            'Each schedule and date creates at most one draft, even after restarts or simultaneous processing.',
+        },
+      },
+    })
+  })
+
   it('provides exact benefit-oriented selected weekday fix content in both locales', () => {
     expect(pt.updates.releases['2026_07_3']).toEqual({
       title: 'Dias selecionados mais claros',

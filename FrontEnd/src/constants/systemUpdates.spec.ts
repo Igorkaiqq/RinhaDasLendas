@@ -4,6 +4,7 @@ import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
+  'clearer-draft-operation',
   'presence-schedule-weekday-selection-fix',
   'presence-scheduling-2026-07',
   'drafts-discord-reliability',
@@ -17,7 +18,10 @@ const releaseIds = [
 ]
 
 const latestDetailIds = [
-  'selected-weekday-feedback',
+  'operational-hierarchy',
+  'presence-roster',
+  'stage-accessibility-clarity',
+  'responsive-mobile-operation',
 ]
 
 const presenceSchedulingDetailIds = [
@@ -47,9 +51,10 @@ const previousDetailIds = [
 ]
 
 describe('system update registry', () => {
-  it('contains the ten stable releases in descending chronological order', () => {
+  it('contains the eleven stable releases in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
     expect(SYSTEM_UPDATES.map(({ version }) => version)).toEqual([
+      '2026.07.4',
       '2026.07.3',
       '2026.07.2',
       '2026.07.1',
@@ -63,6 +68,7 @@ describe('system update registry', () => {
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
       '2026-07-25',
+      '2026-07-25',
       '2026-07-23',
       '2026-07-22',
       '2026-06-30',
@@ -75,36 +81,111 @@ describe('system update registry', () => {
     ])
   })
 
-  it('publishes the selected weekday feedback fix as the only featured latest release', () => {
+  it('publishes the draft redesign as the only featured latest release', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
-      id: 'presence-schedule-weekday-selection-fix',
-      version: '2026.07.3',
+      id: 'clearer-draft-operation',
+      version: '2026.07.4',
       publishedAt: '2026-07-25',
       featured: true,
-      categories: ['fix'],
+      categories: ['improvement'],
       areas: ['drafts'],
     })
     expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(
       latestDetailIds,
     )
-    expect(SYSTEM_UPDATES[0].details[0]).toMatchObject({
-      id: 'selected-weekday-feedback',
-      category: 'fix',
-      link: AppRoutes.Settings,
-    })
+    expect(SYSTEM_UPDATES[0].details).toEqual(
+      latestDetailIds.map((id) => ({
+        id,
+        category: 'improvement',
+        link: AppRoutes.Draft,
+        titleKey: `updates.releases.2026_07_4.details.${id}.title`,
+        descriptionKey: `updates.releases.2026_07_4.details.${id}.description`,
+      })),
+    )
     expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
   })
 
-  it('preserves the complete presence scheduling release without featuring it', () => {
+  it('preserves the selected weekday feedback fix without featuring it', () => {
+    expect(SYSTEM_UPDATES[1]).toEqual({
+      id: 'presence-schedule-weekday-selection-fix',
+      version: '2026.07.3',
+      publishedAt: '2026-07-25',
+      featured: false,
+      categories: ['fix'],
+      areas: ['drafts'],
+      titleKey: 'updates.releases.2026_07_3.title',
+      summaryKey: 'updates.releases.2026_07_3.summary',
+      details: [
+        {
+          id: 'selected-weekday-feedback',
+          category: 'fix',
+          link: AppRoutes.Settings,
+          titleKey:
+            'updates.releases.2026_07_3.details.selected-weekday-feedback.title',
+          descriptionKey:
+            'updates.releases.2026_07_3.details.selected-weekday-feedback.description',
+        },
+      ],
+    })
+  })
+
+  it('freezes the complete presence scheduling release metadata without featuring it', () => {
     const previous = SYSTEM_UPDATES.find(({ version }) => version === '2026.07.2')
 
-    expect(previous).toMatchObject({
+    expect(previous).toEqual({
       id: 'presence-scheduling-2026-07',
+      version: '2026.07.2',
+      publishedAt: '2026-07-23',
       featured: false,
+      categories: ['feature', 'improvement'],
+      areas: ['drafts', 'discord'],
+      titleKey: 'updates.releases.2026_07_2.title',
+      summaryKey: 'updates.releases.2026_07_2.summary',
+      details: [
+        {
+          id: 'weekly-presence-scheduling',
+          category: 'feature',
+          link: AppRoutes.Settings,
+          titleKey:
+            'updates.releases.2026_07_2.details.weekly-presence-scheduling.title',
+          descriptionKey:
+            'updates.releases.2026_07_2.details.weekly-presence-scheduling.description',
+        },
+        {
+          id: 'publication-closing-times',
+          category: 'improvement',
+          titleKey:
+            'updates.releases.2026_07_2.details.publication-closing-times.title',
+          descriptionKey:
+            'updates.releases.2026_07_2.details.publication-closing-times.description',
+        },
+        {
+          id: 'moderator-management',
+          category: 'improvement',
+          link: AppRoutes.Settings,
+          titleKey:
+            'updates.releases.2026_07_2.details.moderator-management.title',
+          descriptionKey:
+            'updates.releases.2026_07_2.details.moderator-management.description',
+        },
+        {
+          id: 'window-recovery',
+          category: 'improvement',
+          titleKey: 'updates.releases.2026_07_2.details.window-recovery.title',
+          descriptionKey:
+            'updates.releases.2026_07_2.details.window-recovery.description',
+        },
+        {
+          id: 'duplicate-draft-protection',
+          category: 'improvement',
+          titleKey:
+            'updates.releases.2026_07_2.details.duplicate-draft-protection.title',
+          descriptionKey:
+            'updates.releases.2026_07_2.details.duplicate-draft-protection.description',
+        },
+      ],
     })
-    expect(previous?.details.map(({ id }) => id)).toEqual(
-      presenceSchedulingDetailIds,
-    )
+    expect(previous?.details.map(({ id }) => id)).toEqual(presenceSchedulingDetailIds)
   })
 
   it('preserves exactly the fifteen details from release 2026.07.1', () => {

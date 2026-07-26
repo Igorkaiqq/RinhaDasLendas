@@ -39,15 +39,15 @@ describe('SystemUpdateCard', () => {
     )
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-25')
     expect(wrapper.get('time').text()).toBe('25 de julho de 2026')
-    expect(wrapper.get('h2').text()).toBe('Dias selecionados mais claros')
-    expect(wrapper.text()).toContain('2026.07.3')
+    expect(wrapper.get('h2').text()).toBe('Draft mais claro do início ao fim')
+    expect(wrapper.text()).toContain('2026.07.4')
     expect(wrapper.text()).toContain(
-      'Os dias escolhidos nos agendamentos de presença agora ficam destacados, facilitando a revisão antes de salvar.',
+      'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
     )
-    expect(wrapper.text()).toContain('Correção')
+    expect(wrapper.text()).toContain('Melhoria')
     expect(wrapper.text()).toContain('Drafts')
-    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(1)
-    expect(wrapper.text()).toContain('Confirmação visual dos dias selecionados')
+    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(4)
+    expect(wrapper.text()).toContain('Hierarquia para conduzir a partida')
   })
 
   it('groups every detail by category in native disclosure controls', async () => {
@@ -60,7 +60,7 @@ describe('SystemUpdateCard', () => {
     expect(details).toHaveLength(1)
     expect(summaries).toHaveLength(1)
     expect(summaries.every((summary) => summary.attributes('tabindex') === undefined)).toBe(true)
-    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(1)
+    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(4)
 
     ;(firstSummary.element as HTMLElement).click()
     await nextTick()
@@ -89,8 +89,8 @@ describe('SystemUpdateCard', () => {
 
     expect(wrapper.get('article').classes()).not.toContain('system-update-card--latest')
     expect(wrapper.get('time').text()).toBe('July 25, 2026')
-    expect(wrapper.get('h2').text()).toBe('Clearer selected weekdays')
-    expect(wrapper.text()).toContain('Fix')
+    expect(wrapper.get('h2').text()).toBe('A clearer draft from start to finish')
+    expect(wrapper.text()).toContain('Improvement')
     expect(wrapper.text()).toContain('Drafts')
   })
 })

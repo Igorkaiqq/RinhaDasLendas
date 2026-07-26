@@ -177,12 +177,12 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 **Purpose**: Fechar gates, publicar o redesenho e preparar entrega.
 
-- [ ] T035 Executar suíte focada, suíte frontend completa, `build`, `lint:check` e auditoria de dependências conforme `specs/021-redesenho-fluxo-draft/quickstart.md`
-- [ ] T036 Executar auditoria completa de internacionalização e registrar todos os itens como conformes em `specs/021-redesenho-fluxo-draft/verification-report.md`
-- [ ] T037 Revisar limites de responsabilidade, duplicações, regressões e conformidade visual em `FrontEnd/src/views/DraftsView.vue`, `FrontEnd/src/components/drafts/` e `FrontEnd/src/styles/main.css`
-- [ ] T038 Após SC-001 a SC-010 aprovados localmente, escrever testes falhos para a release posterior do redesenho em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts`, `FrontEnd/src/views/SystemUpdatesView.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T039 Adicionar a próxima versão editorial disponível do redesenho em `FrontEnd/src/constants/systemUpdates.ts`, `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
-- [ ] T040 Reexecutar todos os gates e finalizar evidências locais de release em `specs/021-redesenho-fluxo-draft/verification-report.md`
+- [X] T035 Executar suíte focada, suíte frontend completa, `build`, `lint:check` e auditoria de dependências conforme `specs/021-redesenho-fluxo-draft/quickstart.md`
+- [X] T036 Executar auditoria completa de internacionalização e registrar todos os itens como conformes em `specs/021-redesenho-fluxo-draft/verification-report.md`
+- [X] T037 Revisar limites de responsabilidade, duplicações, regressões e conformidade visual em `FrontEnd/src/views/DraftsView.vue`, `FrontEnd/src/components/drafts/` e `FrontEnd/src/styles/main.css`
+- [X] T038 Após SC-001 a SC-010 aprovados localmente, escrever testes falhos para a release posterior do redesenho em `FrontEnd/src/constants/systemUpdates.spec.ts`, `FrontEnd/src/services/systemUpdates.spec.ts`, `FrontEnd/src/views/SystemUpdatesView.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
+- [X] T039 Adicionar a próxima versão editorial disponível do redesenho em `FrontEnd/src/constants/systemUpdates.ts`, `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
+- [X] T040 Reexecutar todos os gates e finalizar evidências locais de release em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
 ---
 

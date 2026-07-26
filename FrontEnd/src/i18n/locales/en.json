@@ -1079,6 +1079,28 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_4": {
+        "title": "A clearer draft from start to finish",
+        "summary": "Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.",
+        "details": {
+          "operational-hierarchy": {
+            "title": "A clear hierarchy for running the match",
+            "description": "The draft highlights context, progress, and the next action so every decision stays connected to the current stage."
+          },
+          "presence-roster": {
+            "title": "A more organized presence roster",
+            "description": "Confirmed players, reserves, and manual additions stay together, making adjustments easier before teams are formed."
+          },
+          "stage-accessibility-clarity": {
+            "title": "Stages that are easier to follow",
+            "description": "Statuses, actions, and notices now use clearer signals for keyboard navigation and assisted reading."
+          },
+          "responsive-mobile-operation": {
+            "title": "Comfortable operation on any screen",
+            "description": "The flow adapts from desktop to mobile while keeping players, preferences, and essential actions within reach."
+          }
+        }
+      },
       "2026_07_3": {
         "title": "Clearer selected weekdays",
         "summary": "Selected days in presence schedules are now highlighted, making them easier to review before saving.",

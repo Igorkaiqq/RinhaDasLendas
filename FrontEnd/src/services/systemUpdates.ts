@@ -62,7 +62,6 @@ export function getSystemUpdateValidationErrors(
   const errors: string[] = []
   const ids = new Set<string>()
   const versions = new Set<string>()
-  const dates = new Set<string>()
   const detailIds = new Set<string>()
   const knownPaths = new Set<string>(Object.values(AppRoutes))
 
@@ -76,8 +75,6 @@ export function getSystemUpdateValidationErrors(
     if (ids.has(release.id)) errors.push(`Duplicate release id: ${release.id}`)
     if (versions.has(release.version))
       errors.push(`Duplicate release version: ${release.version}`)
-    if (dates.has(release.publishedAt))
-      errors.push(`Duplicate release date: ${release.publishedAt}`)
     if (!/^\d{4}\.\d{2}\.\d+$/.test(release.version))
       errors.push(`Invalid version: ${release.version}`)
     if (
@@ -114,7 +111,6 @@ export function getSystemUpdateValidationErrors(
 
     ids.add(release.id)
     versions.add(release.version)
-    dates.add(release.publishedAt)
   })
 
   return errors

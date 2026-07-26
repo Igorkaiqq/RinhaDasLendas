@@ -1079,6 +1079,28 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_4": {
+        "title": "Draft mais claro do início ao fim",
+        "summary": "Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.",
+        "details": {
+          "operational-hierarchy": {
+            "title": "Hierarquia para conduzir a partida",
+            "description": "O draft destaca contexto, progresso e próxima ação, ajudando a organizar cada decisão sem perder o momento atual."
+          },
+          "presence-roster": {
+            "title": "Lista de presença mais organizada",
+            "description": "Confirmados, reservas e inclusão manual ficam reunidos para facilitar ajustes antes da formação dos times."
+          },
+          "stage-accessibility-clarity": {
+            "title": "Etapas mais fáceis de acompanhar",
+            "description": "Estados, ações e avisos ganharam sinais mais claros para navegação por teclado e leitura assistida."
+          },
+          "responsive-mobile-operation": {
+            "title": "Operação confortável em qualquer tela",
+            "description": "O fluxo se adapta do desktop ao celular, mantendo jogadores, preferências e ações essenciais ao alcance."
+          }
+        }
+      },
       "2026_07_3": {
         "title": "Dias selecionados mais claros",
         "summary": "Os dias escolhidos nos agendamentos de presença agora ficam destacados, facilitando a revisão antes de salvar.",
