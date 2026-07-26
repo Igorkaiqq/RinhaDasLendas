@@ -915,6 +915,7 @@ async function republishArchivedCancellation(publicationStatus: DraftMontagemPub
     if (!isCurrentUpdate(context)) return
     await openMontagem(context.draftId)
     notification.value = t('drafts.publication.republishRequested')
+    await restoreStageFocus()
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) {
       if (error instanceof DraftMontagemServiceError) await handleArchiveError(error, context.draftId)
@@ -975,10 +976,10 @@ async function confirmReasonAction(reason: string | null) {
     } else if (action.type === 'restoreDraft') {
       const draftName = selectedMontagem.value.nome
       await restoreDraftMontagem(context.draftId, selectedMontagem.value.versaoEstado)
-      if (!isCurrentUpdate(context)) return
-      pendingReasonAction.value = null
       await loadVisualMontagens()
-      await openMontagem(context.draftId)
+      if (selectedDraftId.value === context.draftId && visualMontagens.value.some((draft) => draft.id === context.draftId)) {
+        await openMontagem(context.draftId)
+      }
       notification.value = t('drafts.archive.restored', { name: draftName })
     } else if (action.type === 'cancelDraft') {
       if (!reason) return

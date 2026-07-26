@@ -2407,6 +2407,76 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('reconciles restored A after selecting B while the restore request is pending without reopening A', async () => {
+    const archived = { ...montagem, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const archivedSummary = { ...resumo, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const restoredSummary = { ...archivedSummary, arquivado: false, versaoEstado: 9 }
+    let resolveRestore!: (value: { id: string; status: DraftMontagemStatus; arquivado: boolean; versaoEstado: number }) => void
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([resumoB])
+      .mockResolvedValueOnce([archivedSummary, resumoB])
+      .mockResolvedValueOnce([restoredSummary, resumoB])
+    serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({ draft: archived, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] })
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjectionB())
+    serviceMocks.restoreDraftMontagem.mockReturnValueOnce(new Promise((resolve) => { resolveRestore = resolve }))
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    navigator.vm.$emit('update:includeArchived', true)
+    await flushPromises()
+    navigator.vm.$emit('select', montagem.id)
+    await flushPromises()
+    await openReasonDialog(wrapper, 'Restaurar')
+    void wrapper.get('form').trigger('submit')
+    await vi.waitFor(() => expect(serviceMocks.restoreDraftMontagem).toHaveBeenCalledTimes(1))
+    navigator.vm.$emit('select', montagemB.id)
+    await flushPromises()
+    const restoredDetailCallsBeforeResolution = serviceMocks.getDraftMontagemArchivingById.mock.calls.length
+
+    resolveRestore({ id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 })
+    await flushPromises()
+
+    expect(serviceMocks.listDraftMontagens).toHaveBeenCalledTimes(3)
+    expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens.map(({ id }) => id)).toEqual([montagem.id, montagemB.id])
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagemB.id)
+    expect(serviceMocks.getDraftMontagemArchivingById).toHaveBeenCalledTimes(restoredDetailCallsBeforeResolution)
+    wrapper.unmount()
+  })
+
+  it('reconciles a restored draft into the normal list when include archived is disabled while restore is pending', async () => {
+    const archived = { ...montagem, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const archivedSummary = { ...resumo, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const restoredSummary = { ...archivedSummary, arquivado: false, versaoEstado: 9 }
+    let resolveRestore!: (value: { id: string; status: DraftMontagemStatus; arquivado: boolean; versaoEstado: number }) => void
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([resumoB])
+      .mockResolvedValueOnce([archivedSummary, resumoB])
+      .mockResolvedValueOnce([resumoB])
+      .mockResolvedValueOnce([restoredSummary, resumoB])
+    serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({ draft: archived, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] })
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjectionB())
+    serviceMocks.restoreDraftMontagem.mockReturnValueOnce(new Promise((resolve) => { resolveRestore = resolve }))
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    navigator.vm.$emit('update:includeArchived', true)
+    await flushPromises()
+    navigator.vm.$emit('select', montagem.id)
+    await flushPromises()
+    await openReasonDialog(wrapper, 'Restaurar')
+    void wrapper.get('form').trigger('submit')
+    await vi.waitFor(() => expect(serviceMocks.restoreDraftMontagem).toHaveBeenCalledTimes(1))
+
+    navigator.vm.$emit('update:includeArchived', false)
+    await flushPromises()
+    resolveRestore({ id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 })
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { includeArchived: boolean }).includeArchived).toBe(false)
+    expect(serviceMocks.listDraftMontagens).toHaveBeenCalledTimes(4)
+    expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens.map(({ id }) => id)).toEqual([montagem.id, montagemB.id])
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagemB.id)
+    wrapper.unmount()
+  })
+
   it('republishes an archived cancellation without opening or sending a reason', async () => {
     const archived = {
       ...montagem,
@@ -2419,14 +2489,17 @@ describe('DraftsView reason actions', () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([archivedSummary])
     serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({ draft: archived, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] })
     const wrapper = await mountView()
-    const panel = wrapper.getComponent({ name: 'DraftDiscordPublicationPanel' })
+    const trigger = wrapper.get('[data-testid="republish-cancellation"]')
 
-    panel.vm.$emit('republish', { publicationType: 'Cancelamento', publicationStatus: 'Falha' })
+    ;(trigger.element as HTMLButtonElement).focus()
+    expect(document.activeElement).toBe(trigger.element)
+    await trigger.trigger('click')
     await flushPromises()
 
     expect(serviceMocks.republishArchivedDraftCancellation).toHaveBeenCalledWith(montagem.id)
     expect(serviceMocks.republishDraftMontagemDiscordPublication).not.toHaveBeenCalled()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expectStageFocus(wrapper)
     wrapper.unmount()
   })
 
