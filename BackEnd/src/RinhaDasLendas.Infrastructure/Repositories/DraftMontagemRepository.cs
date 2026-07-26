@@ -18,7 +18,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
 
     public Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id, cancellationToken);
+        return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id && montagem.ArquivadoEm == null, cancellationToken);
     }
 
     public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -27,10 +27,21 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return GetByIdAsync(id, cancellationToken);
     }
 
+    public Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id, cancellationToken);
+    }
+
+    public Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        dbContext.ChangeTracker.Clear();
+        return GetByIdIncludingArchivedAsync(id, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens)
-            .Where(montagem => montagem.Status == DraftMontagemStatus.Aberta && montagem.Modo == DraftMontagemModo.TempoReal && montagem.TurnoExpiraEm != null && montagem.TurnoExpiraEm <= now)
+            .Where(montagem => montagem.ArquivadoEm == null && montagem.Status == DraftMontagemStatus.Aberta && montagem.Modo == DraftMontagemModo.TempoReal && montagem.TurnoExpiraEm != null && montagem.TurnoExpiraEm <= now)
             .OrderBy(montagem => montagem.TurnoExpiraEm)
             .Take(Math.Clamp(limit, 1, 100))
             .ToListAsync(cancellationToken);
@@ -39,7 +50,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens)
-            .Where(montagem => montagem.Status == DraftMontagemStatus.PresencaAberta && montagem.HorarioEncerramentoPresenca != null && montagem.HorarioEncerramentoPresenca <= now)
+            .Where(montagem => montagem.ArquivadoEm == null && montagem.Status == DraftMontagemStatus.PresencaAberta && montagem.HorarioEncerramentoPresenca != null && montagem.HorarioEncerramentoPresenca <= now)
             .OrderBy(montagem => montagem.HorarioEncerramentoPresenca)
             .Take(Math.Clamp(limit, 1, 100))
             .ToListAsync(cancellationToken);
@@ -48,29 +59,36 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens.AsNoTracking())
-            .Where(montagem => (montagem.Status != DraftMontagemStatus.Cancelada && montagem.Status != DraftMontagemStatus.Finalizada)
-                || montagem.PublicacoesDiscord.Any(publicacao =>
-                    publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
-                    || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento
-                    || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao))
+            .Where(montagem => (montagem.ArquivadoEm == null
+                    && ((montagem.Status != DraftMontagemStatus.Cancelada && montagem.Status != DraftMontagemStatus.Finalizada)
+                        || montagem.PublicacoesDiscord.Any(publicacao =>
+                            publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
+                            || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento
+                            || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao)))
+                || (montagem.ArquivadoEm != null
+                    && montagem.PublicacoesDiscord.Any(publicacao =>
+                        publicacao.Tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
+                        && (publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
+                            || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento
+                            || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao))))
             .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataAtualizacao)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
-        return await IncludeMontagem(ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled))
+        return await IncludeMontagem(ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled, includeArchived))
             .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataCadastro)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
 
-    public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken)
+    public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken)
     {
-        return ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled).CountAsync(cancellationToken);
+        return ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled, includeArchived).CountAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken)
@@ -155,6 +173,8 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                            ELSE @expiraEm END
                 FROM draft_montagens
                 WHERE id = @draftMontagemId
+                  AND ((arquivado_em IS NULL AND @tipo <> 'Cancelamento')
+                       OR (arquivado_em IS NOT NULL AND @tipo = 'Cancelamento'))
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR (
                       status = 'PresencaAberta'
                       AND horario_encerramento_presenca > clock_timestamp()))
@@ -174,6 +194,11 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                       WHERE draft.id = @draftMontagemId
                         AND draft.status = 'PresencaAberta'
                         AND draft.horario_encerramento_presenca > clock_timestamp()))
+                  AND EXISTS (
+                      SELECT 1 FROM draft_montagens AS draft
+                      WHERE draft.id = @draftMontagemId
+                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
+                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
                 RETURNING claim_expira_em
                 """;
             AddParameter(claimCommand, "id", Guid.NewGuid());
@@ -243,6 +268,11 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND status = 'EmAndamento'
                   AND claim_id = @claimId
                   AND claim_expira_em > @agora
+                  AND EXISTS (
+                      SELECT 1 FROM draft_montagens AS draft
+                      WHERE draft.id = @draftMontagemId
+                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
+                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
                       WHERE draft.id = @draftMontagemId
@@ -287,6 +317,11 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND tipo = @tipo
                   AND status = 'EmAndamento'
                   AND claim_id = @claimId
+                  AND EXISTS (
+                      SELECT 1 FROM draft_montagens AS draft
+                      WHERE draft.id = @draftMontagemId
+                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
+                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
                   AND (
                       claim_expira_em > clock_timestamp()
                       OR (
@@ -375,15 +410,20 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .Include(montagem => montagem.AcoesAdministrativas);
     }
 
-    private static IQueryable<DraftMontagem> ApplyFilters(IQueryable<DraftMontagem> query, string? search, DraftMontagemStatus? status, bool includeCancelled)
+    private static IQueryable<DraftMontagem> ApplyFilters(IQueryable<DraftMontagem> query, string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived)
     {
+        if (!includeArchived)
+        {
+            query = query.Where(montagem => montagem.ArquivadoEm == null);
+        }
         if (status is not null)
         {
             query = query.Where(montagem => montagem.Status == status);
         }
         else if (!includeCancelled)
         {
-            query = query.Where(montagem => montagem.Status != DraftMontagemStatus.Cancelada);
+            query = query.Where(montagem => montagem.Status != DraftMontagemStatus.Cancelada
+                || (includeArchived && montagem.ArquivadoEm != null));
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -397,12 +437,18 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
 
     private IQueryable<Jogador> ApplyEligibleManualPresenceFilters(Guid draftMontagemId, string? search)
     {
+        var visibleDraft = dbContext.DraftMontagens
+            .Where(montagem => montagem.Id == draftMontagemId && montagem.ArquivadoEm == null)
+            .Select(montagem => montagem.Id);
         var confirmed = dbContext.DraftMontagemPresencas
-            .Where(presenca => presenca.DraftMontagemId == draftMontagemId && presenca.Status == DraftMontagemPresencaStatus.Confirmada)
+            .Where(presenca => visibleDraft.Contains(presenca.DraftMontagemId) && presenca.Status == DraftMontagemPresencaStatus.Confirmada)
             .Select(presenca => presenca.JogadorId);
 
         var query = dbContext.Jogadores.AsNoTracking()
-            .Where(jogador => jogador.Status == JogadorStatus.Ativo && jogador.UsuarioId != null && !confirmed.Contains(jogador.Id));
+            .Where(jogador => visibleDraft.Any()
+                && jogador.Status == JogadorStatus.Ativo
+                && jogador.UsuarioId != null
+                && !confirmed.Contains(jogador.Id));
 
         if (!string.IsNullOrWhiteSpace(search))
         {

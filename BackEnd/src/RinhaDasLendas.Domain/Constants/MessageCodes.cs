@@ -180,12 +180,18 @@ public static class MessageCodes
     public const string PresenceScheduleDiscordUnavailable = "MV098";
     public const string PresenceScheduleNotFound = "MV099";
     public const string PresenceScheduleWindowExpired = "MV100";
+    public const string ArchiveReasonRequired = "MV101";
+    public const string ArchiveReasonMaxLength = "MV102";
+    public const string DraftStateConflict = "MV103";
+    public const string DraftStateVersionInvalid = "MV104";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
     public const string PresenceConfirmed = "MSIS025";
     public const string PresenceCancelled = "MSIS026";
     public const string PresenceClosed = "MSIS027";
     public const string DiscordConfigurationUpdated = "MSIS028";
+    public const string DraftArchived = "MSIS029";
+    public const string DraftRestored = "MSIS030";
 
     public const string ConfirmAction = "MC001";
     public const string ConfirmPlayerDeactivate = "MC002";

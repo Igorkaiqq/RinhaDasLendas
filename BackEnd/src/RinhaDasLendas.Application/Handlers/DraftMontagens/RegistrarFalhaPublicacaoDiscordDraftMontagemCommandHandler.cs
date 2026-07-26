@@ -37,7 +37,10 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
         {
             var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
             await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(expirados, repository, notifier, cancellationToken);
-            if (await repository.GetByIdAsync(command.Id, cancellationToken) is null)
+            var existente = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
+                ? await repository.GetByIdIncludingArchivedAsync(command.Id, cancellationToken)
+                : await repository.GetByIdAsync(command.Id, cancellationToken);
+            if (existente is null)
             {
                 return null;
             }
@@ -45,9 +48,11 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
-        var montagem = await repository.ReloadByIdAsync(command.Id, cancellationToken);
+        var montagem = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
+            ? await repository.ReloadByIdIncludingArchivedAsync(command.Id, cancellationToken)
+            : await repository.ReloadByIdAsync(command.Id, cancellationToken);
         metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Falha.ToString());
-        if (montagem is not null)
+        if (montagem is not null && !montagem.Arquivado)
         {
             await notifier.StateUpdatedAsync(
                 command.Id,

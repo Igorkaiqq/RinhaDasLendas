@@ -700,6 +700,8 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             "presencas",
             "times",
             "reservas",
+            "arquivado",
+            "versaoEstado",
         ]);
         var publications = draft.GetProperty("publicacoesDiscord");
         if (publications.GetArrayLength() > 0)
@@ -1364,6 +1366,8 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return Task.CompletedTask;
         }
 
+        public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
         public void RecordPresenceConfirmed(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceConfirmed);
         public void RecordPresenceCancelled(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceCancelled);
         public void RecordPresenceClosed(Guid draftMontagemId) { }
@@ -1391,11 +1395,13 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         }
 
         public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdAsync(id, cancellationToken);
+        public Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.GetByIdIncludingArchivedAsync(id, cancellationToken);
+        public Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdIncludingArchivedAsync(id, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredRealtimeAsync(now, limit, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredPresenceAsync(now, limit, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => inner.ListActiveForDiscordAsync(cancellationToken);
-        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, page, pageSize, cancellationToken);
-        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken) => inner.CountAsync(search, status, includeCancelled, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, includeArchived, page, pageSize, cancellationToken);
+        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken) => inner.CountAsync(search, status, includeCancelled, includeArchived, cancellationToken);
         public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetJogadoresByIdsAsync(jogadoresIds, cancellationToken);
         public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => inner.GetJogadorByUsuarioIdAsync(usuarioId, cancellationToken);
         public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => inner.SearchJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, page, pageSize, cancellationToken);

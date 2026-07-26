@@ -68,6 +68,10 @@ public sealed class DraftMontagem
     public DraftMontagemOrdemEscolhaModo? OrdemEscolhaModo { get; private set; }
     public bool PresencaContinuadaManualmente { get; private set; }
     public string? MotivoCancelamento { get; private set; }
+    public DateTimeOffset? ArquivadoEm { get; private set; }
+    public Guid? ArquivadoPorUsuarioId { get; private set; }
+    public string? MotivoArquivamento { get; private set; }
+    public bool Arquivado => ArquivadoEm.HasValue;
     public DateTimeOffset DataCadastro { get; private set; }
     public DateTimeOffset DataAtualizacao { get; private set; }
     public IReadOnlyCollection<DraftMontagemTime> Times => _times;
@@ -667,6 +671,59 @@ public sealed class DraftMontagem
             _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("Cancelamento", responsavel, MotivoCancelamento));
         }
         Touch();
+    }
+
+    public void Arquivar(string motivo, Guid responsavelUsuarioId, DateTimeOffset agora)
+    {
+        if (Arquivado)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            throw new DomainException(MessageCodes.ArchiveReasonRequired);
+        }
+
+        var motivoNormalizado = motivo.Trim();
+        if (motivoNormalizado.Length > 500)
+        {
+            throw new DomainException(MessageCodes.ArchiveReasonMaxLength);
+        }
+
+        var ativo = Status is not DraftMontagemStatus.Finalizada and not DraftMontagemStatus.Cancelada;
+        if (ativo)
+        {
+            Status = DraftMontagemStatus.Cancelada;
+            LimparTurno();
+            MotivoCancelamento = motivoNormalizado;
+            _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa(
+                "CancelamentoPorArquivamento", responsavelUsuarioId, motivoNormalizado, null, agora));
+            _publicacoesDiscord.Add(new DraftMontagemPublicacaoDiscord(
+                DraftMontagemPublicacaoDiscordTipo.Cancelamento, DiscordGuildId, null, agora));
+        }
+
+        ArquivadoEm = agora;
+        ArquivadoPorUsuarioId = responsavelUsuarioId;
+        MotivoArquivamento = motivoNormalizado;
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa(
+            "Arquivamento", responsavelUsuarioId, motivoNormalizado, null, agora));
+        Touch(agora);
+    }
+
+    public void Restaurar(Guid responsavelUsuarioId, DateTimeOffset agora)
+    {
+        if (!Arquivado)
+        {
+            return;
+        }
+
+        ArquivadoEm = null;
+        ArquivadoPorUsuarioId = null;
+        MotivoArquivamento = null;
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa(
+            "Restauracao", responsavelUsuarioId, null, null, agora));
+        Touch(agora);
     }
 
     private void AtualizarDados(string nome, string? observacoes, int tamanhoEquipe)

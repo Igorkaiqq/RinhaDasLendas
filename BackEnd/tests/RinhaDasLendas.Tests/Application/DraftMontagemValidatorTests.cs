@@ -8,6 +8,19 @@ namespace RinhaDasLendas.Tests.Application;
 
 public sealed class DraftMontagemValidatorTests
 {
+    [Theory]
+    [InlineData(500, true)]
+    [InlineData(501, false)]
+    public void Arquivamento_DeveValidarMotivoNormalizadoEVersao(int tamanho, bool valido)
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto(new string('x', tamanho), 0));
+
+        result.IsValid.Should().Be(valido);
+        new RestaurarDraftMontagemValidator().Validate(new RestaurarDraftMontagemRequestDto(-1))
+            .Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.DraftStateVersionInvalid);
+    }
+
     public static TheoryData<string?> MotivosInvalidos => new()
     {
         null,

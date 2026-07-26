@@ -9,6 +9,16 @@ public sealed class DraftMontagemAcaoAdministrativa
     }
 
     public DraftMontagemAcaoAdministrativa(string tipo, Guid responsavelUsuarioId, string? motivo, Guid? jogadorAlvoId = null)
+        : this(tipo, responsavelUsuarioId, motivo, jogadorAlvoId, DateTimeOffset.UtcNow)
+    {
+    }
+
+    public DraftMontagemAcaoAdministrativa(
+        string tipo,
+        Guid responsavelUsuarioId,
+        string? motivo,
+        Guid? jogadorAlvoId,
+        DateTimeOffset registradoEm)
     {
         Id = Guid.NewGuid();
         Tipo = string.IsNullOrWhiteSpace(tipo) ? throw new ArgumentException(MessageCodes.FieldRequired, nameof(tipo)) : tipo.Trim();
@@ -17,7 +27,7 @@ public sealed class DraftMontagemAcaoAdministrativa
             : responsavelUsuarioId;
         JogadorAlvoId = jogadorAlvoId;
         Motivo = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
-        RegistradoEm = DateTimeOffset.UtcNow;
+        RegistradoEm = registradoEm;
     }
 
     public Guid Id { get; private set; }

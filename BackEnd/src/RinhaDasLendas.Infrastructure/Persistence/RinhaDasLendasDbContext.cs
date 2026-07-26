@@ -256,7 +256,9 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
 
         modelBuilder.Entity<DraftMontagem>(entity =>
         {
-            entity.ToTable("draft_montagens");
+            entity.ToTable("draft_montagens", table => table.HasCheckConstraint(
+                "ck_draft_montagens_arquivamento",
+                "(arquivado_em IS NULL AND arquivado_por_usuario_id IS NULL AND motivo_arquivamento IS NULL) OR (arquivado_em IS NOT NULL AND arquivado_por_usuario_id IS NOT NULL AND motivo_arquivamento IS NOT NULL AND char_length(btrim(motivo_arquivamento)) BETWEEN 1 AND 500)"));
             entity.HasKey(montagem => montagem.Id);
 
             entity.Property(montagem => montagem.Id).HasColumnName("id").ValueGeneratedNever();
@@ -281,6 +283,10 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(montagem => montagem.OrdemEscolhaModo).HasColumnName("ordem_escolha_modo").HasConversion<string>().HasMaxLength(20);
             entity.Property(montagem => montagem.PresencaContinuadaManualmente).HasColumnName("presenca_continuada_manualmente").HasDefaultValue(false).IsRequired();
             entity.Property(montagem => montagem.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
+            entity.Property(montagem => montagem.ArquivadoEm).HasColumnName("arquivado_em");
+            entity.Property(montagem => montagem.ArquivadoPorUsuarioId).HasColumnName("arquivado_por_usuario_id");
+            entity.Property(montagem => montagem.MotivoArquivamento).HasColumnName("motivo_arquivamento").HasMaxLength(500);
+            entity.Ignore(montagem => montagem.Arquivado);
             entity.Property(montagem => montagem.DataCadastro).HasColumnName("data_cadastro").IsRequired();
             entity.Property(montagem => montagem.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
@@ -319,10 +325,20 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
                 .HasForeignKey(acao => acao.DraftMontagemId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(montagem => montagem.ArquivadoPorUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(montagem => montagem.Status);
             entity.HasIndex(montagem => new { montagem.Status, montagem.HorarioEncerramentoPresenca });
             entity.HasIndex(montagem => new { montagem.Status, montagem.Modo, montagem.TurnoExpiraEm });
             entity.HasIndex(montagem => montagem.DataCadastro);
+            entity.HasIndex(montagem => new { montagem.Status, montagem.DataCadastro })
+                .HasFilter("arquivado_em IS NULL");
+            entity.HasIndex(montagem => montagem.ArquivadoEm)
+                .IsDescending()
+                .HasFilter("arquivado_em IS NOT NULL");
             entity.Navigation(montagem => montagem.Times).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Participantes).UsePropertyAccessMode(PropertyAccessMode.Field);
             entity.Navigation(montagem => montagem.Presencas).UsePropertyAccessMode(PropertyAccessMode.Field);

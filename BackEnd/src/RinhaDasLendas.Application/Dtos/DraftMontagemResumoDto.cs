@@ -16,4 +16,6 @@ public sealed record DraftMontagemResumoDto(
     bool PresencaContinuadaManualmente,
     DateTimeOffset? DataRinha,
     DateTimeOffset DataCadastro,
-    DateTimeOffset DataAtualizacao);
+    DateTimeOffset DataAtualizacao,
+    bool Arquivado,
+    long VersaoEstado);

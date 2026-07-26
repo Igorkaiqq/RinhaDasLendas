@@ -11,4 +11,9 @@ public sealed class DraftMontagemRealtimeNotifier(IHubContext<DraftMontagensHub>
     {
         return hubContext.Clients.Group(DraftMontagensHub.GroupName(draftMontagemId)).SendAsync("DraftMontagemStateUpdated", state, cancellationToken);
     }
+
+    public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken)
+    {
+        return hubContext.Clients.All.SendAsync("DraftMontagemArchived", draftMontagemId, cancellationToken);
+    }
 }

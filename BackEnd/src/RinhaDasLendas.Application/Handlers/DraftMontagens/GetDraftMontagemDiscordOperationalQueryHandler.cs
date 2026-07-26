@@ -9,7 +9,7 @@ public sealed class GetDraftMontagemDiscordOperationalQueryHandler(IDraftMontage
 {
     public async Task<DraftMontagemDiscordOperationalDto?> Handle(GetDraftMontagemDiscordOperationalQuery query, CancellationToken cancellationToken)
     {
-        var montagem = await repository.GetByIdAsync(query.Id, cancellationToken);
+        var montagem = await repository.GetByIdIncludingArchivedAsync(query.Id, cancellationToken);
         return montagem is null ? null : DraftMontagemDiscordOperationalDto.FromEntity(montagem);
     }
 }
