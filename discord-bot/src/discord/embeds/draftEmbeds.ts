@@ -61,3 +61,10 @@ export function finalTeamsEmbed(draft: DraftMontagem) {
   }
   return embed
 }
+
+export function cancellationEmbed(draft: DraftMontagem) {
+  return new EmbedBuilder()
+    .setTitle(t.embeds.cancellationTitle)
+    .setDescription(t.embeds.cancellationDescription.replace('{name}', draft.nome))
+    .setColor(0xdc2626)
+}

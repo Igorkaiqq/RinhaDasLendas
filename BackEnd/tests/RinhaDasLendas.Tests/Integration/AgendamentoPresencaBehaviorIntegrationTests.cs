@@ -1721,7 +1721,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         dto.GetType().GetProperties().Select(property => property.Name).Should().BeEquivalentTo(
         [
             "Id", "Nome", "Status", "HorarioEncerramentoPresenca", "DiscordPresenceMessageId",
-            "PublicacoesDiscord", "Presencas", "Times", "Reservas"
+            "PublicacoesDiscord", "Presencas", "Times", "Reservas", "Arquivado", "VersaoEstado"
         ]);
         typeof(DraftMontagemDiscordOperationalPublicacaoDto).GetProperties()
             .Select(property => property.Name).Should().BeEquivalentTo(["Tipo", "Status"]);

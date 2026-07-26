@@ -82,6 +82,8 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
       },
     ],
     substituicoes: [],
+    arquivado: false,
+    versaoEstado: 1,
     publicacoesDiscord: [],
     dataCadastro: '2026-07-25T12:00:00Z',
     dataAtualizacao: '2026-07-25T12:02:00Z',

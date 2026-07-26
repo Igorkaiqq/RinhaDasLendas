@@ -366,6 +366,14 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("ArquivadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("arquivado_em");
+
+                    b.Property<Guid?>("ArquivadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("arquivado_por_usuario_id");
+
                     b.Property<string>("CriterioCapitaes")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -403,6 +411,11 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("modo");
+
+                    b.Property<string>("MotivoArquivamento")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo_arquivamento");
 
                     b.Property<string>("MotivoCancelamento")
                         .HasMaxLength(500)
@@ -476,15 +489,27 @@ namespace RinhaDasLendas.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ArquivadoEm")
+                        .IsDescending()
+                        .HasFilter("arquivado_em IS NOT NULL");
+
+                    b.HasIndex("ArquivadoPorUsuarioId");
+
                     b.HasIndex("DataCadastro");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("Status", "DataCadastro")
+                        .HasFilter("arquivado_em IS NULL");
 
                     b.HasIndex("Status", "HorarioEncerramentoPresenca");
 
                     b.HasIndex("Status", "Modo", "TurnoExpiraEm");
 
-                    b.ToTable("draft_montagens", (string)null);
+                    b.ToTable("draft_montagens", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_draft_montagens_arquivamento", "(arquivado_em IS NULL AND arquivado_por_usuario_id IS NULL AND motivo_arquivamento IS NULL) OR (arquivado_em IS NOT NULL AND arquivado_por_usuario_id IS NOT NULL AND motivo_arquivamento IS NOT NULL AND char_length(btrim(motivo_arquivamento)) BETWEEN 1 AND 500)");
+                        });
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemAcaoAdministrativa", b =>
@@ -1919,6 +1944,14 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Capitao");
 
                     b.Navigation("Jogador");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagem", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ArquivadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftMontagemAcaoAdministrativa", b =>

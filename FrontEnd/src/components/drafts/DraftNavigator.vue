@@ -3,13 +3,14 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
 import type { DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 export type DraftNavigatorItem = Omit<DraftMontagemResumo, 'status'> & { status: string }
 
-defineProps<{
+const props = defineProps<{
   drafts: readonly DraftNavigatorItem[]
   selectedDraftId: string | null
   searchTerm: string
@@ -19,11 +20,14 @@ defineProps<{
   loadFailed: boolean
   hasKnownDrafts: boolean
   canCreate: boolean
+  canIncludeArchived: boolean
+  includeArchived: boolean
 }>()
 
 const emit = defineEmits<{
   'update:searchTerm': [value: string]
   'update:selectedStatus': [value: DraftMontagemStatus | '']
+  'update:includeArchived': [value: boolean]
   select: [draftId: string]
   reset: []
   retry: []
@@ -34,6 +38,7 @@ const { locale, t } = useI18n()
 const compactExpanded = ref(false)
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const compactToggleLabel = computed(() => t(compactExpanded.value ? 'drafts.navigator.collapse' : 'drafts.navigator.expand'))
+const hasActiveFilters = computed(() => Boolean(props.searchTerm.trim() || props.selectedStatus))
 type DraftStatusVariant = 'neutral' | 'info' | 'warning' | 'success' | 'danger'
 const statusVariants: Record<DraftMontagemStatus, DraftStatusVariant> = {
   PresencaAberta: 'info',
@@ -53,6 +58,10 @@ function updateSearch(event: ControlEvent) {
 
 function updateStatus(event: ControlEvent) {
   emit('update:selectedStatus', (event.target as unknown as { value: DraftMontagemStatus | '' }).value)
+}
+
+function updateIncludeArchived(event: ControlEvent) {
+  emit('update:includeArchived', (event.target as unknown as { checked: boolean }).checked)
 }
 
 function statusLabel(status: string) {
@@ -105,6 +114,16 @@ function formatDate(draft: DraftNavigatorItem) {
           @input="updateSearch"
         />
       </label>
+      <label v-if="canIncludeArchived" class="draft-navigator__archive-filter">
+        <input
+          data-include-archived
+          type="checkbox"
+          name="include-archived"
+          :checked="includeArchived"
+          @change="updateIncludeArchived"
+        />
+        <span>{{ t('drafts.archive.filter') }}</span>
+      </label>
       <label>
         <span>{{ t('common.status') }}</span>
         <select name="draft-status" autocomplete="off" :value="selectedStatus" @change="updateStatus">
@@ -146,12 +165,17 @@ function formatDate(draft: DraftNavigatorItem) {
           </Button>
         </div>
 
-        <div v-if="!loading && !loadFailed && !drafts.length && hasKnownDrafts" class="draft-navigator__state" data-navigator-no-results>
+        <div v-if="!loading && !loadFailed && !drafts.length && hasKnownDrafts && hasActiveFilters" class="draft-navigator__state" data-navigator-no-results>
           <h3>{{ t('drafts.navigator.noResultsTitle') }}</h3>
           <p>{{ t('drafts.navigator.noResultsDescription') }}</p>
           <Button type="button" variant="outline" data-navigator-clear-results @click="emit('reset')">
             {{ t('drafts.actions.clearFilters') }}
           </Button>
+        </div>
+
+        <div v-else-if="!loading && !loadFailed && !drafts.length && includeArchived" class="draft-navigator__state" data-navigator-archived-empty>
+          <h3>{{ t('drafts.archive.emptyTitle') }}</h3>
+          <p>{{ t('drafts.archive.emptyDescription') }}</p>
         </div>
 
         <div v-else-if="!loading && !loadFailed && !drafts.length" class="draft-navigator__state" data-navigator-empty>
@@ -174,14 +198,18 @@ function formatDate(draft: DraftNavigatorItem) {
           @click="emit('select', draft.id)"
         >
           <strong data-draft-name>{{ draft.nome }}</strong>
-          <span
-            class="draft-navigator__status team-status"
-            :class="`draft-navigator__status--${statusVariant(draft.status)}`"
-            data-draft-status
-            :data-status="knownStatuses.has(draft.status) ? draft.status : 'unknown'"
-            :data-variant="statusVariant(draft.status)"
-          >
-            {{ statusLabel(draft.status) }}
+          <span class="draft-navigator__badges">
+            <Badge v-if="draft.arquivado" variant="secondary" data-draft-archived>{{ t('drafts.archive.badge') }}</Badge>
+            <Badge
+              variant="outline"
+              class="draft-navigator__status team-status"
+              :class="`draft-navigator__status--${statusVariant(draft.status)}`"
+              data-draft-status
+              :data-status="knownStatuses.has(draft.status) ? draft.status : 'unknown'"
+              :data-variant="statusVariant(draft.status)"
+            >
+              {{ statusLabel(draft.status) }}
+            </Badge>
           </span>
           <span class="draft-navigator__date" data-draft-date>{{ t('drafts.rinhaDate', { date: formatDate(draft) }) }}</span>
         </button>
@@ -245,6 +273,17 @@ function formatDate(draft: DraftNavigatorItem) {
   border-radius: 0.5rem;
 }
 
+.draft-navigator__filters .draft-navigator__archive-filter {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.draft-navigator__archive-filter input {
+  min-height: auto;
+}
+
 .draft-navigator__list,
 .draft-navigator__loading {
   display: grid;
@@ -287,6 +326,14 @@ function formatDate(draft: DraftNavigatorItem) {
 
 .draft-navigator__status {
   align-self: start;
+}
+
+.draft-navigator__badges {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 
 .draft-navigator__status--neutral {
@@ -378,6 +425,7 @@ function formatDate(draft: DraftNavigatorItem) {
   }
 
   .draft-navigator__status,
+  .draft-navigator__badges,
   .draft-navigator__date {
     grid-column: 1;
   }

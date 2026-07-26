@@ -4,9 +4,11 @@ import type { DraftMontagemRealtimeState } from '@/types/draftMontagem'
 
 const signalRMock = vi.hoisted(() => {
   let stateUpdated: ((state: DraftMontagemRealtimeState) => void) | undefined
+  let archived: ((draftMontagemId: string) => void) | undefined
   const connection = {
     on: vi.fn((event: string, handler: (state: DraftMontagemRealtimeState) => void) => {
       if (event === 'DraftMontagemStateUpdated') stateUpdated = handler
+      if (event === 'DraftMontagemArchived') archived = handler as unknown as (draftMontagemId: string) => void
     }),
     onreconnected: vi.fn(),
     state: 'Connected',
@@ -24,6 +26,7 @@ const signalRMock = vi.hoisted(() => {
     connection,
     builder,
     emitStateUpdated: (state: DraftMontagemRealtimeState) => stateUpdated?.(state),
+    emitArchived: (draftMontagemId: string) => archived?.(draftMontagemId),
   }
 })
 
@@ -103,6 +106,8 @@ describe('DraftMontagemRealtimeConnection', () => {
         escolhas: [],
         substituicoes: [],
         publicacoesDiscord: [{ tipo: 'Presenca', status: 'RequerReconciliacao' }],
+        arquivado: false,
+        versaoEstado: 2,
         dataCadastro: '2026-07-21T11:00:00Z',
         dataAtualizacao: '2026-07-21T12:00:00Z',
       },
@@ -118,5 +123,16 @@ describe('DraftMontagemRealtimeConnection', () => {
     expect(handler).toHaveBeenCalledOnce()
     expect(handler).toHaveBeenCalledWith(state)
     expect(JSON.stringify(handler.mock.calls[0]?.[0])).not.toMatch(/guildId|channelId|messageId|ultimoErroCodigo|claimId|responsavelUsuarioId|discordUserId|motivo/)
+  })
+
+  it('registers and delivers the archive event as an ID-only payload', async () => {
+    const onArchived = vi.fn()
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+
+    await connection.connect(vi.fn(), undefined, onArchived)
+    signalRMock.emitArchived('draft-1')
+
+    expect(signalRMock.connection.on).toHaveBeenCalledWith('DraftMontagemArchived', expect.any(Function))
+    expect(onArchived).toHaveBeenCalledWith('draft-1')
   })
 })

@@ -5,6 +5,7 @@ export const Permissions = {
   CanResetUserPassword: 'CanResetUserPassword',
   CanActivateDeactivateUsers: 'CanActivateDeactivateUsers',
   CanManageDrafts: 'CanManageDrafts',
+  CanArchiveDrafts: 'CanArchiveDrafts',
   CanManageMatches: 'CanManageMatches',
   CanConfirmPresence: 'CanConfirmPresence',
   CanEditOwnProfile: 'CanEditOwnProfile',

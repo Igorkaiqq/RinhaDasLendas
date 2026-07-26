@@ -30,7 +30,9 @@ public sealed record DraftMontagemResponseDto(
     IReadOnlyCollection<DraftMontagemSubstituicaoPublicResponseDto> Substituicoes,
     IReadOnlyCollection<DraftMontagemPublicacaoDiscordPublicResponseDto> PublicacoesDiscord,
     DateTimeOffset DataCadastro,
-    DateTimeOffset DataAtualizacao)
+    DateTimeOffset DataAtualizacao,
+    bool Arquivado,
+    long VersaoEstado)
 {
     public static DraftMontagemResponseDto FromEntity(DraftMontagem montagem)
     {
@@ -62,7 +64,9 @@ public sealed record DraftMontagemResponseDto(
             montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoPublicResponseDto.FromEntity).ToList(),
             montagem.PublicacoesDiscord.OrderBy(publicacao => publicacao.Tipo).Select(DraftMontagemPublicacaoDiscordPublicResponseDto.FromEntity).ToList(),
             montagem.DataCadastro,
-            montagem.DataAtualizacao);
+            montagem.DataAtualizacao,
+            montagem.Arquivado,
+            montagem.VersaoEstado);
     }
 }
 

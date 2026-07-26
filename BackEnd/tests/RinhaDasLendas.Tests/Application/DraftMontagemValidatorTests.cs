@@ -8,6 +8,37 @@ namespace RinhaDasLendas.Tests.Application;
 
 public sealed class DraftMontagemValidatorTests
 {
+    [Theory]
+    [InlineData(500, true)]
+    [InlineData(501, false)]
+    public void Arquivamento_DeveValidarMotivoNormalizadoEVersao(int tamanho, bool valido)
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto(new string('x', tamanho), 0));
+
+        result.IsValid.Should().Be(valido);
+        new RestaurarDraftMontagemValidator().Validate(new RestaurarDraftMontagemRequestDto(-1))
+            .Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.DraftStateVersionInvalid);
+    }
+
+    [Fact]
+    public void Arquivamento_DeveAceitar500CaracteresSignificativosComEspacosNasExtremidades()
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto($"  {new string('x', 500)}  ", 0));
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Arquivamento_DeveRejeitar501CaracteresSignificativosAposTrim()
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto($"  {new string('x', 501)}  ", 0));
+
+        result.Errors.Should().ContainSingle(error => error.ErrorMessage == MessageCodes.ArchiveReasonMaxLength);
+    }
+
     public static TheoryData<string?> MotivosInvalidos => new()
     {
         null,
@@ -71,6 +102,19 @@ public sealed class DraftMontagemValidatorTests
         new AdicionarPresencaManualDraftMontagemValidator().Validate(new AdicionarPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).IsValid.Should().Be(expectedValid);
         new RemoverPresencaManualDraftMontagemValidator().Validate(new RemoverPresencaManualDraftMontagemRequestDto(Guid.NewGuid(), motivo)).IsValid.Should().Be(expectedValid);
         new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(new RepublicarPublicacaoDiscordDraftMontagemRequestDto(DraftMontagemPublicacaoDiscordTipo.Presenca, motivo)).IsValid.Should().Be(expectedValid);
+    }
+
+    [Fact]
+    public void RepublicacaoGenerica_DeveRejeitarCancelamentoDeArquivamento()
+    {
+        var result = new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(
+            new RepublicarPublicacaoDiscordDraftMontagemRequestDto(
+                DraftMontagemPublicacaoDiscordTipo.Cancelamento,
+                "nova tentativa"));
+
+        result.Errors.Should().ContainSingle(error =>
+            error.PropertyName == nameof(RepublicarPublicacaoDiscordDraftMontagemRequestDto.Tipo)
+            && error.ErrorMessage == "MV105");
     }
 
     [Theory]

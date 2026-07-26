@@ -38,6 +38,23 @@ namespace RinhaDasLendas.Tests.Security;
 public sealed class SecurityHardeningTests
 {
     [Fact]
+    public async Task Moderator_ShouldNotIncludeOrMutateArchivedDrafts()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+        var id = Guid.NewGuid();
+
+        var list = await client.GetAsync("/api/v1/draft-montagens?includeArchived=true");
+        var archive = await client.PatchAsJsonAsync($"/api/v1/draft-montagens/{id}/arquivar", new { motivo = "motivo", versaoEstado = 0 });
+        var restore = await client.PatchAsJsonAsync($"/api/v1/draft-montagens/{id}/restaurar", new { versaoEstado = 0 });
+        var history = await client.GetAsync($"/api/v1/draft-montagens/{id}/arquivamento");
+
+        foreach (var response in new[] { list, archive, restore, history })
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+    }
+    [Fact]
     public void RateLimitPartition_ShouldUseBotIdentity()
     {
         var context = AuthenticatedContext("discord-bot");
@@ -915,6 +932,8 @@ public sealed class SecurityHardeningTests
             LastDraftMontagemId = draftMontagemId;
             return Task.CompletedTask;
         }
+
+        public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class TestDraftMontagemMetrics : IDraftMontagemMetrics
@@ -964,15 +983,19 @@ public sealed class SecurityHardeningTests
 
         public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => GetByIdAsync(id, cancellationToken);
 
+        public Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(montagens.FirstOrDefault(montagem => montagem.Id == id));
+
+        public Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => GetByIdIncludingArchivedAsync(id, cancellationToken);
+
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
         public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
-        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
+        public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 
-        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, CancellationToken cancellationToken) => Task.FromResult(0);
+        public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken) => Task.FromResult(0);
 
         public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Jogador>>(jogadores.Where(jogador => jogadoresIds.Contains(jogador.Id)).ToArray());
 

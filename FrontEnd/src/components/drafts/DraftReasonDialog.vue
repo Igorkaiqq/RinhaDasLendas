@@ -6,6 +6,8 @@ export type DraftReasonDialogAction =
   | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'republishDiscord'; publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
+  | { type: 'archiveDraft'; draftName: string; cancelsActiveDraft: boolean }
+  | { type: 'restoreDraft'; draftName: string }
 </script>
 
 <script setup lang="ts">
@@ -13,6 +15,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -24,7 +27,7 @@ type CloseAutoFocusEvent = InstanceType<typeof globalThis.Event>
 type OpenAutoFocusEvent = InstanceType<typeof globalThis.Event>
 
 const props = defineProps<{ open: boolean; action: DraftReasonDialogAction | null; saving: boolean }>()
-const emit = defineEmits<{ confirm: [reason: string]; cancel: []; 'restore-focus': [] }>()
+const emit = defineEmits<{ confirm: [reason: string | null]; cancel: []; 'restore-focus': [] }>()
 const { t, te } = useI18n()
 
 const reason = ref('')
@@ -32,10 +35,12 @@ const submitted = ref(false)
 const commandSubmitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
 const backButton = useTemplateRef<InstanceType<typeof Button>>('backButton')
+const confirmButton = useTemplateRef<InstanceType<typeof Button>>('confirmButton')
 const discordTranslationKeys: Record<DraftMontagemPublicacaoDiscordTipo, string> = {
   Presenca: 'republishPresence',
   ChamadaPresenca: 'republishPresenceCta',
   TimesDefinidos: 'republishTeams',
+  Cancelamento: 'republishCancellation',
 }
 const translationKey = computed(() => {
   if (!props.action) return ''
@@ -44,6 +49,8 @@ const translationKey = computed(() => {
 })
 const discordAction = computed(() => props.action?.type === 'republishDiscord')
 const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
+const restoreAction = computed(() => props.action?.type === 'restoreDraft')
+const requiresReason = computed(() => !restoreAction.value)
 const publicationStatus = computed(() => {
   const action = props.action
   return action?.type === 'republishDiscord' ? action.publicationStatus : null
@@ -52,16 +59,22 @@ const publicationStatusKey = computed(() => {
   const key = publicationStatus.value ? `drafts.publication.status.${publicationStatus.value}` : ''
   return key && te(key) ? key : 'drafts.publication.status.unknown'
 })
+const translationParams = computed(() => {
+  const action = props.action
+  return action && 'draftName' in action ? { draftName: action.draftName } : {}
+})
 const normalizedReasonLength = computed(() => reason.value.trim().length)
 const reasonTooLong = computed(() => normalizedReasonLength.value > 500)
-const valid = computed(() => normalizedReasonLength.value > 0 && !reasonTooLong.value)
+const valid = computed(() => !requiresReason.value || (normalizedReasonLength.value > 0 && !reasonTooLong.value))
 
 watch(
   () => [props.open, props.action] as const,
   ([open]) => {
     submitted.value = false
     if (open) commandSubmitted.value = false
-    reason.value = open && props.action ? t(`${translationKey.value}.defaultReason`) : ''
+    reason.value = open && props.action && props.action.type !== 'archiveDraft' && props.action.type !== 'restoreDraft'
+      ? t(`${translationKey.value}.defaultReason`)
+      : ''
   },
   { immediate: true },
 )
@@ -84,7 +97,7 @@ function confirm() {
   if (props.saving) return
 
   commandSubmitted.value = true
-  emit('confirm', reason.value.trim())
+  emit('confirm', requiresReason.value ? reason.value.trim() : null)
 }
 
 function handleReasonKeydown(event: ReasonKeyboardEvent) {
@@ -109,7 +122,7 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
     return
   }
 
-  void nextTick(() => reasonField.value?.$el.focus())
+  void nextTick(() => restoreAction.value ? confirmButton.value?.$el.focus() : reasonField.value?.$el.focus())
 }
 
 </script>
@@ -131,7 +144,7 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
             {{ t(discordAction ? 'drafts.reasonDialog.discordKicker' : 'drafts.reasonDialog.administrativeKicker') }}
           </p>
           <DialogTitle>{{ t(`${translationKey}.title`) }}</DialogTitle>
-          <DialogDescription>{{ t(`${translationKey}.description`) }}</DialogDescription>
+          <DialogDescription>{{ t(`${translationKey}.description`, translationParams) }}</DialogDescription>
         </DialogHeader>
 
         <div v-if="discordAction" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
@@ -144,7 +157,11 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
           {{ t('drafts.reasonDialog.affectedPlayer', { name: action.jogadorNome }) }}
         </div>
 
-        <FieldGroup>
+        <Alert v-if="action.type === 'archiveDraft' && action.cancelsActiveDraft" variant="destructive" data-archive-active-warning>
+          <AlertDescription>{{ t('drafts.archive.activeWarning') }}</AlertDescription>
+        </Alert>
+
+        <FieldGroup v-if="requiresReason">
           <Field :data-invalid="submitted && !valid" :data-disabled="saving">
             <FieldLabel for="draft-reason">{{ t('drafts.reasonDialog.reasonLabel') }}</FieldLabel>
             <Textarea
@@ -153,7 +170,6 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
               v-model="reason"
               name="reason"
               autocomplete="off"
-              maxlength="500"
               class="min-h-24 resize-y"
               :disabled="saving"
               :aria-invalid="submitted && !valid"
@@ -171,9 +187,10 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
             {{ t('drafts.reasonDialog.back') }}
           </Button>
           <Button
+            ref="confirmButton"
             data-testid="draft-reason-confirm"
             type="submit"
-            :variant="constructiveAction ? 'default' : 'destructive'"
+            :variant="constructiveAction || restoreAction ? 'default' : 'destructive'"
             :disabled="saving"
           >
             <Spinner v-if="saving" data-icon="inline-start" />

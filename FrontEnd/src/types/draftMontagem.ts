@@ -18,7 +18,7 @@ export type DraftMontagemEscolhaTipo = (typeof DraftMontagemEscolhaTipoValues)[k
 export type DraftMontagemOrdemEscolhaModo = (typeof DraftMontagemOrdemEscolhaModoValues)[keyof typeof DraftMontagemOrdemEscolhaModoValues]
 export type DraftMontagemPresencaStatus = (typeof DraftMontagemPresencaStatusValues)[keyof typeof DraftMontagemPresencaStatusValues]
 export type DraftMontagemPresencaOrigem = (typeof DraftMontagemPresencaOrigemValues)[keyof typeof DraftMontagemPresencaOrigemValues]
-export type DraftMontagemPublicacaoDiscordTipo = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
+export type DraftMontagemPublicacaoDiscordTipo = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos' | 'Cancelamento'
 export type DraftMontagemPublicacaoDiscordStatus = 'Pendente' | 'EmAndamento' | 'Publicada' | 'Falha' | 'RequerReconciliacao' | 'Ignorada'
 
 export interface DraftMontagemParticipante {
@@ -75,8 +75,25 @@ export interface DraftMontagem {
   escolhas: DraftMontagemEscolha[]
   substituicoes: DraftMontagemSubstituicao[]
   publicacoesDiscord?: DraftMontagemPublicacaoDiscord[]
+  arquivado: boolean
+  versaoEstado: number
   dataCadastro: string
   dataAtualizacao: string
+}
+
+export interface DraftMontagemArquivamentoResultado {
+  id: string
+  status: DraftMontagemStatus
+  arquivado: boolean
+  versaoEstado: number
+}
+
+export interface DraftMontagemArquivamento {
+  draft: DraftMontagem
+  arquivadoEm?: string | null
+  arquivadoPorUsuarioId?: string | null
+  motivoArquivamento?: string | null
+  acoes: DraftMontagemAcaoAdministrativa[]
 }
 
 export interface DraftMontagemPublicacaoDiscord {
@@ -138,6 +155,8 @@ export interface DraftMontagemResumo {
   dataRinha?: string | null
   dataCadastro: string
   dataAtualizacao: string
+  arquivado: boolean
+  versaoEstado: number
 }
 
 export interface DraftMontagemPresenca {

@@ -5,6 +5,8 @@ import { MessageCode } from '@/constants/messageCode'
 import type {
   DraftMontagem,
   DraftMontagemAdmin,
+  DraftMontagemArquivamento,
+  DraftMontagemArquivamentoResultado,
   DraftMontagemLayoutPayload,
   DraftMontagemManualPresencePayload,
   DraftMontagemOrdemEscolhaModo,
@@ -47,12 +49,58 @@ export class DraftMontagemServiceError extends Error {
   }
 }
 
-export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | ''; includeCancelled?: boolean } = {}): Promise<DraftMontagemResumo[]> {
+export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | ''; includeCancelled?: boolean; includeArchived?: boolean } = {}): Promise<DraftMontagemResumo[]> {
   try {
-    const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
-      params: { ...filters, page: 1, pageSize: 100 },
+    const firstPage = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
+      params: { ...filters, includeArchived: filters.includeArchived ?? false, page: 1, pageSize: 100 },
     })
-    return response.data.items
+    const items = [...firstPage.data.items]
+    for (let page = 2; page <= firstPage.data.totalPages; page++) {
+      const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
+        params: { ...filters, includeArchived: filters.includeArchived ?? false, page, pageSize: 100 },
+      })
+      items.push(...response.data.items)
+    }
+    return items
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function getDraftMontagemArchivingById(id: string): Promise<DraftMontagemArquivamento> {
+  try {
+    const response = await api.get<DraftMontagemArquivamento>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/arquivamento`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function archiveDraftMontagem(id: string, motivo: string, versaoEstado: number): Promise<DraftMontagemArquivamentoResultado> {
+  try {
+    const response = await api.patch<DraftMontagemArquivamentoResultado>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/arquivar`, {
+      motivo: motivo.trim(),
+      versaoEstado,
+    })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function restoreDraftMontagem(id: string, versaoEstado: number): Promise<DraftMontagemArquivamentoResultado> {
+  try {
+    const response = await api.patch<DraftMontagemArquivamentoResultado>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/restaurar`, { versaoEstado })
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function republishArchivedDraftCancellation(id: string): Promise<DraftMontagemArquivamentoResultado> {
+  try {
+    const response = await api.post<DraftMontagemArquivamentoResultado>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/discord/publicacoes/cancelamento/republicar`)
+    return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
   }

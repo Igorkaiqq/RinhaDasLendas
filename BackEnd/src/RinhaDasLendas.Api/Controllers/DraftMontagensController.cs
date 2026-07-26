@@ -14,15 +14,65 @@ namespace RinhaDasLendas.Api.Controllers;
 [ApiController]
 [Route("api/v1/draft-montagens")]
 [Produces("application/json")]
-public sealed class DraftMontagensController(ISender sender, IMessageProvider messages) : ControllerBase
+public sealed class DraftMontagensController(ISender sender, IMessageProvider messages, IAuthorizationService authorizationService) : ControllerBase
 {
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(PaginatedResponseDto<DraftMontagemResumoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] string? status = null, [FromQuery] bool includeCancelled = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] string? status = null, [FromQuery] bool includeCancelled = false, [FromQuery] bool includeArchived = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var montagens = await sender.Send(new GetDraftMontagensQuery(search, status, includeCancelled, page, pageSize), cancellationToken);
+        if (includeArchived && !(await authorizationService.AuthorizeAsync(User, AuthPermissions.CanArchiveDrafts)).Succeeded)
+        {
+            return Forbid();
+        }
+
+        var montagens = await sender.Send(new GetDraftMontagensQuery(search, status, includeCancelled, includeArchived, page, pageSize), cancellationToken);
         return Ok(montagens);
+    }
+
+    [HttpPatch("{id:guid}/arquivar")]
+    [Authorize(Policy = AuthPermissions.CanArchiveDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemArquivamentoResultadoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Archive([FromRoute] Guid id, [FromBody] ArquivarDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ArquivarDraftMontagemCommand(id, request), cancellationToken);
+        return result is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(result);
+    }
+
+    [HttpPatch("{id:guid}/restaurar")]
+    [Authorize(Policy = AuthPermissions.CanArchiveDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemArquivamentoResultadoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Restore([FromRoute] Guid id, [FromBody] RestaurarDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RestaurarDraftMontagemCommand(id, request), cancellationToken);
+        return result is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(result);
+    }
+
+    [HttpGet("{id:guid}/arquivamento")]
+    [Authorize(Policy = AuthPermissions.CanArchiveDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemArquivamentoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetArchiving([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetDraftMontagemArquivamentoQuery(id), cancellationToken);
+        return result is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(result);
+    }
+
+    [HttpPost("{id:guid}/discord/publicacoes/cancelamento/republicar")]
+    [Authorize(Policy = AuthPermissions.CanArchiveDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemArquivamentoResultadoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RepublishArchivedCancellation([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RepublicarCancelamentoDraftArquivadoCommand(id), cancellationToken);
+        return result is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(result);
     }
 
     [HttpGet("{id:guid}")]
@@ -107,6 +157,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPost("{id:guid}/presencas/manual")]
     [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddManualPresence([FromRoute] Guid id, [FromBody] AdicionarPresencaManualDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {

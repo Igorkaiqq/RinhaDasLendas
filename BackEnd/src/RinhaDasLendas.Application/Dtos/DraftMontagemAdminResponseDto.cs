@@ -39,6 +39,8 @@ public sealed record DraftMontagemAdminResponseDto(
     public static DraftMontagemAdminResponseDto FromEntity(DraftMontagem montagem)
     {
         var participantes = montagem.Participantes.ToList();
+        var cancelamentoOriginadoPorArquivamento = montagem.AcoesAdministrativas.Any(
+            acao => acao.Tipo == "CancelamentoPorArquivamento");
         return new DraftMontagemAdminResponseDto(
             montagem.Id,
             montagem.Nome,
@@ -67,8 +69,12 @@ public sealed record DraftMontagemAdminResponseDto(
             montagem.Escolhas.OrderBy(escolha => escolha.Sequencia).Select(DraftMontagemEscolhaResponseDto.FromEntity).ToList(),
             montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoResponseDto.FromEntity).ToList(),
             montagem.PublicacoesDiscord.OrderBy(publicacao => publicacao.Tipo).Select(DraftMontagemPublicacaoDiscordAdminResponseDto.FromEntity).ToList(),
-            montagem.AcoesAdministrativas.OrderBy(acao => acao.RegistradoEm).Select(DraftMontagemAcaoAdministrativaResponseDto.FromEntity).ToList(),
-            montagem.MotivoCancelamento,
+            montagem.AcoesAdministrativas
+                .Where(acao => acao.Tipo is not "Arquivamento" and not "Restauracao" and not "CancelamentoPorArquivamento")
+                .OrderBy(acao => acao.RegistradoEm)
+                .Select(DraftMontagemAcaoAdministrativaResponseDto.FromEntity)
+                .ToList(),
+            cancelamentoOriginadoPorArquivamento ? null : montagem.MotivoCancelamento,
             montagem.DataCadastro,
             montagem.DataAtualizacao);
     }

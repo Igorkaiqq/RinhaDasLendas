@@ -7,13 +7,14 @@ import { getAccessToken } from './authState'
 
 export type DraftMontagemRealtimeHandler = (state: DraftMontagemRealtimeState) => void
 export type DraftMontagemRealtimeReconnectHandler = () => void | Promise<void>
+export type DraftMontagemArchivedHandler = (draftMontagemId: string) => void | Promise<void>
 
 export class DraftMontagemRealtimeConnection {
   private connection: signalR.HubConnection | null = null
 
   constructor(private readonly draftMontagemId: string) {}
 
-  async connect(onStateUpdated: DraftMontagemRealtimeHandler, onReconnected?: DraftMontagemRealtimeReconnectHandler) {
+  async connect(onStateUpdated: DraftMontagemRealtimeHandler, onReconnected?: DraftMontagemRealtimeReconnectHandler, onArchived?: DraftMontagemArchivedHandler) {
     if (this.connection) {
       await this.disconnect()
     }
@@ -26,6 +27,7 @@ export class DraftMontagemRealtimeConnection {
     this.connection = connection
 
     connection.on('DraftMontagemStateUpdated', onStateUpdated)
+    if (onArchived) connection.on('DraftMontagemArchived', onArchived)
     connection.onreconnected(async () => {
       if (this.connection !== connection) return
       await connection.invoke('JoinDraftMontagem', this.draftMontagemId)

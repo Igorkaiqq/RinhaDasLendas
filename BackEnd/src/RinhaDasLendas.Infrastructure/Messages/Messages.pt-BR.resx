@@ -202,10 +202,17 @@
   <data name="MV098" xml:space="preserve"><value>A configuração do Discord está indisponível para esta ocorrência</value></data>
   <data name="MV099" xml:space="preserve"><value>Agenda de presença não encontrada</value></data>
   <data name="MV100" xml:space="preserve"><value>A janela desta ocorrência já foi encerrada</value></data>
+  <data name="MV101" xml:space="preserve"><value>O motivo do arquivamento é obrigatório</value></data>
+  <data name="MV102" xml:space="preserve"><value>O motivo do arquivamento deve ter no máximo 500 caracteres</value></data>
+  <data name="MV103" xml:space="preserve"><value>O draft foi alterado por outra operação. Atualize e tente novamente</value></data>
+  <data name="MV104" xml:space="preserve"><value>A versão do estado do draft é inválida</value></data>
+  <data name="MV105" xml:space="preserve"><value>Use o endpoint administrativo de cancelamento para republicar esta publicação</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>
   <data name="MSIS028" xml:space="preserve"><value>Configuração do Discord atualizada</value></data>
+  <data name="MSIS029" xml:space="preserve"><value>Draft arquivado</value></data>
+  <data name="MSIS030" xml:space="preserve"><value>Draft restaurado</value></data>
   <data name="MT001" xml:space="preserve"><value>Docker indisponível para Testcontainers: {0}</value></data>
   <data name="MT002" xml:space="preserve"><value>todo endpoint exposto pela API precisa ter um cenário de integração mapeado</value></data>
   <data name="MT003" xml:space="preserve"><value>Relatório de cobertura de endpoints</value></data>

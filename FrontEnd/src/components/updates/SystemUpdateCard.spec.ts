@@ -39,15 +39,16 @@ describe('SystemUpdateCard', () => {
     )
     expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-26')
     expect(wrapper.get('time').text()).toBe('26 de julho de 2026')
-    expect(wrapper.get('h2').text()).toBe('Draft mais claro do início ao fim')
-    expect(wrapper.text()).toContain('2026.07.4')
+    expect(wrapper.get('h2').text()).toBe('Drafts arquivados sem perder o histórico')
+    expect(wrapper.text()).toContain('2026.07.5')
     expect(wrapper.text()).toContain(
-      'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
+      'Admin e SuperAdmin agora podem retirar drafts da rotina e restaurá-los quando necessário, mantendo status, participantes e histórico preservados.',
     )
+    expect(wrapper.text()).toContain('Novidade')
     expect(wrapper.text()).toContain('Melhoria')
     expect(wrapper.text()).toContain('Drafts')
-    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(4)
-    expect(wrapper.text()).toContain('Hierarquia para conduzir a partida')
+    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Arquivamento seguro e reversível')
   })
 
   it('groups every detail by category in native disclosure controls', async () => {
@@ -60,7 +61,7 @@ describe('SystemUpdateCard', () => {
     expect(details).toHaveLength(1)
     expect(summaries).toHaveLength(1)
     expect(summaries.every((summary) => summary.attributes('tabindex') === undefined)).toBe(true)
-    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(4)
+    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(1)
 
     ;(firstSummary.element as HTMLElement).click()
     await nextTick()
@@ -89,7 +90,9 @@ describe('SystemUpdateCard', () => {
 
     expect(wrapper.get('article').classes()).not.toContain('system-update-card--latest')
     expect(wrapper.get('time').text()).toBe('July 26, 2026')
-    expect(wrapper.get('h2').text()).toBe('A clearer draft from start to finish')
+    expect(wrapper.get('h2').text()).toBe('Archived drafts without losing history')
+    expect(wrapper.text()).toContain('Admins and Super Admins can now move drafts out of daily operation and restore them when needed while preserving status, participants, and history.')
+    expect(wrapper.text()).toContain('Feature')
     expect(wrapper.text()).toContain('Improvement')
     expect(wrapper.text()).toContain('Drafts')
   })

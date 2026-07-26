@@ -12,6 +12,10 @@ public sealed class RepublicarPublicacaoDiscordDraftMontagemValidator : Abstract
             .IsInEnum()
             .WithMessage(MessageCodes.FieldRequired);
 
+        RuleFor(request => request.Tipo)
+            .NotEqual(RinhaDasLendas.Domain.Enums.DraftMontagemPublicacaoDiscordTipo.Cancelamento)
+            .WithMessage(MessageCodes.ArchiveCancellationRequiresDedicatedEndpoint);
+
         RuleFor(request => request.Motivo)
             .NotEmpty()
             .WithMessage(MessageCodes.FieldRequired)

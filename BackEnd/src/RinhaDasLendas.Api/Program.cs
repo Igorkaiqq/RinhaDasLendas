@@ -150,6 +150,7 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanResetUserPassword, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
@@ -173,6 +174,7 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanResetUserPassword, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
+        options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireRole(AuthRoles.SuperAdmin));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy

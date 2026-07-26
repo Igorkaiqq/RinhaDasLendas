@@ -1,9 +1,10 @@
+import { AxiosError } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishDraftMontagemDiscordPublication } from './draftMontagens'
+import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -38,6 +39,8 @@ const montagem: DraftMontagem = {
   reservas: [],
   escolhas: [],
   substituicoes: [],
+  arquivado: false,
+  versaoEstado: 7,
   dataCadastro: '2026-06-20T00:00:00Z',
   dataAtualizacao: '2026-06-20T00:00:00Z',
 }
@@ -55,7 +58,7 @@ describe('draftMontagens service', () => {
 
     const result = await listDraftMontagens()
 
-    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', { params: { page: 1, pageSize: 100 } })
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', { params: { includeArchived: false, page: 1, pageSize: 100 } })
     expect(result).toEqual([montagem])
   })
 
@@ -120,6 +123,79 @@ describe('draftMontagens service', () => {
     await republishDraftMontagemDiscordPublication('montagem-1', 'TimesDefinidos', 'permissão corrigida')
 
     expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/discord/publicacoes/republicar', { tipo: 'TimesDefinidos', motivo: 'permissão corrigida' })
+  })
+
+  it('lists archived drafts only when explicitly requested', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0, items: [] } })
+
+    await listDraftMontagens({ includeArchived: true })
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', {
+      params: { includeArchived: true, page: 1, pageSize: 100 },
+    })
+  })
+
+  it('loads every draft page sequentially with the same discovery filters', async () => {
+    const firstPageItems = Array.from({ length: 100 }, (_, index) => ({ ...montagem, id: `montagem-${index + 1}` }))
+    const montagemB = { ...montagem, id: 'montagem-101', nome: 'Rinha encontrada na pagina 2' }
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: { page: 1, pageSize: 100, totalItems: 101, totalPages: 2, items: firstPageItems } })
+      .mockResolvedValueOnce({ data: { page: 2, pageSize: 100, totalItems: 101, totalPages: 2, items: [montagemB] } })
+
+    const result = await listDraftMontagens({ search: 'Rinha', status: 'Cancelada', includeArchived: true })
+
+    expect(api.get).toHaveBeenNthCalledWith(1, '/api/v1/draft-montagens', {
+      params: { search: 'Rinha', status: 'Cancelada', includeArchived: true, page: 1, pageSize: 100 },
+    })
+    expect(api.get).toHaveBeenNthCalledWith(2, '/api/v1/draft-montagens', {
+      params: { search: 'Rinha', status: 'Cancelada', includeArchived: true, page: 2, pageSize: 100 },
+    })
+    expect(result).toHaveLength(101)
+    expect(result[result.length - 1]).toEqual(montagemB)
+  })
+
+  it('preserves a forbidden response raised while loading a later draft page', async () => {
+    const forbidden = new AxiosError('Forbidden')
+    Object.defineProperty(forbidden, 'response', { value: { status: 403, data: { errors: ['forbidden'] } } })
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: { page: 1, pageSize: 100, totalItems: 101, totalPages: 2, items: [montagem] } })
+      .mockRejectedValueOnce(forbidden)
+
+    await expect(listDraftMontagens({ includeArchived: true })).rejects.toMatchObject({
+      status: 403,
+      errors: ['forbidden'],
+    })
+    expect(api.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('archives with a trimmed reason and observed state version', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 8 } })
+
+    await archiveDraftMontagem('draft/id', '  organização concluída  ', 7)
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/arquivar', {
+      motivo: 'organização concluída',
+      versaoEstado: 7,
+    })
+  })
+
+  it('restores without a reason and retains the observed state version contract', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 } })
+
+    await restoreDraftMontagem('draft/id', 8)
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/restaurar', { versaoEstado: 8 })
+  })
+
+  it('loads dedicated archive details and republishes archived cancellation', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: { draft: montagem, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] } })
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 9 } })
+
+    await getDraftMontagemArchivingById('draft/id')
+    await republishArchivedDraftCancellation('draft/id')
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/arquivamento')
+    expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/discord/publicacoes/cancelamento/republicar')
   })
 })
 

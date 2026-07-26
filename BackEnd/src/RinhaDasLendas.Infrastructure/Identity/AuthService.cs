@@ -644,6 +644,7 @@ public sealed class AuthService(
             yield return AuthPermissions.CanResetUserPassword;
             yield return AuthPermissions.CanActivateDeactivateUsers;
             yield return AuthPermissions.CanManageDrafts;
+            yield return AuthPermissions.CanArchiveDrafts;
             yield return AuthPermissions.CanManageMatches;
         }
 

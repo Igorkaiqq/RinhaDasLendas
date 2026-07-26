@@ -566,6 +566,35 @@
       "clearFilters": "Limpar filtros",
       "retry": "Tentar novamente"
     },
+    "archive": {
+      "filter": "Incluir arquivados",
+      "badge": "Arquivado",
+      "action": "Arquivar",
+      "restore": "Restaurar",
+      "activeWarning": "Este draft está ativo e também será cancelado. Presença, turnos e escolhas não poderão continuar.",
+      "emptyTitle": "Nenhum draft disponível",
+      "emptyDescription": "Não há drafts para exibir com os filtros atuais.",
+      "historyTitle": "Histórico de arquivamento",
+      "actionTypes": {
+        "Arquivamento": "Arquivamento",
+        "Restauracao": "Restauração",
+        "CancelamentoPorArquivamento": "Cancelamento por arquivamento",
+        "unknown": "Ação administrativa"
+      },
+      "archivedAt": "Arquivado em: {date}",
+      "eventAt": "Registrado em: {date}",
+      "responsible": "Responsável: {id}",
+      "reason": "Motivo: {reason}",
+      "eventReason": "Motivo do evento: {reason}",
+      "archived": "Draft {name} arquivado.",
+      "restored": "Draft {name} restaurado.",
+      "readOnly": "Este draft está arquivado. As ações operacionais permanecem indisponíveis.",
+      "errors": {
+        "unauthorized": "Sua sessão precisa ser renovada. Entre novamente para continuar.",
+        "forbidden": "Você não tem mais permissão para administrar drafts arquivados.",
+        "conflict": "O draft foi alterado por outra operação. Revise o estado atualizado e confirme novamente."
+      }
+    },
     "navigator": {
       "loading": "Carregando drafts",
       "refreshing": "Atualizando lista de drafts",
@@ -678,6 +707,7 @@
       "presence": "Presença no Discord: {status}",
       "presenceCta": "Chamada no Discord: {status}",
       "finalTeams": "Times no Discord: {status}",
+      "cancellation": "Cancelamento no Discord: {status}",
       "status": {
         "Pendente": "pendente",
         "EmAndamento": "em andamento",
@@ -691,6 +721,7 @@
       "republishPresence": "Republicar presença",
       "republishPresenceCta": "Republicar chamada",
       "republishFinalTeams": "Republicar times",
+      "republishCancellation": "Republicar cancelamento",
       "republishReason": "Republicação solicitada",
       "republishReasonPrompt": "Informe o motivo da republicação.",
       "republishRequested": "Republicação solicitada. O bot publicará novamente no próximo processamento."
@@ -709,6 +740,23 @@
         "description": "O draft será cancelado e deixará de aparecer na listagem padrão.",
         "defaultReason": "Draft cancelado",
         "confirm": "Cancelar draft"
+      },
+      "archiveDraft": {
+        "title": "Arquivar draft",
+        "description": "{draftName} deixará a operação cotidiana, mas seus dados e histórico serão preservados.",
+        "confirm": "Arquivar draft"
+      },
+      "restoreDraft": {
+        "title": "Restaurar draft",
+        "description": "{draftName} voltará à listagem normal com o status atual preservado.",
+        "confirm": "Restaurar draft"
+      },
+      "republishCancellation": {
+        "title": "Republicar cancelamento",
+        "description": "O bot tentará publicar novamente o cancelamento deste draft arquivado.",
+        "defaultReason": "Republicação do cancelamento solicitada",
+        "confirm": "Republicar cancelamento",
+        "context": "Cancelamento do draft"
       },
       "addManualPresence": {
         "title": "Adicionar presença",
@@ -1087,6 +1135,16 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_5": {
+        "title": "Drafts arquivados sem perder o histórico",
+        "summary": "Admin e SuperAdmin agora podem retirar drafts da rotina e restaurá-los quando necessário, mantendo status, participantes e histórico preservados.",
+        "details": {
+          "archive-and-restore": {
+            "title": "Arquivamento seguro e reversível",
+            "description": "Arquive drafts com uma justificativa, consulte os registros preservados e restaure sua visibilidade sem retomar etapas já encerradas."
+          }
+        }
+      },
       "2026_07_4": {
         "title": "Draft mais claro do início ao fim",
         "summary": "Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.",

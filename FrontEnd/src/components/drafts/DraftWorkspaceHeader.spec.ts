@@ -29,6 +29,8 @@ const draft = {
   escolhas: [],
   substituicoes: [],
   publicacoesDiscord: [],
+  arquivado: false,
+  versaoEstado: 3,
   dataCadastro: '2026-07-25T12:00:00Z',
   dataAtualizacao: '2026-07-25T12:00:00Z',
 } satisfies DraftMontagem
@@ -55,6 +57,16 @@ describe('DraftWorkspaceHeader', () => {
       status: 'CapitaesDefinidos',
       publicationStatus: 'Pendente',
     })
+  })
+
+  it('renders archive state separately from operational status', () => {
+    const wrapper = mount(DraftWorkspaceHeader, {
+      props: { draft: { ...draft, arquivado: true, status: 'Cancelada' }, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('[data-workspace-archived]').text()).toBe('Arquivado')
+    expect(wrapper.get('[data-workspace-status]').text()).toBe('Cancelada')
   })
 
   it('falls back to the presence deadline only when dataRinha is absent', () => {
