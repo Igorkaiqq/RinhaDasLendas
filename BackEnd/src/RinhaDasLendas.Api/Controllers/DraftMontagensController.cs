@@ -157,6 +157,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPost("{id:guid}/presencas/manual")]
     [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddManualPresence([FromRoute] Guid id, [FromBody] AdicionarPresencaManualDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {

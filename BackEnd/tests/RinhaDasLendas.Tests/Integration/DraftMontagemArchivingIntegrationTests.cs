@@ -18,6 +18,129 @@ namespace RinhaDasLendas.Tests.Integration;
 public sealed class DraftMontagemArchivingIntegrationTests
 {
     [Fact]
+    public async Task RepublicacaoGenerica_NaoDevePermitirCancelamentoParaModeradorEnquantoEndpointDedicadoPermiteAdmin()
+    {
+        await using var factory = new ArchivingApiFactory();
+        var fixture = await factory.SeedActiveDraftAsync();
+        using var admin = factory.CreateAdminClient(fixture.UserId);
+        var archiveResponse = await admin.PatchAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
+            new ArquivarDraftMontagemRequestDto("motivo", fixture.Version));
+        var archived = (await archiveResponse.Content.ReadFromJsonAsync<DraftMontagemArquivamentoResultadoDto>())!;
+        (await admin.PatchAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/restaurar",
+            new RestaurarDraftMontagemRequestDto(archived.VersaoEstado))).EnsureSuccessStatusCode();
+        using var moderator = factory.CreateModeratorClient(fixture.UserId);
+
+        var generic = await moderator.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/publicacoes/republicar",
+            new RepublicarPublicacaoDiscordDraftMontagemRequestDto(
+                DraftMontagemPublicacaoDiscordTipo.Cancelamento,
+                "tentativa indevida"));
+
+        generic.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = (await generic.Content.ReadFromJsonAsync<ApiErrorResponse>())!;
+        error.Errors.Should().ContainSingle("Use o endpoint administrativo de cancelamento para republicar esta publicação");
+
+        moderator.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US");
+        var genericEnglish = await moderator.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/publicacoes/republicar",
+            new RepublicarPublicacaoDiscordDraftMontagemRequestDto(
+                DraftMontagemPublicacaoDiscordTipo.Cancelamento,
+                "invalid retry"));
+        genericEnglish.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await genericEnglish.Content.ReadFromJsonAsync<ApiErrorResponse>())!.Errors.Should().ContainSingle(
+            "Use the administrative cancellation endpoint to republish this publication");
+
+        var dedicatedAsModerator = await moderator.PostAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/publicacoes/cancelamento/republicar",
+            null);
+        dedicatedAsModerator.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var dedicatedAsAdmin = await admin.PostAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/discord/publicacoes/cancelamento/republicar",
+            null);
+        dedicatedAsAdmin.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task FalhaDePersistenciaAposMutacao_DeveManterTodoEstadoAnteriorSemEfeitosParciais()
+    {
+        await using var factory = new ArchivingApiFactory();
+        var fixture = await factory.SeedActiveDraftAsync(withExistingCancellation: true);
+        var before = await factory.GetArchiveStateAsync(fixture.DraftId);
+        using var admin = factory.CreateAdminClient(fixture.UserId);
+
+        var response = await admin.PatchAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
+            new ArquivarDraftMontagemRequestDto("nao deve persistir", fixture.Version));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var after = await factory.GetArchiveStateAsync(fixture.DraftId);
+        after.Status.Should().Be(before.Status);
+        after.Archived.Should().BeFalse();
+        after.ArchivedAt.Should().BeNull();
+        after.ArchivedBy.Should().BeNull();
+        after.Reason.Should().BeNull();
+        after.ActionTypes.Should().BeEquivalentTo(before.ActionTypes);
+        after.Publications.Should().BeEquivalentTo(before.Publications);
+    }
+
+    [Fact]
+    public async Task DraftArquivado_DeveFicarOcultoDeTotaisBuscaStatusDetalheEOperacao()
+    {
+        await using var factory = new ArchivingApiFactory();
+        var fixture = await factory.SeedActiveDraftAsync();
+        using var admin = factory.CreateAdminClient(fixture.UserId);
+        (await admin.PatchAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
+            new ArquivarDraftMontagemRequestDto("ocultar", fixture.Version))).EnsureSuccessStatusCode();
+
+        foreach (var route in new[]
+        {
+            "/api/v1/draft-montagens?includeCancelled=true",
+            "/api/v1/draft-montagens?includeCancelled=true&search=Draft%20para%20arquivar",
+            "/api/v1/draft-montagens?status=Cancelada",
+        })
+        {
+            var page = await admin.GetFromJsonAsync<PaginatedResponseDto<DraftMontagemResumoDto>>(route);
+            page!.TotalItems.Should().Be(0);
+            page.Items.Should().BeEmpty();
+        }
+
+        var detail = await admin.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}");
+        await AssertNotFoundAsync(detail);
+        var operation = await admin.PatchAsync($"/api/v1/draft-montagens/{fixture.DraftId}/finalizar", null);
+        await AssertNotFoundAsync(operation);
+    }
+
+    [Fact]
+    public async Task ArquivamentosHttpConcorrentesParaMesmoEstado_DevemConvergirEm200PreservandoPrimeiroAutorEMotivo()
+    {
+        await using var factory = new ArchivingApiFactory();
+        var fixture = await factory.SeedActiveDraftAsync();
+        var secondUserId = await factory.SeedAdminAsync();
+        using var first = factory.CreateAdminClient(fixture.UserId);
+        using var second = factory.CreateAdminClient(secondUserId);
+
+        var responses = await Task.WhenAll(
+            first.PatchAsJsonAsync(
+                $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
+                new ArquivarDraftMontagemRequestDto("primeiro", fixture.Version)),
+            second.PatchAsJsonAsync(
+                $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
+                new ArquivarDraftMontagemRequestDto("segundo", fixture.Version)));
+
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.OK);
+        var state = await factory.GetArchiveStateAsync(fixture.DraftId);
+        var firstWon = state.Reason == "primeiro" && state.ArchivedBy == fixture.UserId;
+        var secondWon = state.Reason == "segundo" && state.ArchivedBy == secondUserId;
+        (firstWon || secondWon).Should().BeTrue();
+        state.ActionTypes.Should().BeEquivalentTo(["CancelamentoPorArquivamento", "Arquivamento"]);
+        state.Publications.Should().ContainSingle(item => item.Type == DraftMontagemPublicacaoDiscordTipo.Cancelamento);
+    }
+
+    [Fact]
     public async Task Arquivamento_DevePersistirEstadoAuditoriasEPublicacaoAtomicamenteEOcultarDaListaNormal()
     {
         await using var factory = new ArchivingApiFactory();
@@ -195,13 +318,17 @@ public sealed class DraftMontagemArchivingIntegrationTests
 
         public HttpClient CreateAdminClient(Guid userId) => CreateJwtClient(userId, AuthRoles.Admin);
 
+        public HttpClient CreateModeratorClient(Guid userId) => CreateJwtClient(userId, AuthRoles.Moderador);
+
         public RinhaDasLendasDbContext CreateContext()
         {
             var options = new DbContextOptionsBuilder<RinhaDasLendasDbContext>().UseNpgsql(ConnectionString).Options;
             return new RinhaDasLendasDbContext(options);
         }
 
-        public async Task<(Guid DraftId, Guid UserId, long Version)> SeedActiveDraftAsync(bool withPendingPresence = false)
+        public async Task<(Guid DraftId, Guid UserId, long Version)> SeedActiveDraftAsync(
+            bool withPendingPresence = false,
+            bool withExistingCancellation = false)
         {
             _ = CreateClient();
             await using var context = CreateContext();
@@ -220,12 +347,17 @@ public sealed class DraftMontagemArchivingIntegrationTests
                 draft.ConfigurarPublicacaoDiscordPendente(
                     DraftMontagemPublicacaoDiscordTipo.Presenca, "guild", "presence-channel", DateTimeOffset.UtcNow);
             }
+            if (withExistingCancellation)
+            {
+                draft.ConfigurarPublicacaoDiscordPendente(
+                    DraftMontagemPublicacaoDiscordTipo.Cancelamento, "guild", "cancel-channel", DateTimeOffset.UtcNow);
+            }
             context.DraftMontagens.Add(draft);
             await context.SaveChangesAsync();
             return (draft.Id, userId, draft.VersaoEstado);
         }
 
-        public async Task<(DraftMontagemStatus Status, bool Archived, string? Reason, IReadOnlyCollection<string> ActionTypes, IReadOnlyCollection<(DraftMontagemPublicacaoDiscordTipo Type, DraftMontagemPublicacaoDiscordStatus Status)> Publications)> GetArchiveStateAsync(Guid draftId)
+        public async Task<(DraftMontagemStatus Status, bool Archived, DateTimeOffset? ArchivedAt, Guid? ArchivedBy, string? Reason, IReadOnlyCollection<string> ActionTypes, IReadOnlyCollection<(DraftMontagemPublicacaoDiscordTipo Type, DraftMontagemPublicacaoDiscordStatus Status)> Publications)> GetArchiveStateAsync(Guid draftId)
         {
             await using var context = CreateContext();
             var draft = await context.DraftMontagens.AsNoTracking().SingleAsync(item => item.Id == draftId);
@@ -235,7 +367,22 @@ public sealed class DraftMontagemArchivingIntegrationTests
                 .Where(item => item.DraftMontagemId == draftId)
                 .Select(item => new ValueTuple<DraftMontagemPublicacaoDiscordTipo, DraftMontagemPublicacaoDiscordStatus>(item.Tipo, item.Status))
                 .ToListAsync();
-            return (draft.Status, draft.Arquivado, draft.MotivoArquivamento, actions, publications);
+            return (draft.Status, draft.Arquivado, draft.ArquivadoEm, draft.ArquivadoPorUsuarioId, draft.MotivoArquivamento, actions, publications);
+        }
+
+        public async Task<Guid> SeedAdminAsync()
+        {
+            await using var context = CreateContext();
+            var userId = Guid.NewGuid();
+            context.Users.Add(new ApplicationUser
+            {
+                Id = userId,
+                Nome = "Segundo administrador",
+                UserName = $"archive-second-{userId:N}",
+                NormalizedUserName = $"ARCHIVE-SECOND-{userId:N}",
+            });
+            await context.SaveChangesAsync();
+            return userId;
         }
 
         public async Task<DraftMontagemPublicacaoDiscordStatus> GetCancellationPublicationStatusAsync(Guid draftId)
@@ -246,5 +393,11 @@ public sealed class DraftMontagemArchivingIntegrationTests
                 .Select(item => item.Status)
                 .SingleAsync();
         }
+    }
+
+    private static async Task AssertNotFoundAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.DraftMontagemNotFound);
     }
 }

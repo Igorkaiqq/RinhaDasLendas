@@ -104,6 +104,19 @@ public sealed class DraftMontagemValidatorTests
         new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(new RepublicarPublicacaoDiscordDraftMontagemRequestDto(DraftMontagemPublicacaoDiscordTipo.Presenca, motivo)).IsValid.Should().Be(expectedValid);
     }
 
+    [Fact]
+    public void RepublicacaoGenerica_DeveRejeitarCancelamentoDeArquivamento()
+    {
+        var result = new RepublicarPublicacaoDiscordDraftMontagemValidator().Validate(
+            new RepublicarPublicacaoDiscordDraftMontagemRequestDto(
+                DraftMontagemPublicacaoDiscordTipo.Cancelamento,
+                "nova tentativa"));
+
+        result.Errors.Should().ContainSingle(error =>
+            error.PropertyName == nameof(RepublicarPublicacaoDiscordDraftMontagemRequestDto.Tipo)
+            && error.ErrorMessage == "MV105");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
