@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
@@ -8,6 +10,7 @@ import type { DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMont
 
 import DraftNavigator from './DraftNavigator.vue'
 import DraftNavigatorSource from './DraftNavigator.vue?raw'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 type DraftNavigatorItem = Omit<DraftMontagemResumo, 'status'> & { status: string }
 
@@ -214,5 +217,15 @@ describe('DraftNavigator', () => {
   it('does not import services or authentication', () => {
     expect(DraftNavigatorSource).not.toMatch(/@\/services\//)
     expect(DraftNavigatorSource).not.toContain('useAuthState')
+  })
+
+  it('keeps a named navigation region horizontal on tablet and compact on mobile', () => {
+    const wrapper = mountNavigator()
+    const navigator = wrapper.get('nav')
+
+    expect(navigator.attributes('aria-label')).toBe('Lista de drafts')
+    expect(navigator.get('[aria-controls="draft-navigator-list"]')).toBeTruthy()
+    expect(MainCss).toMatch(/@media \(min-width:\s*769px\) and \(max-width:\s*1024px\)[\s\S]*?\.drafts-page\s+\.draft-navigator__list\s*{[^}]*grid-auto-flow:\s*column/s)
+    expect(MainCss).toMatch(/@media \(max-width:\s*768px\)[\s\S]*?\.drafts-page\s+\.draft-navigator\[data-compact-expanded='false'\]/s)
   })
 })

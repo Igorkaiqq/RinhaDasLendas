@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,6 +9,7 @@ import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem, DraftMontagemParticipante, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftVisualBoard from './DraftVisualBoard.vue'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 function player(id: string, name: string, estado: DraftMontagemParticipante['estado'] = 'Livre'): DraftMontagemParticipante {
   return {
@@ -290,6 +293,30 @@ describe('DraftVisualBoard', () => {
     expect(wrapper.findAll('button').some((button) => ['Sortear capitães', 'Iniciar tempo real', 'Salvar layout', 'Finalizar', 'Cancelar'].includes(button.text()))).toBe(false)
     expect(wrapper.text()).toContain('Team A')
     expect(wrapper.text()).toContain('Captain A')
+    wrapper.unmount()
+  })
+
+  it('labels the board and preserves accessible controls, safe names, and reduced motion', () => {
+    const wrapper = mountBoard()
+
+    expect(wrapper.get('.draft-visual-shell').attributes('aria-label')).toBe('Tabuleiro do draft')
+    expect(wrapper.findAll('button, input, [role="button"]').every((control) => control.attributes('aria-hidden') !== 'true')).toBe(true)
+    expect(MainCss).toMatch(/\.drafts-page\s+:is\(button,\s*input,\s*select,\s*\[role='button'\]\)\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+:is\(button,\s*\[role='button'\]\)\s*{[^}]*touch-action:\s*manipulation/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-slot__copy\s*>\s*strong[\s\S]*?overflow-wrap:\s*anywhere/s)
+    expect(MainCss).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.drafts-page\s+\.draft-turn-clock__bar span[\s\S]*?transition:\s*none/s)
+    expect(MainCss).toMatch(/@media \(max-width:\s*768px\)[\s\S]*?\.drafts-page\s+\.draft-visual-board\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+    wrapper.unmount()
+  })
+
+  it('opens player details with Space and hides decorative initials from assistive technology', async () => {
+    const wrapper = mountBoard()
+    const playerRow = wrapper.get('[data-player-id="available-1"]')
+
+    expect(wrapper.findAll('.draft-slot__avatar').every((avatar) => avatar.attributes('aria-hidden') === 'true')).toBe(true)
+    await playerRow.trigger('keydown', { key: ' ' })
+
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toContain('Available Mid')
     wrapper.unmount()
   })
 })

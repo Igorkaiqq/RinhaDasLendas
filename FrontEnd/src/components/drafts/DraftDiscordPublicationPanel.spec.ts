@@ -1,11 +1,14 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 
 import DraftDiscordPublicationPanel from './DraftDiscordPublicationPanel.vue'
 import DraftDiscordPublicationPanelSource from './DraftDiscordPublicationPanel.vue?raw'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const publications = [
   { tipo: 'Presenca', status: 'Pendente' },
@@ -112,5 +115,20 @@ describe('DraftDiscordPublicationPanel', () => {
     expect(wrapper.findAll('button').every((button) => button.classes().includes('button-secondary'))).toBe(true)
     expect(DraftDiscordPublicationPanelSource).not.toMatch(/@\/services\//)
     expect(DraftDiscordPublicationPanelSource).not.toContain('normalizedPublications')
+  })
+
+  it('keeps Discord subordinate with textual statuses and semantic visual variants', () => {
+    const wrapper = mountPanel()
+    const region = wrapper.get('[data-discord-publications]')
+
+    expect(region.attributes('aria-labelledby')).toBe('draft-publications-title')
+    expect(region.findAll('[data-publication-status]').map((status) => status.text())).toEqual([
+      expect.stringContaining('pendente'),
+      expect.stringContaining('falhou'),
+      expect.stringContaining('publicada'),
+    ])
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-publications\s+\[data-publication-status='Publicada'\][\s\S]*?var\(--color-success\)/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-publications\s+\[data-publication-status='Falha'\][\s\S]*?var\(--color-danger\)/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-publications\s+\[data-publication-status='Pendente'\][\s\S]*?var\(--color-warning\)/s)
   })
 })

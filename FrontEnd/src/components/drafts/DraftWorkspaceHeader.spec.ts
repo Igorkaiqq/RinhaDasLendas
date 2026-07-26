@@ -1,11 +1,14 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 import type { DraftMontagem } from '@/types/draftMontagem'
 
 import DraftWorkspaceHeader from './DraftWorkspaceHeader.vue'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const draft = {
   id: 'draft-1',
@@ -98,5 +101,25 @@ describe('DraftWorkspaceHeader', () => {
 
     expect(wrapper.get('[data-workspace-counts]').text()).toBe(expected)
     setLocale('pt')
+  })
+
+  it('orders context, progress, and clearly separated action groups for assistive reading', () => {
+    const wrapper = mount(DraftWorkspaceHeader, {
+      props: { draft, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      slots: {
+        'primary-action': '<button>primary</button>',
+        'secondary-actions': '<button>secondary</button>',
+        'danger-action': '<button>danger</button>',
+      },
+      global: { plugins: [i18n] },
+    })
+    const header = wrapper.get('[data-testid="draft-workspace-header"]')
+    const children = Array.from(header.element.children)
+
+    expect(children[0]?.classList.contains('draft-summary')).toBe(true)
+    expect(children[1]?.classList.contains('draft-rail')).toBe(true)
+    expect(children[2]?.classList.contains('draft-hero-actions')).toBe(true)
+    expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='primary'\][\s\S]*?var\(--color-primary\)/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='danger'\][\s\S]*?var\(--color-danger\)/s)
   })
 })

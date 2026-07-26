@@ -139,12 +139,12 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 4
 
-- [ ] T027 [US4] Escrever assertions estruturais falhas para ordem de leitura, regiões e acessibilidade em `FrontEnd/src/views/DraftsView.spec.ts`, `FrontEnd/src/components/drafts/DraftNavigator.spec.ts`, `FrontEnd/src/components/drafts/DraftWorkspaceHeader.spec.ts`, `FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts`, `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.spec.ts`, `FrontEnd/src/components/drafts/DraftStateRail.spec.ts` e `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
+- [X] T027 [US4] Escrever assertions estruturais falhas para ordem de leitura, regiões e acessibilidade em `FrontEnd/src/views/DraftsView.spec.ts`, `FrontEnd/src/components/drafts/DraftNavigator.spec.ts`, `FrontEnd/src/components/drafts/DraftWorkspaceHeader.spec.ts`, `FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts`, `FrontEnd/src/components/drafts/DraftDiscordPublicationPanel.spec.ts`, `FrontEnd/src/components/drafts/DraftStateRail.spec.ts` e `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T028 [US4] Substituir seletores legados por estilos escopados do shell, roster, ações, rail e board em `FrontEnd/src/styles/main.css`
-- [ ] T029 [US4] Implementar breakpoints 1024px e 768px, coluna única em 320px, alvos de 44px e redução de movimento em `FrontEnd/src/styles/main.css`
+- [X] T028 [US4] Substituir seletores legados por estilos escopados do shell, roster, ações, rail e board em `FrontEnd/src/styles/main.css`
+- [X] T029 [US4] Implementar breakpoints 1024px e 768px, coluna única em 320px, alvos de 44px e redução de movimento em `FrontEnd/src/styles/main.css`
 - [ ] T030 [US4] Validar teclado, overflow e screenshots nos quatro viewports com `agent-browser` e registrar evidências locais em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
 **Checkpoint**: Fluxo responsivo e acessível aprovado localmente.

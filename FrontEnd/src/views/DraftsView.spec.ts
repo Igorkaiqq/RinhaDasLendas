@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,6 +14,7 @@ import DraftVisualBoardSource from '@/components/drafts/visual/DraftVisualBoard.
 import DraftPreparationPanelSource from '@/components/drafts/DraftPreparationPanel.vue?raw'
 import DraftDiscordPublicationPanelSource from '@/components/drafts/DraftDiscordPublicationPanel.vue?raw'
 import DraftNavigatorSource from '@/components/drafts/DraftNavigator.vue?raw'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
@@ -884,6 +887,19 @@ describe('DraftsView reason actions', () => {
   it('uses the application landmark and workspace identity only once', () => {
     expect(DraftsViewSource).not.toMatch(/<main\b/)
     expect(DraftVisualBoardSource).not.toContain('{{ localMontagem.nome }}')
+  })
+
+  it('keeps navigator before the labelled workspace in the responsive draft shell', async () => {
+    const wrapper = await mountView()
+    const shell = wrapper.get('[data-draft-shell]')
+    const navigator = shell.get('[data-testid="draft-navigator"]')
+    const workspace = shell.get('[data-draft-workspace]')
+
+    expect(shell.attributes('aria-label')).toBe('Draft de Jogadores')
+    expect(navigator.element.compareDocumentPosition(workspace.element) & 4).toBe(4)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-layout\s*{[^}]*grid-template-columns:\s*260px minmax\(0, 1fr\)/s)
+    expect(MainCss).toMatch(/\.drafts-page\s*{[^}]*overflow-x:\s*clip/s)
+    wrapper.unmount()
   })
 
   it('keeps cancellation only in the parent header while preserving the board emit contract', () => {

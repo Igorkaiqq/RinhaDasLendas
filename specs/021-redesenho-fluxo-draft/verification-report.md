@@ -363,3 +363,65 @@
 - Internacionalização: `npm test -- --run src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.
 - Whitespace: `git diff --check`; aprovado sem saída antes do fechamento documental; reexecutado após a atualização do relatório.
 - Escopo: nenhum serviço, backend, contrato HTTP, dependência, token ou regra de domínio foi alterado.
+
+## T027-T029 - Responsividade e acessibilidade estrutural
+
+### Progresso
+
+| Tarefa | Estado | Evidência |
+|--------|--------|-----------|
+| T027 | Concluída | Os sete arquivos de especificação exigidos cobrem ordem navegador/workspace, regiões nomeadas, contexto/progresso/ações, roster após controles, Discord subordinado, rail ordenado e board nomeado com ativação por teclado. |
+| T028 | Concluída | `main.css` recebeu estilos tardios escopados por `.drafts-page` para shell, navegador, workspace, cabeçalho, preparação, Discord, rail e board; seletores genéricos permanecem intactos para o `DraftBoard` legado e outras páginas. |
+| T029 | Concluída | O shell usa `260px minmax(0, 1fr)` acima de 1024px, navegador horizontal entre 769px e 1024px, seleção compacta e conteúdo em uma coluna até 768px, proteção de overflow em 320px, controles de 44px, nomes quebráveis e movimento reduzido sem pulsos/transições do draft. |
+| T030 | Pendente | Nenhuma validação real em navegador foi executada; não há screenshot, jornada autenticada ou medição de overflow registrada nesta fase. |
+
+### RED
+
+- Comando: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftStateRail.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts`.
+- Resultado: 7 arquivos falharam como esperado; 7 testes novos falharam e os 162 testes anteriores passaram.
+- Motivos esperados: shell e board ainda não tinham nomes programáticos; não existiam contratos escopados para layout lateral/horizontal/compacto, roster auto-fit, ações semânticas, status Discord, rail conectado, alvos de 44px, quebra segura ou movimento reduzido.
+- RED complementar do board: `npm test -- --run src/components/drafts/visual/DraftVisualBoard.spec.ts`; 2 testes falharam e 15 passaram por ausência de `touch-action`, ativação por Espaço e ocultação dos avatares decorativos.
+
+### GREEN
+
+- Focado inicial: os sete arquivos foram aprovados com 169 testes e 0 falhas.
+- Board complementar: `DraftVisualBoard.spec.ts` foi aprovado com 17 testes e 0 falhas após oferecer ativação por Espaço, iniciais decorativas ocultas e manipulação por toque.
+- A ordem de leitura permanece navegador, contexto/progresso/ações e conteúdo operacional; o shell e o board usam rótulos localizados existentes.
+- O rail é conectado horizontalmente acima de 1024px e verticalmente até 1024px; Discord permanece paralelo e os status usam sucesso, perigo, atenção, informação ou neutro sem depender apenas de cor.
+- Roster, pool e times não criam overflow vertical interno; somente o navegador de tablet usa rolagem horizontal contida.
+
+### Ledger de evidências
+
+| Critério | Evidência desta fase | Estado |
+|----------|----------------------|--------|
+| SC-002 | Contratos de CSS cobrem 260px/minmax, breakpoints de 1024px e 768px, coluna única, `overflow-x: clip` e filhos com `min-width: 0`. | Aprovado estruturalmente; medição e screenshots reais permanecem em T030. |
+| SC-003 | Roster usa `auto-fit` com mínimo limitado ao contêiner e uma coluna até 768px; nomes usam `overflow-wrap: anywhere`. | Aprovado estruturalmente; inspeção de 0/1/10/14/30 em 320px permanece em T030. |
+| SC-006 | Regiões possuem nomes, progresso usa lista ordenada e `aria-current`, controles têm foco visível e 44px, e jogadores abrem detalhes por Enter, Espaço ou clique. | Aprovado estruturalmente; jornada completa por Tab/Shift+Tab permanece em T030. |
+| SC-010 | Roster e pool usam overflow vertical visível; o fluxo evita uma segunda região vertical e mantém apenas navegação horizontal contida no tablet. | Aprovado estruturalmente; rolagem real com lista extensa permanece em T030. |
+
+### Pré-requisitos e bloqueio de T030
+
+- O devcontainer `rinhadaslendas_devcontainer-app-1` e o PostgreSQL saudável estão ativos, mas o frontend Vite em `http://localhost:5173` não foi iniciado nesta fase.
+- É necessária uma sessão dedicada autenticada com perfil de jogador e permissão Moderador+, sem registrar credenciais nos comandos ou artefatos.
+- São necessários drafts representativos dos sete status, fallback desconhecido, nomes longos e listas com 0, 1, 10, 14 e 30 participantes.
+- Depois desses dados, T030 exige `agent-browser` real em 1440x900, 1024x768, 768x900 e 320x844, jornada por Tab/Shift+Tab/Enter/Espaço, checagem de `scrollWidth`, movimento reduzido, console e screenshots locais.
+- Até essas condições serem atendidas e a execução real ser registrada, T030 permanece desmarcada.
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner em `DraftsView.vue` ou `components/drafts/**/*.vue`.
+- Sincronização `pt.json`/`en.json`: aprovada; nenhuma chave foi adicionada ou alterada nesta fase.
+- Backend e resources: nenhuma mensagem, validação ou resource alterado; atualização não necessária.
+- Acentuação portuguesa: revisada nos rótulos reutilizados pelo shell e pelo board.
+- Placeholders, botões, títulos, badges, toasts, validações e empty states: revisados; nenhuma nova mensagem visível foi introduzida.
+- Validações frontend e backend: nenhuma validação nova; mensagens existentes permanecem localizadas.
+- Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão de internacionalização.
+
+### Gates finais
+
+- Suíte focada: 7 arquivos e 170 testes aprovados, sem falhas.
+- Suíte completa: 37 arquivos e 357 testes aprovados, sem falhas.
+- Build: 2.764 módulos transformados e build concluído; permanecem somente os avisos não bloqueantes conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
+- Lint: `npm run lint:check` aprovado sem erros ou avisos.
+- Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas.
+- Whitespace e diff: `git diff --check` aprovado sem saída; somente os 12 arquivos esperados de T027-T029 e suas evidências foram alterados.

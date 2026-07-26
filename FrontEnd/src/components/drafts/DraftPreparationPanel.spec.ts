@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { i18n } from '@/i18n'
@@ -7,6 +9,7 @@ import type { DraftMontagem, DraftMontagemPresenca } from '@/types/draftMontagem
 
 import DraftPreparationPanel from './DraftPreparationPanel.vue'
 import DraftPreparationPanelSource from './DraftPreparationPanel.vue?raw'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const draft: DraftMontagem = {
   id: 'draft-1',
@@ -164,5 +167,18 @@ describe('DraftPreparationPanel', () => {
 
   it('does not import services', () => {
     expect(DraftPreparationPanelSource).not.toMatch(/@\/services\//)
+  })
+
+  it('keeps the labelled roster after controls and reflows cards without nested vertical scrolling', () => {
+    const wrapper = mountPanel({ confirmedPresences: presences(14) })
+    const panel = wrapper.get('section')
+    const manual = panel.get('[data-manual-presence]')
+    const roster = panel.get('[data-presence-roster]')
+
+    expect(panel.attributes('aria-labelledby')).toBe(`draft-preparation-title-${draft.id}`)
+    expect(manual.element.compareDocumentPosition(roster.element) & 4).toBe(4)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-preparation__roster\s*{[^}]*repeat\(auto-fit,\s*minmax\(min\(/s)
+    expect(MainCss).toMatch(/@media \(max-width:\s*768px\)[\s\S]*?\.drafts-page\s+\.draft-preparation__roster\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-preparation__roster\s*{[^}]*overflow-y:\s*visible/s)
   })
 })

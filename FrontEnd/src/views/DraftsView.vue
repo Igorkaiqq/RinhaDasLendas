@@ -783,7 +783,7 @@ function captureError(error: unknown) {
       <p v-for="error in errors" :key="error">{{ error }}</p>
     </div>
 
-    <section class="draft-layout">
+    <section class="draft-layout" data-draft-shell :aria-label="t('drafts.title')">
       <DraftNavigator
         :drafts="filteredDrafts"
         :selected-draft-id="selectedDraftId"
@@ -802,7 +802,7 @@ function captureError(error: unknown) {
         @create="visualSetupOpen = true"
       />
 
-      <div class="draft-main">
+      <div class="draft-main" data-draft-workspace>
         <DraftWorkspaceHeader
           v-if="selectedMontagem"
           :draft="selectedMontagem"

@@ -1,11 +1,14 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
 
 import DraftStateRail from './DraftStateRail.vue'
 import DraftStateRailSource from './DraftStateRail.vue?raw'
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 describe('DraftStateRail', () => {
   it.each([
@@ -78,5 +81,18 @@ describe('DraftStateRail', () => {
     expect(wrapper.findAll('.draft-rail__step').slice(0, -1).map((step) => step.attributes('data-step-id'))).toEqual(expectedIds)
     expect(DraftStateRailSource).toContain('DRAFT_MONTAGEM_STATUS_OPTIONS')
     expect(DraftStateRailSource).not.toMatch(/const order\s*=\s*\[/)
+  })
+
+  it('renders an ordered, connected horizontal rail that becomes unambiguously vertical', () => {
+    const wrapper = mount(DraftStateRail, {
+      props: { status: 'Aberta', publicationStatus: 'Pendente' },
+      global: { mocks: { $t: (key: string) => key } },
+    })
+
+    expect(wrapper.get('ol').attributes('aria-label')).toBe('drafts.rail.label')
+    expect(wrapper.get('[aria-current="step"]').attributes('data-step-id')).toBe('Aberta')
+    expect(MainCss).toMatch(/@media \(min-width:\s*1025px\)[\s\S]*?\.drafts-page\s+\.draft-rail\s*{[^}]*grid-auto-flow:\s*column/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-rail__step:not\(:last-child\)::after/s)
+    expect(MainCss).toMatch(/@media \(max-width:\s*1024px\)[\s\S]*?\.drafts-page\s+\.draft-rail\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
   })
 })

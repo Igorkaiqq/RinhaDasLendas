@@ -368,7 +368,7 @@ async function exportImage() {
 </script>
 
 <template>
-  <section class="draft-visual-shell draft-panel">
+  <section class="draft-visual-shell draft-panel" :aria-label="t('drafts.board.label')">
     <div class="draft-visual-actions">
       <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
       <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
@@ -420,8 +420,8 @@ async function exportImage() {
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
-              <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player" @keydown.space.prevent="detailsPlayer = player">
+              <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>{{ player.nomeExibicao }}</strong>
                 <small>{{ participantRoleLabel(player.jogadorId === time.capitaoId) }}</small>
@@ -465,9 +465,9 @@ async function exportImage() {
           <div class="draft-player-row draft-player-row--head" role="row">
             <span>{{ t('drafts.board.player') }}</span>
           </div>
-          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :data-player-id="player.jogadorId" :draggable="!isReadOnly && player.estado === DraftMontagemEstadoValues.Livre" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
+          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :data-player-id="player.jogadorId" :draggable="!isReadOnly && player.estado === DraftMontagemEstadoValues.Livre" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player" @keydown.space.prevent="detailsPlayer = player">
             <span class="draft-player-row__identity">
-              <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
+              <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>
                   {{ player.nomeExibicao }}
@@ -496,8 +496,8 @@ async function exportImage() {
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player">
-              <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" role="button" tabindex="0" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null" @click="detailsPlayer = player" @keydown.enter="detailsPlayer = player" @keydown.space.prevent="detailsPlayer = player">
+              <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
               <span class="draft-slot__copy">
                 <strong>{{ player.nomeExibicao }}</strong>
                 <small>{{ participantRoleLabel(player.jogadorId === time.capitaoId) }}</small>
