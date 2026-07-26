@@ -128,6 +128,32 @@ const discordPublicationMatrix = computed(() => {
   return [...canonical, ...noncanonical]
 })
 const finalTeamsPublicationStatus = computed(() => discordPublicationStatus('TimesDefinidos'))
+const selectedDataRinha = computed(() => visualMontagens.value.find((draft) => draft.id === selectedMontagem.value?.id)?.dataRinha ?? null)
+const preparationCapabilities = computed(() => {
+  const status = selectedMontagem.value?.status
+  const presenceOpen = status === DraftMontagemStatusValues.PresencaAberta
+  const presenceClosed = status === DraftMontagemStatusValues.PresencaEncerrada
+  const canManageOpenPresence = canManageDrafts.value && presenceOpen
+  const canSelectCaptains = canManageDrafts.value && presenceClosed
+
+  return {
+    canConfirmPresence: presenceOpen && !myPresence.value,
+    canCancelPresence: presenceOpen && Boolean(myPresence.value),
+    canClosePresence: canManageOpenPresence,
+    canContinueManualPresence: canManageOpenPresence && confirmedPresences.value.length < 10,
+    canManageManualPresence: canManageOpenPresence,
+    canSelectCaptains,
+    canDefineCaptains: canSelectCaptains
+      && captainSelection.value.length === selectedMontagem.value?.quantidadeTimes
+      && captainSelection.value.every((id) => confirmedPresences.value.some((presence) => presence.jogadorId === id)),
+    canDrawOrder: canManageDrafts.value && status === DraftMontagemStatusValues.CapitaesDefinidos,
+  }
+})
+const discordRepublishableTypes = computed<readonly DraftMontagemPublicacaoDiscordTipo[]>(() => {
+  if (!canManageDrafts.value) return []
+  return discordPublicationTypes.filter((tipo) => tipo !== 'ChamadaPresenca'
+    || ['Falha', 'RequerReconciliacao'].includes(discordPublicationStatus(tipo) ?? ''))
+})
 
 const filteredDrafts = computed(() => {
   const search = searchTerm.value.trim().toLowerCase()
@@ -370,7 +396,7 @@ async function loadEligibleManualPresencePlayers() {
 }
 
 async function confirmPresence() {
-  if (saving.value) return
+  if (saving.value || !preparationCapabilities.value.canConfirmPresence) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   let completed = false
@@ -392,7 +418,7 @@ async function confirmPresence() {
 }
 
 async function cancelPresence() {
-  if (saving.value) return
+  if (saving.value || !preparationCapabilities.value.canCancelPresence) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
@@ -407,7 +433,7 @@ async function cancelPresence() {
 }
 
 async function addManualPresence() {
-  if (saving.value || !selectedMontagem.value || !canManageDrafts.value || !selectedManualPresencePlayerId.value) return
+  if (saving.value || !selectedMontagem.value || !preparationCapabilities.value.canManageManualPresence || !selectedManualPresencePlayerId.value) return
   const player = availableManualPresencePlayers.value.find((item) => item.id === selectedManualPresencePlayerId.value)
   if (!player) return
 
@@ -415,7 +441,12 @@ async function addManualPresence() {
 }
 
 function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
-  if (!saving.value && selectedMontagem.value && canManageDrafts.value) {
+  if (
+    !saving.value
+    && selectedMontagem.value
+    && preparationCapabilities.value.canManageManualPresence
+    && confirmedPresences.value.some((presence) => presence.jogadorId === jogadorId)
+  ) {
     pendingReasonAction.value = { type: 'removeManualPresence', jogadorId, jogadorNome }
   }
 }
@@ -423,8 +454,12 @@ function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
 async function closePresence(continueWithLess = false) {
   if (saving.value) return
   const montagemAtual = selectedMontagem.value
+  const canClose = continueWithLess
+    ? preparationCapabilities.value.canContinueManualPresence
+    : preparationCapabilities.value.canClosePresence
+  if (!montagemAtual || !canClose) return
   const context = beginSelectedDraftUpdate()
-  if (!montagemAtual || !context || !canManageDrafts.value) return
+  if (!context) return
   let completed = false
   saving.value = true
   try {
@@ -656,8 +691,18 @@ async function pickRealtime(jogadorId: string) {
 }
 
 async function substituteReserve(payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }) {
+  const current = selectedMontagem.value
+  const team = current?.times.find((item) => item.id === payload.timeId)
+  if (
+    saving.value
+    || !canManageDrafts.value
+    || !current
+    || current.status !== DraftMontagemStatusValues.Aberta
+    || !team?.jogadores.some((player) => player.jogadorId === payload.jogadorSaiuId)
+    || !current.reservas.some((player) => player.jogadorId === payload.reservaEntrouId && player.estado === DraftMontagemEstadoValues.Reserva)
+  ) return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
 
   saving.value = true
   errors.value = []
@@ -734,34 +779,53 @@ function discordPublicationStatus(tipo: DraftMontagemPublicacaoDiscordTipo): Dra
   return discordPublicationMatrix.value.find((publication) => publication.tipo === tipo)?.status ?? null
 }
 
-function requestDiscordRepublish(tipo: DraftMontagemPublicacaoDiscordTipo) {
-  if (saving.value || !selectedMontagem.value || !canManageDrafts.value) return
-  const actions: Record<typeof tipo, DraftReasonDialogAction> = {
-    Presenca: { type: 'republishPresence', publicationStatus: discordPublicationStatus('Presenca') },
-    ChamadaPresenca: { type: 'republishPresenceCta', publicationStatus: discordPublicationStatus('ChamadaPresenca') },
-    TimesDefinidos: { type: 'republishTeams', publicationStatus: discordPublicationStatus('TimesDefinidos') },
+function requestDiscordRepublish(action: { publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }) {
+  const currentStatus = discordPublicationStatus(action.publicationType)
+  if (
+    saving.value
+    || !selectedMontagem.value
+    || !discordRepublishableTypes.value.includes(action.publicationType)
+    || currentStatus !== action.publicationStatus
+  ) return
+  pendingReasonAction.value = {
+    type: 'republishDiscord',
+    publicationType: action.publicationType,
+    publicationStatus: currentStatus,
   }
-  pendingReasonAction.value = actions[tipo]
+}
+
+function isReasonActionAvailable(action: DraftReasonDialogAction) {
+  if (action.type === 'cancelDraft') {
+    return selectedMontagem.value?.status !== DraftMontagemStatusValues.Finalizada
+      && selectedMontagem.value?.status !== DraftMontagemStatusValues.Cancelada
+  }
+  if (action.type === 'addManualPresence') {
+    return preparationCapabilities.value.canManageManualPresence
+      && availableManualPresencePlayers.value.some((player) => player.id === action.jogadorId)
+  }
+  if (action.type === 'removeManualPresence') {
+    return preparationCapabilities.value.canManageManualPresence
+      && confirmedPresences.value.some((presence) => presence.jogadorId === action.jogadorId)
+  }
+  return discordRepublishableTypes.value.includes(action.publicationType)
+    && discordPublicationStatus(action.publicationType) === action.publicationStatus
 }
 
 async function confirmReasonAction(reason: string) {
   if (saving.value) return
 
   const action = pendingReasonAction.value
-  if (!action || !selectedMontagem.value || !canManageDrafts.value) return
+  if (!action || !selectedMontagem.value) return
+  if (!canManageDrafts.value || !isReasonActionAvailable(action)) {
+    pendingReasonAction.value = null
+    return
+  }
   const context = beginSelectedDraftUpdate()
   if (!context) return
 
   saving.value = true
   try {
     if (action.type === 'cancelDraft') {
-      if (
-        selectedMontagem.value?.status === DraftMontagemStatusValues.Finalizada
-        || selectedMontagem.value?.status === DraftMontagemStatusValues.Cancelada
-      ) {
-        pendingReasonAction.value = null
-        return
-      }
       const montagem = await cancelDraftMontagem(context.draftId, reason)
       if (!(await applyMutationProjection(context, montagem))) return
       await loadVisualMontagens()
@@ -778,12 +842,7 @@ async function confirmReasonAction(reason: string) {
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
     } else {
-      const tipo = action.type === 'republishPresence'
-        ? 'Presenca'
-        : action.type === 'republishPresenceCta'
-          ? 'ChamadaPresenca'
-          : 'TimesDefinidos'
-      const montagem = await republishDraftMontagemDiscordPublication(context.draftId, tipo, reason)
+      const montagem = await republishDraftMontagemDiscordPublication(context.draftId, action.publicationType, reason)
       if (!(await applyMutationProjection(context, montagem))) return
       notification.value = t('drafts.publication.republishRequested')
     }
@@ -850,6 +909,7 @@ function captureError(error: unknown) {
           v-if="selectedMontagem"
           ref="workspaceHeader"
           :draft="selectedMontagem"
+          :data-rinha="selectedDataRinha"
           :confirmed-count="confirmedPresences.length"
           :final-teams-publication-status="finalTeamsPublicationStatus"
         >
@@ -866,9 +926,15 @@ function captureError(error: unknown) {
           v-if="selectedMontagem && preparationStatuses.includes(selectedMontagem.status)"
           :draft="selectedMontagem"
           :confirmed-presences="confirmedPresences"
-          :current-user-has-presence="Boolean(myPresence)"
-          :can-manage="canManageDrafts"
           :saving="saving"
+          :can-confirm-presence="preparationCapabilities.canConfirmPresence"
+          :can-cancel-presence="preparationCapabilities.canCancelPresence"
+          :can-close-presence="preparationCapabilities.canClosePresence"
+          :can-continue-manual-presence="preparationCapabilities.canContinueManualPresence"
+          :can-manage-manual-presence="preparationCapabilities.canManageManualPresence"
+          :can-select-captains="preparationCapabilities.canSelectCaptains"
+          :can-define-captains="preparationCapabilities.canDefineCaptains"
+          :can-draw-order="preparationCapabilities.canDrawOrder"
           :captain-selection="captainSelection"
           :manual-presence-search="manualPresenceSearch"
           :selected-manual-presence-player-id="selectedManualPresencePlayerId"
@@ -888,7 +954,7 @@ function captureError(error: unknown) {
         <DraftDiscordPublicationPanel
           v-if="selectedMontagem && canManageDrafts"
           :publications="discordPublicationMatrix"
-          :can-manage="canManageDrafts"
+          :republishable-types="discordRepublishableTypes"
           :saving="saving"
           @republish="requestDiscordRepublish"
         />

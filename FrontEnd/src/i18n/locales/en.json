@@ -45,7 +45,7 @@
     "confirm": "Confirm",
     "confirmation": "Confirmation",
     "save": "Save",
-    "saving": "Saving...",
+    "saving": "Saving…",
     "edit": "Edit",
     "back": "Back",
     "optional": "Optional",
@@ -142,7 +142,7 @@
       "complete": "Complete profile"
     },
     "player": {
-      "loading": "Loading player profile...",
+      "loading": "Loading player profile…",
       "messages": { "saved": "Player profile saved." },
       "errors": { "saveFallback": "Could not save player profile." }
     }
@@ -178,7 +178,7 @@
       "title": "Enter the Rinha",
       "description": "Access your account to organize players, drafts, and community matches.",
       "submit": "Log in",
-      "submitting": "Logging in...",
+      "submitting": "Logging in…",
       "discord": "Log in with Discord",
       "forgotPassword": "Forgot password",
       "createAccount": "Create account",
@@ -196,7 +196,7 @@
       "title": "Join the community",
       "description": "Every new account starts as a player and can evolve with organization permissions.",
       "submit": "Create account",
-      "submitting": "Creating...",
+      "submitting": "Creating…",
       "discord": "Create account with Discord",
       "haveAccount": "I already have an account",
       "errors": { "fallback": "Could not register" }
@@ -232,13 +232,13 @@
         "mark": "DC",
         "title": "Discord",
         "description": "Use your Discord account as an optional login and prepare the account for future social integrations.",
-        "loading": "Loading Discord status...",
+        "loading": "Loading Discord status…",
         "linkedAs": "Linked as {username}",
         "notLinkedDescription": "No Discord account linked.",
         "link": "Link Discord",
-        "linking": "Redirecting...",
+        "linking": "Redirecting…",
         "unlink": "Unlink Discord",
-        "unlinking": "Unlinking...",
+        "unlinking": "Unlinking…",
         "messages": {
           "success": "Discord operation completed.",
           "error": "Could not complete the Discord operation.",
@@ -427,7 +427,7 @@
       "mark": "BOT",
       "title": "Discord Settings",
       "description": "Define the channels used by the bot for presence lists, news, administration, drafts and results.",
-      "loading": "Loading Discord settings...",
+      "loading": "Loading Discord settings…",
       "fields": {
         "guildId": "Discord Server",
         "presenceChannelId": "Presence List Channel",
@@ -592,7 +592,7 @@
     "picked": "{name} picked.",
     "filtersLabel": "Draft filters",
     "searchLabel": "Search draft",
-    "searchPlaceholder": "Draft name",
+    "searchPlaceholder": "E.g. Sunday rinha…",
     "listLabel": "Draft list",
     "emptyTitle": "No drafts found",
     "emptyDescription": "Create the first draft or adjust filters.",
@@ -626,7 +626,9 @@
       "soundOn": "Sound on",
       "emergencyReserve": "Emergency reserve",
       "substitute": "Substitute",
-      "reserveSubstituted": "Reserve substituted into the team."
+      "reserveSubstituted": "Reserve substituted into the team.",
+      "liveStatus": "{captain} is on the clock for {team}. {current} of {total} picks completed.",
+      "liveProgress": "{current} of {total} picks completed."
     },
     "errors": {
       "create": "Could not create draft.",
@@ -782,7 +784,7 @@
       "captainTeamB": "Team B Captain",
       "drawFirstPick": "Draw first pick",
       "firstPick": "First pick",
-      "creating": "Creating...",
+      "creating": "Creating…",
       "submit": "Create draft"
     },
     "cancelDialog": {
@@ -797,7 +799,7 @@
       "selectPlayer": "Select player",
       "emptySlot": "Empty slot",
       "choosing": "CHOOSING",
-      "searchPlaceholder": "Search players by name or route...",
+      "searchPlaceholder": "Search players by name or route…",
       "routeFilters": "Route filters",
       "nextPick": "Next pick",
       "criteria": "Captains: {captains} · First pick: {firstPick}",
@@ -834,7 +836,7 @@
       "oddTeams": "Odd teams",
       "evenTeams": "Even teams",
       "pending": "pending",
-      "searchPlaceholder": "Search players by name, elo, or route...",
+      "searchPlaceholder": "Search players by name, elo, or route…",
       "playerSearchLabel": "Search available players",
       "teamNameLabel": "Team {name} name",
       "displayedRoutes": "Displayed routes",
@@ -847,6 +849,11 @@
       "pickProgress": "{current} / {total} picks",
       "pickSequence": "Pick sequence",
       "timeout": "Turn timed out",
+      "detailsFor": "View details for {name}",
+      "moveDestination": "Move {name} to",
+      "moveDestinationOption": "Move to…",
+      "moveToFree": "Free players",
+      "moveToReserves": "Reserves",
       "routeFilters": {
         "all": "ALL ROUTES",
         "top": "TOP",
@@ -881,7 +888,7 @@
       "title": "Users",
       "description": "Manage accounts, permissions, status, and player links without leaving the operational flow."
     },
-    "loading": "Loading users...",
+    "loading": "Loading users…",
     "status": {
       "active": "Active",
       "disabled": "Disabled"
@@ -911,7 +918,7 @@
     "details": {
       "eyebrow": "Administration",
       "title": "Edit user",
-      "loading": "Loading user...",
+      "loading": "Loading user…",
       "displayName": "Display name",
       "namePlaceholder": "User name",
       "saveData": "Save data",
@@ -999,7 +1006,7 @@
     "select": "Select",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving...",
+    "saving": "Saving…",
     "placeholders": {
       "displayName": "Hide on bush",
       "discord": "user#1234",

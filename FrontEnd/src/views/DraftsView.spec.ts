@@ -6,7 +6,7 @@ import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemParticipante, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftsView from './DraftsView.vue'
 import DraftsViewSource from './DraftsView.vue?raw'
@@ -15,6 +15,7 @@ import DraftPreparationPanelSource from '@/components/drafts/DraftPreparationPan
 import DraftDiscordPublicationPanelSource from '@/components/drafts/DraftDiscordPublicationPanel.vue?raw'
 import DraftNavigatorSource from '@/components/drafts/DraftNavigator.vue?raw'
 const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
+const IndexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
 
 const serviceMocks = vi.hoisted(() => ({
   cancelDraftMontagem: vi.fn(),
@@ -35,6 +36,7 @@ const serviceMocks = vi.hoisted(() => ({
   registerDraftMontagemPick: vi.fn(),
   saveDraftMontagemLayout: vi.fn(),
   startDraftMontagemRealtime: vi.fn(),
+  substituteDraftMontagemReserve: vi.fn(),
 }))
 const authMock = vi.hoisted(() => ({ canManageDrafts: true, jogadorId: null as string | null }))
 const realtimeMock = vi.hoisted(() => ({
@@ -66,7 +68,7 @@ vi.mock('@/services/draftMontagens', () => ({
   },
   createDraftMontagem: vi.fn(),
   drawDraftMontagemCaptains: vi.fn(),
-  substituteDraftMontagemReserve: vi.fn(),
+  substituteDraftMontagemReserve: serviceMocks.substituteDraftMontagemReserve,
 }))
 
 vi.mock('@/services/draftMontagemRealtime', () => ({
@@ -128,6 +130,7 @@ const resumo: DraftMontagemResumo = {
   quantidadeTimes: montagem.quantidadeTimes,
   quantidadeReservas: montagem.quantidadeReservas,
   presencaContinuadaManualmente: montagem.presencaContinuadaManualmente,
+  dataRinha: '2026-07-27T03:00:00Z',
   dataCadastro: montagem.dataCadastro,
   dataAtualizacao: montagem.dataAtualizacao,
 }
@@ -330,6 +333,7 @@ describe('DraftsView reason actions', () => {
     serviceMocks.registerDraftMontagemPick.mockResolvedValue({ montagem, canCurrentUserPick: false })
     serviceMocks.saveDraftMontagemLayout.mockResolvedValue(montagem)
     serviceMocks.startDraftMontagemRealtime.mockResolvedValue({ montagem, canCurrentUserPick: false })
+    serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem, canCurrentUserPick: false, serverNow: montagem.dataAtualizacao })
   })
 
   it('loads only the administrative endpoint when the user can manage drafts', async () => {
@@ -579,7 +583,11 @@ describe('DraftsView reason actions', () => {
     await openReasonDialog(wrapper, 'Republicar presença')
     expect(wrapper.text()).toContain('Status atual: falhou')
     expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(false)
-    expect((wrapper.vm as unknown as { pendingReasonAction: { type: string } }).pendingReasonAction).toMatchObject({ type: 'republishPresence' })
+    expect((wrapper.vm as unknown as { pendingReasonAction: { type: string } }).pendingReasonAction).toMatchObject({
+      type: 'republishDiscord',
+      publicationType: 'Presenca',
+      publicationStatus: 'Falha',
+    })
     await wrapper.get('textarea').setValue('canal corrigido')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -639,7 +647,7 @@ describe('DraftsView reason actions', () => {
       actionTestId: 'republish-presence',
       expectedContext: 'Lista de presença',
       expectedStatus: 'Status atual: Estado de publicação desconhecido',
-      expectedActionType: 'republishPresence',
+      expectedPublicationType: 'Presenca',
     },
     {
       locale: 'en',
@@ -647,9 +655,9 @@ describe('DraftsView reason actions', () => {
       actionTestId: 'republish-final-teams',
       expectedContext: 'Defined teams',
       expectedStatus: 'Current status: Unknown publication status',
-      expectedActionType: 'republishTeams',
+      expectedPublicationType: 'TimesDefinidos',
     },
-  ] as const)('keeps missing status null from a $locale $publications projection through the reason dialog', async ({ locale, publications, actionTestId, expectedContext, expectedStatus, expectedActionType }) => {
+  ] as const)('keeps missing status null from a $locale $publications projection through the reason dialog', async ({ locale, publications, actionTestId, expectedContext, expectedStatus, expectedPublicationType }) => {
     setLocale(locale)
     const projection = adminProjection()
     projection.publicacoesDiscord = publications as unknown as DraftMontagemAdmin['publicacoesDiscord']
@@ -666,7 +674,8 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
 
     expect((wrapper.vm as unknown as { pendingReasonAction: { type: string; publicationStatus: unknown } }).pendingReasonAction).toEqual({
-      type: expectedActionType,
+      type: 'republishDiscord',
+      publicationType: expectedPublicationType,
       publicationStatus: null,
     })
     expect(wrapper.get('[role="dialog"]').text()).toContain(expectedContext)
@@ -777,12 +786,14 @@ describe('DraftsView reason actions', () => {
     await emitRealtime('montagem-1', { ...montagem, status })
     await flushPromises()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    const requestVersionBefore = (wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion
 
     await wrapper.get('textarea').setValue('cancelamento obsoleto')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(serviceMocks.cancelDraftMontagem).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion).toBe(requestVersionBefore)
     expect((wrapper.vm as unknown as { pendingReasonAction: unknown }).pendingReasonAction).toBeNull()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     wrapper.unmount()
@@ -882,7 +893,7 @@ describe('DraftsView reason actions', () => {
     const wrapper = await mountView()
     const workspace = wrapper.get('[data-testid="draft-workspace-header"]')
 
-    expect(workspace.get('h1').text()).toBe(montagem.nome)
+    expect(workspace.get('h2').text()).toBe(montagem.nome)
     expect(workspace.get('[data-workspace-status]').text()).toBe(i18n.global.t(`drafts.status.${status}`))
     expect(workspace.get('[data-action-group="primary"]').findAll('button').length).toBeLessThanOrEqual(1)
     if (status === 'Finalizada' || status === 'Cancelada') {
@@ -908,8 +919,13 @@ describe('DraftsView reason actions', () => {
     expect(shell.attributes('aria-label')).toBe('Draft de Jogadores')
     expect(navigator.element.compareDocumentPosition(workspace.element) & 4).toBe(4)
     expect(MainCss).toMatch(/\.drafts-page\s+\.draft-layout\s*{[^}]*grid-template-columns:\s*260px minmax\(0, 1fr\)/s)
-    expect(MainCss).toMatch(/\.drafts-page\s*{[^}]*overflow-x:\s*clip/s)
+    expect(MainCss).not.toMatch(/\.drafts-page\s*{[^}]*overflow-x:\s*clip/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-main\s*>\s*\*[\s\S]*?min-width:\s*0/s)
     wrapper.unmount()
+  })
+
+  it('declares the dark browser chrome color', () => {
+    expect(IndexHtml).toContain('<meta name="theme-color" content="#09090B" />')
   })
 
   it('keeps cancellation only in the parent header while preserving the board emit contract', () => {
@@ -922,6 +938,29 @@ describe('DraftsView reason actions', () => {
     expect(DraftsViewSource).toContain('<DraftDiscordPublicationPanel')
     expect(DraftPreparationPanelSource).not.toMatch(/@\/services\//)
     expect(DraftDiscordPublicationPanelSource).not.toMatch(/@\/services\//)
+    expect(DraftPreparationPanelSource).not.toMatch(/\bcanManage:\s*boolean/)
+    expect(DraftDiscordPublicationPanelSource).not.toContain('canManage')
+  })
+
+  it('passes the selected summary dataRinha and parent-computed action capabilities', async () => {
+    const wrapper = await mountView()
+    const header = wrapper.getComponent({ name: 'DraftWorkspaceHeader' })
+    const preparation = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+    const publications = wrapper.getComponent({ name: 'DraftDiscordPublicationPanel' })
+
+    expect(header.props('dataRinha')).toBe('2026-07-27T03:00:00Z')
+    expect(preparation.props()).toMatchObject({
+      canConfirmPresence: true,
+      canCancelPresence: false,
+      canClosePresence: true,
+      canContinueManualPresence: true,
+      canManageManualPresence: true,
+      canSelectCaptains: false,
+      canDefineCaptains: false,
+      canDrawOrder: false,
+    })
+    expect(publications.props('republishableTypes')).toEqual(['Presenca', 'ChamadaPresenca', 'TimesDefinidos'])
+    wrapper.unmount()
   })
 
   it('integrates the presentation-only navigator with filtered data and permissions', async () => {
@@ -1177,7 +1216,7 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('preserves confirmation, cancellation, and both close-presence payloads through the preparation panel', async () => {
+  it('preserves confirmation and both close-presence payloads through the preparation panel', async () => {
     const wrapper = await mountView()
     const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
 
@@ -1185,16 +1224,28 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
     expect(serviceMocks.confirmDraftMontagemPresence).toHaveBeenCalledWith('montagem-1')
 
-    panel.vm.$emit('cancel-presence')
-    await flushPromises()
-    expect(serviceMocks.cancelDraftMontagemPresence).toHaveBeenCalledWith('montagem-1')
-
     panel.vm.$emit('close-presence', false)
     await flushPromises()
     panel.vm.$emit('close-presence', true)
     await flushPromises()
     expect(serviceMocks.closeDraftMontagemPresence).toHaveBeenNthCalledWith(1, 'montagem-1', false, 5)
     expect(serviceMocks.closeDraftMontagemPresence).toHaveBeenNthCalledWith(2, 'montagem-1', true, 5)
+    wrapper.unmount()
+  })
+
+  it('cancels presence only when the current player still has a confirmed presence', async () => {
+    authMock.jogadorId = 'jogador-1'
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('cancel-presence')
+    await flushPromises()
+    expect(serviceMocks.cancelDraftMontagemPresence).toHaveBeenCalledWith('montagem-1')
+
+    ;(wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.presencas = []
+    panel.vm.$emit('cancel-presence')
+    await flushPromises()
+    expect(serviceMocks.cancelDraftMontagemPresence).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 
@@ -1208,7 +1259,7 @@ describe('DraftsView reason actions', () => {
     expect(wrapper.get('[role="dialog"]').text()).toContain('Jogador afetado: Ahri')
     await wrapper.get('[data-testid="draft-reason-cancel"]').trigger('click')
 
-    publications.vm.$emit('republish', 'TimesDefinidos')
+    publications.vm.$emit('republish', { publicationType: 'TimesDefinidos', publicationStatus: 'Publicada' })
     await flushPromises()
     expect(wrapper.get('[role="dialog"]').text()).toContain('Republicar times')
     wrapper.unmount()
@@ -1218,7 +1269,11 @@ describe('DraftsView reason actions', () => {
     authMock.canManageDrafts = false
     const wrapper = await mountView()
 
-    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('canManage')).toBe(false)
+    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props()).toMatchObject({
+      canClosePresence: false,
+      canManageManualPresence: false,
+      canSelectCaptains: false,
+    })
     expect(wrapper.findComponent({ name: 'DraftDiscordPublicationPanel' }).exists()).toBe(false)
     wrapper.unmount()
   })
@@ -1236,6 +1291,73 @@ describe('DraftsView reason actions', () => {
     expect(serviceMocks.confirmDraftMontagemPresence).toHaveBeenCalledTimes(1)
     resolveConfirmation(montagem)
     await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('revalidates substitution membership and blocks rapid duplicate requests', async () => {
+    const outgoing = { ...realtimeCaptain, jogadorId: 'outgoing-1', nomeExibicao: 'Jogador titular', capitao: false, ordem: 2 }
+    const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', nomeExibicao: 'Jogador reserva', estado: 'Reserva' as const, capitao: false }
+    const activeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      times: [{ ...realtimeTeam, jogadores: [realtimeCaptain, outgoing] }],
+      reservas: [reserve],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({ ...adminProjection('Aberta'), ...activeDraft })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    let resolveSubstitution!: (value: DraftMontagemRealtimeState) => void
+    serviceMocks.substituteDraftMontagemReserve.mockReturnValueOnce(new Promise((resolve) => { resolveSubstitution = resolve }))
+    const wrapper = await mountView()
+    const payload = { timeId: 'time-1', jogadorSaiuId: 'outgoing-1', reservaEntrouId: 'reserve-1', motivo: null }
+    const vm = wrapper.vm as unknown as { substituteReserve: (value: typeof payload) => Promise<void> }
+
+    void vm.substituteReserve(payload)
+    void vm.substituteReserve(payload)
+    await nextTick()
+
+    expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledTimes(1)
+    expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledWith('montagem-1', payload)
+    resolveSubstitution({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    await flushPromises()
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    await vm.substituteReserve(payload)
+    expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it.each<[string, {
+    status?: DraftMontagemStatus
+    times?: DraftMontagem['times']
+    outgoingId?: string
+    reserveState?: DraftMontagemParticipante['estado']
+  }]>([
+    ['terminal status', { status: 'Finalizada' }],
+    ['missing team', { times: [] }],
+    ['outgoing player outside team', { outgoingId: 'missing-player' }],
+    ['ineligible reserve', { reserveState: 'Livre' }],
+  ])('rejects a substitution with %s', async (_, scenario) => {
+    const outgoing = { ...realtimeCaptain, jogadorId: 'outgoing-1', capitao: false, ordem: 2 }
+    const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', estado: scenario.reserveState ?? 'Reserva', capitao: false }
+    const activeDraft: DraftMontagem = {
+      ...montagem,
+      status: scenario.status ?? 'Aberta',
+      modo: 'TempoReal',
+      times: scenario.times ?? [{ ...realtimeTeam, jogadores: [realtimeCaptain, outgoing] }],
+      reservas: [reserve],
+    } as DraftMontagem
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({ ...adminProjection(activeDraft.status), ...activeDraft })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    const wrapper = await mountView()
+
+    await (wrapper.vm as unknown as { substituteReserve: (value: object) => Promise<void> }).substituteReserve({
+      timeId: 'time-1',
+      jogadorSaiuId: scenario.outgoingId ?? 'outgoing-1',
+      reservaEntrouId: 'reserve-1',
+      motivo: null,
+    })
+
+    expect(serviceMocks.substituteDraftMontagemReserve).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

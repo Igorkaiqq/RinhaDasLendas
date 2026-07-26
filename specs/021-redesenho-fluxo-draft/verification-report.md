@@ -848,3 +848,65 @@
 - Regressão editorial: `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`; 5 arquivos e 58 testes aprovados, 0 falhas.
 - Internacionalização incluída na regressão editorial: `i18n.spec.ts` aprovou 30 testes, 0 falhas.
 - Locales `pt.json` e `en.json`: não alterados; nenhuma execução adicional separada de i18n é necessária além da suíte focada solicitada.
+
+## Correções da revisão final de 2026-07-26
+
+### Escopo e TDD
+
+- Nenhuma tarefa foi reaberta ou remarcada. Esta seção acrescenta somente evidência dos achados finais sobre a implementação já concluída.
+- RED principal: `npm test -- --run src/components/drafts/visual/DraftVisualBoard.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/views/DraftsView.spec.ts src/i18n/i18n.spec.ts`; 8 arquivos falharam, 67 testes falharam e 182 passaram. As falhas reproduziram semântica interativa aninhada, ausência de capabilities, guards de substituição, contrato de `dataRinha`, ação Discord fragmentada, alternativas de movimento, anúncios, `aria-pressed` e ajustes de design/i18n.
+- RED complementar do destino inválido: o teste focado removeu `available-1` ao receber `missing-team`; 1 falha e 25 testes ignorados.
+- GREEN complementar do destino inválido: o mesmo teste passou após validar o destino antes de remover o jogador.
+- RED complementar de ação obsoleta: os dois cenários de cancelamento terminal falharam porque `detailRequestVersion` avançava de 3 para 4 antes da rejeição.
+- GREEN complementar de ação obsoleta: os dois cenários passaram após revalidar a capability antes de criar o contexto de atualização.
+- GREEN focado final: os oito arquivos principais aprovaram 250 testes antes dos dois casos complementares; a suíte final abaixo inclui ambos.
+
+### Correções comprovadas
+
+- `DraftVisualBoard` usa botão nativo separado para detalhes e controles irmãos para pick/substituição, contém bubbling de teclado, bloqueia substituições duplicadas e mantém drag-and-drop junto de 33 selects localizados de destino no cenário real.
+- `DraftsView` revalida substituição por permissão, salvamento, status, time, titular e reserva elegível; a primeira chamada ativa `saving` antes da segunda chamada rápida.
+- O cabeçalho recebe `dataRinha` do resumo selecionado pelo mesmo ID e usa o encerramento da presença somente como fallback; seu título é `h2`.
+- Filtros de rota expõem `aria-pressed`; turno e progresso realtime usam região `aria-live="polite"`.
+- `DraftPreparationPanel` e `DraftDiscordPublicationPanel` não importam serviços/autenticação nem derivam autorização de ação; recebem capabilities explícitas calculadas e revalidadas no pai.
+- Republicação usa somente `{ type: 'republishDiscord', publicationType, publicationStatus }` entre painel, diálogo e handler, com matriz dos três tipos.
+- Diálogo não aplica autofocus em viewport mobile e contém overscroll. Navegador usa exemplo localizado com `…`, status com `autocomplete="off"` e `--font-data`.
+- Animações alteradas usam `transform`/`opacity`; `theme-color` escuro foi adicionado. O `overflow-x: clip` foi removido somente depois da medição real descrita abaixo.
+
+### Validação real do overflow removido
+
+- Harness reutilizado: `/tmp/opencode/feature021-e2e`, aplicação real em `http://127.0.0.1:4174/drafts?draftId=open` e backend determinístico em `http://127.0.0.1:4311`.
+- `1440x900`: `scrollWidth=1440`, `clientWidth=1440`, overflow falso, zero scroller vertical interno e zero alvo menor que 44px.
+- `1024x768`: `scrollWidth=1024`, `clientWidth=1024`, overflow falso, zero scroller vertical interno e zero alvo menor que 44px.
+- `768x900`: `scrollWidth=768`, `clientWidth=768`, overflow falso, zero scroller vertical interno e zero alvo menor que 44px.
+- `320x844`: `scrollWidth=320`, `clientWidth=320`, overflow falso, zero scroller vertical interno e zero alvo menor que 44px.
+- Inspeção DOM em 320px: zero controles interativos aninhados, zero linhas com `role="button"`, 33 botões de detalhes, 33 controles de destino, filtros com estados `true,false,false,false,false,false` e live region `polite`.
+- Evidências locais: `evals/review-fix-overflow-*.json` e `screenshots/review-fix-open-320x844.png`.
+
+### Gates finais da revisão
+
+| Gate | Resultado final |
+|------|-----------------|
+| Suíte completa | 38 arquivos, 405 testes aprovados, 0 falhas |
+| Build | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | aprovado sem erros ou avisos |
+| i18n | 31 testes aprovados, 0 falhas |
+| Dependências | 0 vulnerabilidades em nível moderado ou superior |
+
+- O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
+- Auditoria arquitetural: `DraftsView` preserva serviços, autorização, concorrência e guards; filhos permanecem de apresentação. Nenhuma mudança ocorreu em backend, bot, banco, contratos HTTP ou dependências.
+
+### Auditoria de internacionalização da revisão final
+
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner do fluxo de Draft.
+- Textos visíveis hardcoded no backend: não encontrados; backend não foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada integralmente por 31 testes.
+- Resources backend: nenhuma atualização necessária.
+- Acentuação portuguesa: revisada em detalhes, destinos, anúncios, placeholders e feedbacks de carregamento/salvamento.
+- Placeholders, botões, títulos, badges, toasts e estados vazios: revisados; novos textos usam somente chaves equivalentes PT/EN.
+- Validações frontend/backend: mensagens existentes continuam localizadas; nenhuma validação backend foi alterada.
+- Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão.
+
+### Limites restantes
+
+- A validação de navegador usa backend determinístico local, não backend ou deploy produtivo.
+- Permanecem apenas os avisos de build já conhecidos; refatorações de ownership CSS, cards de time, arquivos de teste e migração inalterada de `PlayerDetailsDrawer` continuaram fora do escopo.

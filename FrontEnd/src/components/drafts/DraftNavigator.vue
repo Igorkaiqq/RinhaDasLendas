@@ -107,7 +107,7 @@ function formatDate(draft: DraftNavigatorItem) {
       </label>
       <label>
         <span>{{ t('common.status') }}</span>
-        <select name="draft-status" :value="selectedStatus" @change="updateStatus">
+        <select name="draft-status" autocomplete="off" :value="selectedStatus" @change="updateStatus">
           <option value="">{{ t('common.all') }}</option>
           <option v-for="status in statusOptions" :key="status" :value="status">
             {{ t(`drafts.status.${status}`) }}
@@ -281,7 +281,7 @@ function formatDate(draft: DraftNavigatorItem) {
 
 .draft-navigator__status,
 .draft-navigator__date {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 0.75rem;
 }
 

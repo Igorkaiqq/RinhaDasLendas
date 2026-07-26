@@ -57,6 +57,7 @@ type DraftWorkspacePresentation = Omit<DraftMontagem, 'status'> & {
 
 interface DraftWorkspaceHeaderProps {
   draft: DraftWorkspacePresentation
+  dataRinha?: string | null
   confirmedCount: number
   finalTeamsPublicationStatus: DraftMontagemPublicacaoDiscordStatus | null
 }
@@ -71,6 +72,8 @@ Slots:
 Garantias:
 
 - nome, data, status e contadores permanecem visíveis em todas as etapas;
+- `dataRinha` vem do `DraftMontagemResumo` selecionado por ID; somente quando ausente o componente usa `horarioEncerramentoPresenca` como fallback;
+- o nome do workspace usa `h2`, subordinado ao `h1` da página;
 - o componente posiciona os grupos separadamente; a view preenche no máximo um controle em `primary-action`, validado por teste;
 - nome longo não sobrepõe métricas ou ações.
 
@@ -87,9 +90,15 @@ interface EligiblePresencePlayer {
 interface DraftPreparationPanelProps {
   draft: DraftMontagem
   confirmedPresences: readonly DraftMontagemPresenca[]
-  currentUserHasPresence: boolean
-  canManage: boolean
   saving: boolean
+  canConfirmPresence: boolean
+  canCancelPresence: boolean
+  canClosePresence: boolean
+  canContinueManualPresence: boolean
+  canManageManualPresence: boolean
+  canSelectCaptains: boolean
+  canDefineCaptains: boolean
+  canDrawOrder: boolean
   captainSelection: readonly string[]
   manualPresenceSearch: string
   selectedManualPresencePlayerId: string
@@ -115,6 +124,7 @@ Garantias:
 
 - participante apresenta identidade, origem e ação como regiões distintas;
 - seleção de capitão usa estado pressionado acessível;
+- disponibilidade de cada ação chega por capability explícita calculada em `DraftsView`; o filho não deriva autorização ou etapa para ações;
 - eventos preservam IDs e nomes esperados pela view;
 - nenhum serviço é chamado diretamente.
 
@@ -130,20 +140,42 @@ interface DraftPublicationPresentation {
 
 interface DraftDiscordPublicationPanelProps {
   publications: readonly DraftPublicationPresentation[]
-  canManage: boolean
+  republishableTypes: readonly DraftMontagemPublicacaoDiscordTipo[]
   saving: boolean
 }
 
 defineEmits<{
-  republish: [tipo: DraftMontagemPublicacaoDiscordTipo]
+  republish: [action: {
+    publicationType: DraftMontagemPublicacaoDiscordTipo
+    publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null
+  }]
 }>()
 ```
 
 Garantias:
 
 - status ausente ou desconhecido é neutro;
+- disponibilidade de republicação chega por `republishableTypes`, calculada e revalidada em `DraftsView`;
 - republicação nunca usa variante primária da etapa;
 - conteúdo permanece localizado.
+
+## `DraftReasonDialog`
+
+Republicações usam uma única ação tipada, sem converter tipo de publicação em variantes intermediárias:
+
+```ts
+type DraftReasonDialogAction =
+  | { type: 'cancelDraft' }
+  | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
+  | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
+  | {
+      type: 'republishDiscord'
+      publicationType: DraftMontagemPublicacaoDiscordTipo
+      publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null
+    }
+```
+
+No mobile o campo de motivo não recebe autofocus; o diálogo contém o overscroll e mantém as regras de restauração de foco existentes.
 
 ## `DraftStateRail` e `DraftRail`
 
@@ -195,6 +227,10 @@ Garantias adicionais:
 - finalizado e cancelado não exibem controles mutáveis;
 - progresso das escolhas usa `montagem.escolhas` sem alterar dados recebidos;
 - preferências de rota permanecem visíveis nos jogadores disponíveis e detalhes, inclusive em layouts compactos;
+- cada linha usa botão nativo separado para detalhes e controles irmãos para escolha/substituição, sem semântica interativa aninhada e com eventos de teclado contidos;
+- jogadores editáveis mantêm drag-and-drop e recebem também seleção localizada de destino operável por teclado e toque;
+- filtros de rota expõem `aria-pressed` e o turno/progresso realtime é anunciado em região `aria-live="polite"`;
+- substituição local bloqueia duplicidade rápida e fica indisponível durante salvamento ou em estado terminal; a view revalida permissão, salvamento, status, time, titular e reserva;
 - identidade geral do draft não é duplicada no board;
 - broadcasts SignalR são apenas notificações de mudança: a view ignora sua autorização e projeção, consulta `getDraftMontagemRealtimeState` para o draft ativo e aplica o retorno personalizado sob as proteções de geração e versão de requisição;
 - estado inicial, mutações realtime e reconexões também atualizam `montagem`, `canCurrentUserPick` e o offset do relógio a partir do retorno personalizado;

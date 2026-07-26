@@ -18,18 +18,21 @@ const publications = [
 
 function mountPanel(overrides: Record<string, unknown> = {}) {
   return mount(DraftDiscordPublicationPanel, {
-    props: { publications, canManage: true, saving: false, ...overrides },
+    props: { publications, republishableTypes: ['Presenca', 'ChamadaPresenca', 'TimesDefinidos'], saving: false, ...overrides },
     global: { plugins: [i18n] },
   })
 }
 
 describe('DraftDiscordPublicationPanel', () => {
   it('renders a normalized empty matrix with legacy republish actions', () => {
-    const wrapper = mountPanel({ publications: [
-      { tipo: 'Presenca', status: null },
-      { tipo: 'ChamadaPresenca', status: null },
-      { tipo: 'TimesDefinidos', status: null },
-    ] })
+    const wrapper = mountPanel({
+      publications: [
+        { tipo: 'Presenca', status: null },
+        { tipo: 'ChamadaPresenca', status: null },
+        { tipo: 'TimesDefinidos', status: null },
+      ],
+      republishableTypes: ['Presenca', 'TimesDefinidos'],
+    })
 
     expect(wrapper.findAll('[data-publication-type]')).toHaveLength(3)
     expect(wrapper.findAll('[data-publication-status="unknown"]')).toHaveLength(3)
@@ -88,17 +91,23 @@ describe('DraftDiscordPublicationPanel', () => {
 
     await wrapper.get(`[data-testid="${testId}"]`).trigger('click')
 
-    expect(wrapper.emitted('republish')).toEqual([[tipo]])
+    expect(wrapper.emitted('republish')).toEqual([[{
+      publicationType: tipo,
+      publicationStatus: publications.find((publication) => publication.tipo === tipo)!.status,
+    }]])
   })
 
   it('keeps the presence CTA action restricted to recoverable statuses', () => {
-    const wrapper = mountPanel({ publications: publications.map((publication) => publication.tipo === 'ChamadaPresenca' ? { ...publication, status: 'Publicada' } : publication) })
+    const wrapper = mountPanel({
+      publications: publications.map((publication) => publication.tipo === 'ChamadaPresenca' ? { ...publication, status: 'Publicada' } : publication),
+      republishableTypes: ['Presenca', 'TimesDefinidos'],
+    })
 
     expect(wrapper.find('[data-testid="republish-presence-cta"]').exists()).toBe(false)
   })
 
-  it('hides actions without permission and blocks duplicate actions while saving', async () => {
-    const unauthorized = mountPanel({ canManage: false })
+  it('renders only parent-provided capabilities and blocks duplicate actions while saving', async () => {
+    const unauthorized = mountPanel({ republishableTypes: [] })
     expect(unauthorized.findAll('button')).toHaveLength(0)
 
     const saving = mountPanel({ saving: true })
@@ -115,6 +124,8 @@ describe('DraftDiscordPublicationPanel', () => {
     expect(wrapper.findAll('button').every((button) => button.classes().includes('button-secondary'))).toBe(true)
     expect(DraftDiscordPublicationPanelSource).not.toMatch(/@\/services\//)
     expect(DraftDiscordPublicationPanelSource).not.toContain('normalizedPublications')
+    expect(DraftDiscordPublicationPanelSource).not.toContain('recoverableStatuses')
+    expect(DraftDiscordPublicationPanelSource).not.toContain('canManage')
   })
 
   it('keeps Discord subordinate with textual statuses and semantic visual variants', () => {

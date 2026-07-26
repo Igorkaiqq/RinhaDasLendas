@@ -40,12 +40,13 @@ describe('DraftWorkspaceHeader', () => {
 
   it('keeps identity, date, status, counts, and progress together', () => {
     const wrapper = mount(DraftWorkspaceHeader, {
-      props: { draft, confirmedCount: 7, finalTeamsPublicationStatus: 'Pendente' },
+      props: { draft, dataRinha: '2026-07-27T03:00:00Z', confirmedCount: 7, finalTeamsPublicationStatus: 'Pendente' },
       global: { plugins: [i18n] },
     })
 
-    expect(wrapper.get('h1').text()).toBe(draft.nome)
-    expect(wrapper.get('[data-workspace-date]').text()).toContain('26/07/2026')
+    expect(wrapper.get('h2').text()).toBe(draft.nome)
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.get('[data-workspace-date]').text()).toContain('27/07/2026')
     expect(wrapper.get('[data-workspace-status]').text()).toBe('Capitães definidos')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('7 confirmados')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('2 times')
@@ -54,6 +55,15 @@ describe('DraftWorkspaceHeader', () => {
       status: 'CapitaesDefinidos',
       publicationStatus: 'Pendente',
     })
+  })
+
+  it('falls back to the presence deadline only when dataRinha is absent', () => {
+    const wrapper = mount(DraftWorkspaceHeader, {
+      props: { draft, dataRinha: null, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('[data-workspace-date]').text()).toContain('26/07/2026')
   })
 
   it('uses localized fallbacks for a missing date and unknown status', () => {

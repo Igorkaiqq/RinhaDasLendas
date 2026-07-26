@@ -80,6 +80,8 @@ describe('DraftNavigator', () => {
 
     expect(wrapper.emitted('update:searchTerm')).toEqual([['domingo']])
     expect(wrapper.emitted('update:selectedStatus')).toEqual([['OrdemDefinida']])
+    expect(status.attributes('autocomplete')).toBe('off')
+    expect(wrapper.get('input[type="search"]').attributes('placeholder')).toBe('Ex.: Rinha de domingo…')
   })
 
   it('marks only the selected draft as current and emits its exact identity', async () => {
@@ -217,6 +219,11 @@ describe('DraftNavigator', () => {
   it('does not import services or authentication', () => {
     expect(DraftNavigatorSource).not.toMatch(/@\/services\//)
     expect(DraftNavigatorSource).not.toContain('useAuthState')
+  })
+
+  it('uses the data font token without an alias local to the component', () => {
+    expect(DraftNavigatorSource).toContain('font-family: var(--font-data)')
+    expect(DraftNavigatorSource).not.toContain('font-family: var(--font-mono)')
   })
 
   it('keeps a named navigation region horizontal on tablet and compact on mobile', () => {

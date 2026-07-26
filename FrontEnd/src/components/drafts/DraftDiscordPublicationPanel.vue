@@ -10,17 +10,16 @@ interface DraftPublicationPresentation {
 
 const props = defineProps<{
   publications: readonly DraftPublicationPresentation[]
-  canManage: boolean
+  republishableTypes: readonly DraftMontagemPublicacaoDiscordTipo[]
   saving: boolean
 }>()
 
 const emit = defineEmits<{
-  republish: [tipo: DraftMontagemPublicacaoDiscordTipo]
+  republish: [action: { publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }]
 }>()
 
 const { t, te } = useI18n()
 const knownTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos']
-const recoverableStatuses = ['Falha', 'RequerReconciliacao']
 
 function isKnownType(tipo: string): tipo is DraftMontagemPublicacaoDiscordTipo {
   return knownTypes.includes(tipo as DraftMontagemPublicacaoDiscordTipo)
@@ -46,12 +45,13 @@ function publicationText(publication: DraftPublicationPresentation) {
 }
 
 function canRepublish(publication: DraftPublicationPresentation) {
-  if (!props.canManage || !isKnownType(publication.tipo)) return false
-  return publication.tipo !== 'ChamadaPresenca' || recoverableStatuses.includes(publication.status ?? '')
+  return isKnownType(publication.tipo) && props.republishableTypes.includes(publication.tipo)
 }
 
-function republish(tipo: string) {
-  if (!props.saving && isKnownType(tipo)) emit('republish', tipo)
+function republish(publication: DraftPublicationPresentation) {
+  if (!props.saving && canRepublish(publication) && isKnownType(publication.tipo)) {
+    emit('republish', { publicationType: publication.tipo, publicationStatus: publication.status })
+  }
 }
 
 function actionKey(tipo: DraftMontagemPublicacaoDiscordTipo) {
@@ -88,7 +88,7 @@ function actionTestId(tipo: DraftMontagemPublicacaoDiscordTipo) {
           type="button"
           class="button-secondary"
           :disabled="saving"
-          @click="republish(publication.tipo)"
+          @click="republish(publication)"
         >
           {{ t(actionKey(publication.tipo as DraftMontagemPublicacaoDiscordTipo)) }}
         </button>

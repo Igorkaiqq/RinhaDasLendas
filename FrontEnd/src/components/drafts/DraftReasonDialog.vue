@@ -1,13 +1,11 @@
 <script lang="ts">
-import type { DraftMontagemPublicacaoDiscordStatus } from '@/types/draftMontagem'
+import type { DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo } from '@/types/draftMontagem'
 
 export type DraftReasonDialogAction =
   | { type: 'cancelDraft' }
   | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
-  | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
-  | { type: 'republishPresenceCta'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
-  | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
+  | { type: 'republishDiscord'; publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
 </script>
 
 <script setup lang="ts">
@@ -32,13 +30,23 @@ const reason = ref('')
 const submitted = ref(false)
 const commandSubmitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
-const translationKey = computed(() => (props.action ? `drafts.reasonDialog.${props.action.type}` : ''))
-const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishPresenceCta' || props.action?.type === 'republishTeams')
+const discordTranslationKeys: Record<DraftMontagemPublicacaoDiscordTipo, string> = {
+  Presenca: 'republishPresence',
+  ChamadaPresenca: 'republishPresenceCta',
+  TimesDefinidos: 'republishTeams',
+}
+const translationKey = computed(() => {
+  if (!props.action) return ''
+  const actionKey = props.action.type === 'republishDiscord' ? discordTranslationKeys[props.action.publicationType] : props.action.type
+  return `drafts.reasonDialog.${actionKey}`
+})
+const discordAction = computed(() => props.action?.type === 'republishDiscord')
 const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
 const publicationStatus = computed(() => {
   const action = props.action
-  return action?.type === 'republishPresence' || action?.type === 'republishPresenceCta' || action?.type === 'republishTeams' ? action.publicationStatus : null
+  return action?.type === 'republishDiscord' ? action.publicationStatus : null
 })
+const autofocusReason = !globalThis.matchMedia?.('(max-width: 768px)').matches
 const publicationStatusKey = computed(() => {
   const key = publicationStatus.value ? `drafts.publication.status.${publicationStatus.value}` : ''
   return key && te(key) ? key : 'drafts.publication.status.unknown'
@@ -131,7 +139,7 @@ function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
               ref="reasonField"
               id="draft-reason"
               v-model="reason"
-              autofocus
+              :autofocus="autofocusReason"
               name="reason"
               autocomplete="off"
               maxlength="500"

@@ -51,9 +51,15 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
     props: {
       draft,
       confirmedPresences: presences(1),
-      currentUserHasPresence: false,
-      canManage: true,
       saving: false,
+      canConfirmPresence: true,
+      canCancelPresence: false,
+      canClosePresence: true,
+      canContinueManualPresence: true,
+      canManageManualPresence: true,
+      canSelectCaptains: false,
+      canDefineCaptains: false,
+      canDrawOrder: false,
       captainSelection: [],
       manualPresenceSearch: '',
       selectedManualPresencePlayerId: '',
@@ -129,13 +135,13 @@ describe('DraftPreparationPanel', () => {
     expect(wrapper.emitted('close-presence')).toEqual([[false], [true]])
     expect(wrapper.emitted('remove-manual-presence')).toEqual([['player-0', 'Jogador 0 com nome competitivo deliberadamente longo']])
 
-    const cancellation = mountPanel({ currentUserHasPresence: true })
+    const cancellation = mountPanel({ canConfirmPresence: false, canCancelPresence: true })
     await cancellation.get('[data-testid="cancel-presence"]').trigger('click')
     expect(cancellation.emitted('cancel-presence')).toEqual([[]])
   })
 
   it('exposes captain selection as an accessible pressed state and preserves the player id', async () => {
-    const wrapper = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, captainSelection: ['player-0'] })
+    const wrapper = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canSelectCaptains: true, captainSelection: ['player-0'] })
     const captain = wrapper.get('[data-testid="toggle-captain-player-0"]')
 
     expect(captain.attributes('aria-pressed')).toBe('true')
@@ -144,17 +150,17 @@ describe('DraftPreparationPanel', () => {
   })
 
   it('emits captain and order intents only from their matching states', async () => {
-    const captains = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, captainSelection: ['player-0', 'player-1'], confirmedPresences: presences(2) })
+    const captains = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, canConfirmPresence: false, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canSelectCaptains: true, canDefineCaptains: true, captainSelection: ['player-0', 'player-1'], confirmedPresences: presences(2) })
     await captains.get('[data-testid="define-captains"]').trigger('click')
     expect(captains.emitted('define-captains')).toEqual([[]])
 
-    const order = mountPanel({ draft: { ...draft, status: 'CapitaesDefinidos' } })
+    const order = mountPanel({ draft: { ...draft, status: 'CapitaesDefinidos' }, canConfirmPresence: false, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canDrawOrder: true })
     await order.get('[data-testid="draw-order"]').trigger('click')
     expect(order.emitted('draw-order')).toEqual([[]])
   })
 
-  it('hides management controls without permission and disables all available actions while saving', () => {
-    const unauthorized = mountPanel({ canManage: false })
+  it('renders only parent-provided capabilities and disables all available actions while saving', () => {
+    const unauthorized = mountPanel({ canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false })
     expect(unauthorized.find('[data-manual-presence]').exists()).toBe(false)
     expect(unauthorized.find('[data-testid="remove-manual-presence"]').exists()).toBe(false)
     expect(unauthorized.find('[data-testid="close-presence"]').exists()).toBe(false)
@@ -166,6 +172,7 @@ describe('DraftPreparationPanel', () => {
 
   it('does not import services', () => {
     expect(DraftPreparationPanelSource).not.toMatch(/@\/services\//)
+    expect(DraftPreparationPanelSource).not.toMatch(/\bcanManage:\s*boolean/)
   })
 
   it('keeps the labelled roster after controls and reflows cards without nested vertical scrolling', () => {

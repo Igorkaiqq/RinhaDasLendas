@@ -11,9 +11,15 @@ interface EligiblePresencePlayer {
 const props = defineProps<{
   draft: DraftMontagem
   confirmedPresences: readonly DraftMontagemPresenca[]
-  currentUserHasPresence: boolean
-  canManage: boolean
   saving: boolean
+  canConfirmPresence: boolean
+  canCancelPresence: boolean
+  canClosePresence: boolean
+  canContinueManualPresence: boolean
+  canManageManualPresence: boolean
+  canSelectCaptains: boolean
+  canDefineCaptains: boolean
+  canDrawOrder: boolean
   captainSelection: readonly string[]
   manualPresenceSearch: string
   selectedManualPresencePlayerId: string
@@ -72,9 +78,9 @@ function updateManualSelection(event: ControlEvent) {
       {{ t('drafts.presence.lessThanTen') }}
     </p>
 
-    <div v-if="draft.status === 'PresencaAberta'" class="draft-preparation__stage-actions">
+    <div v-if="canConfirmPresence || canCancelPresence || canClosePresence || canContinueManualPresence" class="draft-preparation__stage-actions">
       <button
-        v-if="!currentUserHasPresence"
+        v-if="canConfirmPresence"
         data-testid="confirm-presence"
         data-stage-primary-action
         type="button"
@@ -84,7 +90,7 @@ function updateManualSelection(event: ControlEvent) {
         {{ t('drafts.presence.confirm') }}
       </button>
       <button
-        v-else
+        v-if="canCancelPresence"
         data-testid="cancel-presence"
         type="button"
         class="button-secondary"
@@ -94,7 +100,7 @@ function updateManualSelection(event: ControlEvent) {
         {{ t('drafts.presence.cancel') }}
       </button>
       <button
-        v-if="canManage"
+        v-if="canClosePresence"
         data-testid="close-presence"
         data-stage-primary-action
         type="button"
@@ -105,7 +111,7 @@ function updateManualSelection(event: ControlEvent) {
         {{ t('drafts.presence.close') }}
       </button>
       <button
-        v-if="canManage && confirmedPresences.length < 10"
+        v-if="canContinueManualPresence"
         data-testid="continue-manual-presence"
         type="button"
         class="button-secondary"
@@ -117,7 +123,7 @@ function updateManualSelection(event: ControlEvent) {
     </div>
 
     <div
-      v-if="canManage && draft.status === 'PresencaAberta'"
+      v-if="canManageManualPresence"
       data-manual-presence
       class="draft-preparation__manual"
       role="group"
@@ -154,7 +160,7 @@ function updateManualSelection(event: ControlEvent) {
         <span data-presence-origin class="draft-preparation__origin">{{ t(`drafts.presenceOrigin.${presence.origemConfirmacao}`) }}</span>
         <div data-presence-actions class="draft-preparation__player-actions">
           <button
-            v-if="draft.status === 'PresencaEncerrada' && canManage"
+            v-if="canSelectCaptains"
             :data-testid="`toggle-captain-${presence.jogadorId}`"
             type="button"
             class="button-secondary"
@@ -166,7 +172,7 @@ function updateManualSelection(event: ControlEvent) {
             {{ t('drafts.roles.captainShort') }}
           </button>
           <button
-            v-if="draft.status === 'PresencaAberta' && canManage"
+            v-if="canManageManualPresence"
             data-testid="remove-manual-presence"
             type="button"
             class="button-secondary"
@@ -180,18 +186,18 @@ function updateManualSelection(event: ControlEvent) {
     </ul>
     <p v-if="confirmedPresences.length === 0" data-presence-empty class="draft-preparation__empty">{{ t('drafts.presence.empty') }}</p>
 
-    <div v-if="canManage && draft.status === 'PresencaEncerrada'" class="draft-preparation__footer">
+    <div v-if="canSelectCaptains" class="draft-preparation__footer">
       <button
         data-testid="define-captains"
         data-stage-primary-action
         type="button"
-        :disabled="saving || captainSelection.length !== draft.quantidadeTimes"
+        :disabled="saving || !canDefineCaptains"
         @click="emitUnlessSaving('define-captains')"
       >
         {{ t('drafts.presence.defineCaptains') }}
       </button>
     </div>
-    <div v-else-if="canManage && draft.status === 'CapitaesDefinidos'" class="draft-preparation__footer">
+    <div v-else-if="canDrawOrder" class="draft-preparation__footer">
       <button data-testid="draw-order" data-stage-primary-action type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">
         {{ t('drafts.presence.drawOrder') }}
       </button>
@@ -276,7 +282,7 @@ function updateManualSelection(event: ControlEvent) {
 
 .draft-preparation__origin {
   color: var(--color-ink-muted);
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-data);
   font-size: 12px;
 }
 

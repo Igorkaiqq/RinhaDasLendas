@@ -579,12 +579,31 @@ describe('i18n', () => {
       'drafts.accessibility.selectedDraft',
       'drafts.accessibility.currentStep',
       'drafts.roles.captainShort',
+      'drafts.visualBoard.moveDestination',
+      'drafts.visualBoard.moveToFree',
+      'drafts.visualBoard.detailsFor',
+      'drafts.realtime.liveStatus',
     ]
 
     for (const path of requiredPaths) {
       expect(leafPaths(pt)).toContain(path)
       expect(leafPaths(en)).toContain(path)
     }
+  })
+
+  it('uses the ellipsis character for reviewed loading and saving copy', () => {
+    const reviewed = [
+      pt.common.saving,
+      en.common.saving,
+      pt.auth.login.submitting,
+      en.auth.login.submitting,
+      pt.auth.register.submitting,
+      en.auth.register.submitting,
+      pt.drafts.createModal.creating,
+      en.drafts.createModal.creating,
+    ]
+
+    expect(reviewed.every((value) => value.endsWith('…') && !value.endsWith('...'))).toBe(true)
   })
 
   it('describes security hardening without exposing sensitive implementation details', () => {

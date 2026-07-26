@@ -12,6 +12,7 @@ type DraftWorkspacePresentation = Omit<DraftMontagem, 'status'> & { status: stri
 
 const props = defineProps<{
   draft: DraftWorkspacePresentation
+  dataRinha?: string | null
   confirmedCount: number
   finalTeamsPublicationStatus: DraftMontagemPublicacaoDiscordStatus | null
 }>()
@@ -21,8 +22,9 @@ const header = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('head
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const statusLabel = computed(() => t(knownStatuses.has(props.draft.status) ? `drafts.status.${props.draft.status}` : 'drafts.status.unknown'))
 const draftDate = computed(() => {
-  if (!props.draft.horarioEncerramentoPresenca) return t('drafts.noRinhaDate')
-  return new Date(props.draft.horarioEncerramentoPresenca).toLocaleDateString(locale.value, {
+  const value = props.dataRinha ?? props.draft.horarioEncerramentoPresenca
+  if (!value) return t('drafts.noRinhaDate')
+  return new Date(value).toLocaleDateString(locale.value, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -45,7 +47,7 @@ defineExpose({ focusStage })
     <div class="draft-summary">
       <div>
         <span class="eyebrow">{{ t('drafts.kicker') }}</span>
-        <h1>{{ draft.nome }}</h1>
+        <h2>{{ draft.nome }}</h2>
         <p data-workspace-date>{{ t('drafts.rinhaDate', { date: draftDate }) }}</p>
       </div>
       <div class="draft-hero-actions">

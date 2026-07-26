@@ -273,8 +273,11 @@ describe('DraftVisualBoard', () => {
     const filters = wrapper.findAll('.draft-route-filters button')
 
     expect(filters.map((filter) => filter.text())).toEqual(['ALL ROUTES', 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'])
+    expect(filters.map((filter) => filter.attributes('aria-pressed'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false'])
     await filters.find((filter) => filter.text() === 'SUPPORT')!.trigger('click')
     expect(filters.find((filter) => filter.text() === 'SUPPORT')!.classes()).toContain('is-active')
+    expect(filters.find((filter) => filter.text() === 'SUPPORT')!.attributes('aria-pressed')).toBe('true')
+    expect(filters[0]!.attributes('aria-pressed')).toBe('false')
     expect(wrapper.find('[data-player-id="available-1"]').exists()).toBe(true)
 
     await filters.find((filter) => filter.text() === 'ADC')!.trigger('click')
@@ -331,7 +334,7 @@ describe('DraftVisualBoard', () => {
     draft.livres[0]!.deepLolUrl = 'https://example.com/deeplol'
     const wrapper = mountBoard(draft)
 
-    await wrapper.get('[data-player-id="available-1"]').trigger('click')
+    await wrapper.get('[data-player-id="available-1"] [data-player-details]').trigger('click')
     const links = wrapper.get('.player-details-modal').findAll('a')
 
     expect(links.map((link) => link.attributes('href'))).toEqual(['https://example.com/opgg', 'https://example.com/deeplol'])
@@ -342,11 +345,122 @@ describe('DraftVisualBoard', () => {
   it('opens player details with Space and hides decorative initials from assistive technology', async () => {
     const wrapper = mountBoard()
     const playerRow = wrapper.get('[data-player-id="available-1"]')
+    const details = playerRow.get('[data-player-details]')
 
     expect(wrapper.findAll('.draft-slot__avatar').every((avatar) => avatar.attributes('aria-hidden') === 'true')).toBe(true)
-    await playerRow.trigger('keydown', { key: ' ' })
+    expect(playerRow.attributes('role')).toBeUndefined()
+    expect(playerRow.attributes('tabindex')).toBeUndefined()
+    expect(details.element.tagName).toBe('BUTTON')
+    await details.trigger('keydown', { key: ' ' })
+    await details.trigger('click')
 
     expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toContain('Available Mid')
     wrapper.unmount()
+  })
+
+  it('keeps pick and substitute keyboard actions separate from player details', async () => {
+    const realtime = montagem('Aberta', 'TempoReal')
+    realtime.turnoAtualTimeId = 'team-a'
+    realtime.turnoAtualCapitaoId = 'captain-a'
+    realtime.turnoSequencia = 3
+    realtime.turnoExpiraEm = new Date(Date.now() + 60_000).toISOString()
+    const picks = mountBoard(realtime, { currentPlayerId: 'captain-a', canCurrentUserPick: true })
+    const pick = picks.get('.draft-pick-action')
+    const pickBubbled = vi.fn()
+    picks.get('[data-player-id="available-1"]').element.addEventListener('keydown', pickBubbled)
+
+    await pick.trigger('keydown', { key: 'Enter' })
+    await pick.trigger('click')
+    expect(picks.emitted('pick')).toEqual([['available-1']])
+    expect(pickBubbled).not.toHaveBeenCalled()
+    expect(picks.find('[role="dialog"]').exists()).toBe(false)
+    picks.unmount()
+
+    const substitutionDraft = montagem()
+    substitutionDraft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
+    const substitutions = mountBoard(substitutionDraft)
+    const substitute = substitutions.get('[data-team-id="team-a"] .draft-substitute-action')
+    const substituteBubbled = vi.fn()
+    substitutions.get('[data-team-id="team-a"] .draft-visual-slot:not(.is-captain)').element.addEventListener('keydown', substituteBubbled)
+    await substitute.trigger('keydown', { key: ' ' })
+    await substitute.trigger('click')
+    expect(substitutions.emitted('substituteReserve')).toEqual([[
+      { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', motivo: null },
+    ]])
+    expect(substituteBubbled).not.toHaveBeenCalled()
+    expect(substitutions.find('[role="dialog"]').exists()).toBe(false)
+    substitutions.unmount()
+  })
+
+  it('disables substitutions while saving or terminal and locks rapid duplicate emits', async () => {
+    const draft = montagem()
+    draft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
+    const wrapper = mountBoard(draft)
+    const substitute = wrapper.get('.draft-substitute-action')
+
+    await Promise.all([substitute.trigger('click'), substitute.trigger('click')])
+    expect(wrapper.emitted('substituteReserve')).toEqual([[
+      { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', motivo: null },
+    ]])
+
+    await wrapper.setProps({ saving: true })
+    expect(wrapper.get('.draft-substitute-action').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+
+    const terminal = montagem('Finalizada')
+    terminal.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
+    const terminalWrapper = mountBoard(terminal)
+    expect(terminalWrapper.find('.draft-substitute-action').exists()).toBe(false)
+    terminalWrapper.unmount()
+  })
+
+  it('offers a localized keyboard and touch move destination for editable players', async () => {
+    const wrapper = mountBoard()
+    const row = wrapper.get('[data-player-id="available-1"]')
+    const destination = row.get('[data-move-destination]')
+
+    expect(destination.element.tagName).toBe('SELECT')
+    expect(destination.attributes('aria-label')).toBe('Mover Available Mid para')
+    expect(destination.findAll('option').map((option) => option.text())).toEqual(expect.arrayContaining(['Jogadores livres', 'Reservas', 'Team A', 'Team B']))
+    await destination.setValue('team-a')
+
+    expect(wrapper.get('[data-team-id="team-a"]').text()).toContain('Available Mid')
+    expect(wrapper.find('[data-player-id="available-1"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('keeps a player in place when a move destination is invalid', () => {
+    const wrapper = mountBoard()
+    const vm = wrapper.vm as unknown as {
+      localMontagem: DraftMontagem
+      movePlayerById: (jogadorId: string, target: string) => void
+    }
+
+    vm.movePlayerById('available-1', 'missing-team')
+
+    expect(vm.localMontagem.livres.map((item) => item.jogadorId)).toContain('available-1')
+    wrapper.unmount()
+  })
+
+  it('announces realtime turn and pick progress politely', () => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.turnoAtualTimeId = 'team-a'
+    draft.turnoAtualCapitaoId = 'captain-a'
+    draft.turnoSequencia = 3
+    draft.turnoExpiraEm = new Date(Date.now() + 60_000).toISOString()
+    const wrapper = mountBoard(draft)
+    const announcement = wrapper.get('[data-realtime-announcement]')
+
+    expect(announcement.attributes()).toMatchObject({ role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' })
+    expect(announcement.text()).toContain('Captain A')
+    expect(announcement.text()).toContain('2 de 4')
+    wrapper.unmount()
+  })
+
+  it('animates active indicators with transform and opacity instead of width or box-shadow', () => {
+    expect(MainCss).toMatch(/\.draft-turn-clock__pulse\s*{[^}]*opacity:/s)
+    expect(MainCss).not.toMatch(/\.draft-turn-clock__pulse\s*{[^}]*box-shadow:/s)
+    expect(MainCss).toMatch(/\.draft-turn-clock__bar span\s*{[^}]*transform-origin:\s*left[^}]*transition:\s*transform/s)
+    expect(MainCss).not.toMatch(/\.draft-turn-clock__bar span\s*{[^}]*transition:\s*width/s)
   })
 })
