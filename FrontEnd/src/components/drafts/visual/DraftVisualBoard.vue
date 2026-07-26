@@ -414,7 +414,15 @@ async function exportImage() {
       <aside class="draft-visual-team-column" :aria-label="t('drafts.visualBoard.oddTeams')">
         <article v-for="time in leftTeams" :key="time.id" class="draft-team draft-visual-team" :class="[teamColorClass(time.cor), { 'draft-visual-team--turn': isTurnTeam(time.id) }]" :data-team-id="time.id" @dragover.prevent @drop="movePlayer(time.id)">
           <header class="draft-team__header">
-            <input v-if="!isTerminal" v-model="time.nome" :disabled="isReadOnly" @input="dirty = true" />
+            <input
+              v-if="!isTerminal"
+              v-model="time.nome"
+              :name="`draft-team-${time.id}`"
+              autocomplete="off"
+              :aria-label="t('drafts.visualBoard.teamNameLabel', { name: time.nome })"
+              :disabled="isReadOnly"
+              @input="dirty = true"
+            />
             <strong v-else>{{ time.nome }}</strong>
             <span data-team-order>{{ t('drafts.visualBoard.teamOrder', { order: time.ordem }) }}</span>
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>
@@ -446,7 +454,14 @@ async function exportImage() {
         <header class="draft-available__filters">
           <label class="draft-search-field">
             <span aria-hidden="true">⌕</span>
-            <input v-model="playerSearch" type="search" :placeholder="t('drafts.visualBoard.searchPlaceholder')" />
+            <input
+              v-model="playerSearch"
+              type="search"
+              name="draft-player-search"
+              autocomplete="off"
+              :aria-label="t('drafts.visualBoard.playerSearchLabel')"
+              :placeholder="t('drafts.visualBoard.searchPlaceholder')"
+            />
           </label>
           <div class="draft-route-filters" :aria-label="t('drafts.visualBoard.displayedRoutes')">
             <button v-for="route in routeFilters" :key="route" type="button" :class="{ 'is-active': selectedRoute === route }" @click="selectedRoute = route">
@@ -490,7 +505,15 @@ async function exportImage() {
       <aside class="draft-visual-team-column" :aria-label="t('drafts.visualBoard.evenTeams')">
         <article v-for="time in rightTeams" :key="time.id" class="draft-team draft-visual-team" :class="[teamColorClass(time.cor), { 'draft-visual-team--turn': isTurnTeam(time.id) }]" :data-team-id="time.id" @dragover.prevent @drop="movePlayer(time.id)">
           <header class="draft-team__header">
-            <input v-if="!isTerminal" v-model="time.nome" :disabled="isReadOnly" @input="dirty = true" />
+            <input
+              v-if="!isTerminal"
+              v-model="time.nome"
+              :name="`draft-team-${time.id}`"
+              autocomplete="off"
+              :aria-label="t('drafts.visualBoard.teamNameLabel', { name: time.nome })"
+              :disabled="isReadOnly"
+              @input="dirty = true"
+            />
             <strong v-else>{{ time.nome }}</strong>
             <span data-team-order>{{ t('drafts.visualBoard.teamOrder', { order: time.ordem }) }}</span>
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>

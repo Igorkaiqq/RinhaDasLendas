@@ -301,11 +301,41 @@ describe('DraftVisualBoard', () => {
 
     expect(wrapper.get('.draft-visual-shell').attributes('aria-label')).toBe('Tabuleiro do draft')
     expect(wrapper.findAll('button, input, [role="button"]').every((control) => control.attributes('aria-hidden') !== 'true')).toBe(true)
-    expect(MainCss).toMatch(/\.drafts-page\s+:is\(button,\s*input,\s*select,\s*\[role='button'\]\)\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.drafts-page\s+:is\(button,\s*input:not\(\[type='checkbox'\]\),\s*select,\s*textarea,\s*\[role='button'\]\)\s*{[^}]*min-height:\s*44px/s)
     expect(MainCss).toMatch(/\.drafts-page\s+:is\(button,\s*\[role='button'\]\)\s*{[^}]*touch-action:\s*manipulation/s)
     expect(MainCss).toMatch(/\.drafts-page\s+\.draft-slot__copy\s*>\s*strong[\s\S]*?overflow-wrap:\s*anywhere/s)
     expect(MainCss).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.drafts-page\s+\.draft-turn-clock__bar span[\s\S]*?transition:\s*none/s)
     expect(MainCss).toMatch(/@media \(max-width:\s*768px\)[\s\S]*?\.drafts-page\s+\.draft-visual-board\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', ['Nome do time Team A', 'Nome do time Team B'], 'Buscar jogadores disponíveis'],
+    ['en', ['Team Team A name', 'Team Team B name'], 'Search available players'],
+  ] as const)('labels team names and player search in %s', (locale, teamLabels, searchLabel) => {
+    setLocale(locale)
+    const wrapper = mountBoard()
+    const teamInputs = wrapper.findAll('.draft-team__header input')
+
+    expect(teamInputs.map((input) => input.attributes('aria-label'))).toEqual(teamLabels)
+    expect(teamInputs.map((input) => input.attributes('name'))).toEqual(['draft-team-team-a', 'draft-team-team-b'])
+    expect(teamInputs.every((input) => input.attributes('autocomplete') === 'off')).toBe(true)
+    expect(wrapper.get('.draft-search-field input').attributes('aria-label')).toBe(searchLabel)
+    expect(wrapper.get('.draft-search-field input').attributes('name')).toBe('draft-player-search')
+    wrapper.unmount()
+  })
+
+  it('gives every player-details link a scoped 44px target', async () => {
+    const draft = montagem()
+    draft.livres[0]!.opGgUrl = 'https://example.com/opgg'
+    draft.livres[0]!.deepLolUrl = 'https://example.com/deeplol'
+    const wrapper = mountBoard(draft)
+
+    await wrapper.get('[data-player-id="available-1"]').trigger('click')
+    const links = wrapper.get('.player-details-modal').findAll('a')
+
+    expect(links.map((link) => link.attributes('href'))).toEqual(['https://example.com/opgg', 'https://example.com/deeplol'])
+    expect(MainCss).toMatch(/\.drafts-page\s+\.player-details-modal\s+a\s*{[^}]*display:\s*inline-flex[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
     wrapper.unmount()
   })
 

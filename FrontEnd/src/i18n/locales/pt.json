@@ -558,6 +558,7 @@
       "completed": "Concluída",
       "current": "Atual",
       "pending": "Pendente",
+      "attention": "Atenção",
       "terminal": "Encerrada",
       "unknown": "Indisponível"
     },
@@ -581,7 +582,8 @@
     },
     "accessibility": {
       "selectedDraft": "Draft selecionado: {name}",
-      "currentStep": "Etapa atual: {step}"
+      "currentStep": "Etapa atual: {step}",
+      "stateLabel": "{label}: {state}"
     },
     "create": "Criar Draft",
     "createWithIcon": "+ Criar Draft",
@@ -833,6 +835,8 @@
       "evenTeams": "Times pares",
       "pending": "pendente",
       "searchPlaceholder": "Buscar jogadores por nome, elo ou rota...",
+      "playerSearchLabel": "Buscar jogadores disponíveis",
+      "teamNameLabel": "Nome do time {name}",
       "displayedRoutes": "Rotas exibidas",
       "available": "Disponíveis",
       "availablePlayers": "Jogadores Disponíveis",

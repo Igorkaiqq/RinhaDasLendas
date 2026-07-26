@@ -558,6 +558,7 @@
       "completed": "Completed",
       "current": "Current",
       "pending": "Pending",
+      "attention": "Attention",
       "terminal": "Closed",
       "unknown": "Unavailable"
     },
@@ -581,7 +582,8 @@
     },
     "accessibility": {
       "selectedDraft": "Selected draft: {name}",
-      "currentStep": "Current step: {step}"
+      "currentStep": "Current step: {step}",
+      "stateLabel": "{label}: {state}"
     },
     "create": "Create Draft",
     "createWithIcon": "+ Create Draft",
@@ -833,6 +835,8 @@
       "evenTeams": "Even teams",
       "pending": "pending",
       "searchPlaceholder": "Search players by name, elo, or route...",
+      "playerSearchLabel": "Search available players",
+      "teamNameLabel": "Team {name} name",
       "displayedRoutes": "Displayed routes",
       "available": "Available",
       "availablePlayers": "Available Players",

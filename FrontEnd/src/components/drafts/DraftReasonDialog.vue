@@ -87,7 +87,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
     <DialogContent
       v-if="action"
       :show-close-button="!saving"
-      class="sm:max-w-lg"
+      class="draft-reason-dialog sm:max-w-lg"
       @escape-key-down="saving && $event.preventDefault()"
       @interact-outside="saving && $event.preventDefault()"
     >

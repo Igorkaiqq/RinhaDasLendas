@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -7,6 +9,8 @@ import { i18n, setLocale } from '@/i18n'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 import DraftReasonDialog, { type DraftReasonDialogAction } from './DraftReasonDialog.vue'
+
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
   const wrapper = mount(DraftReasonDialog, {
@@ -186,6 +190,16 @@ describe('DraftReasonDialog', () => {
     const wrapper = await mountDialog({ type: 'cancelDraft' })
 
     expect(wrapper.get('[data-slot="field-group"] [data-slot="field"]')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('scopes 44px targets to the portaled reason dialog', async () => {
+    const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const dialog = wrapper.get('[role="dialog"]')
+
+    expect(dialog.classes()).toContain('draft-reason-dialog')
+    expect(dialog.findAll('button')).not.toHaveLength(0)
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s+:is\(button,\s*textarea\)\s*{[^}]*min-height:\s*44px/s)
     wrapper.unmount()
   })
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, getCurrentInstance } from 'vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DraftRail, { type DraftRailStep } from '@/components/layout/DraftRail.vue'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
@@ -9,8 +10,7 @@ const props = defineProps<{
   publicationStatus?: string | null
 }>()
 
-const instance = getCurrentInstance()
-const t = (key: string) => instance?.proxy?.$t?.(key) ?? key
+const { t } = useI18n()
 
 const operationalStatuses = DRAFT_MONTAGEM_STATUS_OPTIONS.filter((status) => status !== 'Cancelada')
 const labels: Record<string, string> = {
@@ -21,45 +21,70 @@ const labels: Record<string, string> = {
   Aberta: 'drafts.rail.picking',
   Finalizada: 'drafts.rail.finished',
 }
+const stateKeys: Record<DraftRailStep['state'], string> = {
+  done: 'drafts.progress.completed',
+  active: 'drafts.progress.current',
+  pending: 'drafts.progress.pending',
+  attention: 'drafts.progress.attention',
+  terminal: 'drafts.progress.terminal',
+  unknown: 'drafts.progress.unknown',
+}
+
+function step(id: string, label: string, state: DraftRailStep['state'], current = false): DraftRailStep {
+  const stateLabel = t(stateKeys[state])
+  return {
+    id,
+    label,
+    state,
+    stateLabel,
+    ariaLabel: t('drafts.accessibility.stateLabel', { label, state: stateLabel }),
+    current,
+  }
+}
 
 const steps = computed<DraftRailStep[]>(() => {
   if (props.status === 'Cancelada') {
-    return [
-      { id: 'cancelled', label: t('drafts.rail.cancelled'), state: 'terminal' },
-      discordStep.value,
-    ]
+    return [step('cancelled', t('drafts.rail.cancelled'), 'terminal')]
   }
 
   const activeIndex = operationalStatuses.findIndex((status) => status === props.status)
   if (activeIndex === -1) {
-    return [
-      { id: 'unknown', label: t('drafts.rail.unknown'), state: 'unknown' },
-      discordStep.value,
-    ]
+    return [step('unknown', t('drafts.rail.unknown'), 'unknown')]
   }
 
-  const base: DraftRailStep[] = operationalStatuses.map((status, index) => ({
-    id: status,
-    label: t(labels[status] ?? status),
-    state: (index < activeIndex ? 'done' : index === activeIndex ? status === 'Finalizada' ? 'terminal' : 'active' : 'pending') as DraftRailStep['state'],
-    current: index === activeIndex,
-  }))
-
-  base.push(discordStep.value)
-  return base
+  return operationalStatuses.map((status, index) => {
+    const state = (index < activeIndex ? 'done' : index === activeIndex ? status === 'Finalizada' ? 'terminal' : 'active' : 'pending') as DraftRailStep['state']
+    return step(status, t(labels[status] ?? status), state, index === activeIndex)
+  })
 })
 
-const discordStep = computed<DraftRailStep>(() => ({
-  id: 'discord',
-  label: t('drafts.rail.discord'),
-  state: ['RequerReconciliacao', 'Falha', 'Pendente', 'EmAndamento'].includes(props.publicationStatus ?? '')
+const discordState = computed<DraftRailStep['state']>(() => (
+  ['RequerReconciliacao', 'Falha', 'Pendente', 'EmAndamento'].includes(props.publicationStatus ?? '')
     ? 'attention'
     : props.publicationStatus === 'Publicada'
       ? 'done'
-      : 'pending',
-}))
+      : 'pending'
+))
+const discordStateLabel = computed(() => t(stateKeys[discordState.value]))
+const discordLabel = computed(() => t('drafts.rail.discord'))
 </script>
 
 <template>
-  <DraftRail :steps="steps" :aria-label="t('drafts.rail.label')" />
+  <div class="draft-state-progress">
+    <DraftRail :steps="steps" :aria-label="t('drafts.rail.label')" />
+    <div
+      class="draft-integration-status"
+      data-discord-integration
+      :data-state="discordState"
+      role="status"
+      aria-live="polite"
+      :aria-label="t('drafts.accessibility.stateLabel', { label: discordLabel, state: discordStateLabel })"
+    >
+      <span class="draft-integration-status__node" aria-hidden="true" />
+      <span class="draft-rail__copy">
+        <span>{{ discordLabel }}</span>
+        <small data-integration-state-label>{{ discordStateLabel }}</small>
+      </span>
+    </div>
+  </div>
 </template>

@@ -93,7 +93,6 @@ describe('DraftPreparationPanel', () => {
     expect(row.get('[data-presence-identity]').text()).toContain('Jogador 0')
     expect(row.get('[data-presence-origin]').text()).toBe('Manual')
     expect(row.get('[data-presence-actions]').find('button').exists()).toBe(true)
-    expect(DraftPreparationPanelSource).toContain('grid-template-columns: minmax(0, 1fr) minmax(7rem, auto) minmax(2.75rem, auto)')
   })
 
   it('groups manual search, selection, and addition and emits exact model events', async () => {

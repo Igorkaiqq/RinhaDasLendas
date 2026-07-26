@@ -370,9 +370,9 @@
 
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
-| T027 | Concluída | Os sete arquivos de especificação exigidos cobrem ordem navegador/workspace, regiões nomeadas, contexto/progresso/ações, roster após controles, Discord subordinado, rail ordenado e board nomeado com ativação por teclado. |
+| T027 | Concluída | Os sete arquivos de especificação exigidos e as coberturas complementares de `DraftVisualSetup` e `DraftReasonDialog` verificam ordem, regiões, estados textuais/ARIA, controles nomeados, alvos e rolagem estrutural. |
 | T028 | Concluída | `main.css` recebeu estilos tardios escopados por `.drafts-page` para shell, navegador, workspace, cabeçalho, preparação, Discord, rail e board; seletores genéricos permanecem intactos para o `DraftBoard` legado e outras páginas. |
-| T029 | Concluída | O shell usa `260px minmax(0, 1fr)` acima de 1024px, navegador horizontal entre 769px e 1024px, seleção compacta e conteúdo em uma coluna até 768px, proteção de overflow em 320px, controles de 44px, nomes quebráveis e movimento reduzido sem pulsos/transições do draft. |
+| T029 | Concluída | O shell usa `260px minmax(0, 1fr)` acima de 1024px, navegador horizontal entre 769px e 1024px, seleção compacta até 768px, proteção de overflow, controles/links/labels acionáveis de 44px, nomes quebráveis e movimento reduzido. |
 | T030 | Pendente | Nenhuma validação real em navegador foi executada; não há screenshot, jornada autenticada ou medição de overflow registrada nesta fase. |
 
 ### RED
@@ -387,8 +387,9 @@
 - Focado inicial: os sete arquivos foram aprovados com 169 testes e 0 falhas.
 - Board complementar: `DraftVisualBoard.spec.ts` foi aprovado com 17 testes e 0 falhas após oferecer ativação por Espaço, iniciais decorativas ocultas e manipulação por toque.
 - A ordem de leitura permanece navegador, contexto/progresso/ações e conteúdo operacional; o shell e o board usam rótulos localizados existentes.
-- O rail é conectado horizontalmente acima de 1024px e verticalmente até 1024px; Discord permanece paralelo e os status usam sucesso, perigo, atenção, informação ou neutro sem depender apenas de cor.
-- Roster, pool e times não criam overflow vertical interno; somente o navegador de tablet usa rolagem horizontal contida.
+- Correção pós-revisão: o rail operacional é conectado horizontalmente acima de 1024px e verticalmente até 1024px; Discord agora é um bloco irmão paralelo, fora do `<ol>` e de seus conectores.
+- Correção pós-revisão: etapas e integração exibem estado localizado e expõem o mesmo significado por `aria-label`; cor deixou de ser o único sinal de estado.
+- Correção pós-revisão: roster, pool, times e grades do setup não criam overflow vertical interno; o formulário do setup é a única região vertical própria do modal.
 
 ### Ledger de evidências
 
@@ -396,8 +397,8 @@
 |----------|----------------------|--------|
 | SC-002 | Contratos de CSS cobrem 260px/minmax, breakpoints de 1024px e 768px, coluna única, `overflow-x: clip` e filhos com `min-width: 0`. | Aprovado estruturalmente; medição e screenshots reais permanecem em T030. |
 | SC-003 | Roster usa `auto-fit` com mínimo limitado ao contêiner e uma coluna até 768px; nomes usam `overflow-wrap: anywhere`. | Aprovado estruturalmente; inspeção de 0/1/10/14/30 em 320px permanece em T030. |
-| SC-006 | Regiões possuem nomes, progresso usa lista ordenada e `aria-current`, controles têm foco visível e 44px, e jogadores abrem detalhes por Enter, Espaço ou clique. | Aprovado estruturalmente; jornada completa por Tab/Shift+Tab permanece em T030. |
-| SC-010 | Roster e pool usam overflow vertical visível; o fluxo evita uma segunda região vertical e mantém apenas navegação horizontal contida no tablet. | Aprovado estruturalmente; rolagem real com lista extensa permanece em T030. |
+| SC-006 | Progresso usa lista ordenada somente para etapas, estados têm texto e ARIA em PT/EN, campos possuem nomes, e botões, links, campos e label do checkbox têm alvo mínimo de 44px. | Aprovado estruturalmente; jornada completa por Tab/Shift+Tab permanece em T030. |
+| SC-010 | Roster, pool e grades do setup usam overflow vertical visível; o formulário do setup concentra sua única rolagem e o tablet mantém apenas navegação horizontal contida. | Aprovado estruturalmente; rolagem real com lista extensa permanece em T030. |
 
 ### Pré-requisitos e bloqueio de T030
 
@@ -410,14 +411,14 @@
 ### Auditoria de internacionalização
 
 - Textos visíveis hardcoded no frontend: não encontrados pelo scanner em `DraftsView.vue` ou `components/drafts/**/*.vue`.
-- Sincronização `pt.json`/`en.json`: aprovada; nenhuma chave foi adicionada ou alterada nesta fase.
+- Sincronização `pt.json`/`en.json`: aprovada; `progress.attention`, `accessibility.stateLabel`, `visualBoard.playerSearchLabel` e `visualBoard.teamNameLabel` existem nos dois idiomas.
 - Backend e resources: nenhuma mensagem, validação ou resource alterado; atualização não necessária.
-- Acentuação portuguesa: revisada nos rótulos reutilizados pelo shell e pelo board.
+- Acentuação portuguesa: revisada em “Atenção”, “Nome do time” e “Buscar jogadores disponíveis”.
 - Placeholders, botões, títulos, badges, toasts, validações e empty states: revisados; nenhuma nova mensagem visível foi introduzida.
 - Validações frontend e backend: nenhuma validação nova; mensagens existentes permanecem localizadas.
-- Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão de internacionalização.
+- Novos arquivos: `DraftVisualSetup.spec.ts` não contém texto de produção e respeita o padrão de internacionalização.
 
-### Gates finais
+### Gates antes da revisão pós-T029
 
 - Suíte focada: 7 arquivos e 170 testes aprovados, sem falhas.
 - Suíte completa: 37 arquivos e 357 testes aprovados, sem falhas.
@@ -425,3 +426,30 @@
 - Lint: `npm run lint:check` aprovado sem erros ou avisos.
 - Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas.
 - Whitespace e diff: `git diff --check` aprovado sem saída; somente os 12 arquivos esperados de T027-T029 e suas evidências foram alterados.
+
+### Revisão pós-T029
+
+#### RED
+
+- Rail e Discord: `DraftStateRail.spec.ts` executou 19 testes e todos falharam porque não havia rótulo textual/ARIA de estado e Discord ainda era anexado ao `<ol>` operacional.
+- Setup, diálogo e board: o comando focado dos três componentes executou 56 testes; 7 falharam e 49 passaram por grades com overflow próprio, checkbox sem label de 44px, diálogo portado sem escopo, links sem alvo mínimo e campos sem nomes localizados.
+- Textarea: o teste focado de alvos executou 1 caso falho e ignorou os outros 19, confirmando que a regra genérica ainda omitia `textarea`.
+- Autocomplete dos times: 2 casos PT/EN falharam e 18 foram ignorados porque os campos recém-nomeados ainda não declaravam `autocomplete="off"`.
+
+#### GREEN
+
+- O `<ol>` contém somente etapas operacionais canônicas; o bloco Discord é irmão posterior com `role="status"`, texto localizado, `aria-label` equivalente e nenhum conector sequencial.
+- `completed`, `current`, `pending`, `attention`, `terminal` e `unknown` possuem texto visível e nome acessível equivalente em português e inglês.
+- Campos de nome de time e busca de jogadores têm `name`, `autocomplete="off"` e `aria-label` localizados; links de detalhes, diálogo portado, checkbox e demais controles possuem contratos de alvo mínimo.
+- `DraftVisualSetup` concentra overflow vertical no formulário; grades de jogadores usam `max-height: none` e `overflow: visible`.
+- Suíte focada ampliada: 10 arquivos e 241 testes aprovados, sem falhas.
+- T030 continua pendente; nenhuma evidência de navegador, screenshot ou medição real foi criada nesta revisão.
+
+#### Gates finais pós-revisão
+
+- Suíte focada: 10 arquivos e 241 testes aprovados, sem falhas.
+- Suíte completa: 38 arquivos e 367 testes aprovados, sem falhas.
+- Build: 2.764 módulos transformados e build concluído; permanecem somente os avisos não bloqueantes conhecidos de anotações `PURE` e chunk acima de 500 kB.
+- Lint: `npm run lint:check` aprovado sem erros ou avisos.
+- Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas; scanner de texto hardcoded e paridade PT/EN aprovados.
+- Diff: `git diff --check` aprovado sem saída antes do fechamento documental.

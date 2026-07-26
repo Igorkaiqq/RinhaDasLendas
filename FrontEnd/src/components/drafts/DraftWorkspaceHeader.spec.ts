@@ -117,7 +117,9 @@ describe('DraftWorkspaceHeader', () => {
     const children = Array.from(header.element.children)
 
     expect(children[0]?.classList.contains('draft-summary')).toBe(true)
-    expect(children[1]?.classList.contains('draft-rail')).toBe(true)
+    expect(children[1]?.classList.contains('draft-state-progress')).toBe(true)
+    expect(wrapper.get('.draft-state-progress > ol')).toBeTruthy()
+    expect(wrapper.get('.draft-state-progress > [data-discord-integration]')).toBeTruthy()
     expect(children[2]?.classList.contains('draft-hero-actions')).toBe(true)
     expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='primary'\][\s\S]*?var\(--color-primary\)/s)
     expect(MainCss).toMatch(/\.drafts-page\s+\[data-action-group='danger'\][\s\S]*?var\(--color-danger\)/s)
