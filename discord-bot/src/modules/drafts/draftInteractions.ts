@@ -332,7 +332,6 @@ function isPublicationStillValid(draft: DraftMontagem, tipo: DiscordPublicationT
   }
 
   if (draft.arquivado || cancellation) return false
-  if (publication) return true
   if (tipo === 'Presenca' || tipo === 'ChamadaPresenca') {
     return draft.status === DraftMontagemStatus.PresenceOpen && hasOpenPresenceDeadline(draft)
   }

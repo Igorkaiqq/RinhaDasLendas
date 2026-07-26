@@ -171,6 +171,96 @@ describe('runDraftPollingCycle', () => {
     assert.equal(logInfo.mock.calls.some((call) => call.arguments[0] === t.logs.stalePublicationSkipped), true)
   })
 
+  it('enforces current status and deadline from the second polling read before send', async () => {
+    const scenarios: Array<{
+      name: string
+      tipo: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
+      changeCurrentDraft: (draft: DraftMontagem) => void
+    }> = [
+      { name: 'presence status changed', tipo: 'Presenca', changeCurrentDraft: (draft) => { draft.status = 'PresencaEncerrada' } },
+      { name: 'presence deadline expired', tipo: 'Presenca', changeCurrentDraft: (draft) => { draft.horarioEncerramentoPresenca = new Date(Date.now() - 1000).toISOString() } },
+      { name: 'presence CTA status changed', tipo: 'ChamadaPresenca', changeCurrentDraft: (draft) => { draft.status = 'PresencaEncerrada' } },
+      { name: 'presence CTA deadline expired', tipo: 'ChamadaPresenca', changeCurrentDraft: (draft) => { draft.horarioEncerramentoPresenca = new Date(Date.now() - 1000).toISOString() } },
+      { name: 'defined teams no longer finalized', tipo: 'TimesDefinidos', changeCurrentDraft: (draft) => { draft.status = 'Cancelada' } },
+    ]
+
+    for (const scenario of scenarios) {
+      mock.restoreAll()
+      env.DRAFT_NOTIFY_ROLE_ID = scenario.tipo === 'ChamadaPresenca' ? 'role-1' : ''
+      const initial = pollingDraft(scenario.name, 'Pendente', scenario.tipo)
+      if (scenario.tipo === 'TimesDefinidos') initial.status = 'Finalizada'
+      if (scenario.tipo === 'ChamadaPresenca') initial.publicacoesDiscord?.unshift({ tipo: 'Presenca', status: 'Publicada' })
+      const current = {
+        ...initial,
+        publicacoesDiscord: [
+          ...(scenario.tipo === 'ChamadaPresenca' ? [{ tipo: 'Presenca' as const, status: 'Publicada' }] : []),
+          { tipo: scenario.tipo, status: 'EmAndamento' },
+        ],
+      }
+      scenario.changeCurrentDraft(current)
+      mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+      let listCall = 0
+      const list = mock.method(rinhaApi, 'listActiveDrafts', async () => ++listCall === 1 ? [initial] : [current])
+      mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-stale', expiraEm: null, status: 'EmAndamento' }))
+      const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => current as never)
+      const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => current as never)
+      const send = mock.fn(async () => ({ id: 'stale-message' }))
+
+      await runDraftPollingCycle(pollingClient(send))
+
+      assert.equal(list.mock.callCount(), 2, scenario.name)
+      assert.equal(send.mock.callCount(), 0, scenario.name)
+      assert.equal(complete.mock.callCount(), 0, scenario.name)
+      assert.equal(failure.mock.callCount(), 0, scenario.name)
+    }
+  })
+
+  it('claims only a pending cancellation publication', async () => {
+    const statuses = ['Pendente', 'EmAndamento', 'Publicada', 'Falha', 'RequerReconciliacao', 'Ignorada'] as const
+
+    for (const status of statuses) {
+      mock.restoreAll()
+      const draft = cancelledDraft(`cancellation-${status}`)
+      draft.publicacoesDiscord = [{ tipo: 'Cancelamento', status }]
+      mockPollingApi([draft])
+      const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cancel', expiraEm: null, status: 'EmAndamento' }))
+      mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+      const send = mock.fn(async () => ({ id: 'message-cancel' }))
+
+      await runDraftPollingCycle(pollingClient(send))
+
+      const expected = status === 'Pendente' ? 1 : 0
+      assert.equal(claim.mock.callCount(), expected, status)
+      assert.equal(send.mock.callCount(), expected, status)
+    }
+  })
+
+  it('allows only one cancellation send across concurrent polling cycles', async () => {
+    const draft = cancelledDraft('concurrent-cancellation')
+    mockPollingApi([draft])
+    const ready = deferred()
+    const release = deferred()
+    let waitingClaims = 0
+    let claimNumber = 0
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => {
+      if (++waitingClaims === 2) ready.resolve()
+      await release.promise
+      return ++claimNumber === 1
+        ? { adquirido: true, claimId: 'claim-cancel', expiraEm: null, status: 'EmAndamento' }
+        : { adquirido: false, claimId: null, expiraEm: null, status: 'EmAndamento' }
+    })
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
+    const send = mock.fn(async () => ({ id: 'message-cancel' }))
+    const client = pollingClient(send)
+
+    const cycles = [runDraftPollingCycle(client), runDraftPollingCycle(client)]
+    await ready.promise
+    release.resolve()
+    await Promise.all(cycles)
+
+    assert.equal(send.mock.callCount(), 1)
+  })
+
   it('keeps an already-started send uncertain, refuses stale completion, then prioritizes compensating cancellation', async () => {
     const operational = pollingDraft('race-in-flight', 'Pendente')
     const archived = cancelledDraft('race-in-flight')
@@ -608,11 +698,9 @@ describe('runDraftPollingCycle', () => {
     assert.equal(failure.mock.calls[0]?.arguments[1]?.erroCodigo, 'DiscordChannelMentionPermissionError')
   })
 
-  it('recovers a pending CTA without sending the main presence embed again', async () => {
+  it('recovers an applicable pending CTA without sending the main presence embed again', async () => {
     const draft = pollingDraft('draft-1', 'Pendente', 'ChamadaPresenca')
-    draft.status = 'Finalizada'
     draft.publicacoesDiscord?.push({ tipo: 'Presenca', status: 'Publicada' })
-    draft.publicacoesDiscord?.push({ tipo: 'TimesDefinidos', status: 'Publicada' })
     mockPollingApi([draft])
     env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
     const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cta', expiraEm: null, status: 'EmAndamento' }))
@@ -630,17 +718,17 @@ describe('runDraftPollingCycle', () => {
 
   it('keeps only the CTA claim in progress when its send result is unknown', async () => {
     const draft = pollingDraft('draft-1', 'Pendente', 'ChamadaPresenca')
-    draft.status = 'Finalizada'
     draft.publicacoesDiscord?.push({ tipo: 'Presenca', status: 'Publicada' })
-    draft.publicacoesDiscord?.push({ tipo: 'TimesDefinidos', status: 'Publicada' })
     mockPollingApi([draft])
     env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
     mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cta', expiraEm: null, status: 'EmAndamento' }))
     const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => draft as never)
     const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => draft as never)
+    const send = mock.fn(async () => { throw new Error('unknown CTA send result') })
 
-    await runDraftPollingCycle(pollingClient(async () => { throw new Error('unknown CTA send result') }))
+    await runDraftPollingCycle(pollingClient(send))
 
+    assert.equal(send.mock.callCount(), 1)
     assert.equal(complete.mock.callCount(), 0)
     assert.equal(failure.mock.callCount(), 0)
   })
