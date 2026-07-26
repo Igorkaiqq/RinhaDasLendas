@@ -67,7 +67,7 @@ describe('system update registry', () => {
       '2026.06.1',
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
-      '2026-07-25',
+      '2026-07-26',
       '2026-07-25',
       '2026-07-23',
       '2026-07-22',
@@ -85,7 +85,7 @@ describe('system update registry', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
       id: 'clearer-draft-operation',
       version: '2026.07.4',
-      publishedAt: '2026-07-25',
+      publishedAt: '2026-07-26',
       featured: true,
       categories: ['improvement'],
       areas: ['drafts'],

@@ -57,6 +57,23 @@ describe('system updates', () => {
     ).toEqual([])
   })
 
+  it('rejects reversed numeric release sequences published on the same day', () => {
+    const reversedSameDayReleases = [
+      {
+        ...SYSTEM_UPDATES[1],
+        publishedAt: '2026-07-26',
+      },
+      {
+        ...SYSTEM_UPDATES[0],
+        publishedAt: '2026-07-26',
+      },
+    ]
+
+    expect(
+      getSystemUpdateValidationErrors(reversedSameDayReleases, () => true),
+    ).toContain('Releases on the same date must use descending version sequence')
+  })
+
   it('reports malformed registry data and unknown links', () => {
     const invalid = [
       {

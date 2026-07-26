@@ -37,8 +37,8 @@ describe('SystemUpdateCard', () => {
     expect(wrapper.get('[data-slot="card-header"]').classes()).toContain(
       'system-update-card__header',
     )
-    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-25')
-    expect(wrapper.get('time').text()).toBe('25 de julho de 2026')
+    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-26')
+    expect(wrapper.get('time').text()).toBe('26 de julho de 2026')
     expect(wrapper.get('h2').text()).toBe('Draft mais claro do início ao fim')
     expect(wrapper.text()).toContain('2026.07.4')
     expect(wrapper.text()).toContain(
@@ -88,7 +88,7 @@ describe('SystemUpdateCard', () => {
     await nextTick()
 
     expect(wrapper.get('article').classes()).not.toContain('system-update-card--latest')
-    expect(wrapper.get('time').text()).toBe('July 25, 2026')
+    expect(wrapper.get('time').text()).toBe('July 26, 2026')
     expect(wrapper.get('h2').text()).toBe('A clearer draft from start to finish')
     expect(wrapper.text()).toContain('Improvement')
     expect(wrapper.text()).toContain('Drafts')

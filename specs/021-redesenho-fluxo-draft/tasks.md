@@ -184,6 +184,8 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 - [X] T039 Adicionar a próxima versão editorial disponível do redesenho em `FrontEnd/src/constants/systemUpdates.ts`, `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
 - [X] T040 Reexecutar todos os gates e finalizar evidências locais de release em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
+**Revisão pós-T040 (2026-07-26)**: T035-T040 permanecem concluídas após RED adicional e correções da data real de publicação de `2026.07.4`, da ordem numérica entre versões publicadas no mesmo dia e do critério editorial em duas etapas. Evidências complementares foram adicionadas sem alterar os registros históricos anteriores.
+
 ---
 
 ## Dependencies & Execution Order

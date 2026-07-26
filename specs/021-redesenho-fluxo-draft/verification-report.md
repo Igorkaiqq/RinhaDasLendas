@@ -760,3 +760,64 @@
 
 - A validação autenticada em produção permanece posterior à integração em `main`, conforme o quickstart; este fechamento comprova os gates locais.
 - O build mantém o aviso conhecido de chunk principal acima de 500 kB e avisos `PURE` de dependências; não foram introduzidos por esta release editorial.
+
+## Revisão pós-T040 - Data real e ordem de releases no mesmo dia
+
+### Preservação do histórico
+
+- Esta seção complementa e supersede somente o estado final descrito no fechamento T035-T040 anterior; as evidências de `.3` no topo registradas em T031-T034 e T030 permanecem inalteradas porque comprovam corretamente o estágio anterior à publicação do redesenho.
+- SC-008 passa a ser verificado em duas etapas: `.3` foi topo e destaque único antes do gate de FR-027; após a aprovação local, `.4` assume topo e destaque, enquanto `.3` permanece imutável exceto por `featured: false`.
+- A data real de publicação de `2026.07.4` é `2026-07-26`. A versão permanece `2026.07.4`; nenhum conteúdo editorial PT/EN ou dado histórico de `.3` e `.2` foi reescrito.
+
+### TDD dos achados
+
+#### RED
+
+- Comando: `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`.
+- Resultado: 4 arquivos falharam e 1 passou; 6 testes falharam e 52 passaram.
+- Motivos esperados: registro, card e hero ainda usavam `2026-07-25`; datas renderizadas ainda eram “25 de julho de 2026” e “July 25, 2026”; a validação aceitava `.3` antes de `.4` quando ambas compartilhavam uma data.
+
+#### GREEN
+
+- O mesmo comando aprovou 5 arquivos e 58 testes, sem falhas (`constants`: 7; `services`: 10; card: 4; view: 7; i18n: 30).
+- `publishedAt` de `.4` e as expectativas exatas de registro, `datetime`, português e inglês foram atualizados para `2026-07-26`.
+- Para datas iguais e versões válidas `AAAA.MM.N`, a validação compara ano, mês e sequência numericamente e exige ordem estritamente decrescente.
+- O teste válido de releases sequenciais na mesma data continua aprovado; unicidade de ID/versão, formato de versão, validade de data, ordem cronológica, traduções, links e demais validações anteriores permanecem cobertos.
+- O caso invertido `.3`, `.4` na mesma data falha com `Releases on the same date must use descending version sequence`.
+
+### Gates finais corrigidos
+
+| Gate | Comando na raiz | Resultado final |
+|------|-----------------|-----------------|
+| Atualizações | `npm test --prefix FrontEnd -- src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts` | 5 arquivos, 58 testes aprovados, 0 falhas |
+| Suíte completa | `npm test --prefix FrontEnd` | 38 arquivos, 387 testes aprovados, 0 falhas |
+| Build | `npm run build --prefix FrontEnd` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check --prefix FrontEnd` | aprovado sem erros ou avisos |
+| i18n | `npm test --prefix FrontEnd -- src/i18n/i18n.spec.ts` | 1 arquivo, 30 testes aprovados, 0 falhas |
+| Dependências | `npm audit --prefix FrontEnd -- --audit-level=moderate` | 0 vulnerabilidades |
+| Diff | `git diff --check` | aprovado sem saída |
+
+### Correção do ledger
+
+| Critério | Evidência em duas etapas | Estado |
+|----------|--------------------------|--------|
+| SC-008 estágio 1 | T031-T034 e T030 registram `.3` no topo, destaque único, conteúdo PT/EN e navegação para Configurações antes da publicação do redesenho. | Aprovado historicamente. |
+| SC-008 estágio 2 | Testes finais registram `.4` no topo, destaque único, data `2026-07-26`, conteúdo PT/EN e links para Drafts; snapshots exatos mantêm `.3` inalterada exceto pelo destaque. | Aprovado localmente após FR-027. |
+| T035-T040 | Gates corrigidos, auditoria e regra de ordenação reexecutados; nota pós-T040 adicionada em `tasks.md`. | Permanecem concluídas. |
+
+### Auditoria de internacionalização da revisão
+
+- Textos visíveis hardcoded no frontend: não introduzidos; scanner de Draft e testes de Atualizações permanecem aprovados.
+- Textos visíveis hardcoded no backend: nenhum arquivo backend foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada integralmente; as folhas de tradução não precisaram de alteração nesta revisão.
+- Conteúdo `.4`, `.3` e `.2`: preservado nos dois idiomas por contratos exatos.
+- Datas renderizadas: `26 de julho de 2026` e `July 26, 2026` aprovadas no card; `datetime="2026-07-26"` aprovado no card e hero.
+- Resources backend: nenhuma atualização necessária.
+- Acentuação portuguesa, títulos, detalhes, badges, links, toasts, placeholders e estados vazios: permanecem conformes.
+- Validações frontend/backend: a nova validação é interna e não adiciona mensagem visível ao usuário; mensagens existentes continuam localizadas.
+- Novos arquivos: nenhum.
+
+### Limites preservados
+
+- O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
+- A validação autenticada pós-deploy continua pendente conforme o quickstart; as duas etapas editoriais e todos os gates locais estão documentados separadamente.

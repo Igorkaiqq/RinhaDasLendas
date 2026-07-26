@@ -30,7 +30,7 @@ export const SYSTEM_UPDATES = [
   {
     id: 'clearer-draft-operation',
     version: '2026.07.4',
-    publishedAt: '2026-07-25',
+    publishedAt: '2026-07-26',
     featured: true,
     categories: ['improvement'],
     areas: ['drafts'],

@@ -59,7 +59,7 @@ describe('SystemUpdatesView', () => {
     )
     expect(hero.get('[data-latest-categories]').text()).toBe('Melhoria')
     expect(hero.get('[data-latest-areas]').text()).toContain('Drafts')
-    expect(hero.get('time').attributes('datetime')).toBe('2026-07-25')
+    expect(hero.get('time').attributes('datetime')).toBe('2026-07-26')
     expect(releases).toHaveLength(SYSTEM_UPDATES.length)
     expect(releases.map((release) => release.attributes('id'))).toEqual(
       SYSTEM_UPDATES.map((release) => `update-${release.id}`),

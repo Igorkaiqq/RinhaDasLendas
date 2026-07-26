@@ -173,7 +173,7 @@ Como usuário, quero encontrar no histórico a melhoria entregue na seleção de
 - **SC-005**: Em 100% dos cenários críticos de confirmar, encerrar, cancelar, definir capitães, estabelecer ordem, escolher, remover, finalizar e republicar, permissões, bloqueio de duplicidade e resultado permanecem iguais aos anteriores ao redesenho.
 - **SC-006**: O fluxo completo pode ser percorrido somente por teclado com foco sempre visível, ordem lógica e indicação programática da etapa atual.
 - **SC-007**: Em português e inglês, 100% dos estados, ações, mensagens e conteúdos editoriais novos ou alterados exibem texto compreensível e equivalente, sem chave ou marcador técnico visível.
-- **SC-008**: A versão `2026.07.3` aparece no topo do histórico em ambos os idiomas, com exatamente uma release destacada e link válido para Configurações.
+- **SC-008**: O histórico MUST respeitar duas etapas editoriais em ambos os idiomas: antes da publicação do redesenho, `2026.07.3` aparece no topo como única release destacada e com link válido para Configurações; após a aprovação dos critérios e o gate de FR-027, `2026.07.4`, publicada em `2026-07-26`, assume o topo e o destaque único com link válido para Drafts, enquanto `2026.07.3` permanece imutável exceto por `featured: false`.
 - **SC-009**: Todos os cenários de aceitação das seis jornadas são concluídos sem perda de ação existente, informação essencial, permissão ou significado entre português e inglês.
 - **SC-010**: Usuários conseguem concluir inclusão manual, remoção autorizada e avanço da etapa de presença sem alternar entre áreas de rolagem concorrentes.
 

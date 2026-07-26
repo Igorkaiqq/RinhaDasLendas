@@ -22,9 +22,9 @@ npm test --prefix FrontEnd -- \
 
 Baseline de planejamento em 2026-07-25: 58 testes aprovados nos sete arquivos focados.
 
-## 2. Validar `2026.07.3`
+## 2. Validar as duas etapas editoriais
 
-Confirmar:
+Antes da aprovação local do redesenho, confirmar o estágio 1:
 
 - release no topo com data `2026-07-25`;
 - categoria `fix`, área `drafts` e link para Configurações;
@@ -33,6 +33,15 @@ Confirmar:
 - `.2` preservada e sem destaque;
 - conteúdo equivalente em português e inglês;
 - nenhum anúncio antecipado do redesenho.
+
+Depois da aprovação de SC-001 a SC-010 e do gate de FR-027, confirmar o estágio 2:
+
+- `2026.07.4` no topo com data real de publicação `2026-07-26`;
+- categoria `improvement`, área `drafts` e links para Drafts;
+- `.4` como única release destacada;
+- `.3` preservada integralmente, exceto por `featured: false`;
+- título, resumo e detalhes equivalentes em português e inglês;
+- ordem numérica decrescente para releases válidas `AAAA.MM.N` que compartilhem a mesma data.
 
 ```bash
 npm test --prefix FrontEnd -- \
@@ -126,7 +135,7 @@ agent-browser --session feature021 close
 | SC-005 | Testes de confirmar, encerrar, cancelar, capitães, ordem, escolher, remover, finalizar e republicar | Permissão, duplicidade e resultado preservados em cada ação |
 | SC-006 | Jornada por Tab, Shift+Tab, Enter e Espaço | Foco sempre visível, ordem lógica e etapa atual anunciada |
 | SC-007 | Paridade de locale e auditoria de textos visíveis | PT/EN completos, sem chave técnica ou texto hardcoded |
-| SC-008 | Testes de Atualizações e inspeção autenticada | `2026.07.3` no topo, única destacada e link válido |
+| SC-008 | Testes de Atualizações e inspeção autenticada nas duas etapas | Antes de FR-027, `.3` no topo e destacada; depois do gate, `.4` no topo e destacada com data `2026-07-26`, mantendo `.3` imutável exceto pelo destaque |
 | SC-009 | Execução das seis jornadas em PT e EN | Nenhuma perda funcional, informacional ou de permissão |
 | SC-010 | Jornada de inclusão, remoção e avanço com lista extensa | No máximo uma região de rolagem vertical por vez |
 
@@ -138,7 +147,7 @@ O relatório final deve confirmar explicitamente:
 
 - ausência de textos visíveis hardcoded em `DraftsView.vue` e `components/drafts/**/*.vue`;
 - sincronização integral entre `pt.json` e `en.json`;
-- conteúdo `2026.07.3` equivalente nos dois idiomas;
+- conteúdo `2026.07.3` e `2026.07.4` equivalente nos dois idiomas;
 - acentuação portuguesa revisada;
 - placeholders, botões, títulos, badges, toasts, empty states e mensagens de validação revisados;
 - validações frontend usando i18n;
@@ -156,6 +165,6 @@ Não adicionar a release posterior enquanto algum item local estiver pendente:
 - PT/EN equivalentes;
 - suíte, build, lint e auditoria aprovados;
 
-A entrada pode ser criada depois desses gates locais para seguir no mesmo artefato implantado. A publicação só é considerada concluída após o deploy e a validação autenticada em produção, executados depois da integração em `main`.
+A entrada pode ser criada depois desses gates locais para seguir no mesmo artefato implantado. Nesse segundo estágio, `.4` assume topo e destaque e `.3` perde somente o destaque. A publicação só é considerada concluída após o deploy e a validação autenticada em produção, executados depois da integração em `main`.
 
 A versão será o próximo `AAAA.MM.N` disponível na data real da publicação.
