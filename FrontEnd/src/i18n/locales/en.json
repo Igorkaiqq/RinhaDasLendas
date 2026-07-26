@@ -1079,6 +1079,16 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_3": {
+        "title": "Clearer selected weekdays",
+        "summary": "Selected days in presence schedules are now highlighted, making them easier to review before saving.",
+        "details": {
+          "selected-weekday-feedback": {
+            "title": "Visual confirmation for selected weekdays",
+            "description": "When configuring a schedule, you can immediately identify which weekdays are selected and avoid uncertainty before saving."
+          }
+        }
+      },
       "2026_07_2": {
         "title": "Scheduled presence lists",
         "summary": "Moderators can now organize weekly lists with defined times, history tracking, and safe recovery during the configured window.",

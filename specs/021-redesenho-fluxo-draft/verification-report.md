@@ -474,3 +474,56 @@
 - Lint: `npm run lint:check` aprovado sem erros ou avisos.
 - Internacionalização: `i18n.spec.ts` aprovado com 28 testes e 0 falhas; nenhuma chave ou mensagem localizada foi alterada neste fechamento.
 - Diff: `git diff --check` aprovado sem saída antes da atualização final deste relatório.
+
+## T031-T034 - Correção dos dias selecionados em Atualizações
+
+### Progresso
+
+| Tarefa | Estado | Evidência |
+|--------|--------|-----------|
+| T031 | Concluída | Registro e serviço exigem `2026.07.3` no topo, busca localizada, histórico completo, `.2` sem destaque e `.3` como única release destacada. |
+| T032 | Concluída | Card, hero e i18n exigem data, ordem, metadados e conteúdo PT/EN exatos da correção. |
+| T033 | Concluída | `presence-schedule-weekday-selection-fix` foi adicionado com categoria `fix`, área `drafts`, detalhe `selected-weekday-feedback` e link `AppRoutes.Settings`; todo o histórico anterior foi preservado. |
+| T034 | Concluída | Título, resumo e detalhe orientados a benefício foram adicionados em português e inglês sem mencionar o redesenho ainda não publicado. |
+
+### RED
+
+- Comando: `npm test -- --run src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`.
+- Resultado: 5 arquivos falharam como esperado; 12 testes falharam e 41 passaram.
+- Motivos esperados: `2026.07.3` ainda não existia, `.2` permanecia destacada, latest e busca não encontravam a correção, card e hero ainda apresentavam `.2`, e as chaves/editorial PT/EN de `.3` estavam ausentes.
+
+### GREEN
+
+- Comando focado: `npm test -- --run src/constants/systemUpdates.spec.ts src/services/systemUpdates.spec.ts src/components/updates/SystemUpdateCard.spec.ts src/views/SystemUpdatesView.spec.ts src/i18n/i18n.spec.ts`.
+- Resultado: 5 arquivos e 53 testes aprovados, sem falhas (`constants`: 6; `services`: 8; card: 4; view: 7; i18n: 28).
+- A ordem exata contém dez releases, com `.3` no topo e `.2` imediatamente depois; os detalhes completos de `.2` e `.1` permanecem protegidos por testes.
+- A busca localizada por “dias selecionados” encontra somente `.3` com filtro de correção; a busca por Discord continua encontrando `.2`.
+
+### Ledger de evidências
+
+| Critério | Evidência desta fase | Estado |
+|----------|----------------------|--------|
+| SC-008 | Registro, serviço, card e hero confirmam `2026.07.3` no topo, data `2026-07-25`, único destaque e link interno para Configurações. | Aprovado por testes automatizados; inspeção autenticada permanece no T030. |
+| FR-025 | O histórico descreve a confirmação visual dos dias selecionados com categoria `fix` e área `drafts`. | Aprovado. |
+| Preservação histórica | Testes exatos mantêm as dez releases, `.2` com cinco detalhes e `.1` com quinze detalhes. | Aprovado. |
+| Segurança editorial | PT/EN usam somente benefícios visíveis e rejeitam menções a “redesenho” ou “redesign”. | Aprovado. |
+
+### Gates
+
+- Suíte focada: 5 arquivos e 53 testes aprovados, sem falhas.
+- Suíte completa: `npm test`; 38 arquivos e 368 testes aprovados, sem falhas.
+- Build: `npm run build`; 2.764 módulos transformados e build concluído. Permanecem somente os avisos não bloqueantes já conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
+- Lint: `npm run lint:check`; aprovado sem erros ou avisos.
+- Internacionalização: `npm test -- --run src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.
+- Whitespace: `git diff --check`; aprovado sem saída antes do fechamento documental.
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados; o conteúdo editorial está exclusivamente em `pt.json` e `en.json`.
+- Textos visíveis hardcoded no backend: não encontrados; backend não foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada por paridade integral de folhas e pelo contrato exato de `2026_07_3`.
+- Resources backend: nenhuma atualização necessária; nenhuma mensagem ou validação backend foi alterada.
+- Acentuação portuguesa: revisada em “agendamentos”, “presença”, “Confirmação”, “selecionados” e “dúvidas”.
+- Placeholders, botões, títulos, badges, toasts e estados vazios: revisados; somente título, resumo e detalhe editorial foram adicionados.
+- Validações frontend e backend: nenhuma validação nova; mensagens existentes permanecem localizadas.
+- Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão de internacionalização.

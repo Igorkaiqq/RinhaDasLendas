@@ -1079,6 +1079,16 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_3": {
+        "title": "Dias selecionados mais claros",
+        "summary": "Os dias escolhidos nos agendamentos de presença agora ficam destacados, facilitando a revisão antes de salvar.",
+        "details": {
+          "selected-weekday-feedback": {
+            "title": "Confirmação visual dos dias selecionados",
+            "description": "Ao configurar um agendamento, você identifica imediatamente quais dias da semana estão selecionados e evita dúvidas antes de salvar."
+          }
+        }
+      },
       "2026_07_2": {
         "title": "Listas de presença agendadas",
         "summary": "Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.",

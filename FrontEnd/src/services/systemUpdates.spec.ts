@@ -26,7 +26,7 @@ function hasPath(source: object, path: string): boolean {
 describe('system updates', () => {
   it('returns the latest valid release from the registry', () => {
     expect(getLatestSystemUpdate()).toBe(SYSTEM_UPDATES[0])
-    expect(getLatestSystemUpdate().version).toBe('2026.07.2')
+    expect(getLatestSystemUpdate().version).toBe('2026.07.3')
     expect(() => getLatestSystemUpdate([])).toThrow(
       'System update registry cannot be empty',
     )
@@ -71,15 +71,15 @@ describe('system updates', () => {
     expect(errors).toEqual(
       expect.arrayContaining([
         'Exactly one release must be featured',
-        'Duplicate release id: presence-scheduling-2026-07',
+        'Duplicate release id: presence-schedule-weekday-selection-fix',
         'Invalid version: 2026-7-1',
         'Invalid date: 2026-02-30',
         'Releases must be newest first',
-        'Missing categories: presence-scheduling-2026-07',
-        'Missing areas: presence-scheduling-2026-07',
-        'Missing details: presence-scheduling-2026-07',
+        'Missing categories: presence-schedule-weekday-selection-fix',
+        'Missing areas: presence-schedule-weekday-selection-fix',
+        'Missing details: presence-schedule-weekday-selection-fix',
         'Missing translation: missing.title',
-        'Duplicate detail id: presence-scheduling-2026-07:weekly-presence-scheduling',
+        'Duplicate detail id: presence-schedule-weekday-selection-fix:selected-weekday-feedback',
         'Unknown internal link: /unknown',
       ]),
     )
@@ -113,11 +113,19 @@ describe('system updates', () => {
     expect(
       filterSystemUpdates(
         SYSTEM_UPDATES,
+        'dias selecionados',
+        ['fix'],
+        translate,
+      ).map(({ version }) => version),
+    ).toEqual(['2026.07.3'])
+    expect(
+      filterSystemUpdates(
+        SYSTEM_UPDATES,
         '',
         ['fix', 'security'],
         translate,
       ).map(({ version }) => version),
-    ).toEqual(['2026.07.1', '2026.06.7', '2026.06.4'])
+    ).toEqual(['2026.07.3', '2026.07.1', '2026.06.7', '2026.06.4'])
     expect(filterSystemUpdates(SYSTEM_UPDATES, '', [], translate)).toEqual(
       SYSTEM_UPDATES,
     )

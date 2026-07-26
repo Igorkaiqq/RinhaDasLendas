@@ -159,13 +159,13 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 
 ### Tests for User Story 6
 
-- [ ] T031 [P] [US6] Atualizar testes falhos do registro e serviço para `.3` em `FrontEnd/src/constants/systemUpdates.spec.ts` e `FrontEnd/src/services/systemUpdates.spec.ts`
-- [ ] T032 [P] [US6] Atualizar testes falhos do card, hero e locales para `.3` em `FrontEnd/src/components/updates/SystemUpdateCard.spec.ts`, `FrontEnd/src/views/SystemUpdatesView.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
+- [X] T031 [P] [US6] Atualizar testes falhos do registro e serviço para `.3` em `FrontEnd/src/constants/systemUpdates.spec.ts` e `FrontEnd/src/services/systemUpdates.spec.ts`
+- [X] T032 [P] [US6] Atualizar testes falhos do card, hero e locales para `.3` em `FrontEnd/src/components/updates/SystemUpdateCard.spec.ts`, `FrontEnd/src/views/SystemUpdatesView.spec.ts` e `FrontEnd/src/i18n/i18n.spec.ts`
 
 ### Implementation for User Story 6
 
-- [ ] T033 [US6] Adicionar `2026.07.3` e retirar destaque de `.2` em `FrontEnd/src/constants/systemUpdates.ts`
-- [ ] T034 [US6] Adicionar conteúdo editorial equivalente de `.3` em `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
+- [X] T033 [US6] Adicionar `2026.07.3` e retirar destaque de `.2` em `FrontEnd/src/constants/systemUpdates.ts`
+- [X] T034 [US6] Adicionar conteúdo editorial equivalente de `.3` em `FrontEnd/src/i18n/locales/pt.json` e `FrontEnd/src/i18n/locales/en.json`
 
 **Checkpoint**: Correção já publicada aparece no histórico oficial.
 

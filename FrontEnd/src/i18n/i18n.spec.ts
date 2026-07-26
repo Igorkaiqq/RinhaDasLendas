@@ -269,30 +269,42 @@ describe('i18n', () => {
     expect(leafPaths(pt).sort()).toEqual(leafPaths(en).sort())
     expect(
       i18n.global.t(
-        'updates.releases.2026_07_2.details.weekly-presence-scheduling.title',
+        'updates.releases.2026_07_3.details.selected-weekday-feedback.title',
       ),
     ).not.toContain('updates.')
   })
 
-  it('provides equivalent and product-safe presence scheduling release content', () => {
-    const detailIds = [
-      'weekly-presence-scheduling',
-      'publication-closing-times',
-      'moderator-management',
-      'window-recovery',
-      'duplicate-draft-protection',
-    ] as const
+  it('provides exact benefit-oriented selected weekday fix content in both locales', () => {
+    expect(pt.updates.releases['2026_07_3']).toEqual({
+      title: 'Dias selecionados mais claros',
+      summary:
+        'Os dias escolhidos nos agendamentos de presença agora ficam destacados, facilitando a revisão antes de salvar.',
+      details: {
+        'selected-weekday-feedback': {
+          title: 'Confirmação visual dos dias selecionados',
+          description:
+            'Ao configurar um agendamento, você identifica imediatamente quais dias da semana estão selecionados e evita dúvidas antes de salvar.',
+        },
+      },
+    })
+    expect(en.updates.releases['2026_07_3']).toEqual({
+      title: 'Clearer selected weekdays',
+      summary:
+        'Selected days in presence schedules are now highlighted, making them easier to review before saving.',
+      details: {
+        'selected-weekday-feedback': {
+          title: 'Visual confirmation for selected weekdays',
+          description:
+            'When configuring a schedule, you can immediately identify which weekdays are selected and avoid uncertainty before saving.',
+        },
+      },
+    })
 
-    for (const locale of [pt, en]) {
-      const release = locale.updates.releases['2026_07_2']
-      expect(release.title).toBeTruthy()
-      expect(release.summary).toBeTruthy()
-      expect(Object.keys(release.details)).toEqual(detailIds)
-      for (const detail of Object.values(release.details)) {
-        expect(detail.title).toBeTruthy()
-        expect(detail.description).toBeTruthy()
-        expect(detail.description).not.toMatch(/claims?|locks?|tokens?|endpoints?|\/api\//i)
-      }
+    for (const release of [
+      pt.updates.releases['2026_07_3'],
+      en.updates.releases['2026_07_3'],
+    ]) {
+      expect(JSON.stringify(release)).not.toMatch(/redesenho|redesign/i)
     }
   })
 

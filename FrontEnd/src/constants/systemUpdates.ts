@@ -28,10 +28,27 @@ function releaseDetails(
 
 export const SYSTEM_UPDATES = [
   {
+    id: 'presence-schedule-weekday-selection-fix',
+    version: '2026.07.3',
+    publishedAt: '2026-07-25',
+    featured: true,
+    categories: ['fix'],
+    areas: ['drafts'],
+    titleKey: `${releaseKeys('2026.07.3')}.title`,
+    summaryKey: `${releaseKeys('2026.07.3')}.summary`,
+    details: releaseDetails('2026.07.3', [
+      {
+        id: 'selected-weekday-feedback',
+        category: 'fix',
+        link: AppRoutes.Settings,
+      },
+    ]),
+  },
+  {
     id: 'presence-scheduling-2026-07',
     version: '2026.07.2',
     publishedAt: '2026-07-23',
-    featured: true,
+    featured: false,
     categories: ['feature', 'improvement'],
     areas: ['drafts', 'discord'],
     titleKey: `${releaseKeys('2026.07.2')}.title`,

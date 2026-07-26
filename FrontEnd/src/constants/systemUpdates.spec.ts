@@ -4,6 +4,7 @@ import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
+  'presence-schedule-weekday-selection-fix',
   'presence-scheduling-2026-07',
   'drafts-discord-reliability',
   'security-deploy-identity',
@@ -16,6 +17,10 @@ const releaseIds = [
 ]
 
 const latestDetailIds = [
+  'selected-weekday-feedback',
+]
+
+const presenceSchedulingDetailIds = [
   'weekly-presence-scheduling',
   'publication-closing-times',
   'moderator-management',
@@ -42,9 +47,10 @@ const previousDetailIds = [
 ]
 
 describe('system update registry', () => {
-  it('contains the nine stable releases in descending chronological order', () => {
+  it('contains the ten stable releases in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
     expect(SYSTEM_UPDATES.map(({ version }) => version)).toEqual([
+      '2026.07.3',
       '2026.07.2',
       '2026.07.1',
       '2026.06.7',
@@ -56,6 +62,7 @@ describe('system update registry', () => {
       '2026.06.1',
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
+      '2026-07-25',
       '2026-07-23',
       '2026-07-22',
       '2026-06-30',
@@ -68,18 +75,36 @@ describe('system update registry', () => {
     ])
   })
 
-  it('publishes the presence scheduling release as the only featured latest release', () => {
+  it('publishes the selected weekday feedback fix as the only featured latest release', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
-      id: 'presence-scheduling-2026-07',
-      version: '2026.07.2',
+      id: 'presence-schedule-weekday-selection-fix',
+      version: '2026.07.3',
+      publishedAt: '2026-07-25',
       featured: true,
-      categories: ['feature', 'improvement'],
-      areas: ['drafts', 'discord'],
+      categories: ['fix'],
+      areas: ['drafts'],
     })
     expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(
       latestDetailIds,
     )
+    expect(SYSTEM_UPDATES[0].details[0]).toMatchObject({
+      id: 'selected-weekday-feedback',
+      category: 'fix',
+      link: AppRoutes.Settings,
+    })
     expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
+  })
+
+  it('preserves the complete presence scheduling release without featuring it', () => {
+    const previous = SYSTEM_UPDATES.find(({ version }) => version === '2026.07.2')
+
+    expect(previous).toMatchObject({
+      id: 'presence-scheduling-2026-07',
+      featured: false,
+    })
+    expect(previous?.details.map(({ id }) => id)).toEqual(
+      presenceSchedulingDetailIds,
+    )
   })
 
   it('preserves exactly the fifteen details from release 2026.07.1', () => {
