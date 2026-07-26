@@ -229,7 +229,7 @@ Garantias adicionais:
 - preferências de rota permanecem visíveis nos jogadores disponíveis e detalhes, inclusive em layouts compactos;
 - cada linha usa botão nativo separado para detalhes e controles irmãos para escolha/substituição, sem semântica interativa aninhada e com eventos de teclado contidos;
 - jogadores editáveis mantêm drag-and-drop e recebem também seleção localizada de destino operável por teclado e toque;
-- o movimento por seleção restaura o foco no jogador movido e anuncia nome e destino em uma região `aria-live="polite"` localizada;
+- o movimento por seleção restaura o foco no jogador movido ou, quando filtros ocultam sua linha de destino, na busca estável do board, sem limpar filtros; nome e destino são anunciados em uma região `aria-live="polite"` localizada;
 - filtros de rota expõem `aria-pressed` e o turno/progresso realtime é anunciado em região `aria-live="polite"`;
 - substituição local bloqueia duplicidade rápida e fica indisponível durante salvamento ou em estado terminal; a view revalida permissão, salvamento, status, time, titular e reserva;
 - identidade geral do draft não é duplicada no board;

@@ -440,6 +440,33 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it.each([
+    ['livres', 'search', 'Jogadores livres'],
+    ['reservas', 'route', 'Reservas'],
+  ] as const)('focuses player search after moving an excluded team player to %s', async (target, activeFilter, destinationLabel) => {
+    const draft = montagem()
+    draft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
+    const wrapper = mountBoard(draft, { attachTo: document.body })
+    const search = wrapper.get('.draft-search-field input')
+    const adcFilter = wrapper.findAll('.draft-route-filters button').find((filter) => filter.text() === 'ADC')!
+
+    if (activeFilter === 'search') await search.setValue('Reserve Support')
+    else await adcFilter.trigger('click')
+
+    const destination = wrapper.get('[data-team-id="team-a"] [data-player-id="team-player"] [data-move-destination]')
+    ;(destination.element as InstanceType<typeof globalThis.HTMLElement>).focus()
+    await destination.setValue(target)
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('[data-player-id="team-player"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(search.element)
+    expect((search.element as InstanceType<typeof globalThis.HTMLInputElement>).value).toBe(activeFilter === 'search' ? 'Reserve Support' : '')
+    expect(adcFilter.attributes('aria-pressed')).toBe(activeFilter === 'route' ? 'true' : 'false')
+    expect(wrapper.get('[data-move-announcement]').text()).toBe(`Team Player foi movido para ${destinationLabel}.`)
+    wrapper.unmount()
+  })
+
   it('keeps a player in place when a move destination is invalid', () => {
     const wrapper = mountBoard()
     const vm = wrapper.vm as unknown as {

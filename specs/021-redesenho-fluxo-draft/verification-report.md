@@ -956,3 +956,37 @@
 - Placeholders, botões, títulos, badges, toasts, estados vazios e mensagens de validação: revisados; textos não URL usam `…` e os quatro exemplos literais de OP.GG/DeepLoL preservam `...` como parte da URL.
 - Validações frontend/backend: mensagens existentes continuam localizadas; nenhuma validação backend foi alterada.
 - Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão de internacionalização.
+
+## Fechamento do foco após movimento para linha filtrada
+
+### Causa e TDD
+
+- Causa raiz: depois do movimento, `DraftVisualBoard` procurava foco somente na nova linha do jogador. Quando busca ou rota ativa excluía essa linha do pool renderizado, o select original já havia sido removido e nenhum destino recebia foco, deixando `document.activeElement` em `body`.
+- RED: `npm test -- --run src/components/drafts/visual/DraftVisualBoard.spec.ts`; 1 arquivo falhou, 2 testes falharam e 27 passaram.
+- Os dois casos exatos moveram um jogador de `team-a` para `livres` sob busca ativa e para `reservas` sob filtro ADC ativo. Em ambos, movimento e anúncio já funcionavam, a linha ficava corretamente oculta e o foco caía em `body`.
+- GREEN: o mesmo comando aprovou 1 arquivo e 29 testes, sem falhas.
+- Correção mínima: quando a linha movida está renderizada, o foco continua dentro dela; quando está filtrada, o foco vai para `draft-player-search`, controle estável e visível. Busca, rota selecionada e anúncio localizado permanecem inalterados.
+- O contrato de UI foi atualizado para explicitar o fallback sem limpeza de filtros.
+
+### Gates finais
+
+| Gate | Comando | Resultado |
+|------|---------|-----------|
+| Suíte focada | `npm test -- --run src/components/drafts/visual/DraftVisualBoard.spec.ts` | 1 arquivo, 29 testes aprovados, 0 falhas |
+| Suíte completa | `npm test` | 38 arquivos, 411 testes aprovados, 0 falhas |
+| Build | `npm run build` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check` | aprovado sem erros ou avisos |
+| Internacionalização | `npm test -- --run src/i18n/i18n.spec.ts` | 1 arquivo, 31 testes aprovados, 0 falhas |
+| Diff | `git diff --check` | aprovado sem saída após esta atualização documental |
+
+- O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: nenhum introduzido; o anúncio existente continua localizado.
+- Textos visíveis hardcoded no backend: nenhum; backend não foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada integralmente por 31 testes; locales não precisaram de alteração.
+- Resources backend: nenhuma atualização necessária.
+- Acentuação portuguesa, placeholders, botões, títulos, badges, toasts, estados vazios e mensagens de validação: permanecem conformes e revisados.
+- Validações frontend/backend: nenhuma mensagem ou validação foi alterada.
+- Novos arquivos: nenhum.

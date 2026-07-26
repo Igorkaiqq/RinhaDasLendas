@@ -344,7 +344,9 @@ async function moveFromControl(player: DraftMontagemParticipante, event: MoveCon
   await nextTick()
   const movedRow = [...(boardShell.value?.querySelectorAll<InstanceType<typeof globalThis.HTMLElement>>('[data-player-id]') ?? [])]
     .find((row) => row.dataset.playerId === player.jogadorId)
-  movedRow?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-move-destination], [data-player-details]')?.focus()
+  const focusTarget = movedRow?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-move-destination], [data-player-details]')
+    ?? boardShell.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[name="draft-player-search"]')
+  focusTarget?.focus()
 }
 
 function detailsLabel(player: DraftMontagemParticipante) {
