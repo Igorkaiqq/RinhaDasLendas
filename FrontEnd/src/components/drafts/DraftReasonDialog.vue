@@ -31,6 +31,7 @@ const reason = ref('')
 const submitted = ref(false)
 const commandSubmitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
+const backButton = useTemplateRef<InstanceType<typeof Button>>('backButton')
 const discordTranslationKeys: Record<DraftMontagemPublicacaoDiscordTipo, string> = {
   Presenca: 'republishPresence',
   ChamadaPresenca: 'republishPresenceCta',
@@ -103,7 +104,10 @@ function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
 
 function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
   event.preventDefault()
-  if (globalThis.matchMedia?.('(max-width: 768px)').matches) return
+  if (globalThis.matchMedia?.('(max-width: 768px)').matches) {
+    void nextTick(() => backButton.value?.$el.focus())
+    return
+  }
 
   void nextTick(() => reasonField.value?.$el.focus())
 }
@@ -163,7 +167,7 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
         </FieldGroup>
 
         <DialogFooter>
-          <Button data-testid="draft-reason-cancel" type="button" variant="outline" :disabled="saving" @click="cancel">
+          <Button ref="backButton" data-testid="draft-reason-cancel" type="button" variant="outline" :disabled="saving" @click="cancel">
             {{ t('drafts.reasonDialog.back') }}
           </Button>
           <Button

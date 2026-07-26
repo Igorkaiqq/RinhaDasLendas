@@ -111,15 +111,17 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
-  it('does not autofocus the reason field on a mobile viewport', async () => {
+  it('focuses the back control inside the dialog without opening the mobile keyboard', async () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     const opener = document.createElement('button')
     document.body.append(opener)
     opener.focus()
     const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const dialog = wrapper.get('[role="dialog"]')
 
     expect(wrapper.get('textarea').attributes('autofocus')).toBeUndefined()
-    expect(document.activeElement).toBe(opener)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
+    expect(dialog.element.contains(document.activeElement)).toBe(true)
 
     wrapper.unmount()
     opener.remove()
@@ -150,7 +152,8 @@ describe('DraftReasonDialog', () => {
     wrapper.findComponent(DialogContent).vm.$emit('openAutoFocus', openEvent)
     await nextTick()
     expect(openEvent.defaultPrevented).toBe(true)
-    expect(document.activeElement).toBe(opener)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
+    expect(wrapper.get('[role="dialog"]').element.contains(document.activeElement)).toBe(true)
     expect(matchMedia).toHaveBeenCalledTimes(2)
 
     wrapper.unmount()

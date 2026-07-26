@@ -32,6 +32,7 @@ const serviceMocks = vi.hoisted(() => ({
   confirmDraftMontagemPresence: vi.fn(),
   defineDraftMontagemCaptains: vi.fn(),
   defineDraftMontagemPickOrder: vi.fn(),
+  drawDraftMontagemCaptains: vi.fn(),
   finalizeDraftMontagem: vi.fn(),
   registerDraftMontagemPick: vi.fn(),
   saveDraftMontagemLayout: vi.fn(),
@@ -68,7 +69,7 @@ vi.mock('@/services/draftMontagens', () => ({
     }
   },
   createDraftMontagem: vi.fn(),
-  drawDraftMontagemCaptains: vi.fn(),
+  drawDraftMontagemCaptains: serviceMocks.drawDraftMontagemCaptains,
   substituteDraftMontagemReserve: serviceMocks.substituteDraftMontagemReserve,
 }))
 
@@ -331,6 +332,7 @@ describe('DraftsView reason actions', () => {
     serviceMocks.confirmDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.defineDraftMontagemCaptains.mockResolvedValue(montagem)
     serviceMocks.defineDraftMontagemPickOrder.mockResolvedValue(montagem)
+    serviceMocks.drawDraftMontagemCaptains.mockResolvedValue(montagem)
     serviceMocks.finalizeDraftMontagem.mockResolvedValue(montagem)
     serviceMocks.registerDraftMontagemPick.mockResolvedValue({ montagem, canCurrentUserPick: false })
     serviceMocks.saveDraftMontagemLayout.mockResolvedValue(montagem)
@@ -1591,6 +1593,90 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
 
     expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith('montagem-1', payload)
+    wrapper.unmount()
+  })
+
+  it('draws captains once when duplicate intents arrive in the same tick', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    let resolveDraw!: (value: DraftMontagem) => void
+    serviceMocks.drawDraftMontagemCaptains.mockReturnValueOnce(new Promise((resolve) => { resolveDraw = resolve }))
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+
+    board.vm.$emit('draw-captains')
+    board.vm.$emit('draw-captains')
+    await nextTick()
+
+    expect(serviceMocks.drawDraftMontagemCaptains).toHaveBeenCalledTimes(1)
+    expect(serviceMocks.drawDraftMontagemCaptains).toHaveBeenCalledWith('montagem-1')
+    resolveDraw(montagem)
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('rejects a captain draw after draft-management permission is lost', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const requestVersionBefore = (wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion
+
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('draw-captains')
+    await flushPromises()
+
+    expect(serviceMocks.drawDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion).toBe(requestVersionBefore)
+    wrapper.unmount()
+  })
+
+  it.each(['Finalizada', 'Cancelada'] as const)('rejects a stale captain draw when the draft is %s', async (status) => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection(status))
+    const wrapper = await mountView()
+    const requestVersionBefore = (wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('draw-captains')
+    await flushPromises()
+
+    expect(serviceMocks.drawDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion).toBe(requestVersionBefore)
+    wrapper.unmount()
+  })
+
+  it('rejects a captain draw outside manual mode', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({ ...adminProjection('Aberta'), modo: 'TempoReal' })
+    const wrapper = await mountView()
+    const requestVersionBefore = (wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('draw-captains')
+    await flushPromises()
+
+    expect(serviceMocks.drawDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion).toBe(requestVersionBefore)
+    wrapper.unmount()
+  })
+
+  it('does not invalidate a legitimate realtime refresh when a captain draw is rejected', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    let resolveRefresh!: (value: DraftMontagemAdmin) => void
+    serviceMocks.getDraftMontagemAdminById.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve }))
+
+    const refresh = emitRealtime('montagem-1', { ...montagem, status: 'Aberta' })
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    const requestVersionBefore = (wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('draw-captains')
+    await nextTick()
+
+    expect(serviceMocks.drawDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect((wrapper.vm as unknown as { detailRequestVersion: number }).detailRequestVersion).toBe(requestVersionBefore)
+
+    resolveRefresh(adminProjection('Finalizada', 'refresh legítimo'))
+    await refresh
+    await flushPromises()
+
+    const selected = (wrapper.vm as unknown as { selectedMontagem: DraftMontagemAdmin }).selectedMontagem
+    expect(selected.status).toBe('Finalizada')
+    expect(selected.acoesAdministrativas[0]?.motivo).toBe('refresh legítimo')
     wrapper.unmount()
   })
 

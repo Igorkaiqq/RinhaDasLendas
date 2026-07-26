@@ -162,6 +162,20 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it('uses a semantic list whose direct children are only available-player list items', () => {
+    const wrapper = mountBoard()
+    const list = wrapper.get('[data-available-player-list]')
+    const header = wrapper.get('.draft-player-row--head')
+
+    expect(list.element.tagName).toBe('UL')
+    expect(list.attributes('role')).toBe('list')
+    expect(list.element.contains(header.element)).toBe(false)
+    expect(header.attributes('role')).toBeUndefined()
+    expect(Array.from(list.element.children).every((child) => child.tagName === 'LI')).toBe(true)
+    expect(list.findAll(':scope > li')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
   it('keeps the active turn and available pool explicit and emits only jogadorId for a pick', async () => {
     const draft = montagem('Aberta', 'TempoReal')
     draft.turnoAtualTimeId = 'team-a'

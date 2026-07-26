@@ -720,8 +720,9 @@ async function substituteReserve(payload: { timeId: string; jogadorSaiuId: strin
 }
 
 async function drawMontagemCaptains() {
+  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
-  if (!context || !canManageDrafts.value) return
+  if (!context) return
   saving.value = true
   try {
     const montagem = await drawDraftMontagemCaptains(context.draftId)

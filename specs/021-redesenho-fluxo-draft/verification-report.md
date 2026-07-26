@@ -990,3 +990,49 @@
 - Acentuação portuguesa, placeholders, botões, títulos, badges, toasts, estados vazios e mensagens de validação: permanecem conformes e revisados.
 - Validações frontend/backend: nenhuma mensagem ou validação foi alterada.
 - Novos arquivos: nenhum.
+
+## Correções dos três achados definitivos de merge-review
+
+### Causas e TDD
+
+- `drawMontagemCaptains` criava o contexto de atualização e incrementava `detailRequestVersion` antes de validar salvamento, permissão, status e modo. Assim, até uma intenção rejeitada podia invalidar uma atualização realtime legítima já em andamento.
+- `DraftReasonDialog` impedia o autofocus no textarea em viewport mobile, mas deixava o foco no opener externo ao diálogo em vez de manter o foco contido.
+- A região de jogadores disponíveis declarava `role="list"`, porém continha um cabeçalho semântico e elementos `article` sem papel de item.
+- RED principal: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts`; 3 arquivos falharam, 8 testes falharam e 166 passaram. As falhas reproduziram duplicidade no mesmo tick, status terminal, modo incorreto, invalidação da versão de request, foco mobile fora do diálogo e lista inválida.
+- RED reforçado do guard: `npm test -- --run src/views/DraftsView.spec.ts -t "captain draw"`; 5 testes falharam e 101 foram ignorados. A perda de permissão também comprovou incremento indevido de `detailRequestVersion`, mesmo sem chamada ao serviço.
+- RED semântico complementar: `npm test -- --run src/components/drafts/visual/DraftVisualBoard.spec.ts -t "semantic list"`; 1 teste falhou e 29 foram ignorados porque o cabeçalho fora da lista ainda mantinha `role="row"` órfão.
+- GREEN focado final: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts`; 3 arquivos e 174 testes aprovados, sem falhas.
+
+### Correções comprovadas
+
+- O handler pai rejeita antes de `beginSelectedDraftUpdate` quando há salvamento, perda de permissão, status diferente de `Aberta` ou modo diferente de `Manual`. Eventos duplicados no mesmo tick geram somente uma mutação.
+- Cada rejeição preserva `detailRequestVersion`; o teste concorrente resolve uma atualização realtime administrativa legítima depois da rejeição e confirma a aplicação de `Finalizada` e de sua auditoria mais recente.
+- No desktop, a abertura continua focando o motivo. No mobile, `open-auto-focus` impede o teclado do textarea e foca o botão localizado Voltar dentro do diálogo; a troca desktop/mobile é reavaliada a cada abertura e o cancelamento mantém a restauração padrão do opener.
+- A região disponível mantém cabeçalho visual fora da lista e usa `ul[role="list"]` com filhos diretos `li`; classes, drag-and-drop, detalhes, pick e select de movimento foram preservados. O cabeçalho não mantém papel ARIA órfão.
+
+### Gates finais
+
+| Gate | Comando | Resultado |
+|------|---------|-----------|
+| Suíte focada | `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts` | 3 arquivos, 174 testes aprovados, 0 falhas |
+| Suíte completa | `npm test` | 38 arquivos, 418 testes aprovados, 0 falhas |
+| Build | `npm run build` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check` | aprovado sem erros ou avisos |
+| Internacionalização | `npm test -- --run src/i18n/i18n.spec.ts` | 1 arquivo, 31 testes aprovados, 0 falhas |
+| Dependências | `npm audit -- --audit-level=moderate` | 0 vulnerabilidades |
+| Diff | `git diff --check` | aprovado sem saída após esta atualização documental |
+
+- O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
+- Auditoria arquitetural: serviços, autorização, concorrência e versionamento permanecem em `DraftsView`; os componentes alterados continuam de apresentação e não importam serviços executáveis nem autenticação.
+- Revisão de interface: foco permanece contido no diálogo, o conteúdo mantém título/descrição, overscroll e alvos existentes, e a lista usa HTML semântico antes de ARIA. Nenhum token, dependência ou estilo visual paralelo foi criado.
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner do fluxo de Draft.
+- Textos visíveis hardcoded no backend: não encontrados; nenhum arquivo backend foi alterado.
+- Sincronização `pt.json`/`en.json`: sim, aprovada integralmente por 31 testes; os locales não precisaram de alteração.
+- Resources backend: sim, permanecem conformes; nenhuma atualização foi necessária.
+- Acentuação portuguesa: sim, revisada; nenhum texto visível novo foi introduzido.
+- Placeholders, botões, títulos, badges, toasts, estados vazios e mensagens de validação: sim, revisados e inalterados; o botão Voltar usa a chave existente.
+- Validações frontend/backend: sim, mensagens existentes continuam em i18n/resources e nenhuma validação backend foi alterada.
+- Novos arquivos: sim, conformes; nenhum arquivo novo foi criado.

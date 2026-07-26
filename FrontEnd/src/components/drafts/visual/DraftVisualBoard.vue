@@ -552,34 +552,36 @@ async function exportImage() {
           </div>
           <p>{{ t('drafts.visualBoard.reservesHint') }}</p>
         </header>
-        <div class="draft-player-grid" role="list" :aria-label="t('drafts.board.availablePlayers')">
-          <div class="draft-player-row draft-player-row--head" role="row">
+        <div class="draft-player-grid">
+          <div class="draft-player-row draft-player-row--head">
             <span>{{ t('drafts.board.player') }}</span>
           </div>
-          <article v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :data-player-id="player.jogadorId" :draggable="!isReadOnly && player.estado === DraftMontagemEstadoValues.Livre" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
-            <button type="button" class="draft-player-row__identity draft-player-details" data-player-details :aria-label="detailsLabel(player)" @click="detailsPlayer = player" @keydown.stop>
-              <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
-              <span class="draft-slot__copy">
-                <strong>
-                  {{ player.nomeExibicao }}
-                  <span v-if="player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.visualBoard.reserve') }}</span>
-                </strong>
-                <small>{{ eloSummary(player) }}</small>
-                <span class="draft-visual-routes">
-                  <strong>{{ primaryRoute(player) }}</strong>
-                  <small v-if="secondaryRoute(player)">{{ secondaryRoute(player) }}</small>
+          <ul data-available-player-list class="draft-player-list" role="list" :aria-label="t('drafts.board.availablePlayers')">
+            <li v-for="player in filteredAvailablePlayers" :key="player.jogadorId" class="draft-player-row draft-visual-player-row" :data-player-id="player.jogadorId" :draggable="!isReadOnly && player.estado === DraftMontagemEstadoValues.Livre" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
+              <button type="button" class="draft-player-row__identity draft-player-details" data-player-details :aria-label="detailsLabel(player)" @click="detailsPlayer = player" @keydown.stop>
+                <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
+                <span class="draft-slot__copy">
+                  <strong>
+                    {{ player.nomeExibicao }}
+                    <span v-if="player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.visualBoard.reserve') }}</span>
+                  </strong>
+                  <small>{{ eloSummary(player) }}</small>
+                  <span class="draft-visual-routes">
+                    <strong>{{ primaryRoute(player) }}</strong>
+                    <small v-if="secondaryRoute(player)">{{ secondaryRoute(player) }}</small>
+                  </span>
                 </span>
-              </span>
-            </button>
-            <button v-if="canPickPlayer(player)" data-stage-primary-action type="button" class="draft-pick-action" @click.stop="pickPlayer(player)" @keydown.stop>{{ t('drafts.realtime.pick') }}</button>
-            <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
-            <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
-              <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
-              <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
-              <option value="reservas">{{ t('drafts.visualBoard.moveToReserves') }}</option>
-              <option v-for="destination in orderedTeams" :key="destination.id" :value="destination.id">{{ destination.nome }}</option>
-            </select>
-          </article>
+              </button>
+              <button v-if="canPickPlayer(player)" data-stage-primary-action type="button" class="draft-pick-action" @click.stop="pickPlayer(player)" @keydown.stop>{{ t('drafts.realtime.pick') }}</button>
+              <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
+              <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
+                <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
+                <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
+                <option value="reservas">{{ t('drafts.visualBoard.moveToReserves') }}</option>
+                <option v-for="destination in orderedTeams" :key="destination.id" :value="destination.id">{{ destination.nome }}</option>
+              </select>
+            </li>
+          </ul>
         </div>
         <p v-if="!filteredAvailablePlayers.length" class="empty-copy">{{ t('drafts.visualBoard.noPlayersForFilter') }}</p>
       </article>
