@@ -25,7 +25,7 @@ Permitir que usuários com role `Admin` ou `SuperAdmin` arquivem drafts em qualq
 
 O status permanece inalterado quando já for `Cancelada` ou `Finalizada`. Um draft em andamento muda para `Cancelada` na mesma operação que registra o arquivamento. Assim, restaurar apenas limpa os metadados atuais de arquivamento e nunca tenta reconstruir prazos, turnos ou o estado ativo anterior.
 
-As ações administrativas existentes registram eventos imutáveis de `Arquivamento` e `Restauração`, com responsável, instante e motivo quando aplicável. Arquivar um draft ativo registra também a ação distinta de `Cancelamento`, usando o mesmo motivo, sem substituir nem duplicar a ação de arquivamento. Restaurar limpa o estado atual de arquivamento, mas não remove o histórico dessas ações.
+As ações administrativas existentes registram eventos imutáveis de `Arquivamento` e `Restauracao`, com responsável, instante e motivo quando aplicável. Arquivar um draft ativo registra também a ação distinta `CancelamentoPorArquivamento`, usando o mesmo motivo, sem substituir nem duplicar a ação de arquivamento. O tipo específico permite ocultar esse histórico na projeção acessível a Moderadores. Restaurar limpa o estado atual de arquivamento, mas não remove o histórico dessas ações.
 
 ## Regras
 
@@ -51,18 +51,24 @@ O frontend usa a permissão retornada pelo backend apenas para exibir controles 
 
 Endpoints administrativos:
 
-- `POST /api/v1/draft-montagens/{id}/arquivar`
-  - Corpo: `{ "motivo": "..." }`.
-  - Retorna o draft atualizado.
-- `POST /api/v1/draft-montagens/{id}/restaurar`
-  - Sem corpo obrigatório.
-  - Retorna o draft atualizado.
+- `PATCH /api/v1/draft-montagens/{id}/arquivar`
+  - Corpo: `{ "motivo": "...", "versaoEstado": 0 }`.
+  - Retorna resultado reduzido com ID, status, estado de arquivamento e nova versão; o cliente recarrega lista ou detalhe quando necessário.
+- `PATCH /api/v1/draft-montagens/{id}/restaurar`
+  - Corpo: `{ "versaoEstado": 0 }`.
+  - Retorna resultado reduzido com ID, status, estado de arquivamento e nova versão; o cliente recarrega lista ou detalhe.
+- `GET /api/v1/draft-montagens/{id}/arquivamento`
+  - Retorna detalhe, metadados atuais e histórico somente para `Admin` e `SuperAdmin`.
 
 A listagem recebe `includeArchived=false` por padrão. O filtro `includeArchived=true` é aceito apenas para `Admin` e `SuperAdmin`; para os demais usuários autenticados, a tentativa retorna `403 Forbidden` em vez de ignorar silenciosamente o parâmetro.
 
 A projeção administrativa por identificador continua sendo o ponto de consulta do histórico e passa a incluir os metadados atuais de arquivamento. Ela exige a mesma policy exclusiva de `Admin` e `SuperAdmin`; projeções públicas e respostas para demais papéis não expõem motivo, responsável ou ações administrativas.
 
-Commands e queries permanecem separados. Handlers validam existência, motivo, idempotência e registram a ação administrativa. Para drafts ativos, a aplicação coordena cancelamento, arquivamento, ações administrativas de `Cancelamento` e `Arquivamento` e intenção de publicação como uma única alteração persistida. O envio ao Discord ocorre somente após essa confirmação; se a persistência falhar, nenhum desses efeitos permanece e nenhuma mensagem é enviada. Controllers apenas recebem a requisição, aplicam policy, enviam o command/query e retornam a resposta.
+Commands e queries permanecem separados. Handlers validam entrada, identidade, versão e coordenam uma única persistência. O agregado executa cancelamento, arquivamento, ações administrativas de `CancelamentoPorArquivamento` e `Arquivamento` e criação da intenção de publicação como uma transição indivisível. O envio ao Discord ocorre somente após essa confirmação; se a persistência falhar, nenhum desses efeitos permanece e nenhuma mensagem é enviada. Controllers apenas recebem a requisição, aplicam policy, enviam o command/query e retornam a resposta.
+
+O parâmetro `includeArchived=true` exige autorização condicional por `CanArchiveDrafts`; a listagem normal continua disponível aos demais usuários autenticados. Republicar `Cancelamento` de draft arquivado usa endpoint separado com a mesma policy, enquanto Moderadores preservam o endpoint de republicação dos tipos operacionais de drafts visíveis. Nenhuma policy ASP.NET é avaliada dentro da camada Application.
+
+Uma mensagem Discord cujo envio externo começou antes do commit do arquivamento não pode ser desfeita atomicamente. Claims antigos são invalidados, o bot revalida antes de enviar, conclusões operacionais são recusadas e o cancelamento posterior atua como compensação. Manter lock ou transação durante I/O externo foi rejeitado por risco de indisponibilidade.
 
 ## Interface
 

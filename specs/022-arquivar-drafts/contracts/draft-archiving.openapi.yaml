@@ -1,0 +1,187 @@
+openapi: 3.1.0
+info:
+  title: RinhaDasLendas Draft Archiving Contract
+  version: 1.0.0
+paths:
+  /api/v1/draft-montagens:
+    get:
+      summary: Lista drafts visíveis e, quando autorizado, arquivados
+      parameters:
+        - in: query
+          name: includeArchived
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Página de drafts; cada item inclui arquivado e versaoEstado
+        '401':
+          description: Usuário não autenticado
+        '403':
+          description: includeArchived solicitado sem CanArchiveDrafts
+  /api/v1/draft-montagens/{id}/arquivar:
+    patch:
+      summary: Arquiva um draft e cancela-o quando ainda ativo
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveDraftRequest'
+      responses:
+        '200':
+          description: Resultado reduzido do arquivamento ou estado já convergente; o cliente recarrega a lista ou detalhe quando necessário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftArchiveResult'
+        '400':
+          description: Motivo ou versão inválidos, usando ErrorResponse localizado e messageCode estável
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Usuário não autenticado
+        '403':
+          description: Usuário autenticado sem CanArchiveDrafts
+        '404':
+          description: Draft inexistente
+        '409':
+          description: Estado alterado por operação concorrente oposta, usando ErrorResponse com MV103
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/draft-montagens/{id}/restaurar:
+    patch:
+      summary: Restaura a visibilidade sem retomar o estado ativo anterior
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreDraftRequest'
+      responses:
+        '200':
+          description: Resultado reduzido da restauração ou estado já convergente; o cliente recarrega a lista ou detalhe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftArchiveResult'
+        '400':
+          description: Versão inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Usuário não autenticado
+        '403':
+          description: Usuário autenticado sem CanArchiveDrafts
+        '404':
+          description: Draft inexistente
+        '409':
+          description: Estado alterado por operação concorrente oposta, usando ErrorResponse com MV103
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/draft-montagens/{id}/arquivamento:
+    get:
+      summary: Consulta detalhe e histórico de arquivamento para Admin+
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      responses:
+        '200':
+          description: Detalhe administrativo com metadados e ações de arquivo
+        '401':
+          description: Usuário não autenticado
+        '403':
+          description: Usuário autenticado sem CanArchiveDrafts
+        '404':
+          description: Draft inexistente
+  /api/v1/draft-montagens/{id}/discord/publicacoes/cancelamento/republicar:
+    post:
+      summary: Republica o cancelamento pendente ou falho de um draft arquivado
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      responses:
+        '200':
+          description: Publicação de cancelamento voltou ao estado pendente
+        '401':
+          description: Usuário não autenticado
+        '403':
+          description: Usuário autenticado sem CanArchiveDrafts
+        '404':
+          description: Draft ou publicação de cancelamento inexistente
+        '409':
+          description: Publicação não pode ser republicada no estado atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  parameters:
+    DraftId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ArchiveDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [motivo, versaoEstado]
+      properties:
+        motivo:
+          type: string
+          minLength: 1
+          maxLength: 500
+        versaoEstado:
+          type: integer
+          format: int64
+          minimum: 0
+    RestoreDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [versaoEstado]
+      properties:
+        versaoEstado:
+          type: integer
+          format: int64
+          minimum: 0
+    ErrorResponse:
+      type: object
+      required: [message, messageCode, errors]
+      properties:
+        message:
+          type: string
+        messageCode:
+          type: string
+        errors:
+          type: array
+          minItems: 0
+          items:
+            type: string
+    DraftArchiveResult:
+      type: object
+      required: [id, status, arquivado, versaoEstado]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        arquivado:
+          type: boolean
+        versaoEstado:
+          type: integer
+          format: int64
+          minimum: 0
