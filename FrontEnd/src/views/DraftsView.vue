@@ -63,6 +63,7 @@ const searchTerm = ref('')
 const selectedStatus = ref<DraftMontagemStatus | ''>('')
 const selectedMontagem = ref<DraftMontagem | null>(null)
 const selectedDraftId = ref<string | null>(null)
+const selectedDataRinha = ref<string | null>(null)
 const canCurrentUserPick = ref<boolean | null>(null)
 const serverClockOffsetMs = ref(0)
 const visualMontagens = ref<DraftMontagemResumo[]>([])
@@ -128,7 +129,6 @@ const discordPublicationMatrix = computed(() => {
   return [...canonical, ...noncanonical]
 })
 const finalTeamsPublicationStatus = computed(() => discordPublicationStatus('TimesDefinidos'))
-const selectedDataRinha = computed(() => visualMontagens.value.find((draft) => draft.id === selectedMontagem.value?.id)?.dataRinha ?? null)
 const preparationCapabilities = computed(() => {
   const status = selectedMontagem.value?.status
   const presenceOpen = status === DraftMontagemStatusValues.PresencaAberta
@@ -197,6 +197,8 @@ async function loadVisualMontagens() {
     const montagens = await listDraftMontagens({ status: selectedStatus.value })
     if (requestVersion !== listRequestVersion) return
     visualMontagens.value = montagens
+    const selectedSummary = montagens.find((draft) => draft.id === selectedDraftId.value)
+    if (selectedSummary) selectedDataRinha.value = selectedSummary.dataRinha ?? null
     if (!selectedStatus.value) hasKnownDrafts.value = montagens.length > 0
     else if (montagens.length > 0) hasKnownDrafts.value = true
     if (!selectedDraftId.value) {
@@ -228,6 +230,7 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   const generation = ++activeDraftGeneration
   activeDraftId = id
   selectedDraftId.value = id
+  selectedDataRinha.value = visualMontagens.value.find((draft) => draft.id === id)?.dataRinha ?? null
   detailRequestVersion = 0
   manualPresenceAbortController?.abort()
   manualPresenceAbortController = null

@@ -88,8 +88,9 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
   }
 }
 
-function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number } = {}) {
+function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; attachTo?: Element } = {}) {
   return mount(DraftVisualBoard, {
+    attachTo: overrides.attachTo,
     props: {
       montagem: draft,
       saving: false,
@@ -415,17 +416,27 @@ describe('DraftVisualBoard', () => {
   })
 
   it('offers a localized keyboard and touch move destination for editable players', async () => {
-    const wrapper = mountBoard()
+    const wrapper = mountBoard(montagem(), { attachTo: document.body })
     const row = wrapper.get('[data-player-id="available-1"]')
     const destination = row.get('[data-move-destination]')
+    const moveControls = wrapper.findAll('[data-move-destination]')
 
     expect(destination.element.tagName).toBe('SELECT')
     expect(destination.attributes('aria-label')).toBe('Mover Available Mid para')
+    expect(moveControls.every((control) => control.attributes('name')?.startsWith('draft-move-'))).toBe(true)
+    expect(moveControls.every((control) => control.attributes('autocomplete') === 'off')).toBe(true)
     expect(destination.findAll('option').map((option) => option.text())).toEqual(expect.arrayContaining(['Jogadores livres', 'Reservas', 'Team A', 'Team B']))
+    ;(destination.element as InstanceType<typeof globalThis.HTMLElement>).focus()
     await destination.setValue('team-a')
+    await nextTick()
+    await nextTick()
 
-    expect(wrapper.get('[data-team-id="team-a"]').text()).toContain('Available Mid')
-    expect(wrapper.find('[data-player-id="available-1"]').exists()).toBe(false)
+    const movedPlayer = wrapper.get('[data-team-id="team-a"] [data-player-id="available-1"]')
+    expect(movedPlayer.text()).toContain('Available Mid')
+    expect(movedPlayer.element.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement?.matches('[data-move-destination], [data-player-details]')).toBe(true)
+    expect(wrapper.get('[data-move-announcement]').attributes()).toMatchObject({ role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' })
+    expect(wrapper.get('[data-move-announcement]').text()).toBe('Available Mid foi movido para Team A.')
     wrapper.unmount()
   })
 
@@ -454,6 +465,13 @@ describe('DraftVisualBoard', () => {
     expect(announcement.attributes()).toMatchObject({ role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' })
     expect(announcement.text()).toContain('Captain A')
     expect(announcement.text()).toContain('2 de 4')
+    wrapper.unmount()
+  })
+
+  it('does not render the realtime announcement region in manual mode', () => {
+    const wrapper = mountBoard()
+
+    expect(wrapper.find('[data-realtime-announcement]').exists()).toBe(false)
     wrapper.unmount()
   })
 

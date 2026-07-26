@@ -581,6 +581,7 @@ describe('i18n', () => {
       'drafts.roles.captainShort',
       'drafts.visualBoard.moveDestination',
       'drafts.visualBoard.moveToFree',
+      'drafts.visualBoard.moveAnnouncement',
       'drafts.visualBoard.detailsFor',
       'drafts.realtime.liveStatus',
     ]
@@ -601,6 +602,10 @@ describe('i18n', () => {
       en.auth.register.submitting,
       pt.drafts.createModal.creating,
       en.drafts.createModal.creating,
+      pt.topbar.searchPlaceholder,
+      en.topbar.searchPlaceholder,
+      pt.players.searchPlaceholder,
+      en.players.searchPlaceholder,
     ]
 
     expect(reviewed.every((value) => value.endsWith('…') && !value.endsWith('...'))).toBe(true)

@@ -30,7 +30,7 @@
   },
   "topbar": {
     "globalSearch": "Global search",
-    "searchPlaceholder": "Search players, matches...",
+    "searchPlaceholder": "Search players, matches…",
     "discord": "Discord",
     "notifications": "Notifications",
     "settings": "Settings"
@@ -452,7 +452,7 @@
     "closeNotification": "Close notification",
     "filtersLabel": "Player filters",
     "searchName": "Search Name",
-    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "searchPlaceholder": "E.g. Faker, Chovy…",
     "rank": "Rank / Elo",
     "allRanks": "All Ranks",
     "primaryRoute": "Primary Role",
@@ -853,6 +853,7 @@
       "moveDestination": "Move {name} to",
       "moveDestinationOption": "Move to…",
       "moveToFree": "Free players",
+      "moveAnnouncement": "{name} was moved to {destination}.",
       "moveToReserves": "Reserves",
       "routeFilters": {
         "all": "ALL ROUTES",

@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -24,7 +24,10 @@ const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
 }
 
 describe('DraftReasonDialog', () => {
-  afterEach(() => setLocale('pt'))
+  afterEach(() => {
+    setLocale('pt')
+    vi.unstubAllGlobals()
+  })
 
   it.each([
     ['cancelDraft', { type: 'cancelDraft' }, 'Cancelar draft'],
@@ -109,14 +112,49 @@ describe('DraftReasonDialog', () => {
   })
 
   it('does not autofocus the reason field on a mobile viewport', async () => {
-    const originalMatchMedia = window.matchMedia
-    window.matchMedia = (() => ({ matches: true })) as unknown as typeof window.matchMedia
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    opener.focus()
     const wrapper = await mountDialog({ type: 'cancelDraft' })
 
     expect(wrapper.get('textarea').attributes('autofocus')).toBeUndefined()
+    expect(document.activeElement).toBe(opener)
 
     wrapper.unmount()
-    window.matchMedia = originalMatchMedia
+    opener.remove()
+  })
+
+  it('re-evaluates desktop and mobile focus behavior every time it opens', async () => {
+    let mobile = false
+    const matchMedia = vi.fn().mockImplementation(() => ({ matches: mobile }))
+    vi.stubGlobal('matchMedia', matchMedia)
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    const wrapper = mount(DraftReasonDialog, {
+      attachTo: document.body,
+      props: { open: false, action: { type: 'cancelDraft' }, saving: false },
+      global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' } } },
+    })
+
+    opener.focus()
+    await wrapper.setProps({ open: true })
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(document.activeElement).toBe(wrapper.get('textarea').element)
+
+    await wrapper.setProps({ open: false })
+    mobile = true
+    opener.focus()
+    await wrapper.setProps({ open: true })
+    const openEvent = new Event('openAutoFocus', { cancelable: true })
+    wrapper.findComponent(DialogContent).vm.$emit('openAutoFocus', openEvent)
+    await nextTick()
+    expect(openEvent.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(opener)
+    expect(matchMedia).toHaveBeenCalledTimes(2)
+
+    wrapper.unmount()
+    opener.remove()
   })
 
   it('normalizes and emits a valid reason', async () => {
@@ -214,7 +252,7 @@ describe('DraftReasonDialog', () => {
     expect(dialog.get('button[data-slot="dialog-close"]')).toBeTruthy()
     expect(MainCss).toMatch(/\.draft-reason-dialog\s+button\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
     expect(MainCss).toMatch(/\.draft-reason-dialog\s+textarea\s*{[^}]*min-height:\s*44px/s)
-    expect(MainCss).toMatch(/\.draft-reason-dialog\s*{[^}]*overscroll-behavior:\s*contain/s)
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s*{[^}]*max-height:\s*calc\(100dvh\s*-\s*[^)]+\)[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s)
     wrapper.unmount()
   })
 

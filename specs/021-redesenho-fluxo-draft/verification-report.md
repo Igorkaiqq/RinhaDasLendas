@@ -910,3 +910,49 @@
 
 - A validação de navegador usa backend determinístico local, não backend ou deploy produtivo.
 - Permanecem apenas os avisos de build já conhecidos; refatorações de ownership CSS, cards de time, arquivos de teste e migração inalterada de `PlayerDetailsDrawer` continuaram fora do escopo.
+
+## Fechamento dos achados remanescentes da revisão final
+
+### TDD e correções
+
+- RED: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts src/i18n/i18n.spec.ts`; 4 arquivos falharam, 8 testes falharam e 188 passaram.
+- Motivos esperados: a data selecionada dependia da lista filtrada; o diálogo movia foco no mobile e não limitava a altura; controles de movimento não possuíam `name`/`autocomplete`, restauração de foco ou anúncio; a região realtime existia em modo manual; a nova tradução e quatro reticências tipográficas estavam ausentes.
+- GREEN focado final: o mesmo comando aprovou 4 arquivos e 196 testes, sem falhas (`DraftsView`: 100; `DraftReasonDialog`: 38; `DraftVisualBoard`: 27; i18n: 31).
+- `DraftsView` captura e atualiza `dataRinha` quando o resumo selecionado está disponível, preserva o valor quando filtros posteriores excluem o item e mantém o fallback do detalhe para deep links sem resumo.
+- `DraftReasonDialog` impede o autofocus padrão e consulta `matchMedia` em cada evento `open-auto-focus`: foca o motivo no desktop e preserva o opener no mobile. O conteúdo limita a altura ao viewport, rola verticalmente e contém overscroll.
+- `DraftVisualBoard` identifica todos os selects de movimento, desativa autocomplete, restaura foco dentro da linha movida, anuncia jogador e destino em PT/EN e renderiza a região de status realtime somente no modo realtime.
+- O contrato de UI registra `DraftVisualBoard` como exceção explícita de estado interativo local, sem alterar a fronteira de serviços, autenticação ou autorização.
+
+### Navegador real
+
+- Harness autenticado determinístico reutilizado: `/tmp/opencode/feature021-e2e`, frontend em `http://127.0.0.1:4174` e backend em `http://127.0.0.1:4311`.
+- Filtro server-side `Finalizada` excluiu visualmente o draft ativo `open`, mas o workspace preservou `Rinha: 26/07/2026` e a mesma identidade selecionada.
+- Em modo manual, `[data-realtime-announcement]` não foi renderizado. O controle `draft-move-player-201` apresentou `autocomplete="off"`; após mover para `open-team-a`, o jogador apareceu no time, o foco foi restaurado ao botão de detalhes da mesma linha e o live region anunciou `Invocador 201 foi movido para Time Alpha de Nome Extraordinariamente Longo.`.
+- Em `1440x900`, abrir o diálogo focou `#draft-reason`; estilos calculados confirmaram `overflow-y: auto` e `overscroll-behavior: contain`.
+- Em viewport curto `320x300`, abrir o diálogo preservou foco no botão `Cancelar`; o diálogo ficou contido em 268px, com `scrollHeight=345`, `overflow-y: auto`, `overscroll-behavior: contain` e `max-height=268px`.
+- Console apresentou somente mensagens de conexão do Vite; a coleção de erros do navegador permaneceu vazia.
+
+### Gates finais
+
+| Gate | Comando | Resultado |
+|------|---------|-----------|
+| Suíte focada | `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftReasonDialog.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts src/i18n/i18n.spec.ts` | 4 arquivos, 196 testes aprovados, 0 falhas |
+| Suíte completa | `npm test` | 38 arquivos, 409 testes aprovados, 0 falhas |
+| Build | `npm run build` | 2.764 módulos transformados; concluído |
+| Lint não destrutivo | `npm run lint:check` | aprovado sem erros ou avisos |
+| Internacionalização | incluída na suíte focada | 31 testes aprovados, 0 falhas |
+| Dependências | `npm audit -- --audit-level=moderate` | 0 vulnerabilidades |
+| Diff | `git diff --check` | aprovado sem saída após a atualização deste relatório |
+
+- O build mantém somente os avisos conhecidos de anotações `PURE` em dependências e chunk principal acima de 500 kB.
+
+### Auditoria de internacionalização
+
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner do fluxo de Draft.
+- Textos visíveis hardcoded no backend: não encontrados; nenhum arquivo backend foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada integralmente por 31 testes.
+- Resources backend: nenhuma atualização necessária.
+- Acentuação portuguesa: revisada, incluindo o anúncio de movimento e `Ex.:` no placeholder de jogadores.
+- Placeholders, botões, títulos, badges, toasts, estados vazios e mensagens de validação: revisados; textos não URL usam `…` e os quatro exemplos literais de OP.GG/DeepLoL preservam `...` como parte da URL.
+- Validações frontend/backend: mensagens existentes continuam localizadas; nenhuma validação backend foi alterada.
+- Novos arquivos: nenhum; todos os arquivos alterados respeitam o padrão de internacionalização.

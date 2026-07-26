@@ -30,7 +30,7 @@
   },
   "topbar": {
     "globalSearch": "Busca global",
-    "searchPlaceholder": "Buscar jogadores, partidas...",
+    "searchPlaceholder": "Buscar jogadores, partidas…",
     "discord": "Discord",
     "notifications": "Notificações",
     "settings": "Configurações"
@@ -452,7 +452,7 @@
     "closeNotification": "Fechar notificação",
     "filtersLabel": "Filtros de jogadores",
     "searchName": "Buscar Nome",
-    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "searchPlaceholder": "Ex.: Faker, Chovy…",
     "rank": "Rank / Elo",
     "allRanks": "Todos os Ranks",
     "primaryRoute": "Rota Principal",
@@ -853,6 +853,7 @@
       "moveDestination": "Mover {name} para",
       "moveDestinationOption": "Mover para…",
       "moveToFree": "Jogadores livres",
+      "moveAnnouncement": "{name} foi movido para {destination}.",
       "moveToReserves": "Reservas",
       "routeFilters": {
         "all": "TODAS AS ROTAS",

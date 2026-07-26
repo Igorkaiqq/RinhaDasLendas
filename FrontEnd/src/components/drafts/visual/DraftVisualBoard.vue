@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* global document, window, HTMLElement, HTMLCanvasElement */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { DraftMontagemEstadoValues, DraftMontagemModoValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
@@ -41,6 +41,8 @@ const now = ref(Date.now())
 const soundEnabled = ref(false)
 const pickLocked = ref(false)
 const substituteLocked = ref(false)
+const moveAnnouncement = ref('')
+const boardShell = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('boardShell')
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
 let audioContext: AudioContext | null = null
 let lastTickSecond: number | null = null
@@ -193,18 +195,18 @@ function movePlayer(target: 'livres' | 'reservas' | string) {
 }
 
 function movePlayerById(jogadorId: string, target: 'livres' | 'reservas' | string) {
-  if (isReadOnly.value) return
+  if (isReadOnly.value) return false
   const player = allPlayers().find((item) => item.jogadorId === jogadorId)
   if (!player) {
-    return
+    return false
   }
 
   const isPoolTarget = target === 'livres' || target === 'reservas'
   const targetTeam = isPoolTarget
     ? null
     : localMontagem.value.times.find((item) => item.id === target)
-  if (!isPoolTarget && !targetTeam) return
-  if (targetTeam && targetTeam.jogadores.length >= localMontagem.value.tamanhoEquipe) return
+  if (!isPoolTarget && !targetTeam) return false
+  if (targetTeam && targetTeam.jogadores.length >= localMontagem.value.tamanhoEquipe) return false
 
   removePlayer(player.jogadorId)
   const moved = { ...player, capitao: false }
@@ -225,6 +227,7 @@ function movePlayerById(jogadorId: string, target: 'livres' | 'reservas' | strin
     time.jogadores.push(moved)
   }
   dirty.value = true
+  return true
 }
 
 function canPickPlayer(player: DraftMontagemParticipante) {
@@ -324,9 +327,24 @@ function substituteWithFirstReserve(timeId: string, jogadorSaiuId: string) {
 
 type MoveControlEvent = InstanceType<typeof globalThis.Event>
 
-function moveFromControl(player: DraftMontagemParticipante, event: MoveControlEvent) {
+async function moveFromControl(player: DraftMontagemParticipante, event: MoveControlEvent) {
   const target = (event.target as unknown as { value: string }).value
-  if (target) movePlayerById(player.jogadorId, target)
+  if (!target || !movePlayerById(player.jogadorId, target)) return
+
+  const destination = target === 'livres'
+    ? t('drafts.visualBoard.moveToFree')
+    : target === 'reservas'
+      ? t('drafts.visualBoard.moveToReserves')
+      : localMontagem.value.times.find((team) => team.id === target)?.nome
+  if (!destination) return
+
+  moveAnnouncement.value = ''
+  await nextTick()
+  moveAnnouncement.value = t('drafts.visualBoard.moveAnnouncement', { name: player.nomeExibicao, destination })
+  await nextTick()
+  const movedRow = [...(boardShell.value?.querySelectorAll<InstanceType<typeof globalThis.HTMLElement>>('[data-player-id]') ?? [])]
+    .find((row) => row.dataset.playerId === player.jogadorId)
+  movedRow?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-move-destination], [data-player-details]')?.focus()
 }
 
 function detailsLabel(player: DraftMontagemParticipante) {
@@ -414,7 +432,7 @@ async function exportImage() {
 </script>
 
 <template>
-  <section class="draft-visual-shell draft-panel" :aria-label="t('drafts.board.label')">
+  <section ref="boardShell" class="draft-visual-shell draft-panel" :aria-label="t('drafts.board.label')">
     <div class="draft-visual-actions">
       <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
       <button v-if="canManage && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
@@ -441,7 +459,8 @@ async function exportImage() {
         <span :style="{ transform: `scaleX(${turnProgress / 100})` }" />
       </div>
     </section>
-    <p class="sr-only" data-realtime-announcement role="status" aria-live="polite" aria-atomic="true">{{ realtimeAnnouncement }}</p>
+    <p v-if="isRealtime" class="sr-only" data-realtime-announcement role="status" aria-live="polite" aria-atomic="true">{{ realtimeAnnouncement }}</p>
+    <p class="sr-only" data-move-announcement role="status" aria-live="polite" aria-atomic="true">{{ moveAnnouncement }}</p>
 
     <section class="draft-pick-overview" :aria-label="t('drafts.visualBoard.pickSequence')">
       <header>
@@ -475,7 +494,7 @@ async function exportImage() {
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :data-player-id="player.jogadorId" :draggable="!isReadOnly" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
               <button type="button" class="draft-player-details" data-player-details :aria-label="detailsLabel(player)" @click="detailsPlayer = player" @keydown.stop>
                 <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
                 <span class="draft-slot__copy">
@@ -490,7 +509,7 @@ async function exportImage() {
               </button>
               <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
               <button v-else-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
-              <select v-if="!isReadOnly" data-move-destination :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
+              <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
                 <option value="reservas">{{ t('drafts.visualBoard.moveToReserves') }}</option>
@@ -552,7 +571,7 @@ async function exportImage() {
             </button>
             <button v-if="canPickPlayer(player)" data-stage-primary-action type="button" class="draft-pick-action" @click.stop="pickPlayer(player)" @keydown.stop>{{ t('drafts.realtime.pick') }}</button>
             <span v-else-if="isRealtime && player.estado === DraftMontagemEstadoValues.Reserva" class="draft-visual-reserve-badge">{{ t('drafts.realtime.emergencyReserve') }}</span>
-            <select v-if="!isReadOnly" data-move-destination :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
+            <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
               <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
               <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
               <option value="reservas">{{ t('drafts.visualBoard.moveToReserves') }}</option>
@@ -580,7 +599,7 @@ async function exportImage() {
             <span>{{ time.jogadores.length }} / {{ localMontagem.tamanhoEquipe }}<br /><span data-team-captain>{{ t('drafts.board.captain', { name: captainName(time) }) }}</span></span>
           </header>
           <ul class="draft-slots">
-            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :draggable="!isReadOnly" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
+            <li v-for="player in time.jogadores" :key="player.jogadorId" class="draft-slot draft-visual-slot" :class="{ 'is-captain': player.jogadorId === time.capitaoId }" :data-player-id="player.jogadorId" :draggable="!isReadOnly" @dragstart="dragged = { jogadorId: player.jogadorId }" @dragend="dragged = null">
               <button type="button" class="draft-player-details" data-player-details :aria-label="detailsLabel(player)" @click="detailsPlayer = player" @keydown.stop>
                 <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
                 <span class="draft-slot__copy">
@@ -595,7 +614,7 @@ async function exportImage() {
               </button>
               <span v-if="player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
               <button v-else-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
-              <select v-if="!isReadOnly" data-move-destination :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
+              <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
                 <option value="reservas">{{ t('drafts.visualBoard.moveToReserves') }}</option>

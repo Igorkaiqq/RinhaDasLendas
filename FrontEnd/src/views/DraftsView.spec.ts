@@ -39,13 +39,14 @@ const serviceMocks = vi.hoisted(() => ({
   substituteDraftMontagemReserve: vi.fn(),
 }))
 const authMock = vi.hoisted(() => ({ canManageDrafts: true, jogadorId: null as string | null }))
+const routeMock = vi.hoisted(() => ({ query: {} as Record<string, string> }))
 const realtimeMock = vi.hoisted(() => ({
   handlers: new Map<string, (state: DraftMontagemRealtimeState) => void | Promise<void>>(),
   reconnectHandlers: new Map<string, () => void | Promise<void>>(),
   disconnected: [] as string[],
 }))
 
-vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }))
+vi.mock('vue-router', () => ({ useRoute: () => routeMock }))
 
 vi.mock('@/services/authState', () => ({
   useAuthState: () => ({
@@ -312,6 +313,7 @@ describe('DraftsView reason actions', () => {
     vi.clearAllMocks()
     authMock.canManageDrafts = true
     authMock.jogadorId = null
+    routeMock.query = {}
     realtimeMock.handlers.clear()
     realtimeMock.reconnectHandlers.clear()
     realtimeMock.disconnected = []
@@ -1009,6 +1011,41 @@ describe('DraftsView reason actions', () => {
     expect((wrapper.vm as unknown as { searchTerm: string; selectedStatus: string }).searchTerm).toBe('segunda')
     expect((wrapper.vm as unknown as { selectedStatus: string }).selectedStatus).toBe('Aberta')
     expect(navigator.props('drafts')).toEqual([resumoB])
+    wrapper.unmount()
+  })
+
+  it('preserves the selected draft date when a server-side filter excludes its summary', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumoB])
+    navigator.vm.$emit('update:selectedStatus', 'Aberta')
+    await flushPromises()
+
+    expect(wrapper.getComponent({ name: 'DraftWorkspaceHeader' }).props('dataRinha')).toBe(resumo.dataRinha)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagem.id)
+    wrapper.unmount()
+  })
+
+  it('uses the selected detail fallback date when a deep-linked draft has no summary', async () => {
+    routeMock.query = { draftId: montagem.id }
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
+      ...adminProjection(),
+      horarioEncerramentoPresenca: '2026-07-28T03:00:00Z',
+    })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({
+      montagem: { ...montagem, horarioEncerramentoPresenca: '2026-07-28T03:00:00Z' },
+      canCurrentUserPick: false,
+    })
+
+    const wrapper = await mountView()
+    const header = wrapper.getComponent({ name: 'DraftWorkspaceHeader' })
+
+    expect(header.props('dataRinha')).toBeNull()
+    expect(header.props('draft').id).toBe(montagem.id)
+    expect(header.text()).toContain('28/07/2026')
     wrapper.unmount()
   })
 

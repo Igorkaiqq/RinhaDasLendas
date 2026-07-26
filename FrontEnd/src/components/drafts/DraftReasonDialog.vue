@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 type ReasonKeyboardEvent = InstanceType<typeof globalThis.KeyboardEvent>
 type CloseAutoFocusEvent = InstanceType<typeof globalThis.Event>
+type OpenAutoFocusEvent = InstanceType<typeof globalThis.Event>
 
 const props = defineProps<{ open: boolean; action: DraftReasonDialogAction | null; saving: boolean }>()
 const emit = defineEmits<{ confirm: [reason: string]; cancel: []; 'restore-focus': [] }>()
@@ -46,7 +47,6 @@ const publicationStatus = computed(() => {
   const action = props.action
   return action?.type === 'republishDiscord' ? action.publicationStatus : null
 })
-const autofocusReason = !globalThis.matchMedia?.('(max-width: 768px)').matches
 const publicationStatusKey = computed(() => {
   const key = publicationStatus.value ? `drafts.publication.status.${publicationStatus.value}` : ''
   return key && te(key) ? key : 'drafts.publication.status.unknown'
@@ -101,6 +101,13 @@ function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
   emit('restore-focus')
 }
 
+function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
+  event.preventDefault()
+  if (globalThis.matchMedia?.('(max-width: 768px)').matches) return
+
+  void nextTick(() => reasonField.value?.$el.focus())
+}
+
 </script>
 
 <template>
@@ -111,6 +118,7 @@ function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
       class="draft-reason-dialog sm:max-w-lg"
       @escape-key-down="saving && $event.preventDefault()"
       @interact-outside="saving && $event.preventDefault()"
+      @open-auto-focus="handleOpenAutoFocus"
       @close-auto-focus="handleCloseAutoFocus"
     >
       <form class="flex flex-col gap-5" @submit.prevent="confirm">
@@ -139,7 +147,6 @@ function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
               ref="reasonField"
               id="draft-reason"
               v-model="reason"
-              :autofocus="autofocusReason"
               name="reason"
               autocomplete="off"
               maxlength="500"

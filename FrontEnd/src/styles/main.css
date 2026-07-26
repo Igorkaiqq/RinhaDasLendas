@@ -4676,6 +4676,8 @@ p {
 }
 
 .draft-reason-dialog {
+  max-height: calc(100dvh - (var(--space-md) * 2));
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 
