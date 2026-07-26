@@ -37,13 +37,13 @@ defineEmits<{
 
 Garantias:
 
-- item selecionado usa `aria-current`;
+- item selecionado usa `aria-current` a partir da identidade ativa, mesmo quando o detalhe ainda está carregando ou falhou;
 - status desconhecido é neutro;
 - os sete status conhecidos usam variantes semânticas e status desconhecido usa variante neutra;
 - data ausente é localizada;
 - opções de filtro incluem os sete status suportados, na ordem do ciclo, incluindo `OrdemDefinida` e `Cancelada`;
 - loading ou falha de atualização preservam itens conhecidos com feedback não bloqueante; skeleton é exclusivo da ausência de dados conhecidos;
-- zero resultados por filtro oferece limpeza dos filtros sem criação;
+- zero resultados por filtro oferece limpeza dos filtros sem criação somente após uma listagem concluída com sucesso;
 - coleção genuinamente vazia oferece criação somente quando autorizada ou orientação neutra quando não autorizada.
 
 ## `DraftWorkspaceHeader`

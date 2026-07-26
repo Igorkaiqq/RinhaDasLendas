@@ -172,7 +172,7 @@ async function loadVisualMontagens() {
     visualMontagens.value = montagens
     if (!selectedStatus.value) hasKnownDrafts.value = montagens.length > 0
     else if (montagens.length > 0) hasKnownDrafts.value = true
-    if (!selectedMontagem.value) {
+    if (!selectedDraftId.value) {
       const initialDraftId = resolveInitialDraftId(route.query.draftId)
       if (initialDraftId) {
         await openMontagemFromLink(initialDraftId)

@@ -153,6 +153,21 @@ describe('DraftNavigator', () => {
     expect(wrapper.emitted('reset')).toHaveLength(1)
   })
 
+  it('reveals filtered no-results only after loading and failure transitions settle successfully', async () => {
+    const wrapper = mountNavigator({ drafts: [], hasKnownDrafts: true, selectedStatus: 'Cancelada', loading: true })
+
+    expect(wrapper.get('[data-navigator-feedback="loading"]')).toBeTruthy()
+    expect(wrapper.find('[data-navigator-no-results]').exists()).toBe(false)
+
+    await wrapper.setProps({ loading: false, loadFailed: true })
+    expect(wrapper.get('[data-navigator-feedback="error"]')).toBeTruthy()
+    expect(wrapper.find('[data-navigator-no-results]').exists()).toBe(false)
+
+    await wrapper.setProps({ loadFailed: false })
+    expect(wrapper.find('[data-navigator-feedback]').exists()).toBe(false)
+    expect(wrapper.get('[data-navigator-no-results]')).toBeTruthy()
+  })
+
   it('offers creation only for a genuinely empty authorized collection', async () => {
     const authorized = mountNavigator({ drafts: [], hasKnownDrafts: false })
     const unauthorized = mountNavigator({ drafts: [], hasKnownDrafts: false, canCreate: false })

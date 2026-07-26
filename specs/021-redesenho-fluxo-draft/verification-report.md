@@ -311,9 +311,9 @@
 
 | Tarefa | Estado | Evidência |
 |--------|--------|-----------|
-| T024 | Concluída | `DraftNavigator.spec.ts` cobre os sete status na ordem canônica, variantes semânticas, `v-model` de busca/status, seleção e `aria-current`, reset, retry, criação autorizada, data ausente, status desconhecido, skeleton sem dados, feedback não bloqueante, vazio real, zero filtrado, nome longo, expansão compacta local e fronteira sem serviços/autorização. |
+| T024 | Concluída | `DraftNavigator.spec.ts` cobre os sete status na ordem canônica, variantes semânticas, `v-model` de busca/status, seleção e `aria-current`, reset, retry, criação autorizada, data ausente, status desconhecido, skeleton sem dados, feedback não bloqueante, transições loading/falha/sucesso, vazio real, zero filtrado, nome longo, expansão compacta local e fronteira sem serviços/autorização. |
 | T025 | Concluída | `DraftNavigator.vue` implementa o contrato tipado com status aberto a strings, preserva itens conhecidos sob loading/falha, reserva skeleton para ausência de dados, diferencia coleção vazia de filtros sem resultado e mantém fallbacks PT/EN e expansão compacta no filho. |
-| T026 | Concluída | `DraftsView.vue` fornece dados filtrados, conhecimento da coleção, identidade selecionada independente do detalhe, permissões e estados de carregamento/falha; seleção, detalhe, realtime, criação, reset, retry e guardas obsoletos permanecem na view. |
+| T026 | Concluída | `DraftsView.vue` fornece dados filtrados, conhecimento da coleção, identidade selecionada independente do detalhe e usada também pelo auto-open, permissões e estados de carregamento/falha; seleção, detalhe, realtime, criação, reset, retry e guardas obsoletos permanecem na view. |
 
 ### RED
 
@@ -321,6 +321,7 @@
 - Integração: `npm test -- --run src/views/DraftsView.spec.ts`; 5 testes falharam e 69 passaram porque a view ainda renderizava filtros/lista diretamente e não expunha `DraftNavigator` nem estado independente de falha da listagem.
 - Reset integrado: `npm test -- --run src/views/DraftsView.spec.ts -t "resets both navigator filters"`; 1 teste falhou e 75 foram ignorados depois da remoção do binding ainda não coberto. Busca e status permaneceram preenchidos e nenhuma recarga sem filtro ocorreu.
 - Revisão dos achados: `npm test -- --run src/components/drafts/DraftNavigator.spec.ts src/views/DraftsView.spec.ts`; 17 testes falharam e 82 passaram. As falhas reproduziram lista escondida por loading/falha, seleção perdida quando o detalhe era `null`, ausência de conhecimento da coleção, criação incorreta em zero filtrado e falta de variantes semânticas.
+- Fechamento final dos achados: o mesmo comando executou 101 testes; 3 falharam e 98 passaram. As falhas reproduziram auto-open baseado em `selectedMontagem` após detalhe falho e zero filtrado concorrendo com feedback de loading/falha no filho e na integração.
 
 ### GREEN
 
@@ -329,8 +330,10 @@
 - Focado da primeira entrega: `npm test -- --run src/views/DraftsView.spec.ts src/components/drafts/DraftNavigator.spec.ts src/components/drafts/DraftWorkspaceHeader.spec.ts src/components/drafts/DraftPreparationPanel.spec.ts src/components/drafts/DraftDiscordPublicationPanel.spec.ts src/components/drafts/DraftStateRail.spec.ts src/components/drafts/visual/DraftVisualBoard.spec.ts src/i18n/i18n.spec.ts`; 8 arquivos e 174 testes aprovados (`DraftsView`: 76; `DraftNavigator`: 9; i18n: 28).
 - GREEN da revisão: `npm test -- --run src/components/drafts/DraftNavigator.spec.ts src/views/DraftsView.spec.ts`; 2 arquivos e 99 testes aprovados (`DraftNavigator`: 20; `DraftsView`: 79).
 - Focado final corrigido: o comando dos oito arquivos acima aprovou 188 testes (`DraftsView`: 79; `DraftNavigator`: 20; i18n: 28).
+- GREEN do fechamento final: `npm test -- --run src/components/drafts/DraftNavigator.spec.ts src/views/DraftsView.spec.ts`; 2 arquivos e 101 testes aprovados (`DraftNavigator`: 21; `DraftsView`: 80).
+- Focado final: o comando dos oito arquivos acima aprovou 190 testes (`DraftsView`: 80; `DraftNavigator`: 21; i18n: 28).
 - A listagem usa versão de requisição própria: uma falha antiga não substitui o resultado nem os estados `loading`/`loadFailed` de uma tentativa mais nova.
-- Falha e retry da lista não limpam itens conhecidos, `selectedMontagem`, identidade ativa, metadados personalizados, conexão realtime ou erros de ação; erros de ação também não ativam `loadFailed`.
+- Falha e retry da lista não limpam itens conhecidos, identidade ativa, metadados personalizados, conexão realtime ou erros de ação; auto-open consulta a identidade ativa, não o detalhe anulável, e respostas obsoletas não iniciam novo detalhe.
 
 ### Ledger de evidências
 
@@ -338,9 +341,9 @@
 |----------|----------------------|--------|
 | SC-002 | Estrutura compacta, expansão local e quebra de nome em duas linhas estão implementadas no filho. | Cobertura estrutural aprovada; alvos de toque, screenshots e overflow real permanecem em T029-T030. |
 | SC-004 | Os sete status usam a ordem canônica e variantes `info`, `warning`, `success` ou `danger`; qualquer string desconhecida recebe variante `neutral` e rótulo localizado. | Aprovado para o navegador. |
-| SC-005 | Seleção, criação somente no vazio real autorizado, limpeza de filtros e retry preservam payloads, permissão e bloqueios da view; falha concorrente obsoleta é ignorada. | Aprovado para ações de navegação automatizadas. |
+| SC-005 | Seleção, criação somente no vazio real autorizado, limpeza de filtros e retry preservam payloads, permissão e bloqueios da view; falha concorrente obsoleta é ignorada e não dispara auto-open. | Aprovado para ações de navegação automatizadas. |
 | SC-007 | As 12 chaves de loading/refresh, falha, zero filtrado, vazio e expansão existem em PT/EN; data e status desconhecido foram verificados nos dois idiomas. | Aprovado para T024-T026. |
-| SC-009 | A identidade selecionada e sua orquestração permanecem ativas quando o detalhe está nulo e durante falha/recuperação da lista; itens conhecidos continuam navegáveis. | Aprovado estruturalmente; jornada autenticada permanece em T030. |
+| SC-009 | A identidade selecionada e sua orquestração permanecem ativas quando o detalhe está nulo e após sucessos/falhas obsoletas da lista; loading/falha têm feedback exclusivo e zero filtrado aparece somente no sucesso assentado. | Aprovado estruturalmente; jornada autenticada permanece em T030. |
 
 ### Auditoria de internacionalização
 
@@ -354,7 +357,7 @@
 
 ### Gates finais
 
-- Suíte completa: `npm test`; 37 arquivos e 347 testes aprovados, sem falhas.
+- Suíte completa: `npm test`; 37 arquivos e 349 testes aprovados, sem falhas.
 - Build: `npm run build`; 2.764 módulos transformados e build concluído. Permanecem somente os avisos não bloqueantes já conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
 - Lint: `npm run lint:check`; aprovado sem erros ou avisos após adotar o padrão local de tipagem de eventos DOM.
 - Internacionalização: `npm test -- --run src/i18n/i18n.spec.ts`; 28 testes aprovados, sem falhas.

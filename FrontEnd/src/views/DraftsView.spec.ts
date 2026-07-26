@@ -1009,6 +1009,36 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('does not auto-open another draft after failed detail selection across successful and stale list completions', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    serviceMocks.getDraftMontagemAdminById.mockRejectedValueOnce(new Error('detail unavailable'))
+
+    navigator.vm.$emit('select', montagemB.id)
+    await flushPromises()
+    expect(navigator.props('selectedDraftId')).toBe(montagemB.id)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem).toBeNull()
+    const detailCallCountAfterFailure = serviceMocks.getDraftMontagemAdminById.mock.calls.length
+
+    let resolveStaleList!: (value: DraftMontagemResumo[]) => void
+    serviceMocks.listDraftMontagens.mockImplementationOnce(() => new Promise((resolve) => { resolveStaleList = resolve }))
+    navigator.vm.$emit('retry')
+    await vi.waitFor(() => expect(resolveStaleList).toBeTypeOf('function'))
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
+    navigator.vm.$emit('retry')
+    await flushPromises()
+    resolveStaleList([resumo])
+    await flushPromises()
+
+    expect(navigator.props('selectedDraftId')).toBe(montagemB.id)
+    expect(navigator.props('drafts')).toEqual([resumo, resumoB])
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem).toBeNull()
+    expect(serviceMocks.getDraftMontagemAdminById).toHaveBeenCalledTimes(detailCallCountAfterFailure)
+    wrapper.unmount()
+  })
+
   it('tracks list failure independently and retries without clearing the selected workspace', async () => {
     const wrapper = await mountView()
     const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
@@ -1056,13 +1086,27 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('keeps collection knowledge when a status filter returns zero results', async () => {
+  it('shows filtered no-results only after the parent list transition settles successfully', async () => {
     serviceMocks.listDraftMontagens.mockResolvedValueOnce([resumo, resumoB])
     const wrapper = await mountView()
     const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
-    serviceMocks.listDraftMontagens.mockResolvedValueOnce([])
+    let rejectFiltered!: (reason: Error) => void
+    serviceMocks.listDraftMontagens.mockImplementationOnce(() => new Promise((_, reject) => { rejectFiltered = reject }))
 
     navigator.vm.$emit('update:selectedStatus', 'Cancelada')
+    await vi.waitFor(() => expect(rejectFiltered).toBeTypeOf('function'))
+
+    expect(navigator.props('drafts')).toEqual([])
+    expect(navigator.get('[data-navigator-feedback="loading"]')).toBeTruthy()
+    expect(navigator.find('[data-navigator-no-results]').exists()).toBe(false)
+
+    rejectFiltered(new Error('filtered unavailable'))
+    await flushPromises()
+    expect(navigator.get('[data-navigator-feedback="error"]')).toBeTruthy()
+    expect(navigator.find('[data-navigator-no-results]').exists()).toBe(false)
+
+    serviceMocks.listDraftMontagens.mockResolvedValueOnce([])
+    navigator.vm.$emit('retry')
     await flushPromises()
 
     expect(navigator.props('drafts')).toEqual([])

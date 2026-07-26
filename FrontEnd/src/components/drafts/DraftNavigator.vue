@@ -146,7 +146,7 @@ function formatDate(draft: DraftNavigatorItem) {
           </Button>
         </div>
 
-        <div v-if="!drafts.length && hasKnownDrafts" class="draft-navigator__state" data-navigator-no-results>
+        <div v-if="!loading && !loadFailed && !drafts.length && hasKnownDrafts" class="draft-navigator__state" data-navigator-no-results>
           <h3>{{ t('drafts.navigator.noResultsTitle') }}</h3>
           <p>{{ t('drafts.navigator.noResultsDescription') }}</p>
           <Button type="button" variant="outline" data-navigator-clear-results @click="emit('reset')">
@@ -154,7 +154,7 @@ function formatDate(draft: DraftNavigatorItem) {
           </Button>
         </div>
 
-        <div v-else-if="!drafts.length" class="draft-navigator__state" data-navigator-empty>
+        <div v-else-if="!loading && !loadFailed && !drafts.length" class="draft-navigator__state" data-navigator-empty>
           <h3>{{ t('drafts.emptyTitle') }}</h3>
           <p>{{ t(canCreate ? 'drafts.navigator.emptyCreateDescription' : 'drafts.navigator.emptyUnauthorizedDescription') }}</p>
           <Button v-if="canCreate" type="button" data-navigator-create @click="emit('create')">
