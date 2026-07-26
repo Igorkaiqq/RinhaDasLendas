@@ -151,7 +151,7 @@ describe('draftMontagens service', () => {
       params: { search: 'Rinha', status: 'Cancelada', includeArchived: true, page: 2, pageSize: 100 },
     })
     expect(result).toHaveLength(101)
-    expect(result.at(-1)).toEqual(montagemB)
+    expect(result[result.length - 1]).toEqual(montagemB)
   })
 
   it('preserves a forbidden response raised while loading a later draft page', async () => {
