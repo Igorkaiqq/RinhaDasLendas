@@ -82,7 +82,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
-        return await IncludeMontagem(ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled, includeArchived))
+        return await ApplyFilters(dbContext.DraftMontagens.AsNoTracking(), search, status, includeCancelled, includeArchived)
             .OrderByDescending(montagem => montagem.HorarioEncerramentoPresenca ?? montagem.DataCadastro)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

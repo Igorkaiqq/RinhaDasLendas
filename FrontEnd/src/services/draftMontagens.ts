@@ -51,10 +51,17 @@ export class DraftMontagemServiceError extends Error {
 
 export async function listDraftMontagens(filters: { search?: string; status?: DraftMontagemStatus | ''; includeCancelled?: boolean; includeArchived?: boolean } = {}): Promise<DraftMontagemResumo[]> {
   try {
-    const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
+    const firstPage = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
       params: { ...filters, includeArchived: filters.includeArchived ?? false, page: 1, pageSize: 100 },
     })
-    return response.data.items
+    const items = [...firstPage.data.items]
+    for (let page = 2; page <= firstPage.data.totalPages; page++) {
+      const response = await api.get<PaginatedDraftMontagens>('/api/v1/draft-montagens', {
+        params: { ...filters, includeArchived: filters.includeArchived ?? false, page, pageSize: 100 },
+      })
+      items.push(...response.data.items)
+    }
+    return items
   } catch (error) {
     throw toDraftMontagemServiceError(error)
   }

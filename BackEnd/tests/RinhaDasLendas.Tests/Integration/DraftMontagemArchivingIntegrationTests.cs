@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
@@ -112,6 +114,29 @@ public sealed class DraftMontagemArchivingIntegrationTests
         await AssertNotFoundAsync(detail);
         var operation = await admin.PatchAsync($"/api/v1/draft-montagens/{fixture.DraftId}/finalizar", null);
         await AssertNotFoundAsync(operation);
+    }
+
+    [Fact]
+    public async Task ListagemResumo_DeveConsultarSomenteCamposRaizSemCarregarAgregadoCompleto()
+    {
+        await using var factory = new ArchivingApiFactory();
+        var fixture = await factory.SeedActiveDraftAsync(withPendingPresence: true);
+        var commands = new CommandCaptureInterceptor();
+        await using var context = factory.CreateContext(commands);
+        var repository = new DraftMontagemRepository(context);
+
+        var result = await repository.ListAsync(null, null, true, false, 1, 100, CancellationToken.None);
+
+        result.Should().ContainSingle(item => item.Id == fixture.DraftId);
+        commands.CommandTexts.Should().ContainSingle();
+        commands.CommandTexts.Single().Should().NotContainAny(
+            "draft_montagem_participantes",
+            "draft_montagem_presencas",
+            "draft_montagem_times",
+            "draft_montagem_escolhas",
+            "draft_montagem_substituicoes",
+            "draft_montagem_publicacoes_discord",
+            "draft_montagem_acoes_administrativas");
     }
 
     [Fact]
@@ -320,9 +345,14 @@ public sealed class DraftMontagemArchivingIntegrationTests
 
         public HttpClient CreateModeratorClient(Guid userId) => CreateJwtClient(userId, AuthRoles.Moderador);
 
-        public RinhaDasLendasDbContext CreateContext()
+        public RinhaDasLendasDbContext CreateContext(IInterceptor? interceptor = null)
         {
-            var options = new DbContextOptionsBuilder<RinhaDasLendasDbContext>().UseNpgsql(ConnectionString).Options;
+            var builder = new DbContextOptionsBuilder<RinhaDasLendasDbContext>().UseNpgsql(ConnectionString);
+            if (interceptor is not null)
+            {
+                builder.AddInterceptors(interceptor);
+            }
+            var options = builder.Options;
             return new RinhaDasLendasDbContext(options);
         }
 
@@ -392,6 +422,21 @@ public sealed class DraftMontagemArchivingIntegrationTests
                 .Where(item => item.DraftMontagemId == draftId && item.Tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento)
                 .Select(item => item.Status)
                 .SingleAsync();
+        }
+    }
+
+    private sealed class CommandCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> CommandTexts { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            CommandTexts.Add(command.CommandText);
+            return ValueTask.FromResult(result);
         }
     }
 

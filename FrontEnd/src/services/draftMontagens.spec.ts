@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
@@ -132,6 +133,39 @@ describe('draftMontagens service', () => {
     expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens', {
       params: { includeArchived: true, page: 1, pageSize: 100 },
     })
+  })
+
+  it('loads every draft page sequentially with the same discovery filters', async () => {
+    const firstPageItems = Array.from({ length: 100 }, (_, index) => ({ ...montagem, id: `montagem-${index + 1}` }))
+    const montagemB = { ...montagem, id: 'montagem-101', nome: 'Rinha encontrada na pagina 2' }
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: { page: 1, pageSize: 100, totalItems: 101, totalPages: 2, items: firstPageItems } })
+      .mockResolvedValueOnce({ data: { page: 2, pageSize: 100, totalItems: 101, totalPages: 2, items: [montagemB] } })
+
+    const result = await listDraftMontagens({ search: 'Rinha', status: 'Cancelada', includeArchived: true })
+
+    expect(api.get).toHaveBeenNthCalledWith(1, '/api/v1/draft-montagens', {
+      params: { search: 'Rinha', status: 'Cancelada', includeArchived: true, page: 1, pageSize: 100 },
+    })
+    expect(api.get).toHaveBeenNthCalledWith(2, '/api/v1/draft-montagens', {
+      params: { search: 'Rinha', status: 'Cancelada', includeArchived: true, page: 2, pageSize: 100 },
+    })
+    expect(result).toHaveLength(101)
+    expect(result.at(-1)).toEqual(montagemB)
+  })
+
+  it('preserves a forbidden response raised while loading a later draft page', async () => {
+    const forbidden = new AxiosError('Forbidden')
+    Object.defineProperty(forbidden, 'response', { value: { status: 403, data: { errors: ['forbidden'] } } })
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: { page: 1, pageSize: 100, totalItems: 101, totalPages: 2, items: [montagem] } })
+      .mockRejectedValueOnce(forbidden)
+
+    await expect(listDraftMontagens({ includeArchived: true })).rejects.toMatchObject({
+      status: 403,
+      errors: ['forbidden'],
+    })
+    expect(api.get).toHaveBeenCalledTimes(2)
   })
 
   it('archives with a trimmed reason and observed state version', async () => {

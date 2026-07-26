@@ -2442,6 +2442,37 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('reconciles a deferred restored canceled draft when the refreshed list omits it', async () => {
+    const archived = { ...montagem, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const archivedSummary = { ...resumo, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    let resolveRestore!: (value: { id: string; status: DraftMontagemStatus; arquivado: boolean; versaoEstado: number }) => void
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([resumoB])
+      .mockResolvedValueOnce([archivedSummary, resumoB])
+      .mockResolvedValueOnce([resumoB])
+    serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({ draft: archived, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] })
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjectionB())
+    serviceMocks.restoreDraftMontagem.mockReturnValueOnce(new Promise((resolve) => { resolveRestore = resolve }))
+    const wrapper = await mountView()
+    const navigator = wrapper.getComponent({ name: 'DraftNavigator' })
+    navigator.vm.$emit('update:includeArchived', true)
+    await flushPromises()
+    navigator.vm.$emit('select', montagem.id)
+    await flushPromises()
+    await openReasonDialog(wrapper, 'Restaurar')
+    void wrapper.get('form').trigger('submit')
+    await vi.waitFor(() => expect(serviceMocks.restoreDraftMontagem).toHaveBeenCalledTimes(1))
+
+    resolveRestore({ id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 })
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens).toEqual([resumoB])
+    expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagemB.id)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagemB.id)
+    expect(wrapper.find('[data-archived-workspace]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('reconciles a restored draft into the normal list when include archived is disabled while restore is pending', async () => {
     const archived = { ...montagem, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
     const archivedSummary = { ...resumo, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }

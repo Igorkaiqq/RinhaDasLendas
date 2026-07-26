@@ -28,6 +28,7 @@ public sealed class ArquivarDraftMontagemCommandHandler(
         }
         if (montagem.Arquivado)
         {
+            await notifier.ArchivedAsync(command.Id, CancellationToken.None);
             return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
         }
         if (montagem.VersaoEstado != command.Request.VersaoEstado)
@@ -46,7 +47,7 @@ public sealed class ArquivarDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DraftStateConflict);
         }
 
-        await notifier.ArchivedAsync(command.Id, cancellationToken);
+        await notifier.ArchivedAsync(command.Id, CancellationToken.None);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

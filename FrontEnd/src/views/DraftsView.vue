@@ -974,11 +974,13 @@ async function confirmReasonAction(reason: string | null) {
         await removeArchivedAndReconcile(context.draftId, currentIndex, true)
       }
     } else if (action.type === 'restoreDraft') {
+      const currentIndex = visualMontagens.value.findIndex((draft) => draft.id === context.draftId)
       const draftName = selectedMontagem.value.nome
       await restoreDraftMontagem(context.draftId, selectedMontagem.value.versaoEstado)
       await loadVisualMontagens()
-      if (selectedDraftId.value === context.draftId && visualMontagens.value.some((draft) => draft.id === context.draftId)) {
-        await openMontagem(context.draftId)
+      if (selectedDraftId.value === context.draftId) {
+        if (visualMontagens.value.some((draft) => draft.id === context.draftId)) await openMontagem(context.draftId)
+        else await removeArchivedAndReconcile(context.draftId, currentIndex, false, false)
       }
       notification.value = t('drafts.archive.restored', { name: draftName })
     } else if (action.type === 'cancelDraft') {
@@ -1020,7 +1022,7 @@ async function confirmReasonAction(reason: string | null) {
   }
 }
 
-async function removeArchivedAndReconcile(draftId: string, previousIndex: number, restoreFocus = false) {
+async function removeArchivedAndReconcile(draftId: string, previousIndex: number, restoreFocus = false, reload = true) {
   visualMontagens.value = visualMontagens.value.filter((draft) => draft.id !== draftId)
   if (selectedDraftId.value !== draftId) {
     await loadVisualMontagens()
@@ -1033,7 +1035,7 @@ async function removeArchivedAndReconcile(draftId: string, previousIndex: number
   activeDraftGeneration++
   detailRequestVersion = 0
   await disconnectRealtime()
-  await loadVisualMontagens()
+  if (reload) await loadVisualMontagens()
   selectedDraftId.value = null
   if (visualMontagens.value.length === 0) {
     saving.value = false
