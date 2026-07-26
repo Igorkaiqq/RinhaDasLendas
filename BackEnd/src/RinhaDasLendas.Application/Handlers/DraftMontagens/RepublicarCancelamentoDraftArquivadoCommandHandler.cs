@@ -16,7 +16,8 @@ public sealed class RepublicarCancelamentoDraftArquivadoCommandHandler(
     {
         var userId = DraftMontagemHandlerHelpers.ResolveRequiredCurrentUserId(currentUser);
         var montagem = await repository.GetByIdIncludingArchivedAsync(command.Id, cancellationToken);
-        if (montagem is null || !montagem.Arquivado
+        if (montagem is null
+            || montagem.AcoesAdministrativas.All(item => item.Tipo != "CancelamentoPorArquivamento")
             || montagem.PublicacoesDiscord.All(item => item.Tipo != DraftMontagemPublicacaoDiscordTipo.Cancelamento))
         {
             return null;

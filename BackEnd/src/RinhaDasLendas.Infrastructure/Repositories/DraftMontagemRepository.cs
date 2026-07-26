@@ -5,6 +5,8 @@ using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
+using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Infrastructure.Persistence;
 
 namespace RinhaDasLendas.Infrastructure.Repositories;
@@ -59,13 +61,14 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
     public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)
     {
         return await IncludeMontagem(dbContext.DraftMontagens.AsNoTracking())
-            .Where(montagem => (montagem.ArquivadoEm == null
+            .Where(montagem => (!montagem.AcoesAdministrativas.Any(acao => acao.Tipo == "CancelamentoPorArquivamento")
+                    && montagem.ArquivadoEm == null
                     && ((montagem.Status != DraftMontagemStatus.Cancelada && montagem.Status != DraftMontagemStatus.Finalizada)
                         || montagem.PublicacoesDiscord.Any(publicacao =>
                             publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
                             || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.EmAndamento
                             || publicacao.Status == DraftMontagemPublicacaoDiscordStatus.RequerReconciliacao)))
-                || (montagem.ArquivadoEm != null
+                || (montagem.AcoesAdministrativas.Any(acao => acao.Tipo == "CancelamentoPorArquivamento")
                     && montagem.PublicacoesDiscord.Any(publicacao =>
                         publicacao.Tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
                         && (publicacao.Status == DraftMontagemPublicacaoDiscordStatus.Pendente
@@ -173,8 +176,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                            ELSE @expiraEm END
                 FROM draft_montagens
                 WHERE id = @draftMontagemId
-                  AND ((arquivado_em IS NULL AND @tipo <> 'Cancelamento')
-                       OR (arquivado_em IS NOT NULL AND @tipo = 'Cancelamento'))
+                  AND ((@tipo = 'Cancelamento' AND EXISTS (
+                           SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                           WHERE action.draft_montagem_id = draft_montagens.id
+                             AND action.tipo = 'CancelamentoPorArquivamento'))
+                       OR (@tipo <> 'Cancelamento'
+                           AND arquivado_em IS NULL
+                           AND NOT EXISTS (
+                               SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                               WHERE action.draft_montagem_id = draft_montagens.id
+                                 AND action.tipo = 'CancelamentoPorArquivamento')))
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR (
                       status = 'PresencaAberta'
                       AND horario_encerramento_presenca > clock_timestamp()))
@@ -197,8 +208,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
                       WHERE draft.id = @draftMontagemId
-                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
-                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
+                        AND ((@tipo = 'Cancelamento' AND EXISTS (
+                                 SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                 WHERE action.draft_montagem_id = draft.id
+                                   AND action.tipo = 'CancelamentoPorArquivamento'))
+                             OR (@tipo <> 'Cancelamento'
+                                 AND draft.arquivado_em IS NULL
+                                 AND NOT EXISTS (
+                                     SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                     WHERE action.draft_montagem_id = draft.id
+                                       AND action.tipo = 'CancelamentoPorArquivamento'))))
                 RETURNING claim_expira_em
                 """;
             AddParameter(claimCommand, "id", Guid.NewGuid());
@@ -271,8 +290,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
                       WHERE draft.id = @draftMontagemId
-                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
-                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
+                        AND ((@tipo = 'Cancelamento' AND EXISTS (
+                                 SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                 WHERE action.draft_montagem_id = draft.id
+                                   AND action.tipo = 'CancelamentoPorArquivamento'))
+                             OR (@tipo <> 'Cancelamento'
+                                 AND draft.arquivado_em IS NULL
+                                 AND NOT EXISTS (
+                                     SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                     WHERE action.draft_montagem_id = draft.id
+                                       AND action.tipo = 'CancelamentoPorArquivamento'))))
                   AND (@tipo NOT IN ('Presenca', 'ChamadaPresenca') OR EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
                       WHERE draft.id = @draftMontagemId
@@ -320,8 +347,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                   AND EXISTS (
                       SELECT 1 FROM draft_montagens AS draft
                       WHERE draft.id = @draftMontagemId
-                        AND ((draft.arquivado_em IS NULL AND @tipo <> 'Cancelamento')
-                             OR (draft.arquivado_em IS NOT NULL AND @tipo = 'Cancelamento')))
+                        AND ((@tipo = 'Cancelamento' AND EXISTS (
+                                 SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                 WHERE action.draft_montagem_id = draft.id
+                                   AND action.tipo = 'CancelamentoPorArquivamento'))
+                             OR (@tipo <> 'Cancelamento'
+                                 AND draft.arquivado_em IS NULL
+                                 AND NOT EXISTS (
+                                     SELECT 1 FROM draft_montagem_acoes_administrativas AS action
+                                     WHERE action.draft_montagem_id = draft.id
+                                       AND action.tipo = 'CancelamentoPorArquivamento'))))
                   AND (
                       claim_expira_em > clock_timestamp()
                       OR (
@@ -371,9 +406,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return ids;
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception) when (DraftMontagemSaveConflictClassifier.Classify(exception) is not null)
+        {
+            throw new DomainException(MessageCodes.DraftStateConflict);
+        }
     }
 
     public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)

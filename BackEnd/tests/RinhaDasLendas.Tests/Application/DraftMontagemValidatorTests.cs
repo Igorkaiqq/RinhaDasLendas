@@ -21,6 +21,24 @@ public sealed class DraftMontagemValidatorTests
             .Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.DraftStateVersionInvalid);
     }
 
+    [Fact]
+    public void Arquivamento_DeveAceitar500CaracteresSignificativosComEspacosNasExtremidades()
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto($"  {new string('x', 500)}  ", 0));
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Arquivamento_DeveRejeitar501CaracteresSignificativosAposTrim()
+    {
+        var result = new ArquivarDraftMontagemValidator().Validate(
+            new ArquivarDraftMontagemRequestDto($"  {new string('x', 501)}  ", 0));
+
+        result.Errors.Should().ContainSingle(error => error.ErrorMessage == MessageCodes.ArchiveReasonMaxLength);
+    }
+
     public static TheoryData<string?> MotivosInvalidos => new()
     {
         null,

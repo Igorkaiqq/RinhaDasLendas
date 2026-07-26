@@ -92,4 +92,25 @@ public sealed class DraftMontagemArchivingContractTests
         dto.AcoesAdministrativas.Should().NotContain(acao =>
             new[] { "Arquivamento", "Restauracao", "CancelamentoPorArquivamento" }.Contains(acao.Tipo));
     }
+
+    [Fact]
+    public void ProjecaoDeModerador_NaoDeveExporMotivoDeCancelamentoOriginadoPorArquivamentoAposRestauracao()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        montagem.Arquivar("motivo sigiloso", Guid.NewGuid(), DateTimeOffset.UtcNow);
+        montagem.Restaurar(Guid.NewGuid(), DateTimeOffset.UtcNow.AddMinutes(1));
+
+        var dto = DraftMontagemAdminResponseDto.FromEntity(montagem);
+
+        dto.MotivoCancelamento.Should().BeNull();
+    }
+
+    [Fact]
+    public void ProjecaoDeModerador_DevePreservarMotivoDeCancelamentoOperacional()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        montagem.Cancelar("motivo operacional", Guid.NewGuid());
+
+        DraftMontagemAdminResponseDto.FromEntity(montagem).MotivoCancelamento.Should().Be("motivo operacional");
+    }
 }

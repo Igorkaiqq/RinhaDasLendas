@@ -72,6 +72,22 @@ public sealed class DraftMontagemArchivingHandlerTests
         montagem.AcoesAdministrativas.Select(acao => acao.Tipo).Should().Contain(["Arquivamento", "Restauracao"]);
     }
 
+    [Fact]
+    public async Task HandlerOperacional_DeveTraduzirConflitoDeVersaoParaMv103()
+    {
+        var montagem = NovaMontagem();
+        typeof(DraftMontagem).GetProperty(nameof(DraftMontagem.Status))!.SetValue(montagem, DraftMontagemStatus.Aberta);
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.ConflitoDeVersao);
+        var handler = new FinalizarDraftMontagemCommandHandler(repository.Object, new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimeNotifier>());
+
+        var act = () => handler.Handle(new FinalizarDraftMontagemCommand(montagem.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftStateConflict);
+        repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static DraftMontagem NovaMontagem() =>
         new("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
 

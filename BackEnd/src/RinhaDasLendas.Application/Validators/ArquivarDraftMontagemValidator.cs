@@ -11,7 +11,7 @@ public sealed class ArquivarDraftMontagemValidator : AbstractValidator<ArquivarD
         RuleFor(request => request.Motivo)
             .Must(motivo => !string.IsNullOrWhiteSpace(motivo))
             .WithMessage(MessageCodes.ArchiveReasonRequired)
-            .MaximumLength(500)
+            .Must(motivo => motivo is null || motivo.Trim().Length <= 500)
             .WithMessage(MessageCodes.ArchiveReasonMaxLength);
         RuleFor(request => request.VersaoEstado)
             .GreaterThanOrEqualTo(0)

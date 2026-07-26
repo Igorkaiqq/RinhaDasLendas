@@ -18,6 +18,8 @@ public sealed record DraftMontagemDiscordOperationalDto(
     public static DraftMontagemDiscordOperationalDto FromEntity(DraftMontagem montagem)
     {
         var participantes = montagem.Participantes.ToList();
+        var cancelamentoOriginadoPorArquivamento = montagem.AcoesAdministrativas.Any(
+            acao => acao.Tipo == "CancelamentoPorArquivamento");
         return new DraftMontagemDiscordOperationalDto(
             montagem.Id,
             montagem.Nome,
@@ -25,7 +27,8 @@ public sealed record DraftMontagemDiscordOperationalDto(
             montagem.HorarioEncerramentoPresenca,
             montagem.DiscordPresenceMessageId,
             montagem.PublicacoesDiscord
-                .Where(publicacao => !montagem.Arquivado || publicacao.Tipo == Domain.Enums.DraftMontagemPublicacaoDiscordTipo.Cancelamento)
+                .Where(publicacao => !cancelamentoOriginadoPorArquivamento
+                    || publicacao.Tipo == Domain.Enums.DraftMontagemPublicacaoDiscordTipo.Cancelamento)
                 .OrderBy(publicacao => publicacao.Tipo)
                 .Select(publicacao => new DraftMontagemDiscordOperationalPublicacaoDto(publicacao.Tipo.ToString(), publicacao.Status.ToString()))
                 .ToList(),
