@@ -147,6 +147,8 @@ description: "Tarefas para redesenhar e publicar o fluxo completo de Draft"
 - [X] T029 [US4] Implementar breakpoints 1024px e 768px, coluna única em 320px, alvos de 44px e redução de movimento em `FrontEnd/src/styles/main.css`
 - [X] T030 [US4] Validar teclado, overflow e screenshots nos quatro viewports com `agent-browser` e registrar evidências locais em `specs/021-redesenho-fluxo-draft/verification-report.md`
 
+**Revalidação pós-rejeição (2026-07-26)**: T030 foi reexecutada integralmente na rota autenticada real sem `focus(selector)`, com 456 transições por Tab/Shift+Tab, seis jornadas interativas em PT/EN, mutações de roster extenso, ações por teclado e ponteiro nos quatro viewports e artefatos reproduzíveis em `/tmp/opencode/feature021-e2e`.
+
 **Checkpoint**: Fluxo responsivo e acessível aprovado localmente.
 
 ---

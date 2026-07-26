@@ -530,110 +530,120 @@
 
 ## T030 - Validação real no Chromium
 
-### Ambiente e composição real
+### Escopo reexecutado
 
-- Execução final: 2026-07-26, Node.js 22.22.1, npm 9.2.0, `agent-browser 0.29.1`, Chromium 150 e sessão isolada `feature021-real`.
-- Aplicação real iniciada por Vite em `http://127.0.0.1:4174`; todas as inspeções usaram as rotas autenticadas reais `/drafts` e `/atualizacoes`, o `AppShell`, o router, os serviços e os componentes de produção.
-- Um backend HTTP/SignalR determinístico externo ao repositório foi iniciado em `http://127.0.0.1:4311`. Ele implementa refresh de autenticação, permissões Moderador/Jogador, perfil, listagem e detalhe dos drafts, estado realtime, jogadores elegíveis e mutações. Nenhum token ou dado pessoal real foi usado.
-- Scripts, backend, logs de comandos, requests, snapshots, avaliações e screenshots foram preservados em `/tmp/opencode/feature021-e2e`; os pontos de entrada reproduzíveis são `run-commands.sh`, `collect-matrix.sh` e `run-interactions.sh`.
-- O Vite foi reiniciado antes da coleta final para garantir que o Chromium recebesse o CSS final.
+- Reexecução final: 2026-07-26, `agent-browser 0.29.1`, Chromium 150, Node.js 22.22.1 e npm 9.2.0.
+- Aplicação real: Vite em `http://127.0.0.1:4174`, usando router, `AppShell`, autenticação, `DraftsView`, serviços e componentes de produção nas rotas `/drafts`, `/atualizacoes` e `/configuracoes`.
+- Backend temporário: HTTP/SignalR determinístico em `http://127.0.0.1:4311`, exclusivamente sob `/tmp/opencode/feature021-e2e`; nenhum código alternativo foi criado no repositório.
+- `run-all.sh` executa cleanup inicial, setup de processos, toda a validação de navegador, gates, verificador de evidências e cleanup final. A execução final terminou com `25` assertions aprovadas e `0` falhas em `evidence-summary.json`.
+- Scripts reproduzíveis: `setup.sh`, `cleanup.sh`, `browser-helpers.sh`, `run-keyboard-traversal.sh`, `run-bilingual-journeys.sh`, `run-roster-validation.sh`, `run-viewport-actions.sh`, `run-cross-checks.sh`, `run-gates.sh`, `verify-evidence.js` e `run-all.sh`.
 
-### Matriz real de estados e viewports
+### Teclado sem foco forçado
 
-O script `collect-matrix.sh` percorreu os oito estados abaixo em cada viewport, totalizando 32 navegações completas e 32 screenshots PNG.
+- Nenhum script contém `agent-browser focus`, alias equivalente ou chamada DOM `.focus()`. O verificador lê todos os scripts `.sh` e rejeita qualquer ocorrência.
+- Cada cenário navega novamente, espera `document.activeElement === document.body`, registra o body inicial e avança exclusivamente com `Tab` ou `Shift+Tab`. Ações são ativadas somente com Enter ou Espaço; texto no campo já focado usa `keyboard type`.
+- Foram preservados `499` registros em `keyboard-traversal.jsonl`: `456` são transições Tab/Shift+Tab. Cada registro contém cenário, sequência, evento, tag, id, name, role, test ID, classe, texto, outline calculado, box shadow e dimensões.
+- Os `456` alvos focados tiveram indicador calculado: zero registro ficou simultaneamente sem outline e sem box shadow.
+- A travessia alcançou e operou navegador compacto, busca, filtro de status, confirmação, busca/seleção/inclusão manual, diálogos, remoção, encerramento, dois capitães, definição de capitães, ordem, pick realtime, finalização, republicação Discord e cancelamento.
+- O backend foi resetado antes de cada cenário funcional. Os cenários de diálogo esperam também a remoção real do overlay antes de continuar.
+- Evidência bruta: `keyboard-traversal.jsonl`, `logs/keyboard-command.log`, `evals/keyboard-*.json.txt` e `screenshots/keyboard-final-cancelled.png`.
 
-| Estado | Ação primária PT | Ação primária EN | Rail esperado |
-|--------|------------------|------------------|---------------|
-| `PresencaAberta` | Confirmar presença | Confirm presence | `active` e cinco `pending` |
-| `PresencaEncerrada` | Definir capitães | Define captains | `done`, `active` e quatro `pending` |
-| `CapitaesDefinidos` | Sortear ordem de escolha | Draw pick order | dois `done`, `active` e três `pending` |
-| `OrdemDefinida` | nenhuma | nenhuma | três `done`, `active` e dois `pending` |
-| `Aberta` | Finalizar | Finalize | quatro `done`, `active` e `pending` |
-| `Finalizada` | nenhuma | nenhuma | cinco `done` e `terminal` atual |
-| `Cancelada` | nenhuma | nenhuma | `terminal`, sem etapa atual |
-| `EstadoLegadoInesperado` | nenhuma | nenhuma | `unknown`, sem etapa atual |
+### Seis jornadas em PT e EN
 
-| Viewport | Casos | Overflow horizontal | Scroll vertical interno | Violações de alvo na aplicação | Screenshots |
-|----------|-------|---------------------|-------------------------|----------------------------------|-------------|
-| 1440x900 | 8/8 | 0 | 0 | 0 | `screenshots/1440x900-*.png` |
-| 1024x768 | 8/8 | 0 | 0 | 0 | `screenshots/1024x768-*.png` |
-| 768x900 | 8/8 | 0 | 0 | 0 | `screenshots/768x900-*.png` |
-| 320x844 | 8/8 | 0 | 0 | 0 | `screenshots/320x844-*.png` |
+`run-bilingual-journeys.sh` reseta o backend antes de cada jornada e executa interações reais por ponteiro nos dois idiomas. `bilingual-journeys.jsonl` contém `28` checkpoints visíveis.
 
-- Todos os 32 casos apresentaram exatamente um landmark `main`, `AppShell` real, `scrollWidth === clientWidth`, zero alerta, zero chave técnica, zero nome longo fora da caixa e zero controle visível abaixo de 44px.
-- O progresso manteve um único `<ol>` com apenas etapas operacionais; Discord permaneceu irmão com `role="status"`, e publicações permaneceram em `<section>` independente.
-- `file /tmp/opencode/feature021-e2e/screenshots/{1440x900,1024x768,768x900,320x844}-*.png` confirmou as dimensões exatas dos 32 PNGs.
-- Snapshots brutos estão em `snapshots/<viewport>-<estado>.txt`; medições completas estão em `evals/<viewport>-<estado>.json.txt`.
+| Jornada | Interações executadas em cada idioma | Evidência visível retida |
+|---------|--------------------------------------|--------------------------|
+| Presença | confirmar, buscar, selecionar, adicionar, remover e encerrar | toasts, diálogos de inclusão/remoção, contagens e status encerrado |
+| Capitães | selecionar dois jogadores e definir capitães | status `Capitães definidos` / `Captains defined` |
+| Ordem | sortear ordem | status `Ordem definida` / `Order defined` |
+| Pick | configurar realtime e escolher jogador | progresso `2 / 8 escolhas` / `2 / 8 picks` |
+| Finalização | finalizar board manual | status `Finalizada` / `Finished` |
+| Discord e cancelamento | republicar presença, confirmar motivo, cancelar e confirmar motivo | dois diálogos localizados, toast de republicação e status cancelado |
 
-### Listas 0/1/10/14/30
+- Nenhum checkpoint exibiu chave técnica. O verificador exige as seis jornadas para `pt` e `en`, conteúdo visível em todos os registros e diálogos/status terminais nos dois idiomas.
+- `requests.jsonl` contém `41` mutações nesta execução e os dez métodos/caminhos funcionais distintos: confirmar, incluir, remover, encerrar, capitães, ordem, pick, finalizar, republicar e cancelar.
+- Evidência bruta: `bilingual-journeys.jsonl`, `requests.jsonl`, `logs/bilingual-command.log` e `screenshots/bilingual-final.png`.
 
-- O endpoint de teste configurou o mesmo draft `PresencaAberta` com 0, 1, 10, 14 e 30 presenças; cada variante foi recarregada na rota real em 320x844.
-- As cinco variantes renderizaram contagens exatas e, para cada participante, a mesma quantidade de regiões de identidade, origem e ação.
-- A variante 0 exibiu o empty state; as demais não exibiram vazio.
-- Todas apresentaram largura de linha estável de 212px, zero overflow horizontal, zero scroll interno concorrente, zero alvo abaixo de 44px e zero nome longo fora da caixa.
-- Evidências: `evals/roster-{0,1,10,14,30}-320x844.json.txt` e `screenshots/roster-{0,1,10,14,30}-320x844.png`.
+### Roster extenso e rolagem
 
-### Teclado e mutações reais
+- A matriz reproduzível configurou e mediu exatamente `0`, `1`, `10`, `14` e `30` linhas em 320x844, sem overflow horizontal nem scroller vertical interno concorrente.
+- A jornada extensa iniciou com 30 linhas, adicionou presença manual para 31, removeu para 30 e encerrou mantendo 30.
+- Em cada uma das quatro fases foram retidos nome e largura de todas as linhas, não apenas mínimo/máximo. Todas as linhas mediram 212px antes da inclusão, após inclusão, após remoção e após encerramento.
+- A lista de scrollers internos permaneceu vazia nas quatro fases.
+- Evidência bruta: `roster-matrix.jsonl`, `roster-30-journey.jsonl`, `logs/roster-command.log` e `screenshots/roster-*.png`.
 
-- No navegador compacto, foco por teclado apresentou outline de 2px. `Enter` expandiu de 1 para 8 drafts e atualizou `aria-expanded`; `Tab` percorreu busca e status, `Shift+Tab` retornou à busca e Espaço recolheu a lista.
-- A jornada de presença confirmou a presença própria, buscou jogador elegível, adicionou e removeu presença manual por diálogo, e encerrou a presença. Autofoco, retorno por `Shift+Tab`, foco de botões e ausência de scroll interno no diálogo foram registrados.
-- A jornada seguinte selecionou dois capitães com Espaço, definiu capitães e sorteou a ordem com Enter.
-- O board em modo realtime escolheu `player-201` com Enter, reduziu o pool para 29 ações e avançou o progresso para `2 / 8 escolhas`; em uma projeção restaurada, finalizou o draft com Enter.
-- A jornada final abriu o diálogo de republicação, enviou o motivo, abriu o cancelamento com Espaço e cancelou o draft; o resultado foi `Cancelada` sem etapa atual.
-- `requests.jsonl` comprova respostas reais para `POST /presencas/confirmar`, `POST /presencas/manual`, `DELETE /presencas/eligible-manual`, `POST /encerrar-presenca`, `POST /capitaes`, `POST /ordem-escolha`, `POST /picks`, `PATCH /finalizar`, `POST /discord/publicacoes/republicar` e `PATCH /cancelar`.
-- Evidências: `interactions.log`, `snapshots/interaction-*.txt`, `snapshots/dialog-*.txt`, `screenshots/interactions-final-cancelled.png` e o log bruto de requests.
+### Ações por viewport
 
-### Defeitos encontrados e RED/GREEN
+| Viewport | Teclado | Ponteiro | Alvo após ação | Overflow/scroller após ação |
+|----------|---------|----------|-----------------|-----------------------------|
+| 1440x900 | confirmar presença por Tab + Enter | confirmar presença por click | 176,375×44px | 0 / 0 |
+| 1024x768 | confirmar presença por Tab + Enter | confirmar presença por click | 176,375×44px | 0 / 0 |
+| 768x900 | confirmar presença por Tab + Enter | confirmar presença por click | 512,094×44px | 0 / 0 |
+| 320x844 | confirmar presença por Tab + Enter | confirmar presença por click | 212×44px | 0 / 0 |
 
-- A primeira inspeção da rota real encontrou alvos de 32px a 40px no toggle/brand/navegação lateral, busca/link/ícones do topbar e gatilho de perfil. O teste `keeps every AppShell interaction target at least 44px on desktop and mobile` falhou antes da correção e passou após os mínimos de 44px em `main.css`.
-- Uma segunda reprodução, ao trocar o idioma com o menu aberto, mediu cinco botões do painel de perfil com 40px. A nova assertion para `.profile-menu__panel button` falhou no RED com 1 teste falho e 3 aprovados; após adicionar somente `min-height: 44px`, `AppShell.spec.ts` passou 4/4.
-- A coleta final pós-restart confirmou zero violação no shell fechado, no painel de perfil aberto e nos 32 cenários do Draft.
+- Cada método usa reset próprio e registra estado antes/depois, alvo, toast, contagem, `scrollWidth/clientWidth` e scrollers internos.
+- Evidência bruta: `viewport-actions.jsonl`, `logs/viewport-actions-command.log` e `screenshots/viewport-action-*.png`.
 
-### PT/EN e Atualizações
+### Matriz, Atualizações e preferências
 
-- Os oito estados foram percorridos por navegação SPA em inglês em 320x844. Todos exibiram `Draft list`, status e ações localizados, zero alerta, zero chave técnica, zero overflow e zero alvo abaixo de 44px; evidências em `evals/en-<estado>-320x844.json.txt`.
-- Em português, a matriz completa exibiu as ações e status acentuados esperados. Nenhum cenário PT/EN exibiu padrões `drafts.*` ou `updates.*`.
-- `/atualizacoes` foi inspecionada autenticada em PT e EN: `2026.07.3` aparece no hero e como primeiro card, `presence-schedule-weekday-selection-fix` é o primeiro ID, existe exatamente um `.system-update-card--latest`, os títulos são “Dias selecionados mais claros” e “Clearer selected weekdays”, e o detalhe aponta para `/configuracoes`.
-- Evidências: `evals/updates-{pt,en}.json.txt`, `snapshots/updates-{pt,en}.txt` e `screenshots/updates-{pt,en}-320x844.png`.
+- A matriz estática complementar percorreu oito estados nos quatro viewports: 32 rotas, evals, snapshots e screenshots. Todos os casos mantiveram `AppShell`, um `main`, zero overflow horizontal, zero scroller interno, zero alvo abaixo de 44px, zero nome fora da caixa, zero chave técnica e zero alerta.
+- `/atualizacoes` foi aberta e interagida em PT e EN a 1440px. `2026.07.3` permaneceu no hero e primeiro card, com um único destaque; o detalhe foi expandido e o link foi clicado, chegando realmente a `/configuracoes` com títulos “Configurações” e “Settings”.
+- O menu de perfil aberto teve todos os cinco botões medidos e zero violação de 44px.
+- Movimento reduzido correspondeu à media query; `scroll-behavior` foi `auto`, e animações/transições máximas foram 1ms.
+- Evidência bruta: `evals/<viewport>-<estado>.json.txt`, `snapshots/<viewport>-<estado>.txt`, `screenshots/<viewport>-<estado>.png`, `updates-validation.jsonl`, `evals/profile-targets.json.txt` e `evals/reduced-motion.json.txt`.
 
-### Movimento, console e rede
+### Console, rede e processos
 
-- Com `prefers-reduced-motion: reduce`, a media query correspondeu, `scroll-behavior` foi `auto`, e as maiores durações calculadas de animação e transição foram 1ms; não houve overflow. Evidência: `evals/reduced-motion.json.txt` e `screenshots/reduced-motion-open-320x844.png`.
-- Depois de limpar console e erros antes da matriz final, `final-console.txt` contém somente mensagens de debug de conexão do Vite e `final-errors.txt` está vazio.
-- `final-network.txt` registrou zero resposta 4xx/5xx da API e do hub. A única resposta não 2xx da sessão inteira foi a consulta automática e não funcional do Chromium a `/favicon.ico` (404).
+- `setup.sh` grava PIDs, aguarda health checks, abre a sessão e limpa console/erros. `cleanup.sh` fecha a sessão e encerra os grupos de processo do Vite e backend; `run-all.sh` usa trap para executar cleanup também em falha.
+- `final-errors.txt` está vazio. `final-console.txt` contém somente mensagens de conexão do Vite.
+- `final-network.txt` contém 15.640 registros; nenhuma resposta da API ou do hub foi 4xx/5xx. A única resposta não 2xx foi o pedido automático opcional de `/favicon.ico` (404).
+- O fake backend implementa também os reads de Discord/agendamentos usados após o click real de Atualizações, evitando mascarar falhas de rede da rota de destino.
 
-### Gates finais
+### Gates e logs brutos
 
-- Suíte focada: 8 arquivos e 181 testes aprovados, sem falhas.
-- Suíte completa: 38 arquivos e 369 testes aprovados, sem falhas.
-- Build: 2.764 módulos transformados e build concluído; permaneceram somente avisos conhecidos de anotações `PURE` em dependências e chunk acima de 500 kB.
-- Lint: `npm run lint:check` aprovado sem erros ou avisos.
-- Internacionalização: `i18n.spec.ts` aprovado com 28 testes; scanner de hardcodes e paridade integral PT/EN aprovados.
-- Dependências: `npm audit -- --audit-level=moderate` retornou 0 vulnerabilidades.
-- Whitespace: `git diff --check` aprovado sem saída antes da atualização documental.
+| Gate | Resultado | Log bruto |
+|------|-----------|-----------|
+| Suíte focada | 8 arquivos, 181 testes, 0 falhas | `logs/test-focused.log` |
+| Suíte completa | 38 arquivos, 369 testes, 0 falhas | `logs/test-full.log` |
+| Build | 2.764 módulos, concluído | `logs/build.log` |
+| Lint | aprovado | `logs/lint.log` |
+| i18n | 28 testes, 0 falhas | `logs/i18n.log` |
+| Audit | 0 vulnerabilidades | `logs/audit.log` |
+| Whitespace | sem saída | `logs/diff-check.log` |
 
-### Ledger de evidências T030
+- O build mantém apenas os avisos já conhecidos de anotações `PURE` em dependências e chunk acima de 500kB.
+- `logs/verify-evidence.log` registra o resumo final `25` aprovadas e `0` falhas; detalhes e valores usados pelo verificador estão em `evidence-summary.json`.
 
-| Critério | Evidência objetiva | Estado |
-|----------|--------------------|--------|
-| SC-001 | Matriz real PT/EN dos oito estados, zero ou uma ação primária e nenhum avanço terminal/desconhecido. | Aprovado. |
-| SC-002 | 32 screenshots reais e igualdade de largura nos quatro viewports. | Aprovado. |
-| SC-003 | Variantes 0/1/10/14/30 reais em 320px com estrutura, largura e nomes preservados. | Aprovado. |
-| SC-004 | Sete estados canônicos, cancelado e desconhecido com rail e `aria-current` esperados. | Aprovado. |
-| SC-005 | Dez mutações reais, payloads registrados, resultado atualizado e guards automatizados na suíte. | Aprovado. |
-| SC-006 | Tab, Shift+Tab, Enter e Espaço, foco visível e zero alvo abaixo de 44px após RED/GREEN. | Aprovado. |
-| SC-007 | Matrizes PT/EN, scanner e paridade integral sem chave técnica ou hardcode visível. | Aprovado. |
-| SC-008 | `/atualizacoes` real em PT/EN com `.3` no topo, um destaque e link para Configurações. | Aprovado. |
-| SC-009 | Jornadas reais de presença, capitães, ordem, escolha, finalização, Discord e cancelamento; estados completos PT/EN. | Aprovado. |
-| SC-010 | Zero região vertical interna concorrente, inclusive inclusão/remoção/avanço e lista de 30. | Aprovado. |
+### Ledger conservador T030
+
+| Critério | Evidência desta reexecução | Estado |
+|----------|----------------------------|--------|
+| SC-001 | Matriz de estados e jornadas de avanço/terminal; zero ou uma ação conforme projeção. | Aprovado localmente. |
+| SC-002 | 32 casos estáticos mais 8 ações reais antes/depois nos quatro viewports. | Aprovado localmente. |
+| SC-003 | Matriz 0/1/10/14/30 e jornada 30→31→30→30 com largura de cada linha. | Aprovado localmente. |
+| SC-004 | Rail/`aria-current` medidos nos oito estados pela matriz estática. | Aprovado localmente. |
+| SC-005 | 41 requests de mutação reais nesta execução; guards continuam cobertos pela suíte automatizada. | Aprovado localmente; backend produtivo não foi exercitado. |
+| SC-006 | 456 transições Tab/Shift+Tab sem foco forçado, ativações Enter/Espaço e zero indicador ausente. | Aprovado localmente. |
+| SC-007 | Seis jornadas PT/EN com feedback visível mais scanner/paridade de 28 testes. | Aprovado localmente. |
+| SC-008 | Card `.3` expandido em PT/EN e link clicado até Configurações/Settings. | Aprovado localmente. |
+| SC-009 | Seis jornadas funcionais repetidas com interações reais nos dois idiomas. | Aprovado localmente contra backend determinístico. |
+| SC-010 | Inclusão, remoção e avanço com roster extenso; scrollers medidos após cada etapa. | Aprovado localmente. |
+
+### Defeitos e limites
+
+- Nenhum novo defeito de produção foi encontrado nesta reexecução; portanto, não foi adicionada nova alteração de código de produção.
+- O click inicial do link de Atualizações falhou apenas no harness em 320px porque o texto inline quebrado tinha o centro geométrico no espaço entre linhas. A mesma interação real foi estabilizada em 1440px, onde o hit target é contínuo, e navegou para `/configuracoes` nos dois idiomas.
+- Duas lacunas do fake backend para a rota Configurações e uma corrida de fechamento de overlay foram corrigidas somente nos scripts temporários.
+- Esta aprovação é local e autenticada contra backend determinístico; não afirma validação contra backend ou deploy produtivo.
 
 ### Auditoria de internacionalização T030
 
-- Textos visíveis hardcoded no frontend: não encontrados pelo scanner nem nas rotas exercitadas.
-- Textos visíveis hardcoded no backend: não encontrados; nenhum arquivo backend foi alterado.
-- Sincronização `pt.json`/`en.json`: aprovada integralmente pelo gate de 28 testes.
-- Resources backend: nenhuma atualização necessária; não houve mudança backend.
-- Acentuação portuguesa: revisada em status, ações, métricas, presença, Discord e Atualizações.
-- Placeholders, botões, títulos, badges, toasts e estados vazios: revisados em PT e EN nas rotas reais.
-- Validações frontend e backend: nenhuma validação nova; as existentes continuam usando i18n/resources.
-- Novos arquivos: nenhum arquivo de produção novo; teste, CSS e documentação respeitam o padrão.
+- Textos visíveis hardcoded no frontend: não encontrados pelo scanner nem nas jornadas reais.
+- Textos visíveis hardcoded no backend: nenhum arquivo backend foi alterado.
+- Sincronização `pt.json`/`en.json`: aprovada integralmente pelos 28 testes de i18n.
+- Resources backend: nenhuma atualização necessária.
+- Acentuação portuguesa: revisada nos feedbacks, diálogos, status, botões, títulos e Atualizações capturados.
+- Placeholders, botões, títulos, badges, toasts e estados vazios: exercitados ou revisados em PT e EN.
+- Validações frontend/backend: nenhuma validação nova; mensagens existentes continuam localizadas.
+- Novos arquivos duráveis: somente documentação/tarefas; todos respeitam o padrão.
