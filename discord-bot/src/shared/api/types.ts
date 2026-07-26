@@ -13,7 +13,7 @@ export interface DiscordUserLink {
   roles: string[]
 }
 
-export type DiscordPublicationType = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos'
+export type DiscordPublicationType = 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos' | 'Cancelamento'
 
 export interface DiscordPublicationClaim {
   adquirido: boolean
@@ -29,6 +29,8 @@ export interface DraftMontagem {
   horarioEncerramentoPresenca?: string | null
   discordPresenceMessageId?: string | null
   publicacoesDiscord?: Array<{ tipo: DiscordPublicationType; status: string }>
+  arquivado: boolean
+  versaoEstado: number
   presencas: Array<{ nomeExibicao: string; status: string }>
   times: Array<{ nome: string; jogadores: Array<{ nomeExibicao: string; capitao: boolean }> }>
   reservas: Array<{ nomeExibicao: string }>

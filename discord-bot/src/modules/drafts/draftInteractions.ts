@@ -5,7 +5,7 @@ import { env } from '../../config/env.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
 import { logger } from '../../shared/logger.js'
 import { t } from '../../shared/messages/index.js'
-import { buildDraftPresenceCta, finalTeamsEmbed, formatDraftStatus, presenceButtons, presenceEmbed } from '../../discord/embeds/draftEmbeds.js'
+import { buildDraftPresenceCta, cancellationEmbed, finalTeamsEmbed, formatDraftStatus, presenceButtons, presenceEmbed } from '../../discord/embeds/draftEmbeds.js'
 import {
   DraftCommandNames,
   DraftMontagemStatus,
@@ -199,19 +199,28 @@ export async function runDraftPollingCycle(client: Client) {
 }
 
 function publicationCandidates(drafts: DraftMontagem[]): PublicationCandidate[] {
-  return drafts.flatMap((draft) => {
-    const candidates: PublicationCandidate[] = []
+  const cancellations: PublicationCandidate[] = []
+  const operational: PublicationCandidate[] = []
+
+  for (const draft of drafts) {
+    const cancellation = draft.publicacoesDiscord?.find((item) => item.tipo === 'Cancelamento')
+    if (draft.arquivado || cancellation) {
+      if (cancellation?.status === 'Pendente') cancellations.push({ draft, tipo: 'Cancelamento' })
+      continue
+    }
+
     if (hasOpenPresenceDeadline(draft) && canAttemptPublication(draft, 'Presenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
-      candidates.push({ draft, tipo: 'Presenca' })
+      operational.push({ draft, tipo: 'Presenca' })
     }
     if (env.DRAFT_NOTIFY_ROLE_ID && hasOpenPresenceDeadline(draft) && canAttemptPublication(draft, 'ChamadaPresenca', draft.status === DraftMontagemStatus.PresenceOpen)) {
-      candidates.push({ draft, tipo: 'ChamadaPresenca' })
+      operational.push({ draft, tipo: 'ChamadaPresenca' })
     }
     if (canAttemptPublication(draft, 'TimesDefinidos', draft.status === DraftMontagemStatus.Finalized)) {
-      candidates.push({ draft, tipo: 'TimesDefinidos' })
+      operational.push({ draft, tipo: 'TimesDefinidos' })
     }
-    return candidates
-  })
+  }
+
+  return [...cancellations, ...operational]
 }
 
 function hasOpenPresenceDeadline(draft: DraftMontagem) {
@@ -235,6 +244,7 @@ async function publishClaimedDraft(
 ): Promise<void> {
   const isPresence = candidate.tipo === 'Presenca'
   const isPresenceCta = candidate.tipo === 'ChamadaPresenca'
+  const isCancellation = candidate.tipo === 'Cancelamento'
   const channelId = isPresence || isPresenceCta ? configuration.presenceChannelId : configuration.draftChannelId
   const channelLabel = isPresence || isPresenceCta ? t.channels.presence : t.channels.draft
   let channel: SendableTextChannel
@@ -245,11 +255,30 @@ async function publishClaimedDraft(
       embed: !isPresenceCta,
       mentionRole: isPresenceCta,
     })
+    if ((isPresence || isPresenceCta) && !hasOpenPresenceDeadline(candidate.draft)) {
+      await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
+        tipo: candidate.tipo,
+        claimId,
+        discordGuildId: configuration.guildId,
+        discordChannelId: channelId,
+        erroCodigo: 'PRESENCE_DEADLINE_EXPIRED',
+      })
+      return
+    }
+
+    const currentDraft = (await rinhaApi.listActiveDrafts()).find((draft) => draft.id === candidate.draft.id)
+    if (!currentDraft || !isPublicationStillValid(currentDraft, candidate.tipo)) {
+      logger.info(t.logs.stalePublicationSkipped, { draftId: candidate.draft.id, tipo: candidate.tipo })
+      return
+    }
+
     sendPayload = isPresence
-      ? { embeds: [presenceEmbed(candidate.draft)], components: [presenceButtons(candidate.draft.id)] }
+      ? { embeds: [presenceEmbed(currentDraft)], components: [presenceButtons(currentDraft.id)] }
       : isPresenceCta
-        ? { content: buildDraftPresenceCta(candidate.draft.id, env.DRAFT_NOTIFY_ROLE_ID, env.FRONTEND_PUBLIC_URL), allowedMentions: { roles: [env.DRAFT_NOTIFY_ROLE_ID] } }
-        : { embeds: [finalTeamsEmbed(candidate.draft)] }
+        ? { content: buildDraftPresenceCta(currentDraft.id, env.DRAFT_NOTIFY_ROLE_ID, env.FRONTEND_PUBLIC_URL), allowedMentions: { roles: [env.DRAFT_NOTIFY_ROLE_ID] } }
+        : isCancellation
+          ? { embeds: [cancellationEmbed(currentDraft)] }
+          : { embeds: [finalTeamsEmbed(currentDraft)] }
   } catch (error) {
     await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
       tipo: candidate.tipo,
@@ -259,17 +288,6 @@ async function publishClaimedDraft(
       erroCodigo: getPublicationErrorCode(error),
     })
     throw error
-  }
-
-  if ((isPresence || isPresenceCta) && !hasOpenPresenceDeadline(candidate.draft)) {
-    await rinhaApi.registerDiscordPublicationFailure(candidate.draft.id, {
-      tipo: candidate.tipo,
-      claimId,
-      discordGuildId: configuration.guildId,
-      discordChannelId: channelId,
-      erroCodigo: 'PRESENCE_DEADLINE_EXPIRED',
-    })
-    return
   }
 
   let message: { id: string }
@@ -288,11 +306,38 @@ async function publishClaimedDraft(
       discordChannelId: channelId,
       messageId: message.id,
     })
-    logger.info(isPresence ? t.logs.siteDraftPublished : isPresenceCta ? t.logs.presenceCtaPublished : t.logs.finalTeamsPublished, { draftId: candidate.draft.id })
+    logger.info(
+      isPresence
+        ? t.logs.siteDraftPublished
+        : isPresenceCta
+          ? t.logs.presenceCtaPublished
+          : isCancellation
+            ? t.logs.cancellationPublished
+            : t.logs.finalTeamsPublished,
+      { draftId: candidate.draft.id },
+    )
   } catch (error) {
     logUnknownPublicationResult(candidate, 'completion', error)
     throw new DiscordPublicationResultUnknownError()
   }
+}
+
+function isPublicationStillValid(draft: DraftMontagem, tipo: DiscordPublicationType) {
+  const publication = draft.publicacoesDiscord?.find((item) => item.tipo === tipo)
+  if (publication && publication.status !== 'Pendente' && publication.status !== 'EmAndamento') return false
+
+  const cancellation = draft.publicacoesDiscord?.some((item) => item.tipo === 'Cancelamento') ?? false
+  if (tipo === 'Cancelamento') {
+    return draft.status === 'Cancelada' && cancellation && Boolean(publication)
+  }
+
+  if (draft.arquivado || cancellation) return false
+  if (publication) return true
+  if (tipo === 'Presenca' || tipo === 'ChamadaPresenca') {
+    return draft.status === DraftMontagemStatus.PresenceOpen && hasOpenPresenceDeadline(draft)
+  }
+
+  return tipo === 'TimesDefinidos' && draft.status === DraftMontagemStatus.Finalized
 }
 
 async function publishPresenceCta(client: Client, configuration: DiscordConfiguration, draft: DraftMontagem): Promise<'sent' | 'not-configured' | 'failed'> {

@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { RinhaApiError, parseApiError, rinhaApi } from './rinhaApi.js'
+import type { DraftMontagem } from './types.js'
 
 describe('parseApiError', () => {
   it('extracts messageCode from standard API error JSON', () => {
@@ -44,6 +45,50 @@ describe('rinhaApi Discord publication failure', () => {
 })
 
 describe('rinhaApi Discord publication claims', () => {
+  it('accepts the archived cancellation contract returned by active polling', async () => {
+    const originalFetch = globalThis.fetch
+    const response = [{
+      id: 'draft-archived',
+      nome: 'Rinha arquivada',
+      status: 'Cancelada',
+      horarioEncerramentoPresenca: null,
+      discordPresenceMessageId: null,
+      publicacoesDiscord: [{ tipo: 'Cancelamento', status: 'Pendente' }],
+      presencas: [],
+      times: [],
+      reservas: [],
+      arquivado: true,
+      versaoEstado: 7,
+    }] satisfies DraftMontagem[]
+    globalThis.fetch = (async () => new Response(JSON.stringify(response), { status: 200 })) as typeof fetch
+
+    try {
+      const drafts = await rinhaApi.listActiveDrafts()
+      assert.equal(drafts[0]?.arquivado, true)
+      assert.equal(drafts[0]?.versaoEstado, 7)
+      assert.equal(drafts[0]?.publicacoesDiscord?.[0]?.tipo, 'Cancelamento')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('posts Cancelamento as an explicit publication type', async () => {
+    const originalFetch = globalThis.fetch
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    globalThis.fetch = (async (url: URL | RequestInfo, init?: RequestInit) => {
+      calls.push({ url: String(url), init })
+      return new Response('{"adquirido":true,"claimId":"claim-cancel","expiraEm":null,"status":"EmAndamento"}', { status: 200 })
+    }) as typeof fetch
+
+    try {
+      await rinhaApi.claimDiscordPublication('draft-archived', 'Cancelamento')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+
+    assert.equal(calls[0]?.init?.body, JSON.stringify({ tipo: 'Cancelamento' }))
+  })
+
   it('posts the publication type to the claim endpoint', async () => {
     const originalFetch = globalThis.fetch
     const calls: Array<{ url: string; init?: RequestInit }> = []

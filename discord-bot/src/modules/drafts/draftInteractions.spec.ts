@@ -2,7 +2,7 @@ import { afterEach, describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { MessageFlags, PermissionFlagsBits, PermissionsBitField } from 'discord.js'
 import type { ButtonInteraction, ChatInputCommandInteraction, Client } from 'discord.js'
-import type { DraftMontagem } from '../../shared/api/types.js'
+import type { DiscordPublicationType, DraftMontagem } from '../../shared/api/types.js'
 
 import { assertDiscordBotEnabled, getDraftInteractionErrorMessage, getSendableChannel, handleDraftCommand, handlePresenceButton, parsePresenceClosingTime, runDraftPollingCycle, validatePresenceClosingTime } from './draftInteractions.js'
 import { RinhaApiError, rinhaApi } from '../../shared/api/rinhaApi.js'
@@ -22,17 +22,27 @@ afterEach(() => {
   env.DRAFT_NOTIFY_ROLE_ID = originalNotifyRoleId
 })
 
-function pollingDraft(id: string, publicationStatus?: string, publicationType: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos' = 'Presenca'): DraftMontagem {
+function pollingDraft(id: string, publicationStatus?: string, publicationType: 'Presenca' | 'ChamadaPresenca' | 'TimesDefinidos' | 'Cancelamento' = 'Presenca'): DraftMontagem {
   return {
     id,
     nome: `Rinha ${id}`,
     status: 'PresencaAberta',
     horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     publicacoesDiscord: publicationStatus ? [{ tipo: publicationType, status: publicationStatus }] : [],
+    arquivado: false,
+    versaoEstado: 1,
     presencas: [],
     times: [],
     reservas: [],
   }
+}
+
+function cancelledDraft(id: string, archived = true): DraftMontagem {
+  const draft = pollingDraft(id, 'Pendente', 'Cancelamento')
+  draft.status = 'Cancelada'
+  draft.arquivado = archived
+  draft.horarioEncerramentoPresenca = null
+  return draft
 }
 
 function pollingClient(send: (options: unknown) => Promise<{ id: string }>) {
@@ -91,6 +101,120 @@ function deferred() {
 }
 
 describe('runDraftPollingCycle', () => {
+  it('offers only explicit cancellation for archived and restored archive-origin drafts', async () => {
+    const archived = cancelledDraft('archived')
+    archived.publicacoesDiscord = [
+      { tipo: 'Presenca', status: 'Pendente' },
+      { tipo: 'ChamadaPresenca', status: 'Pendente' },
+      { tipo: 'TimesDefinidos', status: 'Pendente' },
+      { tipo: 'Cancelamento', status: 'Pendente' },
+    ]
+    const restored = { ...cancelledDraft('restored', false), publicacoesDiscord: [...archived.publicacoesDiscord] }
+    const archivedWithoutCancellation = { ...cancelledDraft('without-cancellation'), publicacoesDiscord: [{ tipo: 'Presenca' as const, status: 'Pendente' }] }
+    mockPollingApi([archived, restored, archivedWithoutCancellation])
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'claim-cancel', expiraEm: null, status: 'EmAndamento' }))
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => archived as never)
+    const send = mock.fn(async () => ({ id: 'message-cancel' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.deepEqual(claim.mock.calls.map((call) => [call.arguments[0], call.arguments[1]]), [
+      ['archived', 'Cancelamento'],
+      ['restored', 'Cancelamento'],
+    ])
+    assert.equal(send.mock.callCount(), 2)
+  })
+
+  it('prioritizes cancellation globally and publishes it in the draft channel', async () => {
+    const operational = pollingDraft('operational', 'Pendente')
+    const cancellation = cancelledDraft('cancelled')
+    mockPollingApi([operational, cancellation])
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async (_draftId: string, tipo: DiscordPublicationType) => ({
+      adquirido: true,
+      claimId: `claim-${tipo}`,
+      expiraEm: null,
+      status: 'EmAndamento',
+    }))
+    mock.method(rinhaApi, 'registerDiscordPublication', async () => cancellation as never)
+    const fetchedChannels: string[] = []
+    const baseClient = pollingClient(async () => ({ id: 'message-1' }))
+    const originalFetch = baseClient.channels.fetch.bind(baseClient.channels)
+    mock.method(baseClient.channels, 'fetch', async (channelId: string) => {
+      fetchedChannels.push(channelId)
+      return originalFetch(channelId)
+    })
+
+    await runDraftPollingCycle(baseClient)
+
+    assert.equal(claim.mock.calls[0]?.arguments[1], 'Cancelamento')
+    assert.equal(fetchedChannels[0], 'draft')
+  })
+
+  it('revalidates immediately before send and skips a claim invalidated by archiving', async () => {
+    const beforeClaim = pollingDraft('race', 'Pendente')
+    const afterArchive = cancelledDraft('race')
+    env.DRAFT_NOTIFY_ROLE_ID = ''
+    mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+    const list = mock.method(rinhaApi, 'listActiveDrafts', async () => list.mock.callCount() === 1 ? [beforeClaim] : [afterArchive])
+    mock.method(rinhaApi, 'claimDiscordPublication', async () => ({ adquirido: true, claimId: 'stale-claim', expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => beforeClaim as never)
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => beforeClaim as never)
+    const logInfo = mock.method(logger, 'info', () => undefined)
+    const send = mock.fn(async () => ({ id: 'stale-message' }))
+
+    await runDraftPollingCycle(pollingClient(send))
+
+    assert.equal(list.mock.callCount(), 2)
+    assert.equal(send.mock.callCount(), 0)
+    assert.equal(complete.mock.callCount(), 0)
+    assert.equal(failure.mock.callCount(), 0)
+    assert.equal(logInfo.mock.calls.some((call) => call.arguments[0] === t.logs.stalePublicationSkipped), true)
+  })
+
+  it('keeps an already-started send uncertain, refuses stale completion, then prioritizes compensating cancellation', async () => {
+    const operational = pollingDraft('race-in-flight', 'Pendente')
+    const archived = cancelledDraft('race-in-flight')
+    const sendStarted = deferred()
+    const releaseSend = deferred()
+    let cycle = 1
+    let listInCycle = 0
+    mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
+    mock.method(rinhaApi, 'listActiveDrafts', async () => {
+      listInCycle += 1
+      if (cycle === 1) return [operational]
+      return [archived]
+    })
+    const claim = mock.method(rinhaApi, 'claimDiscordPublication', async (_draftId: string, tipo: DiscordPublicationType) => ({ adquirido: true, claimId: `claim-${tipo}`, expiraEm: null, status: 'EmAndamento' }))
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async (_draftId: string, payload: Parameters<typeof rinhaApi.registerDiscordPublication>[1]) => {
+      if (payload.tipo === 'Presenca') throw new RinhaApiError('MV103', 'stale claim', 409)
+      return archived as never
+    })
+    const failure = mock.method(rinhaApi, 'registerDiscordPublicationFailure', async () => operational as never)
+    let sendNumber = 0
+    const send = mock.fn(async () => {
+      sendNumber += 1
+      if (sendNumber === 1) {
+        sendStarted.resolve()
+        await releaseSend.promise
+      }
+      return { id: `message-${sendNumber}` }
+    })
+    const client = pollingClient(send)
+
+    const firstCycle = runDraftPollingCycle(client)
+    await sendStarted.promise
+    cycle = 2
+    releaseSend.resolve()
+    await firstCycle
+    await runDraftPollingCycle(client)
+
+    assert.ok(listInCycle >= 4)
+    assert.deepEqual(claim.mock.calls.map((call) => call.arguments[1]), ['Presenca', 'Cancelamento'])
+    assert.deepEqual(complete.mock.calls.map((call) => call.arguments[1]?.tipo), ['Presenca', 'Cancelamento'])
+    assert.equal(failure.mock.callCount(), 0)
+    assert.equal(send.mock.callCount(), 2)
+  })
+
   it('does not claim or send an open draft whose presence deadline already passed', async () => {
     const draft = pollingDraft('expired-before-claim')
     draft.horarioEncerramentoPresenca = new Date(Date.now() - 1000).toISOString()
@@ -137,6 +261,37 @@ describe('runDraftPollingCycle', () => {
         horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         discordPresenceMessageId: null,
         publicacoesDiscord: [{ tipo: 'Presenca', status: 'Pendente' }],
+        arquivado: false,
+        versaoEstado: 1,
+        presencas: [],
+        times: [],
+        reservas: [],
+      }],
+      [{
+        id: 'scheduled-draft',
+        nome: 'Rinha semanal - 24/07/2026',
+        status: 'PresencaAberta',
+        horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        discordPresenceMessageId: null,
+        publicacoesDiscord: [{ tipo: 'Presenca', status: 'EmAndamento' }],
+        arquivado: false,
+        versaoEstado: 1,
+        presencas: [],
+        times: [],
+        reservas: [],
+      }],
+      [{
+        id: 'scheduled-draft',
+        nome: 'Rinha semanal - 24/07/2026',
+        status: 'PresencaAberta',
+        horarioEncerramentoPresenca: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        discordPresenceMessageId: 'message-1',
+        publicacoesDiscord: [
+          { tipo: 'Presenca', status: 'Publicada' },
+          { tipo: 'ChamadaPresenca', status: 'EmAndamento' },
+        ],
+        arquivado: false,
+        versaoEstado: 2,
         presencas: [],
         times: [],
         reservas: [],
@@ -151,6 +306,8 @@ describe('runDraftPollingCycle', () => {
           { tipo: 'Presenca', status: 'Publicada' },
           { tipo: 'ChamadaPresenca', status: 'Publicada' },
         ],
+        arquivado: false,
+        versaoEstado: 2,
         presencas: [],
         times: [],
         reservas: [],
@@ -158,7 +315,7 @@ describe('runDraftPollingCycle', () => {
     ]
     env.DRAFT_NOTIFY_ROLE_ID = 'role-1'
     mock.method(rinhaApi, 'getDiscordConfiguration', async () => ({ guildId: 'guild', presenceChannelId: 'presence', draftChannelId: 'draft', botEnabled: true }))
-    const list = mock.method(rinhaApi, 'listActiveDrafts', async () => backendResponses[list.mock.callCount() - 1] ?? backendResponses[1])
+    const list = mock.method(rinhaApi, 'listActiveDrafts', async () => backendResponses[list.mock.callCount() - 1] ?? backendResponses[3])
     let claimNumber = 0
     const claim = mock.method(rinhaApi, 'claimDiscordPublication', async () => ({
       adquirido: true,
@@ -166,7 +323,7 @@ describe('runDraftPollingCycle', () => {
       expiraEm: '2026-07-24T21:05:00Z',
       status: 'EmAndamento',
     }))
-    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => backendResponses[1]![0] as never)
+    const complete = mock.method(rinhaApi, 'registerDiscordPublication', async () => backendResponses[3]![0] as never)
     const send = mock.fn(async (_options: unknown) => ({ id: `message-${send.mock.callCount() + 1}` }))
     const client = pollingClient(send)
 
@@ -176,7 +333,7 @@ describe('runDraftPollingCycle', () => {
     await runDraftPollingCycle(client)
     await runDraftPollingCycle(client)
 
-    assert.equal(list.mock.callCount(), 2)
+    assert.equal(list.mock.callCount(), 4)
     assert.deepEqual(claim.mock.calls.map((call) => call.arguments[1]), ['Presenca', 'ChamadaPresenca'])
     assert.equal(send.mock.callCount(), 2)
     assert.ok('embeds' in (send.mock.calls[0]?.arguments[0] as object))
