@@ -52,21 +52,22 @@ describe('SystemUpdatesView', () => {
     const releases = wrapper.findAll('[data-system-update]')
 
     expect(wrapper.get('h1').text()).toBe('Atualizações do sistema')
-    expect(hero.text()).toContain('2026.07.4')
-    expect(hero.text()).toContain('Draft mais claro do início ao fim')
+    expect(hero.text()).toContain('2026.07.5')
+    expect(hero.text()).toContain('Drafts arquivados sem perder o histórico')
     expect(hero.get('[data-latest-summary]').text()).toBe(
-      'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
+      'Admin e SuperAdmin agora podem retirar drafts da rotina e restaurá-los quando necessário, mantendo status, participantes e histórico preservados.',
     )
-    expect(hero.get('[data-latest-categories]').text()).toBe('Melhoria')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Novidade')
+    expect(hero.get('[data-latest-categories]').text()).toContain('Melhoria')
     expect(hero.get('[data-latest-areas]').text()).toContain('Drafts')
     expect(hero.get('time').attributes('datetime')).toBe('2026-07-26')
     expect(releases).toHaveLength(SYSTEM_UPDATES.length)
     expect(releases.map((release) => release.attributes('id'))).toEqual(
       SYSTEM_UPDATES.map((release) => `update-${release.id}`),
     )
-    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(4)
-    expect(releases[1]!.text()).toContain('2026.07.3')
-    expect(releases[2]!.text()).toContain('2026.07.2')
+    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(1)
+    expect(releases[1]!.text()).toContain('2026.07.4')
+    expect(releases[2]!.text()).toContain('2026.07.3')
   })
 
   it('groups the semantic timeline and links every indexed version to its release', () => {

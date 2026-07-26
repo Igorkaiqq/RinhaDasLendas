@@ -1135,6 +1135,16 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_5": {
+        "title": "Drafts arquivados sem perder o histórico",
+        "summary": "Admin e SuperAdmin agora podem retirar drafts da rotina e restaurá-los quando necessário, mantendo status, participantes e histórico preservados.",
+        "details": {
+          "archive-and-restore": {
+            "title": "Arquivamento seguro e reversível",
+            "description": "Arquive drafts com uma justificativa, consulte os registros preservados e restaure sua visibilidade sem retomar etapas já encerradas."
+          }
+        }
+      },
       "2026_07_4": {
         "title": "Draft mais claro do início ao fim",
         "summary": "Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.",

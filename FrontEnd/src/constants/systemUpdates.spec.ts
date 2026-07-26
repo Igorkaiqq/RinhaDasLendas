@@ -4,6 +4,7 @@ import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
+  'administrative-draft-archiving',
   'clearer-draft-operation',
   'presence-schedule-weekday-selection-fix',
   'presence-scheduling-2026-07',
@@ -51,9 +52,10 @@ const previousDetailIds = [
 ]
 
 describe('system update registry', () => {
-  it('contains the eleven released versions in descending chronological order', () => {
+  it('contains the twelve released versions in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
     expect(SYSTEM_UPDATES.map(({ version }) => version)).toEqual([
+      '2026.07.5',
       '2026.07.4',
       '2026.07.3',
       '2026.07.2',
@@ -68,6 +70,7 @@ describe('system update registry', () => {
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
       '2026-07-26',
+      '2026-07-26',
       '2026-07-25',
       '2026-07-23',
       '2026-07-22',
@@ -81,21 +84,34 @@ describe('system update registry', () => {
     ])
   })
 
-  it('keeps the latest released draft improvement featured', () => {
+  it('publishes administrative draft archiving as the only featured release', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
-      id: 'clearer-draft-operation',
-      version: '2026.07.4',
+      id: 'administrative-draft-archiving',
+      version: '2026.07.5',
       publishedAt: '2026-07-26',
       featured: true,
-      categories: ['improvement'],
+      categories: ['feature', 'improvement'],
       areas: ['drafts'],
     })
-    expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(latestDetailIds)
+    expect(SYSTEM_UPDATES[0].details).toEqual([
+      {
+        id: 'archive-and-restore',
+        category: 'feature',
+        link: AppRoutes.Draft,
+        titleKey: 'updates.releases.2026_07_5.details.archive-and-restore.title',
+        descriptionKey: 'updates.releases.2026_07_5.details.archive-and-restore.description',
+      },
+    ])
     expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
+    expect(SYSTEM_UPDATES[1]).toMatchObject({
+      id: 'clearer-draft-operation',
+      featured: false,
+    })
+    expect(SYSTEM_UPDATES[1].details.map(({ id }) => id)).toEqual(latestDetailIds)
   })
 
   it('preserves the selected weekday feedback fix without featuring it', () => {
-    expect(SYSTEM_UPDATES[1]).toEqual({
+    expect(SYSTEM_UPDATES[2]).toEqual({
       id: 'presence-schedule-weekday-selection-fix',
       version: '2026.07.3',
       publishedAt: '2026-07-25',

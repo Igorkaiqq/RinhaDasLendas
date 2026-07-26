@@ -1135,6 +1135,16 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_5": {
+        "title": "Archived drafts without losing history",
+        "summary": "Admins and Super Admins can now move drafts out of daily operation and restore them when needed while preserving status, participants, and history.",
+        "details": {
+          "archive-and-restore": {
+            "title": "Safe, reversible archiving",
+            "description": "Archive drafts with a reason, review preserved records, and restore visibility without resuming stages that already ended."
+          }
+        }
+      },
       "2026_07_4": {
         "title": "A clearer draft from start to finish",
         "summary": "Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.",
