@@ -37,17 +37,17 @@ describe('SystemUpdateCard', () => {
     expect(wrapper.get('[data-slot="card-header"]').classes()).toContain(
       'system-update-card__header',
     )
-    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-23')
-    expect(wrapper.get('time').text()).toBe('23 de julho de 2026')
-    expect(wrapper.get('h2').text()).toBe('Listas de presença agendadas')
-    expect(wrapper.text()).toContain('2026.07.2')
+    expect(wrapper.get('time').attributes('datetime')).toBe('2026-07-26')
+    expect(wrapper.get('time').text()).toBe('26 de julho de 2026')
+    expect(wrapper.get('h2').text()).toBe('Draft mais claro do início ao fim')
+    expect(wrapper.text()).toContain('2026.07.4')
     expect(wrapper.text()).toContain(
-      'Moderadores agora podem organizar listas semanais com horários definidos',
+      'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
     )
     expect(wrapper.text()).toContain('Melhoria')
     expect(wrapper.text()).toContain('Drafts')
-    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(5)
-    expect(wrapper.text()).toContain('Agendamento semanal de presença')
+    expect(wrapper.findAll('[data-update-detail]')).toHaveLength(4)
+    expect(wrapper.text()).toContain('Hierarquia para conduzir a partida')
   })
 
   it('groups every detail by category in native disclosure controls', async () => {
@@ -57,10 +57,10 @@ describe('SystemUpdateCard', () => {
     const firstDetails = wrapper.get('details')
     const firstSummary = wrapper.get('summary')
 
-    expect(details).toHaveLength(2)
-    expect(summaries).toHaveLength(2)
+    expect(details).toHaveLength(1)
+    expect(summaries).toHaveLength(1)
     expect(summaries.every((summary) => summary.attributes('tabindex') === undefined)).toBe(true)
-    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(5)
+    expect(details.flatMap((group) => group.findAll('[data-update-detail]'))).toHaveLength(4)
 
     ;(firstSummary.element as HTMLElement).click()
     await nextTick()
@@ -88,8 +88,8 @@ describe('SystemUpdateCard', () => {
     await nextTick()
 
     expect(wrapper.get('article').classes()).not.toContain('system-update-card--latest')
-    expect(wrapper.get('time').text()).toBe('July 23, 2026')
-    expect(wrapper.get('h2').text()).toBe('Scheduled presence lists')
+    expect(wrapper.get('time').text()).toBe('July 26, 2026')
+    expect(wrapper.get('h2').text()).toBe('A clearer draft from start to finish')
     expect(wrapper.text()).toContain('Improvement')
     expect(wrapper.text()).toContain('Drafts')
   })

@@ -17,6 +17,18 @@ function normalizeSearchText(value: string): string {
     .trim()
 }
 
+function compareReleaseVersions(left: string, right: string): number {
+  const leftParts = left.split('.').map(Number)
+  const rightParts = right.split('.').map(Number)
+
+  for (let index = 0; index < 3; index += 1) {
+    const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0)
+    if (difference !== 0) return difference
+  }
+
+  return 0
+}
+
 export function getLatestSystemUpdate(
   releases: readonly SystemUpdateRelease[] = SYSTEM_UPDATES,
 ): SystemUpdateRelease {
@@ -62,7 +74,6 @@ export function getSystemUpdateValidationErrors(
   const errors: string[] = []
   const ids = new Set<string>()
   const versions = new Set<string>()
-  const dates = new Set<string>()
   const detailIds = new Set<string>()
   const knownPaths = new Set<string>(Object.values(AppRoutes))
 
@@ -72,13 +83,13 @@ export function getSystemUpdateValidationErrors(
 
   releases.forEach((release, index) => {
     const parsedDate = new Date(`${release.publishedAt}T00:00:00Z`)
+    const validVersion = /^\d{4}\.\d{2}\.\d+$/.test(release.version)
+    const previousRelease = releases[index - 1]
 
     if (ids.has(release.id)) errors.push(`Duplicate release id: ${release.id}`)
     if (versions.has(release.version))
       errors.push(`Duplicate release version: ${release.version}`)
-    if (dates.has(release.publishedAt))
-      errors.push(`Duplicate release date: ${release.publishedAt}`)
-    if (!/^\d{4}\.\d{2}\.\d+$/.test(release.version))
+    if (!validVersion)
       errors.push(`Invalid version: ${release.version}`)
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(release.publishedAt) ||
@@ -87,8 +98,19 @@ export function getSystemUpdateValidationErrors(
     ) {
       errors.push(`Invalid date: ${release.publishedAt}`)
     }
-    if (index > 0 && releases[index - 1]!.publishedAt < release.publishedAt) {
+    if (previousRelease && previousRelease.publishedAt < release.publishedAt) {
       errors.push('Releases must be newest first')
+    }
+    if (
+      previousRelease
+      && previousRelease.publishedAt === release.publishedAt
+      && validVersion
+      && /^\d{4}\.\d{2}\.\d+$/.test(previousRelease.version)
+      && compareReleaseVersions(previousRelease.version, release.version) <= 0
+    ) {
+      errors.push(
+        'Releases on the same date must use descending version sequence',
+      )
     }
     if (!release.categories.length)
       errors.push(`Missing categories: ${release.id}`)
@@ -114,7 +136,6 @@ export function getSystemUpdateValidationErrors(
 
     ids.add(release.id)
     versions.add(release.version)
-    dates.add(release.publishedAt)
   })
 
   return errors

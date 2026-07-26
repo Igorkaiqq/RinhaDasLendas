@@ -30,7 +30,7 @@
   },
   "topbar": {
     "globalSearch": "Global search",
-    "searchPlaceholder": "Search players, matches...",
+    "searchPlaceholder": "Search players, matches…",
     "discord": "Discord",
     "notifications": "Notifications",
     "settings": "Settings"
@@ -45,7 +45,7 @@
     "confirm": "Confirm",
     "confirmation": "Confirmation",
     "save": "Save",
-    "saving": "Saving...",
+    "saving": "Saving…",
     "edit": "Edit",
     "back": "Back",
     "optional": "Optional",
@@ -142,7 +142,7 @@
       "complete": "Complete profile"
     },
     "player": {
-      "loading": "Loading player profile...",
+      "loading": "Loading player profile…",
       "messages": { "saved": "Player profile saved." },
       "errors": { "saveFallback": "Could not save player profile." }
     }
@@ -178,7 +178,7 @@
       "title": "Enter the Rinha",
       "description": "Access your account to organize players, drafts, and community matches.",
       "submit": "Log in",
-      "submitting": "Logging in...",
+      "submitting": "Logging in…",
       "discord": "Log in with Discord",
       "forgotPassword": "Forgot password",
       "createAccount": "Create account",
@@ -196,7 +196,7 @@
       "title": "Join the community",
       "description": "Every new account starts as a player and can evolve with organization permissions.",
       "submit": "Create account",
-      "submitting": "Creating...",
+      "submitting": "Creating…",
       "discord": "Create account with Discord",
       "haveAccount": "I already have an account",
       "errors": { "fallback": "Could not register" }
@@ -232,13 +232,13 @@
         "mark": "DC",
         "title": "Discord",
         "description": "Use your Discord account as an optional login and prepare the account for future social integrations.",
-        "loading": "Loading Discord status...",
+        "loading": "Loading Discord status…",
         "linkedAs": "Linked as {username}",
         "notLinkedDescription": "No Discord account linked.",
         "link": "Link Discord",
-        "linking": "Redirecting...",
+        "linking": "Redirecting…",
         "unlink": "Unlink Discord",
-        "unlinking": "Unlinking...",
+        "unlinking": "Unlinking…",
         "messages": {
           "success": "Discord operation completed.",
           "error": "Could not complete the Discord operation.",
@@ -427,7 +427,7 @@
       "mark": "BOT",
       "title": "Discord Settings",
       "description": "Define the channels used by the bot for presence lists, news, administration, drafts and results.",
-      "loading": "Loading Discord settings...",
+      "loading": "Loading Discord settings…",
       "fields": {
         "guildId": "Discord Server",
         "presenceChannelId": "Presence List Channel",
@@ -452,7 +452,7 @@
     "closeNotification": "Close notification",
     "filtersLabel": "Player filters",
     "searchName": "Search Name",
-    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "searchPlaceholder": "E.g. Faker, Chovy…",
     "rank": "Rank / Elo",
     "allRanks": "All Ranks",
     "primaryRoute": "Primary Role",
@@ -550,7 +550,40 @@
       "order": "Order",
       "picking": "Picks",
       "finished": "Finished",
-      "discord": "Discord"
+      "discord": "Discord",
+      "cancelled": "Canceled",
+      "unknown": "Status unavailable"
+    },
+    "progress": {
+      "completed": "Completed",
+      "current": "Current",
+      "pending": "Pending",
+      "attention": "Attention",
+      "terminal": "Closed",
+      "unknown": "Unavailable"
+    },
+    "actions": {
+      "clearFilters": "Clear filters",
+      "retry": "Try again"
+    },
+    "navigator": {
+      "loading": "Loading drafts",
+      "refreshing": "Updating draft list",
+      "loadFailedTitle": "Could not load drafts",
+      "loadFailedDescription": "Try again to recover the list without interrupting the open draft.",
+      "refreshFailedTitle": "Could not update drafts",
+      "refreshFailedDescription": "Known drafts remain available. Try again.",
+      "noResultsTitle": "No drafts match the filters",
+      "noResultsDescription": "Clear the filters to return to the full list.",
+      "emptyCreateDescription": "There are no drafts yet. Create the first one to get started.",
+      "emptyUnauthorizedDescription": "There are no drafts available yet.",
+      "expand": "Expand draft list",
+      "collapse": "Collapse draft list"
+    },
+    "accessibility": {
+      "selectedDraft": "Selected draft: {name}",
+      "currentStep": "Current step: {step}",
+      "stateLabel": "{label}: {state}"
     },
     "create": "Create Draft",
     "createWithIcon": "+ Create Draft",
@@ -559,7 +592,7 @@
     "picked": "{name} picked.",
     "filtersLabel": "Draft filters",
     "searchLabel": "Search draft",
-    "searchPlaceholder": "Draft name",
+    "searchPlaceholder": "E.g. Sunday rinha…",
     "listLabel": "Draft list",
     "emptyTitle": "No drafts found",
     "emptyDescription": "Create the first draft or adjust filters.",
@@ -570,7 +603,12 @@
     "noRinhaDate": "Date not informed",
     "cancelReason": "Draft canceled",
     "cancelReasonPrompt": "Enter the reason for cancelling this draft.",
-    "metrics": { "visible": "{total} drafts" },
+    "metrics": {
+      "visible": "{total} drafts",
+      "confirmed": "{count} confirmed player | {count} confirmed players",
+      "teams": "{count} team | {count} teams",
+      "reserves": "{count} reserve | {count} reserves"
+    },
     "messages": {
       "layoutSaved": "Draft layout saved.",
       "captainsDrawn": "Captains drawn.",
@@ -588,7 +626,9 @@
       "soundOn": "Sound on",
       "emergencyReserve": "Emergency reserve",
       "substitute": "Substitute",
-      "reserveSubstituted": "Reserve substituted into the team."
+      "reserveSubstituted": "Reserve substituted into the team.",
+      "liveStatus": "{captain} is on the clock for {team}. {current} of {total} picks completed.",
+      "liveProgress": "{current} of {total} picks completed."
     },
     "errors": {
       "create": "Could not create draft.",
@@ -620,7 +660,10 @@
       "manualRemoved": "Presence removed manually.",
       "closed": "Presence list closed.",
       "captainsDefined": "Captains defined.",
-      "orderDefined": "Pick order defined."
+      "orderDefined": "Pick order defined.",
+      "rosterLabel": "Players with confirmed presence",
+      "empty": "No player has confirmed presence.",
+      "toggleCaptain": "Toggle {name} as captain"
     },
     "presenceOrigin": {
       "Web": "Site",
@@ -628,6 +671,9 @@
       "Manual": "Manual"
     },
     "publication": {
+      "kicker": "Integration",
+      "title": "Discord publications",
+      "description": "Track bot messages without interrupting manual preparation.",
       "statusLabel": "Discord publication status",
       "presence": "Discord presence: {status}",
       "presenceCta": "Discord presence call: {status}",
@@ -638,8 +684,10 @@
         "Publicada": "published",
         "Falha": "failed",
         "RequerReconciliacao": "requires reconciliation",
-        "Ignorada": "skipped"
+        "Ignorada": "skipped",
+        "unknown": "Unknown publication status"
       },
+      "unknownType": "Discord publication: {status}",
       "republishPresence": "Republish presence",
       "republishPresenceCta": "Republish presence call",
       "republishFinalTeams": "Republish teams",
@@ -704,6 +752,7 @@
     },
     "roles": {
       "captain": "CAPTAIN",
+      "captainShort": "C",
       "player": "PLAYER"
     },
     "status": {
@@ -717,7 +766,8 @@
       "Aberta": "Open",
       "Finalizada": "Finished",
       "Cancelada": "Canceled",
-      "finished": "Finished"
+      "finished": "Finished",
+      "unknown": "Unknown status"
     },
     "createModal": {
       "eyebrow": "New draft",
@@ -734,7 +784,7 @@
       "captainTeamB": "Team B Captain",
       "drawFirstPick": "Draw first pick",
       "firstPick": "First pick",
-      "creating": "Creating...",
+      "creating": "Creating…",
       "submit": "Create draft"
     },
     "cancelDialog": {
@@ -749,7 +799,7 @@
       "selectPlayer": "Select player",
       "emptySlot": "Empty slot",
       "choosing": "CHOOSING",
-      "searchPlaceholder": "Search players by name or route...",
+      "searchPlaceholder": "Search players by name or route…",
       "routeFilters": "Route filters",
       "nextPick": "Next pick",
       "criteria": "Captains: {captains} · First pick: {firstPick}",
@@ -786,13 +836,33 @@
       "oddTeams": "Odd teams",
       "evenTeams": "Even teams",
       "pending": "pending",
-      "searchPlaceholder": "Search players by name, elo, or route...",
+      "searchPlaceholder": "Search players by name, elo, or route…",
+      "playerSearchLabel": "Search available players",
+      "teamNameLabel": "Team {name} name",
       "displayedRoutes": "Displayed routes",
       "available": "Available",
       "availablePlayers": "Available Players",
       "reservesHint": "Reserves are marked here",
       "reserve": "Reserve",
-      "noPlayersForFilter": "No available players for the current filter."
+      "noPlayersForFilter": "No available players for the current filter.",
+      "teamOrder": "Order {order}",
+      "pickProgress": "{current} / {total} picks",
+      "pickSequence": "Pick sequence",
+      "timeout": "Turn timed out",
+      "detailsFor": "View details for {name}",
+      "moveDestination": "Move {name} to",
+      "moveDestinationOption": "Move to…",
+      "moveToFree": "Free players",
+      "moveAnnouncement": "{name} was moved to {destination}.",
+      "moveToReserves": "Reserves",
+      "routeFilters": {
+        "all": "ALL ROUTES",
+        "top": "TOP",
+        "jungle": "JUNGLE",
+        "mid": "MID",
+        "adc": "ADC",
+        "support": "SUPPORT"
+      }
     },
     "playerDetails": {
       "dialogLabel": "Details for {name}",
@@ -819,7 +889,7 @@
       "title": "Users",
       "description": "Manage accounts, permissions, status, and player links without leaving the operational flow."
     },
-    "loading": "Loading users...",
+    "loading": "Loading users…",
     "status": {
       "active": "Active",
       "disabled": "Disabled"
@@ -849,7 +919,7 @@
     "details": {
       "eyebrow": "Administration",
       "title": "Edit user",
-      "loading": "Loading user...",
+      "loading": "Loading user…",
       "displayName": "Display name",
       "namePlaceholder": "User name",
       "saveData": "Save data",
@@ -937,7 +1007,7 @@
     "select": "Select",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving...",
+    "saving": "Saving…",
     "placeholders": {
       "displayName": "Hide on bush",
       "discord": "user#1234",
@@ -1017,6 +1087,38 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
+      "2026_07_4": {
+        "title": "A clearer draft from start to finish",
+        "summary": "Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.",
+        "details": {
+          "operational-hierarchy": {
+            "title": "A clear hierarchy for running the match",
+            "description": "The draft highlights context, progress, and the next action so every decision stays connected to the current stage."
+          },
+          "presence-roster": {
+            "title": "A more organized presence roster",
+            "description": "Confirmed players, reserves, and manual additions stay together, making adjustments easier before teams are formed."
+          },
+          "stage-accessibility-clarity": {
+            "title": "Stages that are easier to follow",
+            "description": "Statuses, actions, and notices now use clearer signals for keyboard navigation and assisted reading."
+          },
+          "responsive-mobile-operation": {
+            "title": "Comfortable operation on any screen",
+            "description": "The flow adapts from desktop to mobile while keeping players, preferences, and essential actions within reach."
+          }
+        }
+      },
+      "2026_07_3": {
+        "title": "Clearer selected weekdays",
+        "summary": "Selected days in presence schedules are now highlighted, making them easier to review before saving.",
+        "details": {
+          "selected-weekday-feedback": {
+            "title": "Visual confirmation for selected weekdays",
+            "description": "When configuring a schedule, you can immediately identify which weekdays are selected and avoid uncertainty before saving."
+          }
+        }
+      },
       "2026_07_2": {
         "title": "Scheduled presence lists",
         "summary": "Moderators can now organize weekly lists with defined times, history tracking, and safe recovery during the configured window.",

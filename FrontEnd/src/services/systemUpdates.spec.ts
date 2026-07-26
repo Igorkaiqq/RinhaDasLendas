@@ -26,7 +26,7 @@ function hasPath(source: object, path: string): boolean {
 describe('system updates', () => {
   it('returns the latest valid release from the registry', () => {
     expect(getLatestSystemUpdate()).toBe(SYSTEM_UPDATES[0])
-    expect(getLatestSystemUpdate().version).toBe('2026.07.2')
+    expect(getLatestSystemUpdate().version).toBe('2026.07.4')
     expect(() => getLatestSystemUpdate([])).toThrow(
       'System update registry cannot be empty',
     )
@@ -39,6 +39,39 @@ describe('system updates', () => {
     )
 
     expect(errors).toEqual([])
+  })
+
+  it('accepts sequential releases published on the same day', () => {
+    const sameDayReleases = [
+      SYSTEM_UPDATES[0],
+      {
+        ...SYSTEM_UPDATES[0],
+        id: 'same-day-release',
+        version: '2026.07.0',
+        featured: false,
+      },
+    ]
+
+    expect(
+      getSystemUpdateValidationErrors(sameDayReleases, () => true),
+    ).toEqual([])
+  })
+
+  it('rejects reversed numeric release sequences published on the same day', () => {
+    const reversedSameDayReleases = [
+      {
+        ...SYSTEM_UPDATES[1],
+        publishedAt: '2026-07-26',
+      },
+      {
+        ...SYSTEM_UPDATES[0],
+        publishedAt: '2026-07-26',
+      },
+    ]
+
+    expect(
+      getSystemUpdateValidationErrors(reversedSameDayReleases, () => true),
+    ).toContain('Releases on the same date must use descending version sequence')
   })
 
   it('reports malformed registry data and unknown links', () => {
@@ -71,15 +104,15 @@ describe('system updates', () => {
     expect(errors).toEqual(
       expect.arrayContaining([
         'Exactly one release must be featured',
-        'Duplicate release id: presence-scheduling-2026-07',
+        'Duplicate release id: clearer-draft-operation',
         'Invalid version: 2026-7-1',
         'Invalid date: 2026-02-30',
         'Releases must be newest first',
-        'Missing categories: presence-scheduling-2026-07',
-        'Missing areas: presence-scheduling-2026-07',
-        'Missing details: presence-scheduling-2026-07',
+        'Missing categories: clearer-draft-operation',
+        'Missing areas: clearer-draft-operation',
+        'Missing details: clearer-draft-operation',
         'Missing translation: missing.title',
-        'Duplicate detail id: presence-scheduling-2026-07:weekly-presence-scheduling',
+        'Duplicate detail id: clearer-draft-operation:operational-hierarchy',
         'Unknown internal link: /unknown',
       ]),
     )
@@ -113,11 +146,27 @@ describe('system updates', () => {
     expect(
       filterSystemUpdates(
         SYSTEM_UPDATES,
+        'dias selecionados',
+        ['fix'],
+        translate,
+      ).map(({ version }) => version),
+    ).toEqual(['2026.07.3'])
+    expect(
+      filterSystemUpdates(
+        SYSTEM_UPDATES,
+        'presença mais organizada',
+        ['improvement'],
+        translate,
+      ).map(({ version }) => version),
+    ).toEqual(['2026.07.4'])
+    expect(
+      filterSystemUpdates(
+        SYSTEM_UPDATES,
         '',
         ['fix', 'security'],
         translate,
       ).map(({ version }) => version),
-    ).toEqual(['2026.07.1', '2026.06.7', '2026.06.4'])
+    ).toEqual(['2026.07.3', '2026.07.1', '2026.06.7', '2026.06.4'])
     expect(filterSystemUpdates(SYSTEM_UPDATES, '', [], translate)).toEqual(
       SYSTEM_UPDATES,
     )

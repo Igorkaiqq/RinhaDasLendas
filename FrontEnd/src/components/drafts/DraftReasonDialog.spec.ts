@@ -1,12 +1,16 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 import DraftReasonDialog, { type DraftReasonDialogAction } from './DraftReasonDialog.vue'
+
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
 const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
   const wrapper = mount(DraftReasonDialog, {
@@ -20,18 +24,47 @@ const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
 }
 
 describe('DraftReasonDialog', () => {
+  afterEach(() => {
+    setLocale('pt')
+    vi.unstubAllGlobals()
+  })
+
   it.each([
     ['cancelDraft', { type: 'cancelDraft' }, 'Cancelar draft'],
     ['addManualPresence', { type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'Adicionar presença'],
     ['removeManualPresence', { type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'Remover presença'],
-    ['republishPresence', { type: 'republishPresence', publicationStatus: 'Falha' }, 'Republicar lista de presença'],
-    ['republishPresenceCta', { type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'Republicar chamada de presença'],
-    ['republishTeams', { type: 'republishTeams', publicationStatus: 'Pendente' }, 'Republicar times'],
+    ['republishPresence', { type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Falha' }, 'Republicar lista de presença'],
+    ['republishPresenceCta', { type: 'republishDiscord', publicationType: 'ChamadaPresenca', publicationStatus: 'Falha' }, 'Republicar chamada de presença'],
+    ['republishTeams', { type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: 'Pendente' }, 'Republicar times'],
   ] as const)('renders the %s context', async (_, action, title) => {
     const wrapper = await mountDialog(action)
 
     expect(wrapper.text()).toContain(title)
     expect(wrapper.get('[role="dialog"]')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', 'Status atual: estado de publicação desconhecido'],
+    ['en', 'Current status: unknown publication status'],
+  ] as const)('uses the localized neutral publication fallback in %s', async (locale, expected) => {
+    setLocale(locale)
+    const wrapper = await mountDialog({ type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'EstadoLegado' } as DraftReasonDialogAction)
+
+    expect(wrapper.get('[data-slot="badge"]').text().toLocaleLowerCase()).toBe(expected.toLocaleLowerCase())
+    expect(wrapper.text()).not.toContain('drafts.publication.status.EstadoLegado')
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', 'Status atual: estado de publicação desconhecido'],
+    ['en', 'Current status: unknown publication status'],
+  ] as const)('renders neutral publication context for a missing status in %s', async (locale, expected) => {
+    setLocale(locale)
+    const wrapper = await mountDialog({ type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: null })
+
+    expect(wrapper.get('[data-slot="badge"]').text().toLocaleLowerCase()).toBe(expected.toLocaleLowerCase())
+    expect(wrapper.text()).toContain(locale === 'pt' ? 'Times definidos' : 'Defined teams')
     wrapper.unmount()
   })
 
@@ -53,13 +86,13 @@ describe('DraftReasonDialog', () => {
 
   it.each([
     [
-      { type: 'republishPresence', publicationStatus: 'Falha' },
+      { type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Falha' },
       'Republicar lista de presença',
       'Lista de presença',
       'Status atual: falhou',
     ],
-    [{ type: 'republishTeams', publicationStatus: 'Pendente' }, 'Republicar times', 'Times definidos', 'Status atual: pendente'],
-    [{ type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'Republicar chamada de presença', 'Chamada de presença', 'Status atual: falhou'],
+    [{ type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: 'Pendente' }, 'Republicar times', 'Times definidos', 'Status atual: pendente'],
+    [{ type: 'republishDiscord', publicationType: 'ChamadaPresenca', publicationStatus: 'Falha' }, 'Republicar chamada de presença', 'Chamada de presença', 'Status atual: falhou'],
   ] as const)('renders localized publication type and status for %s', async (action, title, context, status) => {
     const wrapper = await mountDialog(action)
 
@@ -76,6 +109,55 @@ describe('DraftReasonDialog', () => {
 
     expect(document.activeElement).toBe(wrapper.get('textarea').element)
     wrapper.unmount()
+  })
+
+  it('focuses the back control inside the dialog without opening the mobile keyboard', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    opener.focus()
+    const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const dialog = wrapper.get('[role="dialog"]')
+
+    expect(wrapper.get('textarea').attributes('autofocus')).toBeUndefined()
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
+    expect(dialog.element.contains(document.activeElement)).toBe(true)
+
+    wrapper.unmount()
+    opener.remove()
+  })
+
+  it('re-evaluates desktop and mobile focus behavior every time it opens', async () => {
+    let mobile = false
+    const matchMedia = vi.fn().mockImplementation(() => ({ matches: mobile }))
+    vi.stubGlobal('matchMedia', matchMedia)
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    const wrapper = mount(DraftReasonDialog, {
+      attachTo: document.body,
+      props: { open: false, action: { type: 'cancelDraft' }, saving: false },
+      global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' } } },
+    })
+
+    opener.focus()
+    await wrapper.setProps({ open: true })
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(document.activeElement).toBe(wrapper.get('textarea').element)
+
+    await wrapper.setProps({ open: false })
+    mobile = true
+    opener.focus()
+    await wrapper.setProps({ open: true })
+    const openEvent = new Event('openAutoFocus', { cancelable: true })
+    wrapper.findComponent(DialogContent).vm.$emit('openAutoFocus', openEvent)
+    await nextTick()
+    expect(openEvent.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
+    expect(wrapper.get('[role="dialog"]').element.contains(document.activeElement)).toBe(true)
+    expect(matchMedia).toHaveBeenCalledTimes(2)
+
+    wrapper.unmount()
+    opener.remove()
   })
 
   it('normalizes and emits a valid reason', async () => {
@@ -163,6 +245,20 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it('scopes 44px button targets to every portaled reason-dialog action', async () => {
+    const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const dialog = wrapper.get('[role="dialog"]')
+    const buttons = dialog.findAll('button')
+
+    expect(dialog.classes()).toContain('draft-reason-dialog')
+    expect(buttons).toHaveLength(3)
+    expect(dialog.get('button[data-slot="dialog-close"]')).toBeTruthy()
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s+button\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s+textarea\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.draft-reason-dialog\s*{[^}]*max-height:\s*calc\(100dvh\s*-\s*[^)]+\)[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s)
+    wrapper.unmount()
+  })
+
   it('emits cancel from the back button', async () => {
     const wrapper = await mountDialog({ type: 'cancelDraft' })
 
@@ -172,13 +268,43 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it('requests stage focus instead of a removed opener after a completed command', async () => {
+    const wrapper = await mountDialog({ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' })
+    const content = wrapper.findComponent(DialogContent)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.setProps({ open: false })
+    const closeEvent = new Event('closeAutoFocus', { cancelable: true })
+
+    content.vm.$emit('closeAutoFocus', closeEvent)
+    await nextTick()
+
+    expect(closeEvent.defaultPrevented).toBe(true)
+    expect(wrapper.emitted('restore-focus')).toEqual([[]])
+    wrapper.unmount()
+  })
+
+  it('preserves default opener restoration when the dialog is cancelled', async () => {
+    const wrapper = await mountDialog({ type: 'cancelDraft' })
+    const content = wrapper.findComponent(DialogContent)
+    await wrapper.get('[data-testid="draft-reason-cancel"]').trigger('click')
+    await wrapper.setProps({ open: false })
+    const closeEvent = new Event('closeAutoFocus', { cancelable: true })
+
+    content.vm.$emit('closeAutoFocus', closeEvent)
+    await nextTick()
+
+    expect(closeEvent.defaultPrevented).toBe(false)
+    expect(wrapper.emitted('restore-focus')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it.each([
     [{ type: 'cancelDraft' }, 'destructive'],
     [{ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' }, 'default'],
     [{ type: 'removeManualPresence', jogadorId: 'j1', jogadorNome: 'Ahri' }, 'destructive'],
-    [{ type: 'republishPresence', publicationStatus: 'Falha' }, 'default'],
-    [{ type: 'republishPresenceCta', publicationStatus: 'Falha' }, 'default'],
-    [{ type: 'republishTeams', publicationStatus: 'Pendente' }, 'default'],
+      [{ type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Falha' }, 'default'],
+      [{ type: 'republishDiscord', publicationType: 'ChamadaPresenca', publicationStatus: 'Falha' }, 'default'],
+      [{ type: 'republishDiscord', publicationType: 'TimesDefinidos', publicationStatus: 'Pendente' }, 'default'],
   ] as const)('uses the %s confirmation variant', async (action, variant) => {
     const wrapper = await mountDialog(action)
 
@@ -202,7 +328,7 @@ describe('DraftReasonDialog', () => {
   })
 
   it('blocks actions while saving', async () => {
-    const wrapper = await mountDialog({ type: 'republishPresence', publicationStatus: 'Pendente' }, true)
+    const wrapper = await mountDialog({ type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Pendente' }, true)
 
     expect(wrapper.get('[data-slot="field"]').attributes('data-disabled')).toBe('true')
     expect(wrapper.get('textarea').attributes('disabled')).toBeDefined()
@@ -211,14 +337,14 @@ describe('DraftReasonDialog', () => {
     expect(wrapper.get('[data-testid="draft-reason-confirm"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="draft-reason-cancel"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="draft-reason-confirm"] [data-slot="spinner"]')).toBeTruthy()
-    expect(wrapper.get('[data-testid="draft-reason-confirm"]').text()).toBe('Salvando...')
+    expect(wrapper.get('[data-testid="draft-reason-confirm"]').text()).toBe('Salvando…')
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('confirm')).toBeUndefined()
     wrapper.unmount()
   })
 
   it('keeps the controlled dialog open when closing is attempted while saving', async () => {
-    const wrapper = await mountDialog({ type: 'republishPresence', publicationStatus: 'Pendente' }, true)
+    const wrapper = await mountDialog({ type: 'republishDiscord', publicationType: 'Presenca', publicationStatus: 'Pendente' }, true)
     const dialog = wrapper.findComponent(Dialog)
     const content = wrapper.findComponent(DialogContent)
     const escapeEvent = new Event('escapeKeyDown', { cancelable: true })

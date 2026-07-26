@@ -28,10 +28,59 @@ function releaseDetails(
 
 export const SYSTEM_UPDATES = [
   {
+    id: 'clearer-draft-operation',
+    version: '2026.07.4',
+    publishedAt: '2026-07-26',
+    featured: true,
+    categories: ['improvement'],
+    areas: ['drafts'],
+    titleKey: `${releaseKeys('2026.07.4')}.title`,
+    summaryKey: `${releaseKeys('2026.07.4')}.summary`,
+    details: releaseDetails('2026.07.4', [
+      {
+        id: 'operational-hierarchy',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'presence-roster',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'stage-accessibility-clarity',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+      {
+        id: 'responsive-mobile-operation',
+        category: 'improvement',
+        link: AppRoutes.Draft,
+      },
+    ]),
+  },
+  {
+    id: 'presence-schedule-weekday-selection-fix',
+    version: '2026.07.3',
+    publishedAt: '2026-07-25',
+    featured: false,
+    categories: ['fix'],
+    areas: ['drafts'],
+    titleKey: `${releaseKeys('2026.07.3')}.title`,
+    summaryKey: `${releaseKeys('2026.07.3')}.summary`,
+    details: releaseDetails('2026.07.3', [
+      {
+        id: 'selected-weekday-feedback',
+        category: 'fix',
+        link: AppRoutes.Settings,
+      },
+    ]),
+  },
+  {
     id: 'presence-scheduling-2026-07',
     version: '2026.07.2',
     publishedAt: '2026-07-23',
-    featured: true,
+    featured: false,
     categories: ['feature', 'improvement'],
     areas: ['drafts', 'discord'],
     titleKey: `${releaseKeys('2026.07.2')}.title`,

@@ -1,13 +1,11 @@
 <script lang="ts">
-import type { DraftMontagemPublicacaoDiscordStatus } from '@/types/draftMontagem'
+import type { DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo } from '@/types/draftMontagem'
 
 export type DraftReasonDialogAction =
   | { type: 'cancelDraft' }
   | { type: 'addManualPresence'; jogadorId: string; jogadorNome: string }
   | { type: 'removeManualPresence'; jogadorId: string; jogadorNome: string }
-  | { type: 'republishPresence'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
-  | { type: 'republishPresenceCta'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
-  | { type: 'republishTeams'; publicationStatus: DraftMontagemPublicacaoDiscordStatus }
+  | { type: 'republishDiscord'; publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
 </script>
 
 <script setup lang="ts">
@@ -22,20 +20,37 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 
 type ReasonKeyboardEvent = InstanceType<typeof globalThis.KeyboardEvent>
+type CloseAutoFocusEvent = InstanceType<typeof globalThis.Event>
+type OpenAutoFocusEvent = InstanceType<typeof globalThis.Event>
 
 const props = defineProps<{ open: boolean; action: DraftReasonDialogAction | null; saving: boolean }>()
-const emit = defineEmits<{ confirm: [reason: string]; cancel: [] }>()
-const { t } = useI18n()
+const emit = defineEmits<{ confirm: [reason: string]; cancel: []; 'restore-focus': [] }>()
+const { t, te } = useI18n()
 
 const reason = ref('')
 const submitted = ref(false)
+const commandSubmitted = ref(false)
 const reasonField = useTemplateRef<InstanceType<typeof Textarea>>('reasonField')
-const translationKey = computed(() => (props.action ? `drafts.reasonDialog.${props.action.type}` : ''))
-const discordAction = computed(() => props.action?.type === 'republishPresence' || props.action?.type === 'republishPresenceCta' || props.action?.type === 'republishTeams')
+const backButton = useTemplateRef<InstanceType<typeof Button>>('backButton')
+const discordTranslationKeys: Record<DraftMontagemPublicacaoDiscordTipo, string> = {
+  Presenca: 'republishPresence',
+  ChamadaPresenca: 'republishPresenceCta',
+  TimesDefinidos: 'republishTeams',
+}
+const translationKey = computed(() => {
+  if (!props.action) return ''
+  const actionKey = props.action.type === 'republishDiscord' ? discordTranslationKeys[props.action.publicationType] : props.action.type
+  return `drafts.reasonDialog.${actionKey}`
+})
+const discordAction = computed(() => props.action?.type === 'republishDiscord')
 const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
 const publicationStatus = computed(() => {
   const action = props.action
-  return action?.type === 'republishPresence' || action?.type === 'republishPresenceCta' || action?.type === 'republishTeams' ? action.publicationStatus : null
+  return action?.type === 'republishDiscord' ? action.publicationStatus : null
+})
+const publicationStatusKey = computed(() => {
+  const key = publicationStatus.value ? `drafts.publication.status.${publicationStatus.value}` : ''
+  return key && te(key) ? key : 'drafts.publication.status.unknown'
 })
 const normalizedReasonLength = computed(() => reason.value.trim().length)
 const reasonTooLong = computed(() => normalizedReasonLength.value > 500)
@@ -45,6 +60,7 @@ watch(
   () => [props.open, props.action] as const,
   ([open]) => {
     submitted.value = false
+    if (open) commandSubmitted.value = false
     reason.value = open && props.action ? t(`${translationKey.value}.defaultReason`) : ''
   },
   { immediate: true },
@@ -55,6 +71,7 @@ function cancel() {
 
   reason.value = ''
   submitted.value = false
+  commandSubmitted.value = false
   emit('cancel')
 }
 
@@ -66,6 +83,7 @@ function confirm() {
   }
   if (props.saving) return
 
+  commandSubmitted.value = true
   emit('confirm', reason.value.trim())
 }
 
@@ -76,6 +94,24 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
   confirm()
 }
 
+function handleCloseAutoFocus(event: CloseAutoFocusEvent) {
+  if (!commandSubmitted.value) return
+
+  event.preventDefault()
+  commandSubmitted.value = false
+  emit('restore-focus')
+}
+
+function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
+  event.preventDefault()
+  if (globalThis.matchMedia?.('(max-width: 768px)').matches) {
+    void nextTick(() => backButton.value?.$el.focus())
+    return
+  }
+
+  void nextTick(() => reasonField.value?.$el.focus())
+}
+
 </script>
 
 <template>
@@ -83,9 +119,11 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
     <DialogContent
       v-if="action"
       :show-close-button="!saving"
-      class="sm:max-w-lg"
+      class="draft-reason-dialog sm:max-w-lg"
       @escape-key-down="saving && $event.preventDefault()"
       @interact-outside="saving && $event.preventDefault()"
+      @open-auto-focus="handleOpenAutoFocus"
+      @close-auto-focus="handleCloseAutoFocus"
     >
       <form class="flex flex-col gap-5" @submit.prevent="confirm">
         <DialogHeader>
@@ -96,10 +134,10 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
           <DialogDescription>{{ t(`${translationKey}.description`) }}</DialogDescription>
         </DialogHeader>
 
-        <div v-if="discordAction && publicationStatus" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+        <div v-if="discordAction" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
           <strong>{{ t(`${translationKey}.context`) }}</strong>
           <Badge variant="outline">
-            {{ t('drafts.reasonDialog.currentStatus', { status: t(`drafts.publication.status.${publicationStatus}`) }) }}
+            {{ t('drafts.reasonDialog.currentStatus', { status: t(publicationStatusKey) }) }}
           </Badge>
         </div>
         <div v-else-if="action.type === 'addManualPresence' || action.type === 'removeManualPresence'" class="rounded-lg border bg-muted/40 p-3 text-sm">
@@ -113,7 +151,6 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
               ref="reasonField"
               id="draft-reason"
               v-model="reason"
-              autofocus
               name="reason"
               autocomplete="off"
               maxlength="500"
@@ -130,7 +167,7 @@ function handleReasonKeydown(event: ReasonKeyboardEvent) {
         </FieldGroup>
 
         <DialogFooter>
-          <Button data-testid="draft-reason-cancel" type="button" variant="outline" :disabled="saving" @click="cancel">
+          <Button ref="backButton" data-testid="draft-reason-cancel" type="button" variant="outline" :disabled="saving" @click="cancel">
             {{ t('drafts.reasonDialog.back') }}
           </Button>
           <Button

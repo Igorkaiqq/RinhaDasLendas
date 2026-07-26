@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,7 +15,15 @@ import {
 } from '@/services/systemUpdates'
 import type { SidebarNavigationItem } from '@/types/layout'
 import AppShell from './AppShell.vue'
+import PageFrame from './PageFrame.vue'
 import SidebarNav from './SidebarNav.vue'
+
+const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
+
+const PageContent = defineComponent({
+  components: { PageFrame },
+  template: '<PageFrame><section>Content</section></PageFrame>',
+})
 
 vi.mock('@/services/authState', async () => {
   const { ref } = await import('vue')
@@ -112,5 +123,31 @@ describe('AppShell update badge', () => {
     )
     expect(updateItem()?.badge).toBeUndefined()
     expect(wrapper.exists()).toBe(true)
+  })
+
+  it('keeps AppShell as the sole rendered main landmark', async () => {
+    const router = createAppRouter()
+    await router.push(AppRoutes.Home)
+    await router.isReady()
+
+    const wrapper = mount(AppShell, {
+      slots: { default: PageContent },
+      global: { plugins: [i18n, router] },
+    })
+
+    expect(wrapper.findAll('main')).toHaveLength(1)
+    expect(wrapper.getComponent(PageFrame).element.tagName).toBe('DIV')
+  })
+
+  it('keeps every AppShell interaction target at least 44px on desktop and mobile', () => {
+    expect(MainCss).toMatch(/\.sidebar__toggle\s*{[^}]*width:\s*44px[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.sidebar__brand\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.topbar__search input\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.topbar__link\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.topbar__icon\s*{[^}]*width:\s*44px[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.profile-menu__trigger\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/\.profile-menu__panel button\s*{[^}]*min-height:\s*44px/s)
+    expect(MainCss).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.sidebar__item,[\s\S]*?min-height:\s*44px/s)
+    expect(MainCss).not.toMatch(/@media \(max-width:\s*480px\)[\s\S]*?\.sidebar__item\s*{[^}]*min-height:\s*(?:38|40)px/s)
   })
 })

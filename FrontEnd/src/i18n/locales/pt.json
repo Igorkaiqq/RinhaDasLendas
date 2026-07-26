@@ -30,7 +30,7 @@
   },
   "topbar": {
     "globalSearch": "Busca global",
-    "searchPlaceholder": "Buscar jogadores, partidas...",
+    "searchPlaceholder": "Buscar jogadores, partidas…",
     "discord": "Discord",
     "notifications": "Notificações",
     "settings": "Configurações"
@@ -45,7 +45,7 @@
     "confirm": "Confirmar",
     "confirmation": "Confirmação",
     "save": "Salvar",
-    "saving": "Salvando...",
+    "saving": "Salvando…",
     "edit": "Editar",
     "back": "Voltar",
     "optional": "Opcional",
@@ -142,7 +142,7 @@
       "complete": "Completar perfil"
     },
     "player": {
-      "loading": "Carregando perfil de jogador...",
+      "loading": "Carregando perfil de jogador…",
       "messages": { "saved": "Perfil de jogador salvo." },
       "errors": { "saveFallback": "Não foi possível salvar o perfil de jogador." }
     }
@@ -178,7 +178,7 @@
       "title": "Entre na Rinha",
       "description": "Acesse sua conta para organizar jogadores, drafts e partidas da comunidade.",
       "submit": "Entrar",
-      "submitting": "Entrando...",
+      "submitting": "Entrando…",
       "discord": "Entrar com Discord",
       "forgotPassword": "Esqueci minha senha",
       "createAccount": "Criar conta",
@@ -196,7 +196,7 @@
       "title": "Entrar para a comunidade",
       "description": "Todo novo cadastro começa como jogador e pode evoluir com permissões da organização.",
       "submit": "Criar conta",
-      "submitting": "Criando...",
+      "submitting": "Criando…",
       "discord": "Criar conta com Discord",
       "haveAccount": "Já tenho conta",
       "errors": { "fallback": "Não foi possível cadastrar" }
@@ -232,13 +232,13 @@
         "mark": "DC",
         "title": "Discord",
         "description": "Use sua conta Discord como login opcional e prepare a conta para futuras integrações sociais.",
-        "loading": "Carregando status do Discord...",
+        "loading": "Carregando status do Discord…",
         "linkedAs": "Vinculado como {username}",
         "notLinkedDescription": "Nenhuma conta Discord vinculada.",
         "link": "Vincular Discord",
-        "linking": "Redirecionando...",
+        "linking": "Redirecionando…",
         "unlink": "Desvincular Discord",
-        "unlinking": "Desvinculando...",
+        "unlinking": "Desvinculando…",
         "messages": {
           "success": "Operação com Discord concluída.",
           "error": "Não foi possível concluir a operação com Discord.",
@@ -427,7 +427,7 @@
       "mark": "BOT",
       "title": "Configurações do Discord",
       "description": "Defina os canais usados pelo bot para listas de presença, novidades, administração, drafts e resultados.",
-      "loading": "Carregando configuração do Discord...",
+      "loading": "Carregando configuração do Discord…",
       "fields": {
         "guildId": "Servidor Discord",
         "presenceChannelId": "Canal Lista de Presença",
@@ -452,7 +452,7 @@
     "closeNotification": "Fechar notificação",
     "filtersLabel": "Filtros de jogadores",
     "searchName": "Buscar Nome",
-    "searchPlaceholder": "e.g. Faker, Chovy...",
+    "searchPlaceholder": "Ex.: Faker, Chovy…",
     "rank": "Rank / Elo",
     "allRanks": "Todos os Ranks",
     "primaryRoute": "Rota Principal",
@@ -550,7 +550,40 @@
       "order": "Ordem",
       "picking": "Escolhas",
       "finished": "Finalizado",
-      "discord": "Discord"
+      "discord": "Discord",
+      "cancelled": "Cancelado",
+      "unknown": "Estado indisponível"
+    },
+    "progress": {
+      "completed": "Concluída",
+      "current": "Atual",
+      "pending": "Pendente",
+      "attention": "Atenção",
+      "terminal": "Encerrada",
+      "unknown": "Indisponível"
+    },
+    "actions": {
+      "clearFilters": "Limpar filtros",
+      "retry": "Tentar novamente"
+    },
+    "navigator": {
+      "loading": "Carregando drafts",
+      "refreshing": "Atualizando lista de drafts",
+      "loadFailedTitle": "Não foi possível carregar os drafts",
+      "loadFailedDescription": "Tente novamente para recuperar a lista sem interromper o draft aberto.",
+      "refreshFailedTitle": "Não foi possível atualizar os drafts",
+      "refreshFailedDescription": "Os drafts conhecidos continuam disponíveis. Tente novamente.",
+      "noResultsTitle": "Nenhum draft corresponde aos filtros",
+      "noResultsDescription": "Limpe os filtros para voltar à lista completa.",
+      "emptyCreateDescription": "Ainda não há drafts. Crie o primeiro para começar.",
+      "emptyUnauthorizedDescription": "Ainda não há drafts disponíveis.",
+      "expand": "Expandir lista de drafts",
+      "collapse": "Recolher lista de drafts"
+    },
+    "accessibility": {
+      "selectedDraft": "Draft selecionado: {name}",
+      "currentStep": "Etapa atual: {step}",
+      "stateLabel": "{label}: {state}"
     },
     "create": "Criar Draft",
     "createWithIcon": "+ Criar Draft",
@@ -559,7 +592,7 @@
     "picked": "{name} escolhido.",
     "filtersLabel": "Filtros de drafts",
     "searchLabel": "Buscar draft",
-    "searchPlaceholder": "Nome do draft",
+    "searchPlaceholder": "Ex.: Rinha de domingo…",
     "listLabel": "Lista de drafts",
     "emptyTitle": "Nenhum draft encontrado",
     "emptyDescription": "Crie o primeiro draft ou ajuste os filtros.",
@@ -570,7 +603,12 @@
     "noRinhaDate": "Data não informada",
     "cancelReason": "Draft cancelado",
     "cancelReasonPrompt": "Informe o motivo do cancelamento do draft.",
-    "metrics": { "visible": "{total} drafts" },
+    "metrics": {
+      "visible": "{total} drafts",
+      "confirmed": "{count} confirmado | {count} confirmados",
+      "teams": "{count} time | {count} times",
+      "reserves": "{count} reserva | {count} reservas"
+    },
     "messages": {
       "layoutSaved": "Layout do draft salvo.",
       "captainsDrawn": "Capitães sorteados.",
@@ -588,7 +626,9 @@
       "soundOn": "Som ligado",
       "emergencyReserve": "Reserva emergencial",
       "substitute": "Substituir",
-      "reserveSubstituted": "Reserva substituída no time."
+      "reserveSubstituted": "Reserva substituída no time.",
+      "liveStatus": "Vez de {captain} no {team}. {current} de {total} escolhas concluídas.",
+      "liveProgress": "{current} de {total} escolhas concluídas."
     },
     "errors": {
       "create": "Não foi possível criar o draft.",
@@ -620,7 +660,10 @@
       "manualRemoved": "Presença removida manualmente.",
       "closed": "Lista de presença encerrada.",
       "captainsDefined": "Capitães definidos.",
-      "orderDefined": "Ordem de escolha definida."
+      "orderDefined": "Ordem de escolha definida.",
+      "rosterLabel": "Jogadores com presença confirmada",
+      "empty": "Nenhum jogador confirmou presença.",
+      "toggleCaptain": "Alternar seleção de {name} como capitão"
     },
     "presenceOrigin": {
       "Web": "Site",
@@ -628,6 +671,9 @@
       "Manual": "Manual"
     },
     "publication": {
+      "kicker": "Integração",
+      "title": "Publicações no Discord",
+      "description": "Acompanhe as mensagens do bot sem interromper a preparação manual.",
       "statusLabel": "Status de publicação no Discord",
       "presence": "Presença no Discord: {status}",
       "presenceCta": "Chamada no Discord: {status}",
@@ -638,8 +684,10 @@
         "Publicada": "publicada",
         "Falha": "falhou",
         "RequerReconciliacao": "requer reconciliação",
-        "Ignorada": "ignorada"
+        "Ignorada": "ignorada",
+        "unknown": "Estado de publicação desconhecido"
       },
+      "unknownType": "Publicação no Discord: {status}",
       "republishPresence": "Republicar presença",
       "republishPresenceCta": "Republicar chamada",
       "republishFinalTeams": "Republicar times",
@@ -704,6 +752,7 @@
     },
     "roles": {
       "captain": "CAPITÃO",
+      "captainShort": "C",
       "player": "JOGADOR"
     },
     "status": {
@@ -717,7 +766,8 @@
       "Aberta": "Aberta",
       "Finalizada": "Finalizada",
       "Cancelada": "Cancelada",
-      "finished": "Finalizado"
+      "finished": "Finalizado",
+      "unknown": "Estado desconhecido"
     },
     "createModal": {
       "eyebrow": "Novo draft",
@@ -734,7 +784,7 @@
       "captainTeamB": "Capitão Time B",
       "drawFirstPick": "Sortear primeiro pick",
       "firstPick": "Primeiro pick",
-      "creating": "Criando...",
+      "creating": "Criando…",
       "submit": "Criar draft"
     },
     "cancelDialog": {
@@ -749,7 +799,7 @@
       "selectPlayer": "Selecionar jogador",
       "emptySlot": "Slot vazio",
       "choosing": "ESCOLHENDO",
-      "searchPlaceholder": "Buscar jogadores por nome ou rota...",
+      "searchPlaceholder": "Buscar jogadores por nome ou rota…",
       "routeFilters": "Filtros de rota",
       "nextPick": "Próximo pick",
       "criteria": "Capitães: {captains} · Primeiro pick: {firstPick}",
@@ -786,13 +836,33 @@
       "oddTeams": "Times ímpares",
       "evenTeams": "Times pares",
       "pending": "pendente",
-      "searchPlaceholder": "Buscar jogadores por nome, elo ou rota...",
+      "searchPlaceholder": "Buscar jogadores por nome, elo ou rota…",
+      "playerSearchLabel": "Buscar jogadores disponíveis",
+      "teamNameLabel": "Nome do time {name}",
       "displayedRoutes": "Rotas exibidas",
       "available": "Disponíveis",
       "availablePlayers": "Jogadores Disponíveis",
       "reservesHint": "Reservas ficam marcados aqui",
       "reserve": "Reserva",
-      "noPlayersForFilter": "Sem jogadores disponíveis para o filtro atual."
+      "noPlayersForFilter": "Sem jogadores disponíveis para o filtro atual.",
+      "teamOrder": "Ordem {order}",
+      "pickProgress": "{current} / {total} escolhas",
+      "pickSequence": "Sequência de escolhas",
+      "timeout": "Tempo esgotado",
+      "detailsFor": "Ver detalhes de {name}",
+      "moveDestination": "Mover {name} para",
+      "moveDestinationOption": "Mover para…",
+      "moveToFree": "Jogadores livres",
+      "moveAnnouncement": "{name} foi movido para {destination}.",
+      "moveToReserves": "Reservas",
+      "routeFilters": {
+        "all": "TODAS AS ROTAS",
+        "top": "TOP",
+        "jungle": "JUNGLE",
+        "mid": "MID",
+        "adc": "ADC",
+        "support": "SUPORTE"
+      }
     },
     "playerDetails": {
       "dialogLabel": "Detalhes de {name}",
@@ -819,7 +889,7 @@
       "title": "Usuários",
       "description": "Gerencie contas, permissões, status e vínculo com jogador sem sair do fluxo operacional."
     },
-    "loading": "Carregando usuários...",
+    "loading": "Carregando usuários…",
     "status": {
       "active": "Ativo",
       "disabled": "Desativado"
@@ -849,7 +919,7 @@
     "details": {
       "eyebrow": "Administração",
       "title": "Editar usuário",
-      "loading": "Carregando usuário...",
+      "loading": "Carregando usuário…",
       "displayName": "Nome de exibição",
       "namePlaceholder": "Nome do usuário",
       "saveData": "Salvar dados",
@@ -937,7 +1007,7 @@
     "select": "Selecione",
     "cancel": "Cancelar",
     "save": "Salvar",
-    "saving": "Salvando...",
+    "saving": "Salvando…",
     "placeholders": {
       "displayName": "Hide on bush",
       "discord": "usuario#1234",
@@ -1017,6 +1087,38 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
+      "2026_07_4": {
+        "title": "Draft mais claro do início ao fim",
+        "summary": "Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.",
+        "details": {
+          "operational-hierarchy": {
+            "title": "Hierarquia para conduzir a partida",
+            "description": "O draft destaca contexto, progresso e próxima ação, ajudando a organizar cada decisão sem perder o momento atual."
+          },
+          "presence-roster": {
+            "title": "Lista de presença mais organizada",
+            "description": "Confirmados, reservas e inclusão manual ficam reunidos para facilitar ajustes antes da formação dos times."
+          },
+          "stage-accessibility-clarity": {
+            "title": "Etapas mais fáceis de acompanhar",
+            "description": "Estados, ações e avisos ganharam sinais mais claros para navegação por teclado e leitura assistida."
+          },
+          "responsive-mobile-operation": {
+            "title": "Operação confortável em qualquer tela",
+            "description": "O fluxo se adapta do desktop ao celular, mantendo jogadores, preferências e ações essenciais ao alcance."
+          }
+        }
+      },
+      "2026_07_3": {
+        "title": "Dias selecionados mais claros",
+        "summary": "Os dias escolhidos nos agendamentos de presença agora ficam destacados, facilitando a revisão antes de salvar.",
+        "details": {
+          "selected-weekday-feedback": {
+            "title": "Confirmação visual dos dias selecionados",
+            "description": "Ao configurar um agendamento, você identifica imediatamente quais dias da semana estão selecionados e evita dúvidas antes de salvar."
+          }
+        }
+      },
       "2026_07_2": {
         "title": "Listas de presença agendadas",
         "summary": "Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.",

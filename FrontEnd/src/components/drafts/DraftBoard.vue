@@ -122,7 +122,7 @@ function isActivePick(team: DraftTeamValue, index: number) {
               <strong>{{ player.nomeExibicao }}</strong>
               <small>{{ pickRoleLabel(player.capitao) }}</small>
             </span>
-            <span v-if="player.capitao" class="draft-slot__captain">C</span>
+            <span v-if="player.capitao" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
           </template>
           <template v-else>
             <span>{{ isActivePick(DraftTeamValues.TimeA, index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>
@@ -206,7 +206,7 @@ function isActivePick(team: DraftTeamValue, index: number) {
               <strong>{{ player.nomeExibicao }}</strong>
               <small>{{ pickRoleLabel(player.capitao) }}</small>
             </span>
-            <span v-if="player.capitao" class="draft-slot__captain">C</span>
+            <span v-if="player.capitao" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
           </template>
           <template v-else>
             <span>{{ isActivePick(DraftTeamValues.TimeB, index) ? t('drafts.board.selectPlayer') : t('drafts.board.emptySlot') }}</span>

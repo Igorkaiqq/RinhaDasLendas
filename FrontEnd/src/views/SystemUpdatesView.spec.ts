@@ -52,21 +52,21 @@ describe('SystemUpdatesView', () => {
     const releases = wrapper.findAll('[data-system-update]')
 
     expect(wrapper.get('h1').text()).toBe('Atualizações do sistema')
-    expect(hero.text()).toContain('2026.07.2')
-    expect(hero.text()).toContain('Listas de presença agendadas')
+    expect(hero.text()).toContain('2026.07.4')
+    expect(hero.text()).toContain('Draft mais claro do início ao fim')
     expect(hero.get('[data-latest-summary]').text()).toBe(
-      'Moderadores agora podem organizar listas semanais com horários definidos, acompanhamento do histórico e recuperação segura durante a janela configurada.',
+      'Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.',
     )
-    expect(hero.get('[data-latest-categories]').text()).toContain('Novidade')
-    expect(hero.get('[data-latest-categories]').text()).toContain('Melhoria')
+    expect(hero.get('[data-latest-categories]').text()).toBe('Melhoria')
     expect(hero.get('[data-latest-areas]').text()).toContain('Drafts')
-    expect(hero.get('[data-latest-areas]').text()).toContain('Discord')
-    expect(hero.get('time').attributes('datetime')).toBe('2026-07-23')
+    expect(hero.get('time').attributes('datetime')).toBe('2026-07-26')
     expect(releases).toHaveLength(SYSTEM_UPDATES.length)
     expect(releases.map((release) => release.attributes('id'))).toEqual(
       SYSTEM_UPDATES.map((release) => `update-${release.id}`),
     )
-    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(5)
+    expect(releases[0]!.findAll('[data-update-detail]')).toHaveLength(4)
+    expect(releases[1]!.text()).toContain('2026.07.3')
+    expect(releases[2]!.text()).toContain('2026.07.2')
   })
 
   it('groups the semantic timeline and links every indexed version to its release', () => {
