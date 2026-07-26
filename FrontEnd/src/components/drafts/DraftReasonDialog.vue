@@ -170,7 +170,6 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
               v-model="reason"
               name="reason"
               autocomplete="off"
-              maxlength="500"
               class="min-h-24 resize-y"
               :disabled="saving"
               :aria-invalid="submitted && !valid"

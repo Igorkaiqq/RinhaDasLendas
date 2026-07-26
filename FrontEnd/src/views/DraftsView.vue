@@ -80,6 +80,7 @@ const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const workspaceHeader = useTemplateRef<InstanceType<typeof DraftWorkspaceHeader>>('workspaceHeader')
+const emptyWorkspace = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('emptyWorkspace')
 const adminAccessDenied = ref(false)
 const archiveAccessDenied = ref(false)
 let detailRequestVersion = 0
@@ -367,7 +368,7 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
     } catch (error) {
       if (!isCurrentUpdate(context)) return false
       if (error instanceof DraftMontagemServiceError && error.status === 403) {
-        await handleArchiveAccessDenied()
+        await handleArchiveAccessDenied(id, visualMontagens.value.findIndex((draft) => draft.id === id))
         return false
       }
       throw error
@@ -885,10 +886,42 @@ function requestDiscordRepublish(action: { publicationType: DraftMontagemPublica
     || !discordRepublishableTypes.value.includes(action.publicationType)
     || currentStatus !== action.publicationStatus
   ) return
+  if (action.publicationType === 'Cancelamento') {
+    void republishArchivedCancellation(action.publicationStatus)
+    return
+  }
   pendingReasonAction.value = {
     type: 'republishDiscord',
     publicationType: action.publicationType,
     publicationStatus: currentStatus,
+  }
+}
+
+async function republishArchivedCancellation(publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null) {
+  if (
+    saving.value
+    || !canArchiveDrafts.value
+    || !selectedMontagem.value?.arquivado
+    || publicationStatus !== discordPublicationStatus('Cancelamento')
+    || !discordRepublishableTypes.value.includes('Cancelamento')
+  ) return
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
+
+  saving.value = true
+  errors.value = []
+  try {
+    await republishArchivedDraftCancellation(context.draftId)
+    if (!isCurrentUpdate(context)) return
+    await openMontagem(context.draftId)
+    notification.value = t('drafts.publication.republishRequested')
+  } catch (error) {
+    if (isActiveDraft(context.draftId, context.generation)) {
+      if (error instanceof DraftMontagemServiceError) await handleArchiveError(error, context.draftId)
+      else captureError(error)
+    }
+  } finally {
+    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
 }
 
@@ -932,14 +965,12 @@ async function confirmReasonAction(reason: string | null) {
       const currentIndex = visualMontagens.value.findIndex((draft) => draft.id === context.draftId)
       const draftName = selectedMontagem.value.nome
       await archiveDraftMontagem(context.draftId, reason, selectedMontagem.value.versaoEstado)
-      if (!isCurrentUpdate(context)) return
-      pendingReasonAction.value = null
       notification.value = t('drafts.archive.archived', { name: draftName })
       if (includeArchived.value) {
         await loadVisualMontagens()
-        if (isActiveDraft(context.draftId, context.generation)) await openMontagem(context.draftId)
+        if (selectedDraftId.value === context.draftId) await openMontagem(context.draftId)
       } else {
-        await removeArchivedAndReconcile(context.draftId, currentIndex)
+        await removeArchivedAndReconcile(context.draftId, currentIndex, true)
       }
     } else if (action.type === 'restoreDraft') {
       const draftName = selectedMontagem.value.nome
@@ -969,18 +1000,12 @@ async function confirmReasonAction(reason: string | null) {
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
     } else {
-      if (action.publicationType === 'Cancelamento') {
-        await republishArchivedDraftCancellation(context.draftId)
-        if (!isCurrentUpdate(context)) return
-        await openMontagem(context.draftId)
-      } else {
-        if (!reason) return
-        const montagem = await republishDraftMontagemDiscordPublication(context.draftId, action.publicationType, reason)
-        if (!(await applyMutationProjection(context, montagem))) return
-      }
+      if (!reason) return
+      const montagem = await republishDraftMontagemDiscordPublication(context.draftId, action.publicationType, reason)
+      if (!(await applyMutationProjection(context, montagem))) return
       notification.value = t('drafts.publication.republishRequested')
     }
-    pendingReasonAction.value = null
+    if (pendingReasonAction.value === action) pendingReasonAction.value = null
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) {
       if (archiveAction && error instanceof DraftMontagemServiceError) {
@@ -994,8 +1019,12 @@ async function confirmReasonAction(reason: string | null) {
   }
 }
 
-async function removeArchivedAndReconcile(draftId: string, previousIndex: number) {
+async function removeArchivedAndReconcile(draftId: string, previousIndex: number, restoreFocus = false) {
   visualMontagens.value = visualMontagens.value.filter((draft) => draft.id !== draftId)
+  if (selectedDraftId.value !== draftId) {
+    await loadVisualMontagens()
+    return
+  }
   activeDraftId = null
   selectedDraftId.value = '__reconciling__'
   selectedMontagem.value = null
@@ -1007,10 +1036,12 @@ async function removeArchivedAndReconcile(draftId: string, previousIndex: number
   selectedDraftId.value = null
   if (visualMontagens.value.length === 0) {
     saving.value = false
+    if (restoreFocus) await restoreStageFocus()
     return
   }
   const next = visualMontagens.value[Math.min(Math.max(previousIndex, 0), visualMontagens.value.length - 1)]
   if (next) await openMontagem(next.id)
+  if (restoreFocus) await restoreStageFocus()
 }
 
 function archiveActionLabel(type: string) {
@@ -1033,9 +1064,9 @@ async function handleDraftArchived(draftId: string) {
   await removeArchivedAndReconcile(draftId, index)
 }
 
-async function handleArchiveAccessDenied() {
-  const archivedId = selectedMontagem.value?.arquivado ? selectedMontagem.value.id : null
-  const archivedIndex = archivedId ? visualMontagens.value.findIndex((draft) => draft.id === archivedId) : -1
+async function handleArchiveAccessDenied(inaccessibleId?: string | null, inaccessibleIndex?: number) {
+  const archivedId = inaccessibleId ?? (selectedMontagem.value?.arquivado ? selectedMontagem.value.id : null)
+  const archivedIndex = inaccessibleIndex ?? (archivedId ? visualMontagens.value.findIndex((draft) => draft.id === archivedId) : -1)
   archiveAccessDenied.value = true
   includeArchived.value = false
   selectedArchiving.value = null
@@ -1066,7 +1097,8 @@ async function handleArchiveError(error: DraftMontagemServiceError, draftId: str
 
 async function restoreStageFocus() {
   await nextTick()
-  await workspaceHeader.value?.focusStage()
+  if (workspaceHeader.value) await workspaceHeader.value.focusStage()
+  else emptyWorkspace.value?.focus()
 }
 
 function captureError(error: unknown) {
@@ -1194,22 +1226,22 @@ function captureError(error: unknown) {
           @finalize="finalizeMontagem"
           @cancel="requestDraftCancellation"
         />
-        <section v-if="selectedMontagem?.arquivado" class="draft-empty-card" data-archived-workspace>
+        <section v-if="selectedMontagem?.arquivado" class="draft-empty-card draft-archive-audit" data-archived-workspace>
           <h2>{{ t('drafts.archive.historyTitle') }}</h2>
           <p>{{ t('drafts.archive.readOnly') }}</p>
           <p v-if="selectedArchiving?.arquivadoEm">{{ t('drafts.archive.archivedAt', { date: formatArchiveDate(selectedArchiving.arquivadoEm) }) }}</p>
-          <p v-if="selectedArchiving?.arquivadoPorUsuarioId">{{ t('drafts.archive.responsible', { id: selectedArchiving.arquivadoPorUsuarioId }) }}</p>
-          <p v-if="selectedArchiving?.motivoArquivamento">{{ t('drafts.archive.reason', { reason: selectedArchiving.motivoArquivamento }) }}</p>
+          <p v-if="selectedArchiving?.arquivadoPorUsuarioId" class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.responsible', { id: selectedArchiving.arquivadoPorUsuarioId }) }}</p>
+          <p v-if="selectedArchiving?.motivoArquivamento" class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.reason', { reason: selectedArchiving.motivoArquivamento }) }}</p>
           <ol v-if="selectedArchiving?.acoes.length">
             <li v-for="action in selectedArchiving.acoes" :key="action.id">
               <strong>{{ archiveActionLabel(action.tipo) }}</strong>
               <span>{{ t('drafts.archive.eventAt', { date: formatArchiveDate(action.registradoEm) }) }}</span>
-              <span>{{ t('drafts.archive.responsible', { id: action.responsavelUsuarioId }) }}</span>
-              <span v-if="action.motivo">{{ t('drafts.archive.eventReason', { reason: action.motivo }) }}</span>
+              <span class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.responsible', { id: action.responsavelUsuarioId }) }}</span>
+              <span v-if="action.motivo" class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.eventReason', { reason: action.motivo }) }}</span>
             </li>
           </ol>
         </section>
-        <section v-else-if="!selectedMontagem" class="draft-empty-card">
+        <section v-else-if="!selectedMontagem" ref="emptyWorkspace" class="draft-empty-card" data-empty-workspace tabindex="-1">
           <h2>{{ t('drafts.noSelectionTitle') }}</h2>
           <p>{{ t('drafts.noSelectionDescription') }}</p>
         </section>
@@ -1235,3 +1267,21 @@ function captureError(error: unknown) {
     />
   </PageFrame>
 </template>
+
+<style scoped>
+.draft-archive-audit,
+.draft-archive-audit li,
+.draft-archive-audit__value {
+  min-width: 0;
+}
+
+.draft-archive-audit ol,
+.draft-archive-audit li {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.draft-archive-audit__value {
+  overflow-wrap: anywhere;
+}
+</style>

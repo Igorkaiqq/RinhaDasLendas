@@ -605,7 +605,6 @@ describe('i18n', () => {
       'drafts.publication.republishCancellation',
       'drafts.reasonDialog.archiveDraft.title',
       'drafts.reasonDialog.restoreDraft.title',
-      'updates.releases.2026_07_5.details.archive-and-restore.title',
     ]
 
     for (const path of requiredPaths) {

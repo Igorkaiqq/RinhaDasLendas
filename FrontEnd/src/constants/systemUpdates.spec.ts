@@ -4,7 +4,6 @@ import { AppRoutes } from './appRoutes'
 import { SYSTEM_UPDATES } from './systemUpdates'
 
 const releaseIds = [
-  'administrative-draft-archiving',
   'clearer-draft-operation',
   'presence-schedule-weekday-selection-fix',
   'presence-scheduling-2026-07',
@@ -52,10 +51,9 @@ const previousDetailIds = [
 ]
 
 describe('system update registry', () => {
-  it('contains the twelve stable releases in descending chronological order', () => {
+  it('contains the eleven released versions in descending chronological order', () => {
     expect(SYSTEM_UPDATES.map(({ id }) => id)).toEqual(releaseIds)
     expect(SYSTEM_UPDATES.map(({ version }) => version)).toEqual([
-      '2026.07.5',
       '2026.07.4',
       '2026.07.3',
       '2026.07.2',
@@ -70,7 +68,6 @@ describe('system update registry', () => {
     ])
     expect(SYSTEM_UPDATES.map(({ publishedAt }) => publishedAt)).toEqual([
       '2026-07-26',
-      '2026-07-26',
       '2026-07-25',
       '2026-07-23',
       '2026-07-22',
@@ -84,23 +81,21 @@ describe('system update registry', () => {
     ])
   })
 
-  it('publishes draft archiving as the only featured latest release', () => {
+  it('keeps the latest released draft improvement featured', () => {
     expect(SYSTEM_UPDATES[0]).toMatchObject({
-      id: 'administrative-draft-archiving',
-      version: '2026.07.5',
+      id: 'clearer-draft-operation',
+      version: '2026.07.4',
       publishedAt: '2026-07-26',
       featured: true,
-      categories: ['feature'],
+      categories: ['improvement'],
       areas: ['drafts'],
     })
-    expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(['archive-and-restore'])
-    expect(SYSTEM_UPDATES[0].details[0]).toMatchObject({ category: 'feature', link: AppRoutes.Draft })
+    expect(SYSTEM_UPDATES[0].details.map(({ id }) => id)).toEqual(latestDetailIds)
     expect(SYSTEM_UPDATES.filter(({ featured }) => featured)).toHaveLength(1)
-    expect(SYSTEM_UPDATES[1].details.map(({ id }) => id)).toEqual(latestDetailIds)
   })
 
   it('preserves the selected weekday feedback fix without featuring it', () => {
-    expect(SYSTEM_UPDATES[2]).toEqual({
+    expect(SYSTEM_UPDATES[1]).toEqual({
       id: 'presence-schedule-weekday-selection-fix',
       version: '2026.07.3',
       publishedAt: '2026-07-25',

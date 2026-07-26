@@ -190,8 +190,11 @@ describe('DraftReasonDialog', () => {
 
   it('accepts exactly 500 trimmed characters for archive', async () => {
     const wrapper = await mountDialog({ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: false })
+    const rawReason = `  ${'a'.repeat(500)}  `
 
-    await wrapper.get('textarea').setValue(`  ${'a'.repeat(500)}  `)
+    expect(wrapper.get('textarea').attributes('maxlength')).toBeUndefined()
+    await wrapper.get('textarea').setValue(rawReason)
+    expect(wrapper.get('textarea').element.value).toBe(rawReason)
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('confirm')).toEqual([[`${'a'.repeat(500)}`]])
@@ -264,14 +267,14 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
-  it('does not submit a reason longer than 500 characters', async () => {
-    const wrapper = await mountDialog({ type: 'addManualPresence', jogadorId: 'j2', jogadorNome: 'Lux' })
+  it('does not submit an archive reason with 501 meaningful characters', async () => {
+    const wrapper = await mountDialog({ type: 'archiveDraft', draftName: 'Rinha', cancelsActiveDraft: false })
 
-    await wrapper.get('textarea').setValue('a'.repeat(501))
+    await wrapper.get('textarea').setValue(`  ${'a'.repeat(501)}  `)
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('confirm')).toBeUndefined()
-    expect(wrapper.get('textarea').attributes('maxlength')).toBe('500')
+    expect(wrapper.get('textarea').element.value).toBe(`  ${'a'.repeat(501)}  `)
     expect(wrapper.get('[role="alert"]').text()).toBe('O motivo deve ter no máximo 500 caracteres.')
     wrapper.unmount()
   })

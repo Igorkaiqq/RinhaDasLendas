@@ -118,10 +118,11 @@ describe('DraftNavigator', () => {
     expect(wrapper.get('[data-draft-status]').text()).toBe('Cancelada')
   })
 
-  it('uses the archived empty state when that administrative filter has no results', () => {
-    const wrapper = mountNavigator({ drafts: [], includeArchived: true, hasKnownDrafts: false })
+  it('uses a neutral administrative empty state when including archived returns no drafts', () => {
+    const wrapper = mountNavigator({ drafts: [], includeArchived: true, hasKnownDrafts: true })
 
-    expect(wrapper.get('[data-navigator-archived-empty]').text()).toContain('Nenhum draft arquivado')
+    expect(wrapper.get('[data-navigator-archived-empty]').text()).toContain('Nenhum draft disponível')
+    expect(wrapper.get('[data-navigator-archived-empty]').text()).not.toContain('Nenhum draft arquivado')
   })
 
   it.each([

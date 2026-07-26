@@ -572,8 +572,8 @@
       "action": "Archive",
       "restore": "Restore",
       "activeWarning": "This draft is active and will also be canceled. Presence, turns, and picks will no longer continue.",
-      "emptyTitle": "No archived drafts",
-      "emptyDescription": "Archived drafts will appear here when they exist.",
+      "emptyTitle": "No drafts available",
+      "emptyDescription": "There are no drafts to display with the current filters.",
       "historyTitle": "Archive history",
       "actionTypes": {
         "Arquivamento": "Archived",
@@ -1135,16 +1135,6 @@
       "infrastructure": "Infrastructure"
     },
     "releases": {
-      "2026_07_5": {
-        "title": "Archived drafts without losing history",
-        "summary": "Administrators can organize old drafts, review what was preserved, and restore them when needed.",
-        "details": {
-          "archive-and-restore": {
-            "title": "Safe, reversible archiving",
-            "description": "Archive drafts with a reason, keep status and history available, and restore visibility without resuming closed stages."
-          }
-        }
-      },
       "2026_07_4": {
         "title": "A clearer draft from start to finish",
         "summary": "Organize presence, stages, and picks in a clearer, accessible workspace ready for any screen.",

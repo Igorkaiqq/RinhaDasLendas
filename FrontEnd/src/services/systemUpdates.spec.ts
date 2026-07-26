@@ -26,7 +26,7 @@ function hasPath(source: object, path: string): boolean {
 describe('system updates', () => {
   it('returns the latest valid release from the registry', () => {
     expect(getLatestSystemUpdate()).toBe(SYSTEM_UPDATES[0])
-    expect(getLatestSystemUpdate().version).toBe('2026.07.5')
+    expect(getLatestSystemUpdate().version).toBe('2026.07.4')
     expect(() => getLatestSystemUpdate([])).toThrow(
       'System update registry cannot be empty',
     )
@@ -104,15 +104,15 @@ describe('system updates', () => {
     expect(errors).toEqual(
       expect.arrayContaining([
         'Exactly one release must be featured',
-        'Duplicate release id: administrative-draft-archiving',
+        'Duplicate release id: clearer-draft-operation',
         'Invalid version: 2026-7-1',
         'Invalid date: 2026-02-30',
         'Releases must be newest first',
-        'Missing categories: administrative-draft-archiving',
-        'Missing areas: administrative-draft-archiving',
-        'Missing details: administrative-draft-archiving',
+        'Missing categories: clearer-draft-operation',
+        'Missing areas: clearer-draft-operation',
+        'Missing details: clearer-draft-operation',
         'Missing translation: missing.title',
-        'Duplicate detail id: administrative-draft-archiving:archive-and-restore',
+        'Duplicate detail id: clearer-draft-operation:operational-hierarchy',
         'Unknown internal link: /unknown',
       ]),
     )

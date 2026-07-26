@@ -572,8 +572,8 @@
       "action": "Arquivar",
       "restore": "Restaurar",
       "activeWarning": "Este draft está ativo e também será cancelado. Presença, turnos e escolhas não poderão continuar.",
-      "emptyTitle": "Nenhum draft arquivado",
-      "emptyDescription": "Os drafts arquivados aparecerão aqui quando existirem.",
+      "emptyTitle": "Nenhum draft disponível",
+      "emptyDescription": "Não há drafts para exibir com os filtros atuais.",
       "historyTitle": "Histórico de arquivamento",
       "actionTypes": {
         "Arquivamento": "Arquivamento",
@@ -1135,16 +1135,6 @@
       "infrastructure": "Infraestrutura"
     },
     "releases": {
-      "2026_07_5": {
-        "title": "Drafts arquivados sem perder o histórico",
-        "summary": "Administradores podem organizar drafts antigos, consultar o que foi preservado e restaurá-los quando necessário.",
-        "details": {
-          "archive-and-restore": {
-            "title": "Arquivamento seguro e reversível",
-            "description": "Arquive drafts com uma justificativa, mantenha status e histórico disponíveis e restaure a visibilidade sem retomar etapas encerradas."
-          }
-        }
-      },
       "2026_07_4": {
         "title": "Draft mais claro do início ao fim",
         "summary": "Organize presença, etapas e escolhas em uma área mais clara, acessível e pronta para qualquer tela.",

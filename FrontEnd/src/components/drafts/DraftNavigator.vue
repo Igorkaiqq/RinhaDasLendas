@@ -10,7 +10,7 @@ import type { DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMont
 
 export type DraftNavigatorItem = Omit<DraftMontagemResumo, 'status'> & { status: string }
 
-defineProps<{
+const props = defineProps<{
   drafts: readonly DraftNavigatorItem[]
   selectedDraftId: string | null
   searchTerm: string
@@ -38,6 +38,7 @@ const { locale, t } = useI18n()
 const compactExpanded = ref(false)
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const compactToggleLabel = computed(() => t(compactExpanded.value ? 'drafts.navigator.collapse' : 'drafts.navigator.expand'))
+const hasActiveFilters = computed(() => Boolean(props.searchTerm.trim() || props.selectedStatus))
 type DraftStatusVariant = 'neutral' | 'info' | 'warning' | 'success' | 'danger'
 const statusVariants: Record<DraftMontagemStatus, DraftStatusVariant> = {
   PresencaAberta: 'info',
@@ -164,7 +165,7 @@ function formatDate(draft: DraftNavigatorItem) {
           </Button>
         </div>
 
-        <div v-if="!loading && !loadFailed && !drafts.length && hasKnownDrafts" class="draft-navigator__state" data-navigator-no-results>
+        <div v-if="!loading && !loadFailed && !drafts.length && hasKnownDrafts && hasActiveFilters" class="draft-navigator__state" data-navigator-no-results>
           <h3>{{ t('drafts.navigator.noResultsTitle') }}</h3>
           <p>{{ t('drafts.navigator.noResultsDescription') }}</p>
           <Button type="button" variant="outline" data-navigator-clear-results @click="emit('reset')">
