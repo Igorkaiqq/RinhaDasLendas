@@ -159,6 +159,7 @@ export enum MessageCode {
   DiscordConfigurationNotFound = 'MV077',
   DiscordChannelInvalid = 'MV078',
   BotInternalTokenInvalid = 'MV079',
+  DraftMontagemPresenceCannotBeReopened = 'MV106',
 
   ConfirmAction = 'MC001',
   ConfirmPlayerDeactivate = 'MC002',

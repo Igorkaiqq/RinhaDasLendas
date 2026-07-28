@@ -672,6 +672,7 @@
       "confirm": "Confirmar presença",
       "cancel": "Cancelar presença",
       "close": "Encerrar presença",
+      "reopen": "Reabrir presença",
       "continueManual": "Continuar manualmente",
       "lessThanTen": "Menos de 10 jogadores confirmados exige decisão manual de Moderador ou Admin.",
       "defineCaptains": "Definir capitães",
@@ -688,9 +689,11 @@
       "manualAdded": "Presença adicionada manualmente.",
       "manualRemoved": "Presença removida manualmente.",
       "closed": "Lista de presença encerrada.",
+      "reopened": "Presença reaberta.",
       "captainsDefined": "Capitães definidos.",
       "orderDefined": "Ordem de escolha definida.",
       "rosterLabel": "Jogadores com presença confirmada",
+      "captainsCount": "{selected} / {total} capitães",
       "empty": "Nenhum jogador confirmou presença.",
       "toggleCaptain": "Alternar seleção de {name} como capitão"
     },
@@ -750,6 +753,11 @@
         "title": "Restaurar draft",
         "description": "{draftName} voltará à listagem normal com o status atual preservado.",
         "confirm": "Restaurar draft"
+      },
+      "reopenPresence": {
+        "title": "Reabrir presença",
+        "description": "Reabrir a presença de {draftName}?",
+        "confirm": "Reabrir presença"
       },
       "republishCancellation": {
         "title": "Republicar cancelamento",

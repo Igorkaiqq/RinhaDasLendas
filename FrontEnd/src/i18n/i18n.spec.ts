@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import en from './locales/en.json'
 import pt from './locales/pt.json'
 import { i18n, setLocale } from './index'
+import { MessageCode } from '../constants/messageCode'
+import { getMessage } from '../services/messageService'
 
 const settingsComponents = import.meta.glob('../components/settings/*.vue', {
   eager: true,
@@ -272,6 +274,34 @@ describe('i18n', () => {
         'updates.releases.2026_07_3.details.selected-weekday-feedback.title',
       ),
     ).not.toContain('updates.')
+  })
+
+  it('provides the complete localized presence reopening interface and message mapping', () => {
+    expect(pt.drafts.presence).toMatchObject({
+      reopen: 'Reabrir presença',
+      reopened: 'Presença reaberta.',
+      captainsCount: '{selected} / {total} capitães',
+    })
+    expect(en.drafts.presence).toMatchObject({
+      reopen: 'Reopen presence',
+      reopened: 'Presence reopened.',
+      captainsCount: '{selected} / {total} captains',
+    })
+    expect(pt.drafts.reasonDialog.reopenPresence).toEqual({
+      title: 'Reabrir presença',
+      description: 'Reabrir a presença de {draftName}?',
+      confirm: 'Reabrir presença',
+    })
+    expect(en.drafts.reasonDialog.reopenPresence).toEqual({
+      title: 'Reopen presence',
+      description: 'Reopen presence for {draftName}?',
+      confirm: 'Reopen presence',
+    })
+    expect(MessageCode.DraftMontagemPresenceCannotBeReopened).toBe('MV106')
+    expect(getMessage(MessageCode.DraftMontagemPresenceCannotBeReopened, 'pt'))
+      .toBe('A presença só pode ser reaberta após o encerramento e antes da definição dos capitães')
+    expect(getMessage(MessageCode.DraftMontagemPresenceCannotBeReopened, 'en'))
+      .toBe('Presence can only be reopened after closing and before captains are defined')
   })
 
   it('provides exact benefit-oriented draft redesign content in both locales', () => {

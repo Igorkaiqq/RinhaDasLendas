@@ -669,6 +669,103 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         AssertBotOperationalProjection(confirmation.RootElement);
     }
 
+    [Fact]
+    public async Task DezenoveConfirmacoes_DevemFormarTresTimesQuatroReservasEDarInicioAoDraftTempoReal()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedDraftJourneyAsync();
+        await ConfirmPlayersAsync(factory, fixture.DraftId, fixture.Players.Take(19));
+        using var admin = factory.CreateUserClient(fixture.AdminUserId);
+
+        var closeResponse = await admin.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca",
+            new EncerrarPresencaDraftMontagemRequestDto(false, 5));
+        closeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var closed = await closeResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        closed.Should().NotBeNull();
+        closed!.Presencas.Count(presence => presence.Status == DraftMontagemPresencaStatus.Confirmada.ToString()).Should().Be(19);
+        closed.QuantidadeTimes.Should().Be(3);
+        closed.QuantidadeReservas.Should().Be(4);
+
+        var captains = fixture.Players.Take(3).Select(player => player.PlayerId).ToList();
+        var captainsResponse = await admin.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes",
+            new DefinirCapitaesDraftMontagemRequestDto(captains));
+        captainsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await captainsResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>())!.Status
+            .Should().Be(DraftMontagemStatus.CapitaesDefinidos.ToString());
+
+        var orderResponse = await admin.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/ordem-escolha",
+            new DefinirOrdemEscolhaDraftMontagemRequestDto(DraftMontagemOrdemEscolhaModo.Manual.ToString(), captains));
+        orderResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var ordered = await orderResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        ordered!.Status.Should().Be(DraftMontagemStatus.Aberta.ToString());
+        ordered.OrdemEscolhaModo.Should().Be(DraftMontagemOrdemEscolhaModo.Manual.ToString());
+
+        var startResponse = await admin.PostAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/iniciar-tempo-real",
+            null);
+        startResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var started = await startResponse.Content.ReadFromJsonAsync<DraftMontagemRealtimeStateDto>();
+        started!.Montagem.Modo.Should().Be(DraftMontagemModo.TempoReal.ToString());
+        started.Montagem.TurnoAtualCapitaoId.Should().Be(captains[0]);
+        started.Montagem.TurnoSequencia.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DezenoveConfirmacoes_AposReabrirEConfirmarVigesimoDevemFormarQuatroTimesSemReservas()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedDraftJourneyAsync();
+        await ConfirmPlayersAsync(factory, fixture.DraftId, fixture.Players.Take(19));
+        using var admin = factory.CreateUserClient(fixture.AdminUserId);
+        var closeRoute = $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca";
+
+        var firstCloseResponse = await admin.PostAsJsonAsync(
+            closeRoute,
+            new EncerrarPresencaDraftMontagemRequestDto(false, 5));
+        firstCloseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var firstClose = await firstCloseResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        firstClose!.QuantidadeTimes.Should().Be(3);
+        firstClose.QuantidadeReservas.Should().Be(4);
+
+        var reopenResponse = await admin.PatchAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca",
+            null);
+        reopenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var reopened = await reopenResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        reopened!.Status.Should().Be(DraftMontagemStatus.PresencaAberta.ToString());
+        reopened.Presencas.Count(presence => presence.Status == DraftMontagemPresencaStatus.Confirmada.ToString()).Should().Be(19);
+        reopened.QuantidadeTimes.Should().Be(0);
+        reopened.QuantidadeReservas.Should().Be(0);
+
+        await ConfirmPlayersAsync(factory, fixture.DraftId, fixture.Players.Skip(19));
+        var secondCloseResponse = await admin.PostAsJsonAsync(
+            closeRoute,
+            new EncerrarPresencaDraftMontagemRequestDto(false, 5));
+        secondCloseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondClose = await secondCloseResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        secondClose!.Presencas.Count(presence => presence.Status == DraftMontagemPresencaStatus.Confirmada.ToString()).Should().Be(20);
+        secondClose.QuantidadeTimes.Should().Be(4);
+        secondClose.QuantidadeReservas.Should().Be(0);
+    }
+
+    private static async Task ConfirmPlayersAsync(
+        PostgreSqlComposeApiFactory factory,
+        Guid draftId,
+        IEnumerable<(Guid UserId, Guid PlayerId)> players)
+    {
+        foreach (var player in players)
+        {
+            using var client = factory.CreatePlayerClient(player.UserId);
+            var response = await client.PostAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/presencas/confirmar",
+                new ConfirmarPresencaDraftMontagemRequestDto(player.UserId, null, DraftMontagemPresencaOrigem.Web.ToString()));
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+
     private static void AssertPublicProjection(string json)
     {
         json.Should().NotContain("acoesAdministrativas");
@@ -1002,6 +1099,58 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
             return (draft.Id, userId);
+        }
+
+        public async Task<(Guid DraftId, Guid AdminUserId, IReadOnlyList<(Guid UserId, Guid PlayerId)> Players)> SeedDraftJourneyAsync()
+        {
+            _ = CreateClient();
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var adminUserId = Guid.NewGuid();
+            dbContext.Users.Add(new ApplicationUser
+            {
+                Id = adminUserId,
+                Nome = "Administrador da jornada",
+                UserName = $"journey-admin-{adminUserId:N}",
+                NormalizedUserName = $"JOURNEY-ADMIN-{adminUserId:N}",
+            });
+            var players = new List<(Guid UserId, Guid PlayerId)>();
+            for (var index = 1; index <= 20; index++)
+            {
+                var userId = Guid.NewGuid();
+                var player = new Jogador(
+                    $"Jogador {index}",
+                    null,
+                    $"journey{index}#1234",
+                    null,
+                    null,
+                    null,
+                    Elo.Ouro,
+                    Divisao.II,
+                    new[]
+                    {
+                        new PreferenciaRota(Rota.Top, 1, false),
+                        new PreferenciaRota(Rota.Jungle, 2, false),
+                        new PreferenciaRota(Rota.Mid, 3, false),
+                        new PreferenciaRota(Rota.Adc, 4, false),
+                        new PreferenciaRota(Rota.Support, 5, false),
+                    });
+                player.VincularUsuario(userId);
+                dbContext.Users.Add(new ApplicationUser
+                {
+                    Id = userId,
+                    Nome = $"Jogador {index}",
+                    UserName = $"journey-player-{index}-{userId:N}",
+                    NormalizedUserName = $"JOURNEY-PLAYER-{index}-{userId:N}",
+                });
+                dbContext.Jogadores.Add(player);
+                players.Add((userId, player.Id));
+            }
+
+            var draft = new DraftMontagem("Jornada de 19 e 20 jogadores", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            dbContext.DraftMontagens.Add(draft);
+            await dbContext.SaveChangesAsync();
+            return (draft.Id, adminUserId, players);
         }
 
         public async Task<int> CountConfirmedPresencesAsync(Guid draftId, Guid userId)

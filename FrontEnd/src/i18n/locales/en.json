@@ -672,6 +672,7 @@
       "confirm": "Confirm presence",
       "cancel": "Cancel presence",
       "close": "Close presence",
+      "reopen": "Reopen presence",
       "continueManual": "Continue manually",
       "lessThanTen": "Fewer than 10 confirmed players requires a manual Moderator or Admin decision.",
       "defineCaptains": "Define captains",
@@ -688,9 +689,11 @@
       "manualAdded": "Presence added manually.",
       "manualRemoved": "Presence removed manually.",
       "closed": "Presence list closed.",
+      "reopened": "Presence reopened.",
       "captainsDefined": "Captains defined.",
       "orderDefined": "Pick order defined.",
       "rosterLabel": "Players with confirmed presence",
+      "captainsCount": "{selected} / {total} captains",
       "empty": "No player has confirmed presence.",
       "toggleCaptain": "Toggle {name} as captain"
     },
@@ -750,6 +753,11 @@
         "title": "Restore draft",
         "description": "{draftName} will return to the normal list with its current status preserved.",
         "confirm": "Restore draft"
+      },
+      "reopenPresence": {
+        "title": "Reopen presence",
+        "description": "Reopen presence for {draftName}?",
+        "confirm": "Reopen presence"
       },
       "republishCancellation": {
         "title": "Republish cancellation",
