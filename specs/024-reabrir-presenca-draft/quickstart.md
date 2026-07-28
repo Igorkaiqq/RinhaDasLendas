@@ -34,10 +34,12 @@ Resultado esperado: todos os comandos terminam com código zero.
 ## Cenário 2: prosseguir com 19
 
 1. Encerrar presença com 19 jogadores e times de cinco.
-2. Selecionar três capitães e observar `3 / 3 capitães`.
-3. Definir capitães e ordem.
-4. Iniciar o modo escolhido.
-5. Confirmar que quatro jogadores permanecem como reservas.
+2. Selecionar um capitão e confirmar que o botão e a linha ficam destacados enquanto `aria-pressed=true`.
+3. Desmarcar o mesmo capitão e confirmar que ambos os destaques desaparecem enquanto `aria-pressed=false`.
+4. Selecionar três capitães e observar `3 / 3 capitães`.
+5. Definir capitães e ordem.
+6. Iniciar o modo escolhido.
+7. Confirmar que quatro jogadores permanecem como reservas.
 
 ## Cenário 3: autorização e estados inválidos
 
@@ -51,3 +53,4 @@ Resultado esperado: todos os comandos terminam com código zero.
 1. Repetir abertura e confirmação do diálogo em português e inglês.
 2. Confirmar equivalência de título, descrição, botões, contagem, sucesso e erro.
 3. Operar por teclado em desktop e em viewport mobile, verificando foco inicial, retorno de foco e ausência de overflow horizontal.
+4. Em desktop e mobile, confirmar que hover e foco não ocultam o estado selecionado e que cada controle mantém área mínima de toque.

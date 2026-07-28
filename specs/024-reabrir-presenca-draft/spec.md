@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-27
 
-**Status**: Enhancement approved / implementation pending
+**Status**: Enhancement implemented / verified / deployment pending
 
 **Input**: Permitir que um organizador reabra uma presença encerrada por engano, mantenha os participantes confirmados e prossiga normalmente com capitães, ordem e início do draft, inclusive quando o primeiro encerramento ocorreu com 19 jogadores.
 

@@ -142,8 +142,8 @@ description: "Tarefas para reabertura de presença do draft"
 - [x] T039 [US2] Aplicar `draft-preparation__captain-toggle--selected` e `draft-preparation__player--captain` a partir de `captainSelection` e estilizar os estados com tokens existentes em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
 - [x] T040 [US2] Executar novamente `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts` em FrontEnd/ e confirmar 0 falhas
 - [x] T041 [US2] Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e auditar textos hardcoded, sincronização pt/en, acentuação e controles de interface nos arquivos alterados
-- [ ] T042 [US2] Validar seleção e desmarcação no Chromium em viewport desktop e mobile, incluindo contraste, foco, overflow e coerência com `aria-pressed`
-- [ ] T043 [US2] Atualizar o status em specs/024-reabrir-presenca-draft/spec.md e registrar o cenário visual em specs/024-reabrir-presenca-draft/quickstart.md
+- [x] T042 [US2] Validar seleção e desmarcação no Chromium em viewport desktop e mobile, incluindo contraste, foco, overflow e coerência com `aria-pressed`
+- [x] T043 [US2] Atualizar o status em specs/024-reabrir-presenca-draft/spec.md e registrar o cenário visual em specs/024-reabrir-presenca-draft/quickstart.md
 - [ ] T044 [US2] Revisar o diff de FrontEnd/src/components/drafts/DraftPreparationPanel.vue, FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e specs/024-reabrir-presenca-draft/, commitar em português, enviar a branch, integrar no main e executar o deploy com verificações de saúde
 
 **Checkpoint**: Seleção e desmarcação de capitães ficam imediatamente perceptíveis em desktop, mobile e tecnologia assistiva.
