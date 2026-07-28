@@ -122,7 +122,7 @@ description: "Tarefas para reabertura de presença do draft"
 - [x] T033 Executar cenários desktop/mobile e autorização de specs/024-reabrir-presenca-draft/quickstart.md usando o ambiente disponível
 - [x] T034 Executar revisão de código final, `git diff --check` e inspeção de status/diff na raiz `./` sem modificar alterações externas
 - [x] T035 Atualizar todas as caixas concluídas em specs/024-reabrir-presenca-draft/tasks.md e registrar o commit de implementação em português
-- [ ] T036 Enviar `feature/024-reabrir-presenca-draft` ao origin e executar o fluxo de integração/produção existente, verificando a saúde após o lançamento
+- [x] T036 Enviar `feature/024-reabrir-presenca-draft` ao origin e executar o fluxo de integração/produção existente, verificando a saúde após o lançamento
 
 ---
 
