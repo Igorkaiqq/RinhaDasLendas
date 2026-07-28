@@ -10,6 +10,9 @@ import type { DraftMontagem, DraftMontagemPresenca } from '@/types/draftMontagem
 import DraftPreparationPanel from './DraftPreparationPanel.vue'
 import DraftPreparationPanelSource from './DraftPreparationPanel.vue?raw'
 const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
+i18n.global.mergeLocaleMessage('pt', {
+  drafts: { presence: { captainsCount: '{selected} / {total} capitães', reopen: 'Reabrir presença' } },
+})
 
 const draft: DraftMontagem = {
   id: 'draft-1',
@@ -60,6 +63,7 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
       canContinueManualPresence: true,
       canManageManualPresence: true,
       canSelectCaptains: false,
+      canReopenPresence: false,
       canDefineCaptains: false,
       canDrawOrder: false,
       captainSelection: [],
@@ -159,6 +163,38 @@ describe('DraftPreparationPanel', () => {
     const order = mountPanel({ draft: { ...draft, status: 'CapitaesDefinidos' }, canConfirmPresence: false, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canDrawOrder: true })
     await order.get('[data-testid="draw-order"]').trigger('click')
     expect(order.emitted('draw-order')).toEqual([[]])
+  })
+
+  it('shows captain progress and keeps reopen secondary while defining captains remains primary', async () => {
+    const wrapper = mountPanel({
+      draft: { ...draft, status: 'PresencaEncerrada', quantidadeTimes: 3 },
+      canConfirmPresence: false,
+      canClosePresence: false,
+      canContinueManualPresence: false,
+      canManageManualPresence: false,
+      canSelectCaptains: true,
+      canReopenPresence: true,
+      canDefineCaptains: true,
+      captainSelection: ['player-0', 'player-1', 'player-2'],
+      confirmedPresences: presences(19),
+    })
+
+    expect(wrapper.get('[data-captains-count]').text()).toBe('3 / 3 capitães')
+    expect(wrapper.get('[data-testid="reopen-presence"]').classes()).toContain('button-secondary')
+    expect(wrapper.findAll('[data-stage-primary-action]')).toHaveLength(1)
+    expect(wrapper.get('[data-stage-primary-action]').attributes('data-testid')).toBe('define-captains')
+
+    await wrapper.get('[data-testid="reopen-presence"]').trigger('click')
+    expect(wrapper.emitted('reopen-presence')).toEqual([[]])
+  })
+
+  it('does not expose or emit reopen without capability and blocks it while saving', async () => {
+    const unavailable = mountPanel({ canReopenPresence: false })
+    expect(unavailable.find('[data-testid="reopen-presence"]').exists()).toBe(false)
+
+    const saving = mountPanel({ canReopenPresence: true, saving: true })
+    await saving.get('[data-testid="reopen-presence"]').trigger('click')
+    expect(saving.emitted('reopen-presence')).toBeUndefined()
   })
 
   it('renders only parent-provided capabilities and disables all available actions while saving', () => {

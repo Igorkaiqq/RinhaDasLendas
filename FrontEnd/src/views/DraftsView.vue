@@ -39,6 +39,7 @@ import {
   listDraftMontagens,
   registerDraftMontagemPick,
   removeManualDraftMontagemPresence,
+  reopenDraftMontagemPresence,
   republishDraftMontagemDiscordPublication,
   republishArchivedDraftCancellation,
   restoreDraftMontagem,
@@ -157,6 +158,7 @@ const preparationCapabilities = computed(() => {
     canContinueManualPresence: canManageOpenPresence && confirmedPresences.value.length < 10,
     canManageManualPresence: canManageOpenPresence,
     canSelectCaptains,
+    canReopenPresence: canSelectCaptains,
     canDefineCaptains: canSelectCaptains
       && captainSelection.value.length === selectedMontagem.value?.quantidadeTimes
       && captainSelection.value.every((id) => confirmedPresences.value.some((presence) => presence.jogadorId === id)),
@@ -515,6 +517,12 @@ function requestManualPresenceRemoval(jogadorId: string, jogadorNome: string) {
   ) {
     pendingReasonAction.value = { type: 'removeManualPresence', jogadorId, jogadorNome }
   }
+}
+
+function requestPresenceReopen() {
+  const draft = selectedMontagem.value
+  if (saving.value || !draft || !preparationCapabilities.value.canReopenPresence) return
+  pendingReasonAction.value = { type: 'reopenPresence', draftName: draft.nome }
 }
 
 async function closePresence(continueWithLess = false) {
@@ -941,6 +949,7 @@ function isReasonActionAvailable(action: DraftReasonDialogAction) {
     return preparationCapabilities.value.canManageManualPresence
       && confirmedPresences.value.some((presence) => presence.jogadorId === action.jogadorId)
   }
+  if (action.type === 'reopenPresence') return preparationCapabilities.value.canReopenPresence
   return discordRepublishableTypes.value.includes(action.publicationType)
     && discordPublicationStatus(action.publicationType) === action.publicationStatus
 }
@@ -1002,6 +1011,10 @@ async function confirmReasonAction(reason: string | null) {
       if (!(await applyMutationProjection(context, montagem))) return
       await loadEligibleManualPresencePlayers()
       notification.value = t('drafts.presence.manualRemoved')
+    } else if (action.type === 'reopenPresence') {
+      const montagem = await reopenDraftMontagemPresence(context.draftId)
+      if (!(await applyMutationProjection(context, montagem))) return
+      notification.value = t('drafts.presence.reopened')
     } else {
       if (!reason) return
       const montagem = await republishDraftMontagemDiscordPublication(context.draftId, action.publicationType, reason)
@@ -1187,6 +1200,7 @@ function captureError(error: unknown) {
           :can-continue-manual-presence="preparationCapabilities.canContinueManualPresence"
           :can-manage-manual-presence="preparationCapabilities.canManageManualPresence"
           :can-select-captains="preparationCapabilities.canSelectCaptains"
+          :can-reopen-presence="preparationCapabilities.canReopenPresence"
           :can-define-captains="preparationCapabilities.canDefineCaptains"
           :can-draw-order="preparationCapabilities.canDrawOrder"
           :captain-selection="captainSelection"
@@ -1202,6 +1216,7 @@ function captureError(error: unknown) {
           @add-manual-presence="addManualPresence"
           @remove-manual-presence="requestManualPresenceRemoval"
           @toggle-captain="toggleCaptainSelection"
+          @reopen-presence="requestPresenceReopen"
           @define-captains="defineCaptains"
           @draw-order="drawPickOrder"
         />

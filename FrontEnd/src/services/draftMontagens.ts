@@ -209,6 +209,15 @@ export async function closeDraftMontagemPresence(id: string, continuarComMenosDe
   }
 }
 
+export async function reopenDraftMontagemPresence(id: string): Promise<DraftMontagem> {
+  try {
+    const response = await api.patch<DraftMontagem>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/reabrir-presenca`)
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
 export async function defineDraftMontagemCaptains(id: string, capitaesIds: string[]): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>(`/api/v1/draft-montagens/${id}/capitaes`, { capitaesIds })

@@ -8,6 +8,7 @@ export type DraftReasonDialogAction =
   | { type: 'republishDiscord'; publicationType: DraftMontagemPublicacaoDiscordTipo; publicationStatus: DraftMontagemPublicacaoDiscordStatus | string | null }
   | { type: 'archiveDraft'; draftName: string; cancelsActiveDraft: boolean }
   | { type: 'restoreDraft'; draftName: string }
+  | { type: 'reopenPresence'; draftName: string }
 </script>
 
 <script setup lang="ts">
@@ -48,9 +49,9 @@ const translationKey = computed(() => {
   return `drafts.reasonDialog.${actionKey}`
 })
 const discordAction = computed(() => props.action?.type === 'republishDiscord')
-const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence')
+const constructiveAction = computed(() => discordAction.value || props.action?.type === 'addManualPresence' || props.action?.type === 'reopenPresence')
 const restoreAction = computed(() => props.action?.type === 'restoreDraft')
-const requiresReason = computed(() => !restoreAction.value)
+const requiresReason = computed(() => !restoreAction.value && props.action?.type !== 'reopenPresence')
 const publicationStatus = computed(() => {
   const action = props.action
   return action?.type === 'republishDiscord' ? action.publicationStatus : null
@@ -72,7 +73,7 @@ watch(
   ([open]) => {
     submitted.value = false
     if (open) commandSubmitted.value = false
-    reason.value = open && props.action && props.action.type !== 'archiveDraft' && props.action.type !== 'restoreDraft'
+    reason.value = open && props.action && props.action.type !== 'archiveDraft' && requiresReason.value
       ? t(`${translationKey.value}.defaultReason`)
       : ''
   },
@@ -122,7 +123,7 @@ function handleOpenAutoFocus(event: OpenAutoFocusEvent) {
     return
   }
 
-  void nextTick(() => restoreAction.value ? confirmButton.value?.$el.focus() : reasonField.value?.$el.focus())
+  void nextTick(() => requiresReason.value ? reasonField.value?.$el.focus() : confirmButton.value?.$el.focus())
 }
 
 </script>

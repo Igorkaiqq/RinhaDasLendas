@@ -18,6 +18,7 @@ const props = defineProps<{
   canContinueManualPresence: boolean
   canManageManualPresence: boolean
   canSelectCaptains: boolean
+  canReopenPresence: boolean
   canDefineCaptains: boolean
   canDrawOrder: boolean
   captainSelection: readonly string[]
@@ -36,6 +37,7 @@ const emit = defineEmits<{
   'add-manual-presence': []
   'remove-manual-presence': [jogadorId: string, jogadorNome: string]
   'toggle-captain': [jogadorId: string]
+  'reopen-presence': []
   'define-captains': []
   'draw-order': []
 }>()
@@ -186,16 +188,32 @@ function updateManualSelection(event: ControlEvent) {
     </ul>
     <p v-if="confirmedPresences.length === 0" data-presence-empty class="draft-preparation__empty">{{ t('drafts.presence.empty') }}</p>
 
-    <div v-if="canSelectCaptains" class="draft-preparation__footer">
-      <button
-        data-testid="define-captains"
-        data-stage-primary-action
-        type="button"
-        :disabled="saving || !canDefineCaptains"
-        @click="emitUnlessSaving('define-captains')"
-      >
-        {{ t('drafts.presence.defineCaptains') }}
-      </button>
+    <div v-if="canSelectCaptains || canReopenPresence" class="draft-preparation__footer">
+      <span v-if="canSelectCaptains" data-captains-count class="team-status">
+        {{ t('drafts.presence.captainsCount', { selected: captainSelection.length, total: draft.quantidadeTimes }) }}
+      </span>
+      <div class="draft-preparation__stage-actions">
+        <button
+          v-if="canReopenPresence"
+          data-testid="reopen-presence"
+          type="button"
+          class="button-secondary"
+          :disabled="saving"
+          @click="!saving && emit('reopen-presence')"
+        >
+          {{ t('drafts.presence.reopen') }}
+        </button>
+        <button
+          v-if="canSelectCaptains"
+          data-testid="define-captains"
+          data-stage-primary-action
+          type="button"
+          :disabled="saving || !canDefineCaptains"
+          @click="emitUnlessSaving('define-captains')"
+        >
+          {{ t('drafts.presence.defineCaptains') }}
+        </button>
+      </div>
     </div>
     <div v-else-if="canDrawOrder" class="draft-preparation__footer">
       <button data-testid="draw-order" data-stage-primary-action type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
+import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, reopenDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -185,6 +185,16 @@ describe('draftMontagens service', () => {
     await restoreDraftMontagem('draft/id', 8)
 
     expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/restaurar', { versaoEstado: 8 })
+  })
+
+  it('reopens presence with an encoded id and no request body', async () => {
+    const reopened = { ...montagem, status: 'PresencaAberta' as const }
+    vi.mocked(api.patch).mockResolvedValue({ data: reopened })
+
+    const result = await reopenDraftMontagemPresence('draft/id')
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/reabrir-presenca')
+    expect(result).toBe(reopened)
   })
 
   it('loads dedicated archive details and republishes archived cancellation', async () => {

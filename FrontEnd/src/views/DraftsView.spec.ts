@@ -29,6 +29,7 @@ const serviceMocks = vi.hoisted(() => ({
   listDraftMontagens: vi.fn(),
   listEligibleManualPresencePlayers: vi.fn(),
   removeManualDraftMontagemPresence: vi.fn(),
+  reopenDraftMontagemPresence: vi.fn(),
   republishDraftMontagemDiscordPublication: vi.fn(),
   republishArchivedDraftCancellation: vi.fn(),
   cancelDraftMontagemPresence: vi.fn(),
@@ -130,6 +131,23 @@ const montagem: DraftMontagem = {
   dataCadastro: '2026-07-19T12:00:00Z',
   dataAtualizacao: '2026-07-19T12:00:00Z',
 }
+
+i18n.global.mergeLocaleMessage('pt', {
+  drafts: {
+    presence: {
+      captainsCount: '{selected} / {total} capitães',
+      reopen: 'Reabrir presença',
+      reopened: 'Presença reaberta.',
+    },
+    reasonDialog: {
+      reopenPresence: {
+        title: 'Reabrir presença',
+        description: 'Reabrir a presença de {draftName}?',
+        confirm: 'Reabrir presença',
+      },
+    },
+  },
+})
 
 const resumo: DraftMontagemResumo = {
   id: montagem.id,
@@ -348,6 +366,7 @@ describe('DraftsView reason actions', () => {
     serviceMocks.restoreDraftMontagem.mockResolvedValue({ id: montagem.id, status: 'Cancelada', arquivado: false, versaoEstado: 9 })
     serviceMocks.republishArchivedDraftCancellation.mockResolvedValue({ id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 9 })
     serviceMocks.removeManualDraftMontagemPresence.mockResolvedValue(montagem)
+    serviceMocks.reopenDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.republishDraftMontagemDiscordPublication.mockResolvedValue(montagem)
     serviceMocks.cancelDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.closeDraftMontagemPresence.mockResolvedValue(montagem)
@@ -1515,6 +1534,90 @@ describe('DraftsView reason actions', () => {
     ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
     panel.vm.$emit('toggle-captain', 'jogador-1')
     expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1'])
+    wrapper.unmount()
+  })
+
+  it.each([
+    [19, 3, '0 / 3 capitães'],
+    [20, 4, '0 / 4 capitães'],
+  ] as const)('exposes reopen and captain count for a closed draft with %i participants', async (participantCount, teamCount, expectedCount) => {
+    const presencas = Array.from({ length: participantCount }, (_, index) => ({
+      ...montagem.presencas[0]!,
+      id: `presenca-${index}`,
+      usuarioId: `usuario-${index}`,
+      jogadorId: `jogador-${index}`,
+      nomeExibicao: `Jogador ${index}`,
+      ordemConfirmacao: index + 1,
+    }))
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
+      ...adminProjection('PresencaEncerrada'),
+      quantidadeTimes: teamCount,
+      presencas,
+    })
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    expect(panel.props('canReopenPresence')).toBe(true)
+    expect(panel.get('[data-captains-count]').text()).toBe(expectedCount)
+    expect(panel.findAll('[data-stage-primary-action]')).toHaveLength(1)
+    expect(panel.get('[data-stage-primary-action]').attributes('data-testid')).toBe('define-captains')
+    wrapper.unmount()
+  })
+
+  it('revalidates reopening at request and confirmation, applies the mutation, and restores focus', async () => {
+    const closed = adminProjection('PresencaEncerrada')
+    const reopened = { ...closed, status: 'PresencaAberta' as const, quantidadeTimes: 0, quantidadeReservas: 0 }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    serviceMocks.reopenDraftMontagemPresence.mockResolvedValueOnce(reopened)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('reopen-presence')
+    await flushPromises()
+    expect((wrapper.vm as unknown as { pendingReasonAction: unknown }).pendingReasonAction).toEqual({
+      type: 'reopenPresence',
+      draftName: montagem.nome,
+    })
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(reopened)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.reopenDraftMontagemPresence).toHaveBeenCalledWith('montagem-1')
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.status).toBe('PresencaAberta')
+    expect(wrapper.get('[role="status"]').text()).toContain('Presença reaberta.')
+    expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('rejects stale or unauthorized reopen intents and submits only once while saving', async () => {
+    const closed = adminProjection('PresencaEncerrada')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    let resolveReopen!: (value: DraftMontagem) => void
+    serviceMocks.reopenDraftMontagemPresence.mockReturnValueOnce(new Promise((resolve) => { resolveReopen = resolve }))
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('reopen-presence')
+    await flushPromises()
+    const form = wrapper.get('form')
+    await Promise.all([form.trigger('submit'), form.trigger('submit')])
+    expect(serviceMocks.reopenDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    resolveReopen({ ...closed, status: 'PresencaAberta' })
+    await flushPromises()
+
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    await emitRealtime('montagem-1', closed)
+    panel.vm.$emit('reopen-presence')
+    await flushPromises()
+    ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
+    await wrapper.get('form').trigger('submit')
+    expect(serviceMocks.reopenDraftMontagemPresence).toHaveBeenCalledTimes(1)
+
+    ;(wrapper.vm as unknown as { pendingReasonAction: unknown }).pendingReasonAction = null
+    panel.vm.$emit('reopen-presence')
+    await nextTick()
+    expect((wrapper.vm as unknown as { pendingReasonAction: unknown }).pendingReasonAction).toBeNull()
     wrapper.unmount()
   })
 
