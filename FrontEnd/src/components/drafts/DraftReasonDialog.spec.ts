@@ -11,17 +11,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import DraftReasonDialog, { type DraftReasonDialogAction } from './DraftReasonDialog.vue'
 
 const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
-i18n.global.mergeLocaleMessage('pt', {
-  drafts: {
-    reasonDialog: {
-      reopenPresence: {
-        title: 'Reabrir presença',
-        description: 'Reabrir a presença de {draftName}?',
-        confirm: 'Reabrir presença',
-      },
-    },
-  },
-})
 
 const mountDialog = async (action: DraftReasonDialogAction, saving = false) => {
   const wrapper = mount(DraftReasonDialog, {
@@ -249,7 +238,7 @@ describe('DraftReasonDialog', () => {
   it('confirms reopening as a confirmation-only constructive action', async () => {
     const wrapper = await mountDialog({ type: 'reopenPresence', draftName: 'Rinha' })
 
-    expect(wrapper.text()).toContain('Reabrir a presença de Rinha?')
+    expect(wrapper.text()).toContain('Reabrir a presença de Rinha? As confirmações serão preservadas, e as quantidades de times e reservas serão recalculadas no próximo encerramento.')
     expect(wrapper.find('textarea').exists()).toBe(false)
     expect(wrapper.get('[data-testid="draft-reason-confirm"]').attributes('data-variant')).toBe('default')
     await wrapper.get('form').trigger('submit')
