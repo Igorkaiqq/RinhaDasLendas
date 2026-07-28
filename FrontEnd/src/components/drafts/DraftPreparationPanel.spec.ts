@@ -235,6 +235,14 @@ describe('DraftPreparationPanel', () => {
     expect(DraftPreparationPanelSource).not.toMatch(/\bcanManage:\s*boolean/)
   })
 
+  it('keeps the selected captain hover filled with the accessible focus token', () => {
+    const selectedHoverRule = DraftPreparationPanelSource.match(/\.draft-preparation__captain-toggle--selected:hover:not\(:disabled\)\s*{(?<declarations>[^}]*)}/)?.groups?.declarations
+
+    expect(selectedHoverRule).toContain('border-color: var(--color-primary-focus)')
+    expect(selectedHoverRule).toContain('background: var(--color-primary-focus)')
+    expect(selectedHoverRule).not.toContain('var(--color-primary-hover)')
+  })
+
   it('keeps the labelled roster after controls and reflows cards without nested vertical scrolling', () => {
     const wrapper = mountPanel({ confirmedPresences: presences(14) })
     const panel = wrapper.get('section')

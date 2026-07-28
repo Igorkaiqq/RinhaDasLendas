@@ -307,7 +307,7 @@ git push -u origin feature/024-reabrir-presenca-draft
 - Consumes: `captainSelection: string[]` e o estado acessível existente em `aria-pressed`.
 - Produces: classes `draft-preparation__player--captain` e `draft-preparation__captain-toggle--selected`, removidas automaticamente quando o participante deixa `captainSelection`.
 
-- [ ] **Step 1: Estender o teste para exigir destaque somente no capitão selecionado**
+- [x] **Step 1: Estender o teste para exigir destaque somente no capitão selecionado**
 
 ```ts
 it('exposes captain selection as an accessible and visible selected state', async () => {
@@ -334,13 +334,13 @@ it('exposes captain selection as an accessible and visible selected state', asyn
 })
 ```
 
-- [ ] **Step 2: Executar o teste e confirmar a falha visual específica**
+- [x] **Step 2: Executar o teste e confirmar a falha visual específica**
 
 Run: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts`
 
 Expected: FAIL porque as classes de seleção ainda não existem, mantendo `aria-pressed` correto.
 
-- [ ] **Step 3: Aplicar classes explícitas no template**
+- [x] **Step 3: Aplicar classes explícitas no template**
 
 ```vue
 <li
@@ -369,7 +369,7 @@ Expected: FAIL porque as classes de seleção ainda não existem, mantendo `aria
 
 `aria-pressed` permanece como fonte semântica do estado. Não há texto novo visível nem chave i18n nova.
 
-- [ ] **Step 4: Aplicar somente tokens existentes ao botão e à linha**
+- [x] **Step 4: Aplicar somente tokens existentes ao botão e à linha**
 
 ```css
 .draft-preparation__player {
@@ -398,19 +398,24 @@ Expected: FAIL porque as classes de seleção ainda não existem, mantendo `aria
   background: var(--color-primary);
   box-shadow: 0 0 18px var(--color-glow-primary);
 }
+
+.draft-preparation__captain-toggle--selected:hover:not(:disabled) {
+  border-color: var(--color-primary-focus);
+  background: var(--color-primary-focus);
+}
 ```
 
-- [ ] **Step 5: Executar testes, lint e build do frontend**
+- [x] **Step 5: Executar testes, lint e build do frontend**
 
 Run: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts && npm run lint:check && npm test && npm run build`
 
 Expected: teste focado, suíte frontend, lint e build com 0 falhas.
 
-- [ ] **Step 6: Validar em Chromium nos breakpoints desktop e mobile**
+- [x] **Step 6: Validar em Chromium nos breakpoints desktop e mobile**
 
 Validar seleção e desmarcação com viewport desktop e mobile, confirmando contraste, foco visível, ausência de overflow e coerência entre botão, linha e `aria-pressed`.
 
-- [ ] **Step 7: Commitar a implementação**
+- [x] **Step 7: Commitar a implementação**
 
 ```bash
 git add FrontEnd/src/components/drafts/DraftPreparationPanel.vue FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts specs/024-reabrir-presenca-draft/tasks.md

@@ -342,8 +342,8 @@ function updateManualSelection(event: ControlEvent) {
 }
 
 .draft-preparation__captain-toggle--selected:hover:not(:disabled) {
-  border-color: var(--color-primary-hover);
-  background: var(--color-primary-hover);
+  border-color: var(--color-primary-focus);
+  background: var(--color-primary-focus);
 }
 
 .draft-preparation__empty {
