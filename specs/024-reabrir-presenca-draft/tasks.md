@@ -126,6 +126,30 @@ description: "Tarefas para reabertura de presença do draft"
 
 ---
 
+## Phase 7: User Story 2 Addendum - Destacar capitães selecionados (Priority: P1)
+
+**Goal**: Tornar inequívoca a seleção de cada capitão destacando simultaneamente seu botão e sua linha.
+
+**Independent Test**: Com dois participantes elegíveis e somente o primeiro em `captainSelection`, o primeiro botão e sua linha têm as classes selecionadas e `aria-pressed=true`; o segundo não tem as classes e mantém `aria-pressed=false`.
+
+### Tests for User Story 2 Addendum
+
+- [ ] T037 [US2] Estender o teste de seleção acessível para exigir destaque no botão e na linha somente do capitão selecionado em FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts
+- [ ] T038 [US2] Executar `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts` em FrontEnd/ e confirmar falha pelas classes visuais ausentes
+
+### Implementation for User Story 2 Addendum
+
+- [ ] T039 [US2] Aplicar `draft-preparation__captain-toggle--selected` e `draft-preparation__player--captain` a partir de `captainSelection` e estilizar os estados com tokens existentes em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
+- [ ] T040 [US2] Executar novamente `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts` em FrontEnd/ e confirmar 0 falhas
+- [ ] T041 [US2] Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e auditar textos hardcoded, sincronização pt/en, acentuação e controles de interface nos arquivos alterados
+- [ ] T042 [US2] Validar seleção e desmarcação no Chromium em viewport desktop e mobile, incluindo contraste, foco, overflow e coerência com `aria-pressed`
+- [ ] T043 [US2] Atualizar o status em specs/024-reabrir-presenca-draft/spec.md e registrar o cenário visual em specs/024-reabrir-presenca-draft/quickstart.md
+- [ ] T044 [US2] Revisar o diff de FrontEnd/src/components/drafts/DraftPreparationPanel.vue, FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e specs/024-reabrir-presenca-draft/, commitar em português, enviar a branch, integrar no main e executar o deploy com verificações de saúde
+
+**Checkpoint**: Seleção e desmarcação de capitães ficam imediatamente perceptíveis em desktop, mobile e tecnologia assistiva.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -136,13 +160,14 @@ description: "Tarefas para reabertura de presença do draft"
 - **US2**: usa a transição de US1 para a jornada 19→20, mas sua jornada 19 sem reabrir é independente.
 - **US3**: usa command/endpoint de US1 e pode ter testes preparados em paralelo.
 - **Polish**: depende de US1, US2 e US3.
+- **US2 Addendum**: depende da seleção de capitães já entregue em US2 e deve ser concluído antes do novo deploy.
 
 ### User Story Dependencies
 
 ```text
 Foundational → US1 → US2
                  └→ US3
-US2 + US3 → Polish → Push/Produção
+US2 + US3 → Polish → US2 Addendum → Push/Produção
 ```
 
 ### Parallel Opportunities
@@ -152,6 +177,7 @@ US2 + US3 → Polish → Push/Produção
 - T017 e T018 validam backend e frontend separadamente.
 - T023-T026 cobrem segurança, aplicação, interface e i18n em paralelo.
 - T030 e T031 verificam frontend e backend em paralelo.
+- O addendum é sequencial porque teste, implementação, verificação visual e deploy alteram ou validam o mesmo incremento frontend.
 
 ## Parallel Examples
 
