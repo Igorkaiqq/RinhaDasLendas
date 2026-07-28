@@ -1,0 +1,80 @@
+openapi: 3.0.3
+info:
+  title: Reabertura de Presença do Draft
+  version: 1.0.0
+paths:
+  /api/v1/draft-montagens/{id}/reabrir-presenca:
+    patch:
+      summary: Reabre a presença antes da definição dos capitães
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Presença reaberta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftMontagemResponse'
+        '400':
+          description: Estado não permite reabertura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Não autenticado
+        '403':
+          description: Sem permissão CanManageDrafts
+        '404':
+          description: Draft não encontrado
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DraftMontagemResponse:
+      type: object
+      required: [id, status, tamanhoEquipe, quantidadeTimes, quantidadeReservas, presencas]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PresencaAberta]
+        tamanhoEquipe:
+          type: integer
+        quantidadeTimes:
+          type: integer
+          enum: [0]
+        quantidadeReservas:
+          type: integer
+          enum: [0]
+        horarioEncerramentoPresenca:
+          nullable: true
+        presencas:
+          type: array
+          items:
+            type: object
+    ApiError:
+      type: object
+      required: [messageCode, message, errors]
+      properties:
+        messageCode:
+          type: string
+          example: MV106
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string

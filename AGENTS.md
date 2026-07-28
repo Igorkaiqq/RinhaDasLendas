@@ -503,5 +503,5 @@ Do not create new design tokens unless explicitly approved.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/022-arquivar-drafts/plan.md
+at specs/024-reabrir-presenca-draft/plan.md
 <!-- SPECKIT END -->
