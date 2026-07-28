@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-28
 
-**Status**: Implemented / Verified
+**Status**: Implemented / Verified / Deployed
 
 **Verification update (2026-07-28)**: A revisão da Task 3 confirmou o rótulo localizado diretamente no `<ol>`, a atualização reativa PT/EN de progresso, timeout e estado vazio, e repetiu a validação Chromium sem o modal de perfil nos três viewports previstos.
 
