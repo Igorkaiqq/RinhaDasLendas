@@ -223,6 +223,16 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
         return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
     }
 
+    [HttpPatch("{id:guid}/reabrir-presenca")]
+    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReopenPresence([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new ReabrirPresencaDraftMontagemCommand(id), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
     [HttpPost("{id:guid}/capitaes")]
     [Authorize(Policy = AuthPermissions.CanManageDraftsOrUseDiscordBotApi)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]

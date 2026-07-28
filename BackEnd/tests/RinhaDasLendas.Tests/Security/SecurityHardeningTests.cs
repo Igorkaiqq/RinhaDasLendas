@@ -534,6 +534,25 @@ public sealed class SecurityHardeningTests
         await AssertApiErrorAsync(invalidBotResponse, HttpStatusCode.Unauthorized, MessageCodes.BotInternalTokenInvalid, "Token interno do bot inválido");
     }
 
+    [Fact]
+    public async Task ReopenPresence_ShouldRequireCanManageDraftsAndRejectBot()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var anonymousClient = factory.CreateAnonymousClient();
+        using var playerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var botClient = factory.CreateBotClient();
+        var route = $"/api/v1/draft-montagens/{Guid.NewGuid()}/reabrir-presenca";
+
+        var anonymousResponse = await anonymousClient.PatchAsync(route, null);
+        var playerResponse = await playerClient.PatchAsync(route, null);
+        var botResponse = await botClient.PatchAsync(route, null);
+
+        await AssertApiErrorAsync(anonymousResponse, HttpStatusCode.Unauthorized, MessageCodes.AuthenticationFailed, "Falha na autenticação");
+        AssertBearerChallenge(anonymousResponse);
+        await AssertApiErrorAsync(playerResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        await AssertApiErrorAsync(botResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+    }
+
     [Theory]
     [InlineData("POST", "/api/v1/draft-montagens")]
     [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/encerrar-presenca")]

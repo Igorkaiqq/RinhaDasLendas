@@ -440,6 +440,46 @@ public sealed class EndpointCoverageIntegrationTests
     }
 
     [Fact]
+    public async Task ReopenPresenceEndpoint_ShouldEnforcePermissionMatrixReturnUpdatedDtoAndStandard404()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+        var userId = factory.GetExistingUserId();
+        using var anonymous = factory.CreateAnonymousClient();
+        using var player = factory.CreateJwtClient(userId, AuthRoles.Jogador);
+        using var admin = factory.CreateAdminClient();
+        var createRequest = new CreateDraftMontagemRequestDto(
+            $"Montagem Reabertura {Guid.NewGuid():N}",
+            null,
+            5,
+            false,
+            null,
+            null,
+            [],
+            []);
+        var createResponse = await admin.PostAsJsonAsync("/api/v1/draft-montagens", createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        var closeResponse = await admin.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{created!.Id}/encerrar-presenca",
+            new EncerrarPresencaDraftMontagemRequestDto(true, 5));
+        var route = $"/api/v1/draft-montagens/{created.Id}/reabrir-presenca";
+
+        (await anonymous.PatchAsync(route, null)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await player.PatchAsync(route, null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        closeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var reopenResponse = await admin.PatchAsync(route, null);
+
+        reopenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var reopened = await reopenResponse.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        reopened!.Status.Should().Be(DraftMontagemStatus.PresencaAberta.ToString());
+
+        var notFoundResponse = await admin.PatchAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/reabrir-presenca", null);
+        notFoundResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var error = await notFoundResponse.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error!.MessageCode.Should().Be(MessageCodes.DraftMontagemNotFound);
+        error.Message.Should().Be(M(MessageCodes.DraftMontagemNotFound));
+    }
+
+    [Fact]
     public async Task CriticalEndpointFlows_ShouldExecuteAndGenerateEndpointInventory()
     {
         await using var factory = new PostgreSqlApiFactory();
