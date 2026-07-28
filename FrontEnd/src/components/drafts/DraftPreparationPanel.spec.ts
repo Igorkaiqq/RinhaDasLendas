@@ -146,12 +146,26 @@ describe('DraftPreparationPanel', () => {
     expect(cancellation.emitted('cancel-presence')).toEqual([[]])
   })
 
-  it('exposes captain selection as an accessible pressed state and preserves the player id', async () => {
-    const wrapper = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canSelectCaptains: true, captainSelection: ['player-0'] })
-    const captain = wrapper.get('[data-testid="toggle-captain-player-0"]')
+  it('exposes captain selection as an accessible and visible selected state', async () => {
+    const wrapper = mountPanel({
+      draft: { ...draft, status: 'PresencaEncerrada' },
+      canClosePresence: false,
+      canContinueManualPresence: false,
+      canManageManualPresence: false,
+      canSelectCaptains: true,
+      captainSelection: ['player-0'],
+      confirmedPresences: presences(2),
+    })
+    const selectedCaptain = wrapper.get('[data-testid="toggle-captain-player-0"]')
+    const unselectedCaptain = wrapper.get('[data-testid="toggle-captain-player-1"]')
 
-    expect(captain.attributes('aria-pressed')).toBe('true')
-    await captain.trigger('click')
+    expect(selectedCaptain.attributes('aria-pressed')).toBe('true')
+    expect(selectedCaptain.classes()).toContain('draft-preparation__captain-toggle--selected')
+    expect(selectedCaptain.element.closest('[data-presence-row]')?.classList).toContain('draft-preparation__player--captain')
+    expect(unselectedCaptain.attributes('aria-pressed')).toBe('false')
+    expect(unselectedCaptain.classes()).not.toContain('draft-preparation__captain-toggle--selected')
+
+    await selectedCaptain.trigger('click')
     expect(wrapper.emitted('toggle-captain')).toEqual([['player-0']])
   })
 

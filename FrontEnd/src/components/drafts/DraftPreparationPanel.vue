@@ -154,7 +154,13 @@ function updateManualSelection(event: ControlEvent) {
     </div>
 
     <ul data-presence-roster class="draft-preparation__roster" :aria-label="t('drafts.presence.rosterLabel')">
-      <li v-for="presence in confirmedPresences" :key="presence.id" data-presence-row class="draft-preparation__player">
+      <li
+        v-for="presence in confirmedPresences"
+        :key="presence.id"
+        data-presence-row
+        class="draft-preparation__player"
+        :class="{ 'draft-preparation__player--captain': captainSelection.includes(presence.jogadorId) }"
+      >
         <div data-presence-identity class="draft-preparation__identity">
           <span class="draft-slot__avatar" aria-hidden="true">{{ presence.nomeExibicao.charAt(0) }}</span>
           <strong>{{ presence.nomeExibicao }}</strong>
@@ -165,7 +171,8 @@ function updateManualSelection(event: ControlEvent) {
             v-if="canSelectCaptains"
             :data-testid="`toggle-captain-${presence.jogadorId}`"
             type="button"
-            class="button-secondary"
+            class="button-secondary draft-preparation__captain-toggle"
+            :class="{ 'draft-preparation__captain-toggle--selected': captainSelection.includes(presence.jogadorId) }"
             :aria-label="t('drafts.presence.toggleCaptain', { name: presence.nomeExibicao })"
             :aria-pressed="captainSelection.includes(presence.jogadorId)"
             :disabled="saving"
@@ -285,6 +292,16 @@ function updateManualSelection(event: ControlEvent) {
   border: 1px solid var(--color-hairline-soft);
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.draft-preparation__player--captain {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 .draft-preparation__identity {
@@ -308,6 +325,20 @@ function updateManualSelection(event: ControlEvent) {
   display: flex;
   justify-content: end;
   min-width: 2.75rem;
+}
+
+.draft-preparation__captain-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xxs);
+}
+
+.draft-preparation__captain-toggle--selected {
+  border-color: var(--color-primary);
+  color: var(--color-ink);
+  background: var(--color-primary);
+  box-shadow: 0 0 18px var(--color-glow-primary);
 }
 
 .draft-preparation__empty {
