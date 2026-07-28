@@ -260,6 +260,26 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it('preserves the labeled ordered list, progress, and localized empty state', () => {
+    const wrapper = mountBoard()
+    const overview = wrapper.get('.draft-pick-overview')
+    const list = wrapper.get('[data-pick-sequence-list]')
+
+    expect(overview.attributes('aria-label')).toBe('Sequência de escolhas')
+    expect(list.element.tagName).toBe('OL')
+    expect(Array.from(list.element.children).every((child) => child.tagName === 'LI')).toBe(true)
+    expect(wrapper.get('[data-pick-progress]').text()).toBe('2 / 4 escolhas')
+    wrapper.unmount()
+
+    const emptyDraft = montagem()
+    emptyDraft.escolhas = []
+    const emptyWrapper = mountBoard(emptyDraft)
+
+    expect(emptyWrapper.find('[data-pick-sequence-list]').exists()).toBe(false)
+    expect(emptyWrapper.get('.draft-pick-overview').text()).toContain('Nenhuma escolha registrada ainda.')
+    emptyWrapper.unmount()
+  })
+
   it('uses an auto-fit pick grid without internal scrolling or fixed number width', () => {
     expect(MainCss).toMatch(/\.draft-pick-overview ol\s*{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(220px,\s*100%\),\s*1fr\)\)/)
     expect(MainCss).toMatch(/\.draft-pick-card\s*{[\s\S]*?grid-template-columns:\s*minmax\(36px,\s*auto\)\s+minmax\(0,\s*1fr\)/)
