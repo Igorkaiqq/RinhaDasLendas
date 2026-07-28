@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Permitir que Moderador+ reabra uma presença encerrada antes dos capitães, preserve confirmações e conclua normalmente drafts com 19 ou 20 participantes.
+**Goal:** Permitir que Moderador+ reabra uma presença encerrada antes dos capitães, preserve confirmações, identifique visualmente cada capitão selecionado e conclua normalmente drafts com 19 ou 20 participantes.
 
 **Architecture:** A entidade `DraftMontagem` concentra a transição e suas invariantes; um command CQRS resolve a autoria autenticada, persiste e publica o estado atualizado. A API expõe uma alteração parcial protegida por `CanManageDrafts`, e a tela existente reutiliza o diálogo administrativo e o pipeline de mutações para confirmar e executar a ação.
 
@@ -18,6 +18,7 @@
 - Usar somente tokens e componentes visuais existentes.
 - Todo texto visível deve existir em `pt.json` e `en.json`; todo erro backend deve existir em resources PT-BR e EN-US.
 - Validar a jornada 19 participantes → 3 capitães → ordem → início e 19 → reabrir → 20 → encerrar → 4 capitães.
+- Destacar botão e linha de cada capitão selecionado com tokens existentes, mantendo `aria-pressed` e sem depender somente de cor.
 
 ---
 
@@ -294,6 +295,126 @@ Seguir `quickstart.md` em desktop e mobile, confirmando foco, diálogo, reabertu
 git status --short
 git diff --check
 git push -u origin feature/024-reabrir-presenca-draft
+```
+
+### Task 5: Destaque visual da seleção de capitães
+
+**Files:**
+- Modify: `FrontEnd/src/components/drafts/DraftPreparationPanel.vue:156-175,275-327`
+- Test: `FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts:149-156`
+
+**Interfaces:**
+- Consumes: `captainSelection: string[]` e o estado acessível existente em `aria-pressed`.
+- Produces: classes `draft-preparation__player--captain` e `draft-preparation__captain-toggle--selected`, removidas automaticamente quando o participante deixa `captainSelection`.
+
+- [ ] **Step 1: Estender o teste para exigir destaque somente no capitão selecionado**
+
+```ts
+it('exposes captain selection as an accessible and visible selected state', async () => {
+  const wrapper = mountPanel({
+    draft: { ...draft, status: 'PresencaEncerrada' },
+    canClosePresence: false,
+    canContinueManualPresence: false,
+    canManageManualPresence: false,
+    canSelectCaptains: true,
+    captainSelection: ['player-0'],
+    confirmedPresences: presences(2),
+  })
+  const selectedCaptain = wrapper.get('[data-testid="toggle-captain-player-0"]')
+  const unselectedCaptain = wrapper.get('[data-testid="toggle-captain-player-1"]')
+
+  expect(selectedCaptain.attributes('aria-pressed')).toBe('true')
+  expect(selectedCaptain.classes()).toContain('draft-preparation__captain-toggle--selected')
+  expect(selectedCaptain.element.closest('[data-presence-row]')?.classList).toContain('draft-preparation__player--captain')
+  expect(unselectedCaptain.attributes('aria-pressed')).toBe('false')
+  expect(unselectedCaptain.classes()).not.toContain('draft-preparation__captain-toggle--selected')
+
+  await selectedCaptain.trigger('click')
+  expect(wrapper.emitted('toggle-captain')).toEqual([['player-0']])
+})
+```
+
+- [ ] **Step 2: Executar o teste e confirmar a falha visual específica**
+
+Run: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts`
+
+Expected: FAIL porque as classes de seleção ainda não existem, mantendo `aria-pressed` correto.
+
+- [ ] **Step 3: Aplicar classes explícitas no template**
+
+```vue
+<li
+  v-for="presence in confirmedPresences"
+  :key="presence.id"
+  data-presence-row
+  class="draft-preparation__player"
+  :class="{ 'draft-preparation__player--captain': captainSelection.includes(presence.jogadorId) }"
+>
+  <!-- identidade e origem existentes -->
+  <button
+    v-if="canSelectCaptains"
+    :data-testid="`toggle-captain-${presence.jogadorId}`"
+    type="button"
+    class="button-secondary draft-preparation__captain-toggle"
+    :class="{ 'draft-preparation__captain-toggle--selected': captainSelection.includes(presence.jogadorId) }"
+    :aria-label="t('drafts.presence.toggleCaptain', { name: presence.nomeExibicao })"
+    :aria-pressed="captainSelection.includes(presence.jogadorId)"
+    :disabled="saving"
+    @click="!saving && emit('toggle-captain', presence.jogadorId)"
+  >
+    {{ t('drafts.roles.captainShort') }}
+  </button>
+</li>
+```
+
+`aria-pressed` permanece como fonte semântica do estado. Não há texto novo visível nem chave i18n nova.
+
+- [ ] **Step 4: Aplicar somente tokens existentes ao botão e à linha**
+
+```css
+.draft-preparation__player {
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.draft-preparation__player--captain {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.draft-preparation__captain-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xxs);
+}
+
+.draft-preparation__captain-toggle--selected {
+  border-color: var(--color-primary);
+  color: var(--color-ink);
+  background: var(--color-primary);
+  box-shadow: 0 0 18px var(--color-glow-primary);
+}
+```
+
+- [ ] **Step 5: Executar testes, lint e build do frontend**
+
+Run: `npm test -- src/components/drafts/DraftPreparationPanel.spec.ts && npm run lint:check && npm test && npm run build`
+
+Expected: teste focado, suíte frontend, lint e build com 0 falhas.
+
+- [ ] **Step 6: Validar em Chromium nos breakpoints desktop e mobile**
+
+Validar seleção e desmarcação com viewport desktop e mobile, confirmando contraste, foco visível, ausência de overflow e coerência entre botão, linha e `aria-pressed`.
+
+- [ ] **Step 7: Commitar a implementação**
+
+```bash
+git add FrontEnd/src/components/drafts/DraftPreparationPanel.vue FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts specs/024-reabrir-presenca-draft/tasks.md
+git commit -m "fix: destacar capitães selecionados"
 ```
 
 ## Complexity Tracking
