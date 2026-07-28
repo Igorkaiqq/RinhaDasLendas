@@ -226,7 +226,11 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPatch("{id:guid}/reabrir-presenca")]
     [Authorize(Policy = AuthPermissions.CanManageDrafts)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ReopenPresence([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new ReabrirPresencaDraftMontagemCommand(id), cancellationToken);

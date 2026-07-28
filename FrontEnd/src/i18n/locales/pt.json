@@ -756,7 +756,7 @@
       },
       "reopenPresence": {
         "title": "Reabrir presença",
-        "description": "Reabrir a presença de {draftName}?",
+        "description": "Reabrir a presença de {draftName}? As confirmações serão preservadas, e as quantidades de times e reservas serão recalculadas no próximo encerramento.",
         "confirm": "Reabrir presença"
       },
       "republishCancellation": {

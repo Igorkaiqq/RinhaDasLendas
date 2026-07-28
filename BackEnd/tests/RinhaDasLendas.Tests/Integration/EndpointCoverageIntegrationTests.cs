@@ -443,6 +443,16 @@ public sealed class EndpointCoverageIntegrationTests
     public async Task ReopenPresenceEndpoint_ShouldEnforcePermissionMatrixReturnUpdatedDtoAndStandard404()
     {
         await using var factory = new PostgreSqlApiFactory();
+        var endpoint = DiscoverEndpoints(factory).Single(item =>
+            item.Key == EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/reabrir-presenca"));
+        endpoint.Responses.Should().BeEquivalentTo([
+            new EndpointResponse((int)HttpStatusCode.OK, nameof(DraftMontagemResponseDto)),
+            new EndpointResponse((int)HttpStatusCode.BadRequest, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Unauthorized, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Forbidden, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.NotFound, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Conflict, nameof(ApiErrorResponse)),
+        ]);
         var userId = factory.GetExistingUserId();
         using var anonymous = factory.CreateAnonymousClient();
         using var player = factory.CreateJwtClient(userId, AuthRoles.Jogador);

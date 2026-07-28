@@ -756,7 +756,7 @@
       },
       "reopenPresence": {
         "title": "Reopen presence",
-        "description": "Reopen presence for {draftName}?",
+        "description": "Reopen presence for {draftName}? Confirmations will be preserved, and team and reserve totals will be recalculated on the next closure.",
         "confirm": "Reopen presence"
       },
       "republishCancellation": {

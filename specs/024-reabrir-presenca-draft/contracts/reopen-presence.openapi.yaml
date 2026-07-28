@@ -27,13 +27,31 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: '#/components/schemas/ApiErrorResponse'
         '401':
           description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
         '403':
           description: Sem permissão CanManageDrafts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
         '404':
           description: Draft não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '409':
+          description: Conflito com atualização concorrente do draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -65,7 +83,7 @@ components:
           type: array
           items:
             type: object
-    ApiError:
+    ApiErrorResponse:
       type: object
       required: [messageCode, message, errors]
       properties:

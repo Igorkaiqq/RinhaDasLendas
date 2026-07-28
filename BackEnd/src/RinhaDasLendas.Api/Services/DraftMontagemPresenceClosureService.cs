@@ -10,11 +10,11 @@ public sealed class DraftMontagemPresenceClosureService(IServiceProvider service
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            await CloseExpiredPresenceAsync(stoppingToken);
+            await RunCycleAsync(stoppingToken);
         }
     }
 
-    private async Task CloseExpiredPresenceAsync(CancellationToken cancellationToken)
+    internal async Task RunCycleAsync(CancellationToken cancellationToken)
     {
         try
         {

@@ -23,7 +23,7 @@ description: "Tarefas para reabertura de presença do draft"
 
 **Purpose**: Confirmar o baseline isolado antes da alteração.
 
-- [ ] T001 Registrar no início da execução os baselines de 579 testes backend e 465 testes frontend descritos em specs/024-reabrir-presenca-draft/quickstart.md
+- [x] T001 Registrar no início da execução os baselines de 579 testes backend e 465 testes frontend descritos em specs/024-reabrir-presenca-draft/quickstart.md
 
 ---
 
@@ -31,8 +31,8 @@ description: "Tarefas para reabertura de presença do draft"
 
 **Purpose**: Definir o erro localizado compartilhado pela regra e pela interface.
 
-- [ ] T002 [P] Adicionar `DraftMontagemPresenceCannotBeReopened` como `MV106` em BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs e nos três arquivos BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages*.resx
-- [ ] T003 [P] Adicionar `MV106` aos catálogos em FrontEnd/src/constants/messageCode.ts e FrontEnd/src/services/messageService.ts
+- [x] T002 [P] Adicionar `DraftMontagemPresenceCannotBeReopened` como `MV106` em BackEnd/src/RinhaDasLendas.Domain/Constants/MessageCodes.cs e nos três arquivos BackEnd/src/RinhaDasLendas.Infrastructure/Messages/Messages*.resx
+- [x] T003 [P] Adicionar `MV106` aos catálogos em FrontEnd/src/constants/messageCode.ts e FrontEnd/src/services/messageService.ts
 
 **Checkpoint**: Código e mensagens da invariante disponíveis em PT-BR e EN-US.
 
@@ -46,22 +46,22 @@ description: "Tarefas para reabertura de presença do draft"
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Escrever testes de domínio falhando para transição, preservação, limpeza, auditoria e estados inválidos em BackEnd/tests/RinhaDasLendas.Tests/Domain/DraftMontagemTests.cs
-- [ ] T005 [P] [US1] Escrever testes de handler falhando para autoria, persistência, retorno, notificação e not-found em BackEnd/tests/RinhaDasLendas.Tests/Application/DraftMontagemCommandHandlerTests.cs
-- [ ] T006 [P] [US1] Escrever teste de serviço frontend falhando para `PATCH /reabrir-presenca` e propagação de erro em FrontEnd/src/services/draftMontagens.spec.ts
-- [ ] T007 [P] [US1] Escrever testes de componentes falhando para ação secundária e confirmação sem motivo em FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/components/drafts/DraftReasonDialog.spec.ts
-- [ ] T008 [US1] Executar os testes focados de T004-T007 nos projetos BackEnd/ e FrontEnd/ e confirmar falhas causadas somente pelas interfaces ainda ausentes
+- [x] T004 [P] [US1] Escrever testes de domínio falhando para transição, preservação, limpeza, auditoria e estados inválidos em BackEnd/tests/RinhaDasLendas.Tests/Domain/DraftMontagemTests.cs
+- [x] T005 [P] [US1] Escrever testes de handler falhando para autoria, persistência, retorno, notificação e not-found em BackEnd/tests/RinhaDasLendas.Tests/Application/DraftMontagemCommandHandlerTests.cs
+- [x] T006 [P] [US1] Escrever teste de serviço frontend falhando para `PATCH /reabrir-presenca` e propagação de erro em FrontEnd/src/services/draftMontagens.spec.ts
+- [x] T007 [P] [US1] Escrever testes de componentes falhando para ação secundária e confirmação sem motivo em FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/components/drafts/DraftReasonDialog.spec.ts
+- [x] T008 [US1] Executar os testes focados de T004-T007 nos projetos BackEnd/ e FrontEnd/ e confirmar falhas causadas somente pelas interfaces ainda ausentes
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implementar `DraftMontagem.ReabrirPresenca(Guid)` com a transição e auditoria definidas em BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagem.cs
-- [ ] T010 [US1] Criar ReabrirPresencaDraftMontagemCommand.cs e ReabrirPresencaDraftMontagemCommandHandler.cs em BackEnd/src/RinhaDasLendas.Application/{Commands,Handlers}/DraftMontagens/
-- [ ] T011 [US1] Expor `PATCH {id}/reabrir-presenca` com `CanManageDrafts` em BackEnd/src/RinhaDasLendas.Api/Controllers/DraftMontagensController.cs
-- [ ] T012 [P] [US1] Implementar `reopenDraftMontagemPresence` em FrontEnd/src/services/draftMontagens.ts
-- [ ] T013 [US1] Adicionar `canReopenPresence`, evento `reopen-presence` e ação localizada em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
-- [ ] T014 [US1] Adicionar ação confirmatória `reopenPresence` sem motivo em FrontEnd/src/components/drafts/DraftReasonDialog.vue
-- [ ] T015 [US1] Integrar capability, confirmação, mutação e feedback em FrontEnd/src/views/DraftsView.vue
-- [ ] T016 [US1] Executar novamente os testes focados backend/frontend e confirmar 0 falhas
+- [x] T009 [US1] Implementar `DraftMontagem.ReabrirPresenca(Guid)` com a transição e auditoria definidas em BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagem.cs
+- [x] T010 [US1] Criar ReabrirPresencaDraftMontagemCommand.cs e ReabrirPresencaDraftMontagemCommandHandler.cs em BackEnd/src/RinhaDasLendas.Application/{Commands,Handlers}/DraftMontagens/
+- [x] T011 [US1] Expor `PATCH {id}/reabrir-presenca` com `CanManageDrafts` em BackEnd/src/RinhaDasLendas.Api/Controllers/DraftMontagensController.cs
+- [x] T012 [P] [US1] Implementar `reopenDraftMontagemPresence` em FrontEnd/src/services/draftMontagens.ts
+- [x] T013 [US1] Adicionar `canReopenPresence`, evento `reopen-presence` e ação localizada em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
+- [x] T014 [US1] Adicionar ação confirmatória `reopenPresence` sem motivo em FrontEnd/src/components/drafts/DraftReasonDialog.vue
+- [x] T015 [US1] Integrar capability, confirmação, mutação e feedback em FrontEnd/src/views/DraftsView.vue
+- [x] T016 [US1] Executar novamente os testes focados backend/frontend e confirmar 0 falhas
 
 **Checkpoint**: Moderador+ reabre a lista sem perda e ela permanece aberta até fechamento manual.
 
@@ -75,15 +75,15 @@ description: "Tarefas para reabertura de presença do draft"
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Escrever teste de domínio/integrado para 19 → 3+4 → capitães → ordem → início e 19 → reabrir → 20 → 4+0 em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs
-- [ ] T018 [P] [US2] Escrever testes da contagem e habilitação exata de capitães em FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/views/DraftsView.spec.ts
-- [ ] T019 [US2] Executar T017-T018 em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs, FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/views/DraftsView.spec.ts e confirmar a falha específica antes da implementação
+- [x] T017 [P] [US2] Escrever teste de domínio/integrado para 19 → 3+4 → capitães → ordem → início e 19 → reabrir → 20 → 4+0 em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs
+- [x] T018 [P] [US2] Escrever testes da contagem e habilitação exata de capitães em FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/views/DraftsView.spec.ts
+- [x] T019 [US2] Executar T017-T018 em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs, FrontEnd/src/components/drafts/DraftPreparationPanel.spec.ts e FrontEnd/src/views/DraftsView.spec.ts e confirmar a falha específica antes da implementação
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Mostrar `{selected} / {total} capitães` e manter habilitação por igualdade exata em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
-- [ ] T021 [US2] Ajustar somente o necessário na orquestração de seleção 19/20 em FrontEnd/src/views/DraftsView.vue sem alterar a fórmula do backend
-- [ ] T022 [US2] Executar os testes focados em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs e FrontEnd/src/{components/drafts/DraftPreparationPanel.spec.ts,views/DraftsView.spec.ts} e confirmar 0 falhas
+- [x] T020 [US2] Mostrar `{selected} / {total} capitães` e manter habilitação por igualdade exata em FrontEnd/src/components/drafts/DraftPreparationPanel.vue
+- [x] T021 [US2] Ajustar somente o necessário na orquestração de seleção 19/20 em FrontEnd/src/views/DraftsView.vue sem alterar a fórmula do backend
+- [x] T022 [US2] Executar os testes focados em BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemBehaviorIntegrationTests.cs e FrontEnd/src/{components/drafts/DraftPreparationPanel.spec.ts,views/DraftsView.spec.ts} e confirmar 0 falhas
 
 **Checkpoint**: O fluxo com 19 funciona e o requisito de três capitães fica inequívoco.
 
@@ -97,16 +97,16 @@ description: "Tarefas para reabertura de presença do draft"
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Adicionar cobertura 401/403/200 e endpoint declarado em BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs e BackEnd/tests/RinhaDasLendas.Tests/Security/SecurityHardeningTests.cs
-- [ ] T024 [P] [US3] Adicionar cobertura de autoria e notificação em BackEnd/tests/RinhaDasLendas.Tests/Application/DraftMontagemCommandHandlerTests.cs
-- [ ] T025 [P] [US3] Adicionar cobertura de capability, revalidação, envio único, foco e feedback em FrontEnd/src/views/DraftsView.spec.ts e FrontEnd/src/components/drafts/DraftReasonDialog.spec.ts
-- [ ] T026 [P] [US3] Adicionar teste de sincronização das novas chaves em FrontEnd/src/i18n/i18n.spec.ts
+- [x] T023 [P] [US3] Adicionar cobertura 401/403/200 e endpoint declarado em BackEnd/tests/RinhaDasLendas.Tests/Integration/EndpointCoverageIntegrationTests.cs e BackEnd/tests/RinhaDasLendas.Tests/Security/SecurityHardeningTests.cs
+- [x] T024 [P] [US3] Adicionar cobertura de autoria e notificação em BackEnd/tests/RinhaDasLendas.Tests/Application/DraftMontagemCommandHandlerTests.cs
+- [x] T025 [P] [US3] Adicionar cobertura de capability, revalidação, envio único, foco e feedback em FrontEnd/src/views/DraftsView.spec.ts e FrontEnd/src/components/drafts/DraftReasonDialog.spec.ts
+- [x] T026 [P] [US3] Adicionar teste de sincronização das novas chaves em FrontEnd/src/i18n/i18n.spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Completar pares de interface em FrontEnd/src/i18n/locales/pt.json e FrontEnd/src/i18n/locales/en.json com acentuação portuguesa revisada
-- [ ] T028 [US3] Garantir que o handler derive autoria de `ICurrentUser` e publique `StateUpdatedAsync` em BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/ReabrirPresencaDraftMontagemCommandHandler.cs
-- [ ] T029 [US3] Executar testes em BackEnd/tests/RinhaDasLendas.Tests/{Security,Application}/ e FrontEnd/src/{views/DraftsView.spec.ts,i18n/i18n.spec.ts} e confirmar 0 falhas
+- [x] T027 [US3] Completar pares de interface em FrontEnd/src/i18n/locales/pt.json e FrontEnd/src/i18n/locales/en.json com acentuação portuguesa revisada
+- [x] T028 [US3] Garantir que o handler derive autoria de `ICurrentUser` e publique `StateUpdatedAsync` em BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/ReabrirPresencaDraftMontagemCommandHandler.cs
+- [x] T029 [US3] Executar testes em BackEnd/tests/RinhaDasLendas.Tests/{Security,Application}/ e FrontEnd/src/{views/DraftsView.spec.ts,i18n/i18n.spec.ts} e confirmar 0 falhas
 
 **Checkpoint**: Reabertura autorizada, auditável, sincronizada e localizada.
 
@@ -116,12 +116,12 @@ description: "Tarefas para reabertura de presença do draft"
 
 **Purpose**: Validar regressão, padrões e preparar lançamento.
 
-- [ ] T030 [P] Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e corrigir somente regressões da feature
-- [ ] T031 [P] Executar a suíte completa .NET 10 pelo app devcontainer conforme specs/024-reabrir-presenca-draft/quickstart.md
-- [ ] T032 Auditar textos hardcoded, resources, sincronização pt/en, acentuação, botões, títulos, feedback e validações em BackEnd/src/ e FrontEnd/src/ somente nos arquivos alterados
-- [ ] T033 Executar cenários desktop/mobile e autorização de specs/024-reabrir-presenca-draft/quickstart.md usando o ambiente disponível
-- [ ] T034 Executar revisão de código final, `git diff --check` e inspeção de status/diff na raiz `./` sem modificar alterações externas
-- [ ] T035 Atualizar todas as caixas concluídas em specs/024-reabrir-presenca-draft/tasks.md e registrar o commit de implementação em português
+- [x] T030 [P] Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e corrigir somente regressões da feature
+- [x] T031 [P] Executar a suíte completa .NET 10 pelo app devcontainer conforme specs/024-reabrir-presenca-draft/quickstart.md
+- [x] T032 Auditar textos hardcoded, resources, sincronização pt/en, acentuação, botões, títulos, feedback e validações em BackEnd/src/ e FrontEnd/src/ somente nos arquivos alterados
+- [x] T033 Executar cenários desktop/mobile e autorização de specs/024-reabrir-presenca-draft/quickstart.md usando o ambiente disponível
+- [x] T034 Executar revisão de código final, `git diff --check` e inspeção de status/diff na raiz `./` sem modificar alterações externas
+- [x] T035 Atualizar todas as caixas concluídas em specs/024-reabrir-presenca-draft/tasks.md e registrar o commit de implementação em português
 - [ ] T036 Enviar `feature/024-reabrir-presenca-draft` ao origin e executar o fluxo de integração/produção existente, verificando a saúde após o lançamento
 
 ---

@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using RinhaDasLendas.Api.Filters;
+using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
@@ -17,6 +19,7 @@ using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Identity;
+using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Tests.Infrastructure;
@@ -751,6 +754,63 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         secondClose.QuantidadeReservas.Should().Be(0);
     }
 
+    [Fact]
+    public async Task DuasReaberturasHttpConcorrentes_DevemPersistirUmaTransicaoEAuditoriaSemPerderPresencas()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedDraftJourneyAsync();
+        await ConfirmPlayersAsync(factory, fixture.DraftId, fixture.Players.Take(19));
+        using var setupClient = factory.CreateUserClient(fixture.AdminUserId);
+        var closeResponse = await setupClient.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca",
+            new EncerrarPresencaDraftMontagemRequestDto(false, 5));
+        closeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        factory.ArmPresenceConcurrency(fixture.DraftId);
+        using var firstClient = factory.CreateUserClient(fixture.AdminUserId);
+        using var secondClient = factory.CreateUserClient(fixture.AdminUserId);
+        firstClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US");
+        secondClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US");
+
+        var responses = await Task.WhenAll(
+            firstClient.PatchAsync($"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca", null),
+            secondClient.PatchAsync($"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca", null));
+
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+        var error = await responses.Single(response => response.StatusCode == HttpStatusCode.Conflict)
+            .Content.ReadFromJsonAsync<ApiErrorResponse>();
+        error!.MessageCode.Should().Be(MessageCodes.DraftStateConflict);
+        error.Message.Should().Be(new ResourceMessageProvider().GetMessage(MessageCodes.DraftStateConflict, "en-US"));
+        var state = await factory.GetReopenStateAsync(fixture.DraftId);
+        state.Status.Should().Be(DraftMontagemStatus.PresencaAberta);
+        state.ConfirmedPresences.Should().Be(19);
+        state.ReopenActions.Should().Be(1);
+        factory.RealtimeEffects.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReaberturaComPrazoVencido_DevePermanecerAbertaAposCicloDeEncerramentoAutomatico()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        var fixture = await factory.SeedDraftJourneyAsync(DateTimeOffset.UtcNow.AddMinutes(-1));
+        await ConfirmPlayersAsync(factory, fixture.DraftId, fixture.Players.Take(19));
+        using var admin = factory.CreateUserClient(fixture.AdminUserId);
+        (await admin.PostAsJsonAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca",
+            new EncerrarPresencaDraftMontagemRequestDto(false, 5))).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await admin.PatchAsync(
+            $"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca",
+            null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        await factory.RunPresenceClosureCycleAsync();
+
+        var state = await factory.GetReopenStateAsync(fixture.DraftId);
+        state.Status.Should().Be(DraftMontagemStatus.PresencaAberta);
+        state.PresenceDeadline.Should().BeNull();
+        state.ConfirmedPresences.Should().Be(19);
+        state.ReopenActions.Should().Be(1);
+    }
+
     private static async Task ConfirmPlayersAsync(
         PostgreSqlComposeApiFactory factory,
         Guid draftId,
@@ -1101,7 +1161,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return (draft.Id, userId);
         }
 
-        public async Task<(Guid DraftId, Guid AdminUserId, IReadOnlyList<(Guid UserId, Guid PlayerId)> Players)> SeedDraftJourneyAsync()
+        public async Task<(Guid DraftId, Guid AdminUserId, IReadOnlyList<(Guid UserId, Guid PlayerId)> Players)> SeedDraftJourneyAsync(DateTimeOffset? presenceDeadline = null)
         {
             _ = CreateClient();
             await using var scope = Services.CreateAsyncScope();
@@ -1148,9 +1208,34 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             }
 
             var draft = new DraftMontagem("Jornada de 19 e 20 jogadores", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            if (presenceDeadline is not null)
+            {
+                draft.ConfigurarEncerramentoPresenca(presenceDeadline.Value);
+            }
             dbContext.DraftMontagens.Add(draft);
             await dbContext.SaveChangesAsync();
             return (draft.Id, adminUserId, players);
+        }
+
+        public async Task<(DraftMontagemStatus Status, DateTimeOffset? PresenceDeadline, int ConfirmedPresences, int ReopenActions)> GetReopenStateAsync(Guid draftId)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var draft = await dbContext.DraftMontagens.AsNoTracking()
+                .Where(item => item.Id == draftId)
+                .Select(item => new { item.Status, item.HorarioEncerramentoPresenca })
+                .SingleAsync();
+            var confirmedPresences = await dbContext.DraftMontagemPresencas.AsNoTracking()
+                .CountAsync(item => item.DraftMontagemId == draftId && item.Status == DraftMontagemPresencaStatus.Confirmada);
+            var reopenActions = await dbContext.DraftMontagemAcoesAdministrativas.AsNoTracking()
+                .CountAsync(item => item.DraftMontagemId == draftId && item.Tipo == "ReaberturaPresenca");
+            return (draft.Status, draft.HorarioEncerramentoPresenca, confirmedPresences, reopenActions);
+        }
+
+        public async Task RunPresenceClosureCycleAsync()
+        {
+            var service = Services.GetServices<IHostedService>().OfType<DraftMontagemPresenceClosureService>().Single();
+            await service.RunCycleAsync(CancellationToken.None);
         }
 
         public async Task<int> CountConfirmedPresencesAsync(Guid draftId, Guid userId)

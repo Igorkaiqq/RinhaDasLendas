@@ -289,12 +289,12 @@ describe('i18n', () => {
     })
     expect(pt.drafts.reasonDialog.reopenPresence).toEqual({
       title: 'Reabrir presença',
-      description: 'Reabrir a presença de {draftName}?',
+      description: 'Reabrir a presença de {draftName}? As confirmações serão preservadas, e as quantidades de times e reservas serão recalculadas no próximo encerramento.',
       confirm: 'Reabrir presença',
     })
     expect(en.drafts.reasonDialog.reopenPresence).toEqual({
       title: 'Reopen presence',
-      description: 'Reopen presence for {draftName}?',
+      description: 'Reopen presence for {draftName}? Confirmations will be preserved, and team and reserve totals will be recalculated on the next closure.',
       confirm: 'Reopen presence',
     })
     expect(MessageCode.DraftMontagemPresenceCannotBeReopened).toBe('MV106')
