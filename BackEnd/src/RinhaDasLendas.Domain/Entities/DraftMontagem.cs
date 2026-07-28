@@ -378,6 +378,22 @@ public sealed class DraftMontagem
         Touch();
     }
 
+    public void ReabrirPresenca(Guid responsavelUsuarioId)
+    {
+        if (Status != DraftMontagemStatus.PresencaEncerrada || Arquivado)
+        {
+            throw new DomainException(MessageCodes.DraftMontagemPresenceCannotBeReopened);
+        }
+
+        Status = DraftMontagemStatus.PresencaAberta;
+        QuantidadeTimes = 0;
+        QuantidadeReservas = 0;
+        PresencaContinuadaManualmente = false;
+        HorarioEncerramentoPresenca = null;
+        _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("ReaberturaPresenca", responsavelUsuarioId, null));
+        Touch();
+    }
+
     public void DefinirCapitaes(IReadOnlyCollection<Guid> capitaesIds)
     {
         if (Status != DraftMontagemStatus.PresencaEncerrada)

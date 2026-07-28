@@ -207,6 +207,7 @@
   <data name="MV103" xml:space="preserve"><value>O draft foi alterado por outra operação. Atualize e tente novamente</value></data>
   <data name="MV104" xml:space="preserve"><value>A versão do estado do draft é inválida</value></data>
   <data name="MV105" xml:space="preserve"><value>Use o endpoint administrativo de cancelamento para republicar esta publicação</value></data>
+  <data name="MV106" xml:space="preserve"><value>A presença só pode ser reaberta após o encerramento e antes da definição dos capitães</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>

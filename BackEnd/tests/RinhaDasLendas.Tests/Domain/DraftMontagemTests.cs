@@ -121,6 +121,80 @@ public sealed class DraftMontagemTests
     }
 
     [Fact]
+    public void Deve_reabrir_presenca_preservando_confirmacoes_e_limpando_dados_derivados()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var responsavelId = Guid.NewGuid();
+        foreach (var _ in Enumerable.Range(1, 19))
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), Guid.NewGuid(), null, DraftMontagemPresencaOrigem.Web);
+        }
+        montagem.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
+        montagem.EncerrarPresenca(false, 5);
+
+        montagem.ReabrirPresenca(responsavelId);
+
+        montagem.Status.Should().Be(DraftMontagemStatus.PresencaAberta);
+        montagem.Presencas.Count(item => item.Confirmada).Should().Be(19);
+        montagem.QuantidadeTimes.Should().Be(0);
+        montagem.QuantidadeReservas.Should().Be(0);
+        montagem.PresencaContinuadaManualmente.Should().BeFalse();
+        montagem.HorarioEncerramentoPresenca.Should().BeNull();
+        montagem.AcoesAdministrativas.Should().ContainSingle(item =>
+            item.Tipo == "ReaberturaPresenca"
+            && item.ResponsavelUsuarioId == responsavelId);
+    }
+
+    [Fact]
+    public void Deve_impedir_reabrir_presenca_apos_definicao_de_capitaes_sem_mutacao()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var jogadorId in jogadoresIds)
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), jogadorId, null, DraftMontagemPresencaOrigem.Web);
+        }
+        montagem.EncerrarPresenca(false, 5);
+        montagem.DefinirCapitaes(jogadoresIds.Take(2).ToList());
+        var versao = montagem.VersaoEstado;
+        var quantidadeAcoes = montagem.AcoesAdministrativas.Count;
+
+        var act = () => montagem.ReabrirPresenca(Guid.NewGuid());
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftMontagemPresenceCannotBeReopened);
+        montagem.Status.Should().Be(DraftMontagemStatus.CapitaesDefinidos);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.AcoesAdministrativas.Should().HaveCount(quantidadeAcoes);
+        montagem.Presencas.Count(item => item.Confirmada).Should().Be(10);
+        montagem.QuantidadeTimes.Should().Be(2);
+    }
+
+    [Fact]
+    public void Deve_impedir_reabrir_presenca_arquivada_sem_mutacao()
+    {
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        foreach (var _ in Enumerable.Range(1, 10))
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), Guid.NewGuid(), null, DraftMontagemPresencaOrigem.Web);
+        }
+        montagem.EncerrarPresenca(false, 5);
+        montagem.Arquivar("encerrada", Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var status = montagem.Status;
+        var versao = montagem.VersaoEstado;
+        var quantidadeAcoes = montagem.AcoesAdministrativas.Count;
+
+        var act = () => montagem.ReabrirPresenca(Guid.NewGuid());
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftMontagemPresenceCannotBeReopened);
+        montagem.Arquivado.Should().BeTrue();
+        montagem.Status.Should().Be(status);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.AcoesAdministrativas.Should().HaveCount(quantidadeAcoes);
+        montagem.Presencas.Count(item => item.Confirmada).Should().Be(10);
+        montagem.QuantidadeTimes.Should().Be(2);
+    }
+
+    [Fact]
     public void Deve_cancelar_montagem_com_presenca_aberta()
     {
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
