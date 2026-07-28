@@ -1014,6 +1014,7 @@ async function confirmReasonAction(reason: string | null) {
     } else if (action.type === 'reopenPresence') {
       const montagem = await reopenDraftMontagemPresence(context.draftId)
       if (!(await applyMutationProjection(context, montagem))) return
+      captainSelection.value = []
       notification.value = t('drafts.presence.reopened')
     } else {
       if (!reason) return

@@ -1590,6 +1590,50 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('clears selected captains only after reopening is successfully projected', async () => {
+    const closed = adminProjection('PresencaEncerrada')
+    const reopened = { ...closed, status: 'PresencaAberta' as const, quantidadeTimes: 0, quantidadeReservas: 0 }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    serviceMocks.reopenDraftMontagemPresence.mockResolvedValueOnce(reopened)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1'])
+
+    panel.vm.$emit('reopen-presence')
+    await flushPromises()
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(reopened)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.reopenDraftMontagemPresence).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('rejects reopening when the draft leaves closed presence before confirmation', async () => {
+    const closed = adminProjection('PresencaEncerrada')
+    const captainsDefined = { ...closed, status: 'CapitaesDefinidos' as const }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    panel.vm.$emit('reopen-presence')
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"]')).toBeTruthy()
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValueOnce(captainsDefined)
+    await emitRealtime('montagem-1', captainsDefined)
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"]')).toBeTruthy()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(serviceMocks.reopenDraftMontagemPresence).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('rejects stale or unauthorized reopen intents and submits only once while saving', async () => {
     const closed = adminProjection('PresencaEncerrada')
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)

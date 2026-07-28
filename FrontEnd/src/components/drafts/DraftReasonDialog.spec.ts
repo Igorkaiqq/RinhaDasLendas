@@ -124,6 +124,15 @@ describe('DraftReasonDialog', () => {
     wrapper.unmount()
   })
 
+  it('focuses reopen confirmation on desktop', async () => {
+    const wrapper = await mountDialog({ type: 'reopenPresence', draftName: 'Rinha' })
+
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-confirm"]').element)
+    wrapper.unmount()
+  })
+
   it('focuses the back control inside the dialog without opening the mobile keyboard', async () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     const opener = document.createElement('button')
@@ -135,6 +144,21 @@ describe('DraftReasonDialog', () => {
     expect(wrapper.get('textarea').attributes('autofocus')).toBeUndefined()
     expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
     expect(dialog.element.contains(document.activeElement)).toBe(true)
+
+    wrapper.unmount()
+    opener.remove()
+  })
+
+  it('focuses the back control for reopen confirmation on mobile', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    opener.focus()
+    const wrapper = await mountDialog({ type: 'reopenPresence', draftName: 'Rinha' })
+
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-reason-cancel"]').element)
+    expect(wrapper.get('[role="dialog"]').element.contains(document.activeElement)).toBe(true)
 
     wrapper.unmount()
     opener.remove()
