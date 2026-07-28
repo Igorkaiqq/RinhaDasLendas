@@ -904,6 +904,8 @@
       "teamOrder": "Ordem {order}",
       "pickProgress": "{current} / {total} escolhas",
       "pickSequence": "Sequência de escolhas",
+      "teamPickOrder": "{team} · {order}ª escolha",
+      "unknownTeam": "Time não encontrado",
       "timeout": "Tempo esgotado",
       "detailsFor": "Ver detalhes de {name}",
       "moveDestination": "Mover {name} para",

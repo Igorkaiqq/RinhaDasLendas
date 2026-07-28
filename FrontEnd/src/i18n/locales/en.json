@@ -904,6 +904,8 @@
       "teamOrder": "Order {order}",
       "pickProgress": "{current} / {total} picks",
       "pickSequence": "Pick sequence",
+      "teamPickOrder": "{team} · pick {order}",
+      "unknownTeam": "Unknown team",
       "timeout": "Turn timed out",
       "detailsFor": "View details for {name}",
       "moveDestination": "Move {name} to",

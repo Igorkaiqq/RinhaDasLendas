@@ -23,7 +23,9 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 **Purpose**: Confirmar branch, arquivos e baseline antes da alteração.
 
-- [ ] T001 Registrar branch, status e baseline de FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts em specs/027-melhorar-ordem-picks/tasks.md
+- [x] T001 Registrar branch, status e baseline de FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts em specs/027-melhorar-ordem-picks/tasks.md
+
+**Evidência T001**: branch `feature/027-melhorar-ordem-picks`, status inicial limpo e baseline focado com 30 testes aprovados em 1 arquivo.
 
 ---
 
@@ -31,7 +33,7 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 **Purpose**: Fixar contratos visuais e limites antes de editar produção.
 
-- [ ] T002 Confirmar em specs/027-melhorar-ordem-picks/plan.md que a projeção usa `timeId`, conta timeout, preserva empates e não altera backend
+- [x] T002 Confirmar em specs/027-melhorar-ordem-picks/plan.md que a projeção usa `timeId`, conta timeout, preserva empates e não altera backend
 
 **Checkpoint**: Escopo e algoritmo prontos para TDD sem dependência backend.
 
@@ -45,17 +47,21 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 ### Tests for User Story 1
 
-- [ ] T003 [US1] Estender o teste de sequência para exigir número, jogador, time, ordinal e timeout em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T004 [US1] Adicionar teste de estabilidade em empates, associação ausente e atualização PT/EN em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T005 [US1] Executar `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts` em FrontEnd/ e confirmar RED pelos seletores e traduções ausentes
+- [x] T003 [US1] Estender o teste de sequência para exigir número, jogador, time, ordinal e timeout em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T004 [US1] Adicionar teste de estabilidade em empates, associação ausente e atualização PT/EN em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T005 [US1] Executar `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts` em FrontEnd/ e confirmar RED pelos seletores e traduções ausentes
+
+**Evidência T003-T005**: RED focado com 2 falhas e 29 aprovações; os erros foram ausência de `[data-pick-sequence-number]` e `[data-pick-player]` no markup anterior.
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Adicionar `teamPickOrder` e `unknownTeam` em FrontEnd/src/i18n/locales/pt.json com acentuação revisada
-- [ ] T007 [P] [US1] Adicionar pares equivalentes de `teamPickOrder` e `unknownTeam` em FrontEnd/src/i18n/locales/en.json
-- [ ] T008 [US1] Criar `presentedChoices` com ordenação estável, contador por `timeId`, chave única e resolução de time em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
-- [ ] T009 [US1] Renderizar `presentedChoices` como cards dentro do `<ol>` com `data-pick-sequence-number`, `data-pick-player` e `data-pick-team-order` em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
-- [ ] T010 [US1] Executar testes de FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e FrontEnd/src/i18n/i18n.spec.ts e confirmar 0 falhas
+- [x] T006 [P] [US1] Adicionar `teamPickOrder` e `unknownTeam` em FrontEnd/src/i18n/locales/pt.json com acentuação revisada
+- [x] T007 [P] [US1] Adicionar pares equivalentes de `teamPickOrder` e `unknownTeam` em FrontEnd/src/i18n/locales/en.json
+- [x] T008 [US1] Criar `presentedChoices` com ordenação estável, contador por `timeId`, chave única e resolução de time em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
+- [x] T009 [US1] Renderizar `presentedChoices` como cards dentro do `<ol>` com `data-pick-sequence-number`, `data-pick-player` e `data-pick-team-order` em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
+- [x] T010 [US1] Executar testes de FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e FrontEnd/src/i18n/i18n.spec.ts e confirmar 0 falhas
+
+**Evidência T006-T010**: GREEN com 64 testes aprovados em 2 arquivos, incluindo sincronização dos catálogos PT/EN, empate estável, timeout consumido, fallback de time e troca reativa de locale.
 
 **Checkpoint**: A ordem global e a ordem específica de cada time ficam identificáveis e localizadas.
 

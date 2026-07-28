@@ -154,13 +154,51 @@ describe('DraftVisualBoard', () => {
     expect(wrapper.get('[data-team-id="team-a"] [data-team-order]').text()).toContain('1')
     expect(wrapper.get('[data-team-id="team-a"] [data-team-captain]').text()).toContain('Captain A')
     expect(wrapper.get('[data-pick-progress]').text()).toContain('2 / 4')
-    expect(wrapper.findAll('[data-pick-sequence]').map((pick) => pick.text())).toEqual([
-      expect.stringContaining('First Pick'),
-      expect.stringContaining('Second Pick'),
-      expect.stringContaining('Tempo esgotado'),
-    ])
+    const picks = wrapper.findAll('[data-pick-sequence]')
+
+    expect(picks).toHaveLength(3)
+    expect(picks[0]!.get('[data-pick-sequence-number]').text()).toBe('#1')
+    expect(picks[0]!.get('[data-pick-player]').text()).toBe('First Pick')
+    expect(picks[0]!.get('[data-pick-team-order]').text()).toBe('Team A · 1ª escolha')
+    expect(picks[1]!.get('[data-pick-sequence-number]').text()).toBe('#2')
+    expect(picks[1]!.get('[data-pick-team-order]').text()).toBe('Team B · 1ª escolha')
+    expect(picks[2]!.get('[data-pick-player]').text()).toBe('Tempo esgotado')
+    expect(picks[2]!.get('[data-pick-team-order]').text()).toBe('Team A · 2ª escolha')
     expect(wrapper.get('[data-player-id="available-1"]').text()).toContain('Mid')
     expect(wrapper.get('[data-player-id="available-1"]').text()).toContain('Support')
+    wrapper.unmount()
+  })
+
+  it('keeps tied choices stable and localizes a missing team without breaking team ordinals', async () => {
+    const draft = montagem()
+    draft.escolhas = [
+      ...draft.escolhas,
+      {
+        sequencia: 3,
+        timeId: 'missing-team',
+        capitaoId: 'missing-captain',
+        jogadorId: 'picked-missing',
+        jogadorNome: 'Missing Team Pick',
+        tipo: 'Escolha',
+        registradoEm: '2026-07-25T12:03:30Z',
+      },
+    ]
+    const wrapper = mountBoard(draft)
+    const picks = wrapper.findAll('[data-pick-sequence]')
+
+    expect(picks.map((pick) => pick.get('[data-pick-player]').text())).toEqual([
+      'First Pick',
+      'Second Pick',
+      'Tempo esgotado',
+      'Missing Team Pick',
+    ])
+    expect(picks[2]!.get('[data-pick-team-order]').text()).toBe('Team A · 2ª escolha')
+    expect(picks[3]!.get('[data-pick-team-order]').text()).toBe('Time não encontrado · 1ª escolha')
+
+    await setLocale('en')
+    await nextTick()
+    expect(picks[0]!.get('[data-pick-team-order]').text()).toBe('Team A · pick 1')
+    expect(picks[3]!.get('[data-pick-team-order]').text()).toBe('Unknown team · pick 1')
     wrapper.unmount()
   })
 

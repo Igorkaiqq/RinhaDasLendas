@@ -103,7 +103,25 @@ const filteredAvailablePlayers = computed(() => {
 const orderedTeams = computed(() => [...localMontagem.value.times].sort((current, next) => current.ordem - next.ordem))
 const leftTeams = computed(() => orderedTeams.value.filter((_, index) => index % 2 === 0))
 const rightTeams = computed(() => orderedTeams.value.filter((_, index) => index % 2 === 1))
-const orderedChoices = computed(() => [...localMontagem.value.escolhas].sort((current, next) => current.sequencia - next.sequencia))
+const presentedChoices = computed(() => {
+  const teamsById = new Map(localMontagem.value.times.map((team) => [team.id, team]))
+  const picksByTeam = new Map<string, number>()
+
+  return localMontagem.value.escolhas
+    .map((choice, originalIndex) => ({ choice, originalIndex }))
+    .sort((current, next) => current.choice.sequencia - next.choice.sequencia || current.originalIndex - next.originalIndex)
+    .map(({ choice, originalIndex }) => {
+      const teamPickOrder = (picksByTeam.get(choice.timeId) ?? 0) + 1
+      picksByTeam.set(choice.timeId, teamPickOrder)
+
+      return {
+        key: `${choice.sequencia}-${choice.timeId}-${originalIndex}`,
+        choice,
+        teamName: teamsById.get(choice.timeId)?.nome,
+        teamPickOrder,
+      }
+    })
+})
 const completedPicks = computed(() => localMontagem.value.escolhas.filter((choice) => Boolean(choice.jogadorId)).length)
 const totalPicks = computed(() => localMontagem.value.quantidadeTimes * Math.max(localMontagem.value.tamanhoEquipe - 1, 0))
 const realtimeAnnouncement = computed(() => hasActiveTurn.value
@@ -469,10 +487,18 @@ async function exportImage() {
         <span class="eyebrow">{{ t('drafts.pickHistory.title') }}</span>
         <strong data-pick-progress>{{ t('drafts.visualBoard.pickProgress', { current: completedPicks, total: totalPicks }) }}</strong>
       </header>
-      <ol v-if="orderedChoices.length">
-        <li v-for="choice in orderedChoices" :key="`${choice.sequencia}-${choice.timeId}`" data-pick-sequence>
-          <strong>#{{ choice.sequencia }}</strong>
-          <span>{{ choiceName(choice) }}</span>
+      <ol v-if="presentedChoices.length" data-pick-sequence-list>
+        <li v-for="item in presentedChoices" :key="item.key" data-pick-sequence class="draft-pick-card">
+          <strong data-pick-sequence-number class="draft-pick-card__number">#{{ item.choice.sequencia }}</strong>
+          <span class="draft-pick-card__copy">
+            <strong data-pick-player>{{ choiceName(item.choice) }}</strong>
+            <small data-pick-team-order>
+              {{ t('drafts.visualBoard.teamPickOrder', {
+                team: item.teamName ?? t('drafts.visualBoard.unknownTeam'),
+                order: item.teamPickOrder,
+              }) }}
+            </small>
+          </span>
         </li>
       </ol>
       <p v-else>{{ t('drafts.pickHistory.empty') }}</p>
