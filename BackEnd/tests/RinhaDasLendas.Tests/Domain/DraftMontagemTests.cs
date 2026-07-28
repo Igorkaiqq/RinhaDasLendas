@@ -125,17 +125,61 @@ public sealed class DraftMontagemTests
     {
         var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
         var responsavelId = Guid.NewGuid();
-        foreach (var _ in Enumerable.Range(1, 19))
-        {
-            montagem.ConfirmarPresenca(Guid.NewGuid(), Guid.NewGuid(), null, DraftMontagemPresencaOrigem.Web);
-        }
+        var usuariosIds = Enumerable.Range(1, 20).Select(_ => Guid.NewGuid()).ToList();
+        var presencas = usuariosIds.Select((usuarioId, index) => montagem.ConfirmarPresenca(
+            usuarioId,
+            Guid.NewGuid(),
+            index % 2 == 0 ? $"discord-{index + 1}" : null,
+            index % 2 == 0 ? DraftMontagemPresencaOrigem.Discord : DraftMontagemPresencaOrigem.Web)).ToList();
+        presencas[0].DefinirOrdemManual(20);
+        presencas[1].DefinirOrdemFinal(1);
+        montagem.CancelarPresenca(usuariosIds[^1]);
         montagem.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
         montagem.EncerrarPresenca(false, 5);
+        var presencasAntes = montagem.Presencas.Select(item => new
+        {
+            item.Id,
+            item.DraftMontagemId,
+            item.UsuarioId,
+            item.JogadorId,
+            item.DiscordUserId,
+            item.OrigemConfirmacao,
+            item.Status,
+            item.ConfirmadoEm,
+            item.CanceladoEm,
+            item.OrdemConfirmacao,
+            item.OrdemManual,
+            item.OrdemFinal,
+            item.DataCadastro,
+            item.DataAtualizacao,
+            item.Jogador,
+            item.Confirmada,
+        }).ToList();
 
         montagem.ReabrirPresenca(responsavelId);
 
         montagem.Status.Should().Be(DraftMontagemStatus.PresencaAberta);
+        montagem.Presencas.Select(item => new
+        {
+            item.Id,
+            item.DraftMontagemId,
+            item.UsuarioId,
+            item.JogadorId,
+            item.DiscordUserId,
+            item.OrigemConfirmacao,
+            item.Status,
+            item.ConfirmadoEm,
+            item.CanceladoEm,
+            item.OrdemConfirmacao,
+            item.OrdemManual,
+            item.OrdemFinal,
+            item.DataCadastro,
+            item.DataAtualizacao,
+            item.Jogador,
+            item.Confirmada,
+        }).Should().Equal(presencasAntes);
         montagem.Presencas.Count(item => item.Confirmada).Should().Be(19);
+        montagem.Presencas.Count(item => !item.Confirmada).Should().Be(1);
         montagem.QuantidadeTimes.Should().Be(0);
         montagem.QuantidadeReservas.Should().Be(0);
         montagem.PresencaContinuadaManualmente.Should().BeFalse();
