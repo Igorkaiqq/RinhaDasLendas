@@ -75,16 +75,20 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 ### Tests for User Story 2
 
-- [ ] T011 [US2] Criar fixture snake com dez times e quarenta escolhas em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T012 [US2] Adicionar teste para 41 cards, ordinal por time, sequência `#100` e filhos diretos do `<ol>` em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T013 [US2] Adicionar teste estrutural da grade `auto-fit`, número com `min-width` e ausência de rolagem interna em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T014 [US2] Executar `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts` em FrontEnd/ e confirmar RED apenas pelos estilos ausentes
+- [x] T011 [US2] Criar fixture snake com dez times e quarenta escolhas em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T012 [US2] Adicionar teste para 41 cards, ordinal por time, sequência `#100` e filhos diretos do `<ol>` em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T013 [US2] Adicionar teste estrutural da grade `auto-fit`, número com `min-width` e ausência de rolagem interna em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T014 [US2] Executar `npm test -- src/components/drafts/visual/DraftVisualBoard.spec.ts` em FrontEnd/ e confirmar RED apenas pelos estilos ausentes
+
+**Evidência T011-T014**: fixture com 10 times e 40 escolhas em quatro rodadas snake; Time 1 confirmado em `#1`/1ª, `#20`/2ª, `#21`/3ª e `#40`/4ª, com `#100` anexado como 5ª escolha. RED focado com 32 testes aprovados e 1 falha exclusivamente pela ausência da regra `.draft-pick-overview ol` no CSS.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Estilizar `.draft-pick-overview`, header e `<ol>` como grade auto-fit sem altura máxima em FrontEnd/src/styles/main.css
-- [ ] T016 [US2] Estilizar `.draft-pick-card`, número flexível e cópia com quebra de nomes usando somente tokens existentes em FrontEnd/src/styles/main.css
-- [ ] T017 [US2] Executar novamente FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e confirmar 0 falhas com todos os 41 cards
+- [x] T015 [US2] Estilizar `.draft-pick-overview`, header e `<ol>` como grade auto-fit sem altura máxima em FrontEnd/src/styles/main.css
+- [x] T016 [US2] Estilizar `.draft-pick-card`, número flexível e cópia com quebra de nomes usando somente tokens existentes em FrontEnd/src/styles/main.css
+- [x] T017 [US2] Executar novamente FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e confirmar 0 falhas com todos os 41 cards
+
+**Evidência T015-T017**: grade `repeat(auto-fit, minmax(min(220px, 100%), 1fr))`, coluna numérica `minmax(36px, auto)`, nomes com `overflow-wrap: anywhere`, sem `max-height` ou overflow interno e somente tokens existentes. GREEN focado com 33 testes aprovados em 1 arquivo; `npm run lint:check` e `npm run build` também concluíram com código zero.
 
 **Checkpoint**: A grade funciona com 10+ times, 40+ escolhas e sequências de três dígitos.
 

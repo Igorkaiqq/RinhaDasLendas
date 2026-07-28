@@ -2473,6 +2473,82 @@ p {
   line-height: 18px;
 }
 
+.draft-pick-overview {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  background: var(--color-surface-1);
+}
+
+.draft-pick-overview header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.draft-pick-overview header :is(span, strong) {
+  margin: 0;
+}
+
+.draft-pick-overview ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: var(--space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draft-pick-card {
+  display: grid;
+  grid-template-columns: minmax(36px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+  background: var(--color-surface-2);
+}
+
+.draft-pick-card__number {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-sm);
+  padding-inline: var(--space-xxs);
+  color: var(--color-ink);
+  background: var(--color-primary);
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.draft-pick-card__copy {
+  display: grid;
+  gap: var(--space-xxs);
+  min-width: 0;
+}
+
+.draft-pick-card__copy > strong,
+.draft-pick-card__copy > small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.draft-pick-card__copy > small {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
 .draft-visual-history {
   display: grid;
   gap: var(--space-sm);

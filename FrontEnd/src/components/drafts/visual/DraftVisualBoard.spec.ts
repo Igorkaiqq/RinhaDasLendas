@@ -90,6 +90,41 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
   }
 }
 
+function largeMontagem(): DraftMontagem {
+  const draft = montagem()
+  const teams = Array.from({ length: 10 }, (_, index) => ({
+    id: `team-${index + 1}`,
+    nome: `Time ${index + 1}`,
+    ordem: index + 1,
+    cor: index % 2 === 0 ? 'blue' : 'red',
+    capitaoId: null,
+    jogadores: [],
+  }))
+  const escolhas = Array.from({ length: 40 }, (_, index) => {
+    const round = Math.floor(index / teams.length)
+    const position = index % teams.length
+    const teamIndex = round % 2 === 0 ? position : teams.length - position - 1
+
+    return {
+      sequencia: index + 1,
+      timeId: teams[teamIndex]!.id,
+      capitaoId: `captain-${teamIndex + 1}`,
+      jogadorId: `player-${index + 1}`,
+      jogadorNome: `Jogador ${index + 1} com nome competitivo longo`,
+      tipo: 'Escolha' as const,
+      registradoEm: `2026-07-25T13:${String(index).padStart(2, '0')}:00Z`,
+    }
+  })
+
+  return {
+    ...draft,
+    tamanhoEquipe: 5,
+    quantidadeTimes: teams.length,
+    times: teams,
+    escolhas,
+  }
+}
+
 function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; attachTo?: Element } = {}) {
   return mount(DraftVisualBoard, {
     attachTo: overrides.attachTo,
@@ -200,6 +235,40 @@ describe('DraftVisualBoard', () => {
     expect(picks[0]!.get('[data-pick-team-order]').text()).toBe('Team A · pick 1')
     expect(picks[3]!.get('[data-pick-team-order]').text()).toBe('Unknown team · pick 1')
     wrapper.unmount()
+  })
+
+  it('renders every choice for ten or more teams with snake ordinals and unbounded sequence digits', () => {
+    const draft = largeMontagem()
+    draft.escolhas.push({
+      ...draft.escolhas[0]!,
+      sequencia: 100,
+      jogadorId: 'player-100',
+      jogadorNome: 'Jogador 100',
+    })
+    const wrapper = mountBoard(draft)
+    const picks = wrapper.findAll('[data-pick-sequence]')
+
+    expect(picks).toHaveLength(41)
+    expect(picks[0]!.get('[data-pick-team-order]').text()).toBe('Time 1 · 1ª escolha')
+    expect(picks[19]!.get('[data-pick-team-order]').text()).toBe('Time 1 · 2ª escolha')
+    expect(picks[20]!.get('[data-pick-team-order]').text()).toBe('Time 1 · 3ª escolha')
+    expect(picks[39]!.get('[data-pick-team-order]').text()).toBe('Time 1 · 4ª escolha')
+    expect(picks[40]!.get('[data-pick-sequence-number]').text()).toBe('#100')
+    expect(picks[40]!.get('[data-pick-team-order]').text()).toBe('Time 1 · 5ª escolha')
+    expect(picks[0]!.get('[data-pick-player]').text()).toBe('Jogador 1 com nome competitivo longo')
+    expect(wrapper.get('[data-pick-sequence-list]').element.children).toHaveLength(41)
+    wrapper.unmount()
+  })
+
+  it('uses an auto-fit pick grid without internal scrolling or fixed number width', () => {
+    expect(MainCss).toMatch(/\.draft-pick-overview ol\s*{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(220px,\s*100%\),\s*1fr\)\)/)
+    expect(MainCss).toMatch(/\.draft-pick-card\s*{[\s\S]*?grid-template-columns:\s*minmax\(36px,\s*auto\)\s+minmax\(0,\s*1fr\)/)
+    expect(MainCss).toMatch(/\.draft-pick-card__number\s*{[\s\S]*?min-width:\s*36px/)
+    expect(MainCss).toMatch(/\.draft-pick-card__copy\s*>\s*strong,[\s\S]*?overflow-wrap:\s*anywhere/)
+
+    const overviewRule = MainCss.match(/\.draft-pick-overview\s*{(?<declarations>[^}]*)}/)?.groups?.declarations ?? ''
+    const listRule = MainCss.match(/\.draft-pick-overview ol\s*{(?<declarations>[^}]*)}/)?.groups?.declarations ?? ''
+    expect(`${overviewRule}\n${listRule}`).not.toMatch(/max-height|overflow-y|overflow:\s*(auto|scroll)/)
   })
 
   it('uses a semantic list whose direct children are only available-player list items', () => {
