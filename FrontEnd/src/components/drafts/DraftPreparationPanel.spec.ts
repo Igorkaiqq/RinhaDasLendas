@@ -158,12 +158,20 @@ describe('DraftPreparationPanel', () => {
     })
     const selectedCaptain = wrapper.get('[data-testid="toggle-captain-player-0"]')
     const unselectedCaptain = wrapper.get('[data-testid="toggle-captain-player-1"]')
+    const selectedCaptainRow = selectedCaptain.element.closest('[data-presence-row]')
+    const unselectedCaptainRow = unselectedCaptain.element.closest('[data-presence-row]')
 
     expect(selectedCaptain.attributes('aria-pressed')).toBe('true')
     expect(selectedCaptain.classes()).toContain('draft-preparation__captain-toggle--selected')
-    expect(selectedCaptain.element.closest('[data-presence-row]')?.classList).toContain('draft-preparation__player--captain')
+    expect(selectedCaptainRow?.classList).toContain('draft-preparation__player--captain')
     expect(unselectedCaptain.attributes('aria-pressed')).toBe('false')
     expect(unselectedCaptain.classes()).not.toContain('draft-preparation__captain-toggle--selected')
+    expect(unselectedCaptainRow?.classList).not.toContain('draft-preparation__player--captain')
+
+    await wrapper.setProps({ captainSelection: [] })
+    expect(selectedCaptain.attributes('aria-pressed')).toBe('false')
+    expect(selectedCaptain.classes()).not.toContain('draft-preparation__captain-toggle--selected')
+    expect(selectedCaptainRow?.classList).not.toContain('draft-preparation__player--captain')
 
     await selectedCaptain.trigger('click')
     expect(wrapper.emitted('toggle-captain')).toEqual([['player-0']])

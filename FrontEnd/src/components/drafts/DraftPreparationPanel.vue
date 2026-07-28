@@ -341,6 +341,11 @@ function updateManualSelection(event: ControlEvent) {
   box-shadow: 0 0 18px var(--color-glow-primary);
 }
 
+.draft-preparation__captain-toggle--selected:hover:not(:disabled) {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+}
+
 .draft-preparation__empty {
   margin: 0;
   color: var(--color-ink-muted);
