@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-27
 
-**Status**: Implemented / Verified
+**Status**: Enhancement approved / implementation pending
 
 **Input**: Permitir que um organizador reabra uma presença encerrada por engano, mantenha os participantes confirmados e prossiga normalmente com capitães, ordem e início do draft, inclusive quando o primeiro encerramento ocorreu com 19 jogadores.
 
@@ -42,6 +42,7 @@ Como organizador, quero entender e concluir o fluxo válido de um draft encerrad
 2. **Given** esse draft com presença encerrada, **When** o organizador seleciona exatamente três participantes elegíveis como capitães, **Then** a definição de capitães fica disponível e pode ser concluída.
 3. **Given** os três capitães definidos, **When** o organizador define uma ordem válida, **Then** o draft avança para a etapa em que pode ser iniciado conforme o modo escolhido.
 4. **Given** que o organizador prefere quatro times, **When** reabre a presença, obtém a vigésima confirmação e encerra novamente, **Then** o sistema informa quatro times, nenhuma reserva e exige quatro capitães.
+5. **Given** a seleção de capitães disponível, **When** o organizador seleciona ou desmarca um participante, **Then** o botão e a linha desse participante mudam imediatamente para um estado visual inequívoco e coerente com `aria-pressed`.
 
 ---
 
@@ -94,6 +95,7 @@ Como responsável pela operação, quero que somente pessoas com permissão de g
 - **FR-017**: Textos, ações, confirmações, estados e mensagens novos ou alterados MUST possuir conteúdo equivalente em português e inglês, com acentuação portuguesa revisada.
 - **FR-018**: A reabertura MUST funcionar sem depender da disponibilidade do Discord ou de outra integração externa.
 - **FR-019**: A entrega MUST preservar as regras atuais de tamanho de equipe, cálculo de reservas, elegibilidade de capitães, ordem e início do draft.
+- **FR-020**: A interface MUST destacar o botão e a linha de cada capitão selecionado usando tokens visuais existentes, MUST remover o destaque ao desmarcar e MUST manter o estado acessível em `aria-pressed` sem depender somente de cor.
 
 ### Key Entities
 
@@ -113,6 +115,7 @@ Como responsável pela operação, quero que somente pessoas com permissão de g
 - **SC-006**: Organizadores conseguem identificar a quantidade exigida de capitães e a ação de reabertura sem orientação externa.
 - **SC-007**: Português e inglês apresentam estrutura e significado equivalentes para 100% dos conteúdos novos ou alterados.
 - **SC-008**: A jornada de reabertura e novo encerramento continua utilizável quando integrações externas estão indisponíveis.
+- **SC-009**: Em 100% das seleções e desmarcações de capitães, o organizador identifica imediatamente quais participantes estão selecionados pelo botão e pela linha correspondentes.
 
 ## Assumptions
 
