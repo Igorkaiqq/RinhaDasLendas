@@ -123,7 +123,7 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 - [x] T022 Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e corrigir somente regressões desta feature
 - [x] T023 Auditar textos hardcoded, pares pt/en, acentuação, progresso, fallback, botões, títulos, badges, toasts, vazios e validações nos arquivos alterados de FrontEnd/src/
 - [x] T024 Validar 40 escolhas e 10 times no Chromium em 1440×1000, 768×1024 e 390×844, confirmando uma coluna mobile, `#100`, nomes longos e ausência de overflow em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
-- [ ] T025 Executar revisão independente do diff de FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue, FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts, FrontEnd/src/styles/main.css e FrontEnd/src/i18n/locales/
+- [x] T025 Executar revisão independente do diff de FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue, FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts, FrontEnd/src/styles/main.css e FrontEnd/src/i18n/locales/
 - [x] T026 Executar `git diff --check origin/main...HEAD`, inspecionar status/log de specs/027-melhorar-ordem-picks/ e confirmar que não existem alterações backend
 - [x] T027 Atualizar o status em specs/027-melhorar-ordem-picks/spec.md e marcar somente tarefas comprovadas em specs/027-melhorar-ordem-picks/tasks.md
 - [ ] T028 Commitar specs/027-melhorar-ordem-picks/spec.md e specs/027-melhorar-ordem-picks/tasks.md em português, enviar feature/027-melhorar-ordem-picks, integrar em main e executar o fluxo de deploy com verificações de saúde
