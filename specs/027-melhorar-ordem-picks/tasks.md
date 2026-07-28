@@ -102,13 +102,15 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 ### Tests for User Story 3
 
-- [ ] T018 [US3] Adicionar asserções para `<ol>` rotulado, filhos `<li>`, progresso e estado vazio em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
-- [ ] T019 [US3] Validar fallback e ordinal em português e inglês após troca reativa de locale em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T018 [US3] Adicionar asserções para `<ol>` rotulado, filhos `<li>`, progresso e estado vazio em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
+- [x] T019 [US3] Validar fallback e ordinal em português e inglês após troca reativa de locale em FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Ajustar somente o necessário no markup semântico e no fallback localizado em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
-- [ ] T021 [US3] Executar FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e FrontEnd/src/i18n/i18n.spec.ts e confirmar 0 falhas
+- [x] T020 [US3] Ajustar somente o necessário no markup semântico e no fallback localizado em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
+- [x] T021 [US3] Executar FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e FrontEnd/src/i18n/i18n.spec.ts e confirmar 0 falhas
+
+**Evidência T018-T021**: o teste focado passou com 34 casos e cobre `<ol>` rotulado, filhos diretos `<li>`, progresso, vazio localizado, timeout, fallback e ordinais PT/EN após troca reativa de locale; `src/i18n/i18n.spec.ts` passou com 33 casos. O markup existente já atendia à semântica e ao fallback, sem ajuste adicional de produção.
 
 **Checkpoint**: Conteúdo visual, semântico e localizado permanece equivalente em todos os estados.
 
@@ -118,13 +120,15 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 
 **Purpose**: Validar regressão, responsividade, internacionalização e preparar integração.
 
-- [ ] T022 Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e corrigir somente regressões desta feature
-- [ ] T023 Auditar textos hardcoded, pares pt/en, acentuação, progresso, fallback, botões, títulos, badges, toasts, vazios e validações nos arquivos alterados de FrontEnd/src/
-- [ ] T024 Validar 40 escolhas e 10 times no Chromium em 1440×1000, 768×1024 e 390×844, confirmando uma coluna mobile, `#100`, nomes longos e ausência de overflow em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
+- [x] T022 Executar `npm run lint:check`, `npm test` e `npm run build` em FrontEnd/ e corrigir somente regressões desta feature
+- [x] T023 Auditar textos hardcoded, pares pt/en, acentuação, progresso, fallback, botões, títulos, badges, toasts, vazios e validações nos arquivos alterados de FrontEnd/src/
+- [x] T024 Validar 40 escolhas e 10 times no Chromium em 1440×1000, 768×1024 e 390×844, confirmando uma coluna mobile, `#100`, nomes longos e ausência de overflow em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
 - [ ] T025 Executar revisão independente do diff de FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue, FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts, FrontEnd/src/styles/main.css e FrontEnd/src/i18n/locales/
-- [ ] T026 Executar `git diff --check origin/main...HEAD`, inspecionar status/log de specs/027-melhorar-ordem-picks/ e confirmar que não existem alterações backend
-- [ ] T027 Atualizar o status em specs/027-melhorar-ordem-picks/spec.md e marcar somente tarefas comprovadas em specs/027-melhorar-ordem-picks/tasks.md
+- [x] T026 Executar `git diff --check origin/main...HEAD`, inspecionar status/log de specs/027-melhorar-ordem-picks/ e confirmar que não existem alterações backend
+- [x] T027 Atualizar o status em specs/027-melhorar-ordem-picks/spec.md e marcar somente tarefas comprovadas em specs/027-melhorar-ordem-picks/tasks.md
 - [ ] T028 Commitar specs/027-melhorar-ordem-picks/spec.md e specs/027-melhorar-ordem-picks/tasks.md em português, enviar feature/027-melhorar-ordem-picks, integrar em main e executar o fluxo de deploy com verificações de saúde
+
+**Evidência T022-T024, T026-T027**: `npm run lint:check && npm test && npm run build` passou com 38 arquivos e 483 testes; os 1.026 pares PT/EN estão sincronizados, sem texto visível novo hardcoded e com acentuação revisada. Chromium real exibiu 40 cards em 2/2/1 colunas a 1440×1000, 768×1024 e 390×844, respectivamente, com `scrollWidth` igual ao viewport, sem sobreposição ou rolagem interna, nomes longos quebrando linha, progresso `39 / 40`, timeout, fallback, ordinal, `<ol>/<li>` e `#100` íntegros. `git diff --check origin/main...HEAD` passou e não há alteração em `BackEnd/`. T025 permanece para revisão independente e T028 para integração/deploy.
 
 ---
 

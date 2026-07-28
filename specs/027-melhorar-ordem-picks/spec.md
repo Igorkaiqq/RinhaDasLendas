@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-28
 
-**Status**: Approved / Planning pending
+**Status**: Implemented / Verified
 
 **Input**: Substituir a lista corrida da ordem de picks por uma grade responsiva que permita identificar rapidamente a sequência geral, o jogador, o time e a posição daquela escolha dentro do próprio time, inclusive com dez ou mais times.
 
