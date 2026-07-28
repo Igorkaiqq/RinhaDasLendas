@@ -260,23 +260,36 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
-  it('preserves the labeled ordered list, progress, and localized empty state', () => {
+  it('preserves the labeled ordered list, progress, and localized empty state', async () => {
     const wrapper = mountBoard()
     const overview = wrapper.get('.draft-pick-overview')
     const list = wrapper.get('[data-pick-sequence-list]')
 
     expect(overview.attributes('aria-label')).toBe('Sequência de escolhas')
     expect(list.element.tagName).toBe('OL')
+    expect(list.attributes('aria-label')).toBe('Sequência de escolhas')
     expect(Array.from(list.element.children).every((child) => child.tagName === 'LI')).toBe(true)
     expect(wrapper.get('[data-pick-progress]').text()).toBe('2 / 4 escolhas')
+
+    await setLocale('en')
+    await nextTick()
+    expect(list.attributes('aria-label')).toBe('Pick sequence')
+    expect(wrapper.get('[data-pick-progress]').text()).toBe('2 / 4 picks')
+    expect(wrapper.findAll('[data-pick-player]')[2]!.text()).toBe('Turn timed out')
     wrapper.unmount()
 
+    await setLocale('pt')
+    await nextTick()
     const emptyDraft = montagem()
     emptyDraft.escolhas = []
     const emptyWrapper = mountBoard(emptyDraft)
 
     expect(emptyWrapper.find('[data-pick-sequence-list]').exists()).toBe(false)
     expect(emptyWrapper.get('.draft-pick-overview').text()).toContain('Nenhuma escolha registrada ainda.')
+
+    await setLocale('en')
+    await nextTick()
+    expect(emptyWrapper.get('.draft-pick-overview').text()).toContain('No picks registered yet.')
     emptyWrapper.unmount()
   })
 

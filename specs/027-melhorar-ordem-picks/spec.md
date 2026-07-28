@@ -6,6 +6,8 @@
 
 **Status**: Implemented / Verified
 
+**Verification update (2026-07-28)**: A revisão da Task 3 confirmou o rótulo localizado diretamente no `<ol>`, a atualização reativa PT/EN de progresso, timeout e estado vazio, e repetiu a validação Chromium sem o modal de perfil nos três viewports previstos.
+
 **Input**: Substituir a lista corrida da ordem de picks por uma grade responsiva que permita identificar rapidamente a sequência geral, o jogador, o time e a posição daquela escolha dentro do próprio time, inclusive com dez ou mais times.
 
 ## User Scenarios & Testing *(mandatory)*

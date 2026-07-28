@@ -487,7 +487,7 @@ async function exportImage() {
         <span class="eyebrow">{{ t('drafts.pickHistory.title') }}</span>
         <strong data-pick-progress>{{ t('drafts.visualBoard.pickProgress', { current: completedPicks, total: totalPicks }) }}</strong>
       </header>
-      <ol v-if="presentedChoices.length" data-pick-sequence-list>
+      <ol v-if="presentedChoices.length" data-pick-sequence-list :aria-label="t('drafts.visualBoard.pickSequence')">
         <li v-for="item in presentedChoices" :key="item.key" data-pick-sequence class="draft-pick-card">
           <strong data-pick-sequence-number class="draft-pick-card__number">#{{ item.choice.sequencia }}</strong>
           <span class="draft-pick-card__copy">

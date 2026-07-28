@@ -110,7 +110,7 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 - [x] T020 [US3] Ajustar somente o necessário no markup semântico e no fallback localizado em FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue
 - [x] T021 [US3] Executar FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts e FrontEnd/src/i18n/i18n.spec.ts e confirmar 0 falhas
 
-**Evidência T018-T021**: o teste focado passou com 34 casos e cobre `<ol>` rotulado, filhos diretos `<li>`, progresso, vazio localizado, timeout, fallback e ordinais PT/EN após troca reativa de locale; `src/i18n/i18n.spec.ts` passou com 33 casos. O markup existente já atendia à semântica e ao fallback, sem ajuste adicional de produção.
+**Evidência T018-T021**: após RED específico pela ausência do atributo, o teste focado passou com 34 casos e comprova `aria-label` localizado diretamente no `<ol>`, filhos diretos `<li>`, progresso `2 / 4 picks`, timeout `Turn timed out` e vazio `No picks registered yet` após troca reativa PT/EN com `nextTick`, além de fallback e ordinais; `src/i18n/i18n.spec.ts` passou com 33 casos.
 
 **Checkpoint**: Conteúdo visual, semântico e localizado permanece equivalente em todos os estados.
 
@@ -128,7 +128,7 @@ description: "Tarefas para melhorar a exibição da ordem de picks"
 - [x] T027 Atualizar o status em specs/027-melhorar-ordem-picks/spec.md e marcar somente tarefas comprovadas em specs/027-melhorar-ordem-picks/tasks.md
 - [ ] T028 Commitar specs/027-melhorar-ordem-picks/spec.md e specs/027-melhorar-ordem-picks/tasks.md em português, enviar feature/027-melhorar-ordem-picks, integrar em main e executar o fluxo de deploy com verificações de saúde
 
-**Evidência T022-T024, T026-T027**: `npm run lint:check && npm test && npm run build` passou com 38 arquivos e 483 testes; os 1.026 pares PT/EN estão sincronizados, sem texto visível novo hardcoded e com acentuação revisada. Chromium real exibiu 40 cards em 2/2/1 colunas a 1440×1000, 768×1024 e 390×844, respectivamente, com `scrollWidth` igual ao viewport, sem sobreposição ou rolagem interna, nomes longos quebrando linha, progresso `39 / 40`, timeout, fallback, ordinal, `<ol>/<li>` e `#100` íntegros. `git diff --check origin/main...HEAD` passou e não há alteração em `BackEnd/`. T025 permanece para revisão independente e T028 para integração/deploy.
+**Evidência T022-T024, T026-T027**: lint, testes e build passaram; os 1.026 pares PT/EN estão sincronizados, sem texto visível novo hardcoded e com acentuação revisada. A repetição no Chromium real dispensou `Agora não` antes da coleta e exibiu 40 cards em 2/2/1 colunas a 1440×1000, 768×1024 e 390×844, respectivamente, com screenshots de viewport nessas dimensões, `scrollWidth` igual ao viewport, sem sobreposição ou rolagem interna, nomes longos quebrando linha, progresso `39 / 40`, timeout, fallback, ordinal, `<ol aria-label="Sequência de escolhas">` com filhos `<li>` e `#100` íntegros. `git diff --check origin/main...HEAD` passou e não há alteração em `BackEnd/`. T025 permanece para revisão independente e T028 para integração/deploy.
 
 ---
 
