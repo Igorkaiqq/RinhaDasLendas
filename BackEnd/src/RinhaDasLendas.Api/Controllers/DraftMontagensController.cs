@@ -86,7 +86,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpGet("{id:guid}/administracao")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemAdminResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAdministration([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -127,7 +127,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SelectMode([FromRoute] Guid id, [FromBody] SelecionarModoDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new SelecionarModoDraftMontagemCommand(id, request), cancellationToken);

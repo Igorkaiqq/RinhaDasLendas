@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Repositories;
 
@@ -72,7 +73,9 @@ public sealed class JogadoresApiTests
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
+            builder
+                .UseEnvironment("Testing")
+                .UseSetting(TestingAuthHandler.AuthenticationBypassEnabledConfigurationKey, "true");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IJogadorRepository>();

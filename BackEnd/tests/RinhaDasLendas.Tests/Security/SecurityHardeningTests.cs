@@ -332,9 +332,8 @@ public sealed class SecurityHardeningTests
 
     [Theory]
     [InlineData(AuthRoles.Admin)]
-    [InlineData(AuthRoles.Moderador)]
     [InlineData(AuthRoles.SuperAdmin)]
-    public async Task DraftManagers_ShouldReachAdministrativeEndpoint(string role)
+    public async Task AdminPlus_ShouldReachAdministrativeDraftProjection(string role)
     {
         await using var factory = new RealAuthenticationApiFactory(100);
         using var client = factory.CreateJwtClient(Guid.NewGuid(), role);
@@ -342,6 +341,21 @@ public sealed class SecurityHardeningTests
         var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Moderator_ShouldNotReachAdministrativeDraftProjection()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+
+        var response = await client.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/administracao");
+
+        await AssertApiErrorAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            MessageCodes.AccessDenied,
+            "Acesso negado");
     }
 
     [Theory]
@@ -1000,6 +1014,18 @@ public sealed class SecurityHardeningTests
         act.Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void TestingStartup_WithoutExplicitAuthenticationBypassOptIn_ShouldFail()
+    {
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseEnvironment("Testing"));
+
+        var act = () => factory.CreateClient();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("O bypass de autenticação para testes exige habilitação explícita pelo host de testes");
+    }
+
     private static IWebHostEnvironment ProductionEnvironment()
     {
         var environment = new Moq.Mock<IWebHostEnvironment>();
@@ -1160,6 +1186,7 @@ public sealed class SecurityHardeningTests
         {
             builder
                 .UseEnvironment("Testing")
+                .UseSetting(TestingAuthHandler.AuthenticationBypassEnabledConfigurationKey, "true")
                 .UseSetting("DiscordBot:InternalToken", InternalToken)
                 .UseSetting("RateLimiting:Api:PermitLimit", "1")
                 .UseSetting("RateLimiting:Api:WindowSeconds", "60");
@@ -1172,6 +1199,7 @@ public sealed class SecurityHardeningTests
         {
             builder
                 .UseEnvironment("Testing")
+                .UseSetting(TestingAuthHandler.AuthenticationBypassEnabledConfigurationKey, "true")
                 .UseSetting("RateLimiting:Api:PermitLimit", optionName == "PermitLimit" ? "0" : "1")
                 .UseSetting("RateLimiting:Api:WindowSeconds", optionName == "WindowSeconds" ? "0" : "60");
         }

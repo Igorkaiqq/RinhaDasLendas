@@ -75,13 +75,21 @@ if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException(startupMessages.GetMessage(MessageCodes.JwtKeyNotConfigured));
 }
 
+var testingAuthenticationBypassEnabled = builder.Environment.IsEnvironment("Testing")
+    && builder.Configuration.GetValue<bool>(TestingAuthHandler.AuthenticationBypassEnabledConfigurationKey);
+if (builder.Environment.IsEnvironment("Testing") && !testingAuthenticationBypassEnabled)
+{
+    throw new InvalidOperationException(startupMessages.GetMessage(
+        MessageCodes.TestingAuthenticationBypassRequiresExplicitOptIn));
+}
+
 var internalTokens = InternalTokenSecurity.ResolveTokens(builder.Configuration);
 builder.Services.Configure<BotInternalAuthOptions>(BotInternalAuthOptions.SchemeName, options =>
 {
     options.Token = internalTokens.FirstOrDefault() ?? string.Empty;
     options.ValidTokens = internalTokens;
 });
-var fallbackAuthenticationScheme = builder.Environment.IsEnvironment("Testing")
+var fallbackAuthenticationScheme = testingAuthenticationBypassEnabled
     ? TestingAuthHandler.SchemeName
     : JwtBearerDefaults.AuthenticationScheme;
 var authentication = builder.Services.AddAuthentication(options =>
@@ -97,7 +105,7 @@ var authentication = builder.Services.AddAuthentication(options =>
             : fallbackAuthenticationScheme;
     })
     .AddScheme<BotInternalAuthOptions, BotInternalAuthHandler>(BotInternalAuthOptions.SchemeName, _ => { });
-if (builder.Environment.IsEnvironment("Testing"))
+if (testingAuthenticationBypassEnabled)
 {
     authentication.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.SchemeName, _ => { });
 }
@@ -140,7 +148,7 @@ else
 }
 builder.Services.AddAuthorization(options =>
 {
-    if (builder.Environment.IsEnvironment("Testing"))
+    if (testingAuthenticationBypassEnabled)
     {
         options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAssertion(_ => true).Build();
         options.AddPolicy(ApiAuthenticationDefaults.AuthenticatedPolicyName, policy => policy.RequireAssertion(_ => true));
@@ -311,7 +319,7 @@ app.MapHealthChecks("/health");
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseRateLimiter();
-if (app.Environment.IsEnvironment("Testing"))
+if (testingAuthenticationBypassEnabled)
 {
     app.Use(async (context, next) =>
     {

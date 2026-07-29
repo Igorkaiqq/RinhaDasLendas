@@ -10,6 +10,7 @@ public sealed class TestingAuthHandler(IOptionsMonitor<AuthenticationSchemeOptio
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Testing";
+    public const string AuthenticationBypassEnabledConfigurationKey = "TestHost:EnableAuthenticationBypass";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

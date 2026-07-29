@@ -498,8 +498,14 @@ public sealed class EndpointCoverageIntegrationTests
             item.Key == EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/modo"));
 
         endpoint.InputDtos.Should().ContainSingle().Which.Should().Be(nameof(SelecionarModoDraftMontagemRequestDto));
-        endpoint.Responses.Should().Contain(new EndpointResponse((int)HttpStatusCode.OK, nameof(DraftMontagemResponseDto)));
-        endpoint.Responses.Should().Contain(new EndpointResponse((int)HttpStatusCode.NotFound, nameof(ApiErrorResponse)));
+        endpoint.Responses.Should().BeEquivalentTo([
+            new EndpointResponse((int)HttpStatusCode.OK, nameof(DraftMontagemResponseDto)),
+            new EndpointResponse((int)HttpStatusCode.BadRequest, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Unauthorized, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Forbidden, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.NotFound, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Conflict, nameof(ApiErrorResponse)),
+        ]);
     }
 
     [Fact]

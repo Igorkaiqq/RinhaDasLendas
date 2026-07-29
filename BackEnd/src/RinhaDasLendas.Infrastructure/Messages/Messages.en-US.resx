@@ -81,6 +81,7 @@
   <data name="ME042" xml:space="preserve"><value>The bot internal token is not configured securely.</value></data>
   <data name="ME043" xml:space="preserve"><value>Request limit exceeded. Try again later.</value></data>
   <data name="ME044" xml:space="preserve"><value>The rate limit configuration requires PermitLimit and WindowSeconds greater than zero.</value></data>
+  <data name="ME045" xml:space="preserve"><value>The testing authentication bypass requires explicit opt-in from the test host</value></data>
   <data name="MV001" xml:space="preserve"><value>Required field</value></data>
   <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
   <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
