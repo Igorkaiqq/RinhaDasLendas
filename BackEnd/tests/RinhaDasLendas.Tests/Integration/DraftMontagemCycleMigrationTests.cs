@@ -41,6 +41,29 @@ public sealed class DraftMontagemCycleMigrationTests
         novo.Modo.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Rollback_DeveFalharEPreservarDraftV2ComModoNulo()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAtMigrationAsync(PreviousMigration);
+        var draftId = Guid.NewGuid();
+
+        await using (var migrated = database.CreateContext())
+        {
+            await migrated.Database.MigrateAsync();
+            await InsertDraftAsync(migrated, draftId, null);
+
+            var rollback = () => migrated.Database.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+
+            var exception = await rollback.Should().ThrowAsync<PostgresException>();
+            exception.Which.SqlState.Should().Be(PostgresErrorCodes.NotNullViolation);
+        }
+
+        await using var verification = database.CreateContext();
+        var preserved = await verification.DraftMontagens.SingleAsync(draft => draft.Id == draftId);
+        preserved.CicloVersao.Should().Be(DraftMontagemCicloVersao.ModoPosPresenca);
+        preserved.Modo.Should().BeNull();
+    }
+
     private static Task<int> InsertDraftAsync(
         RinhaDasLendasDbContext context,
         Guid id,
@@ -88,9 +111,17 @@ public sealed class DraftMontagemCycleMigrationTests
                 Database = databaseName,
             }.ConnectionString;
             var database = new PostgreSqlTestDatabase(databaseName, adminConnectionString, connectionString);
-            await using var context = database.CreateContext();
-            await context.Database.GetService<IMigrator>().MigrateAsync(migration);
-            return database;
+            try
+            {
+                await using var context = database.CreateContext();
+                await context.Database.GetService<IMigrator>().MigrateAsync(migration);
+                return database;
+            }
+            catch
+            {
+                await database.DisposeAsync();
+                throw;
+            }
         }
 
         public RinhaDasLendasDbContext CreateContext()
