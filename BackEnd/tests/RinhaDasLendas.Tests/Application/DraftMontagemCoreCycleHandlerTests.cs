@@ -8,6 +8,7 @@ using RinhaDasLendas.Application.Validators;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Tests.Jogadores;
 
@@ -116,6 +117,46 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         montagem.VersaoEstado.Should().Be(versao);
         repository.Verify(item => item.GetJogadoresByIdsAsync(
             It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RepetirMesmoModoEmDraftLegadoDeveChegarAoDominioESerRecusado()
+    {
+        var jogadores = CriarJogadores(10);
+        var jogadoresIds = jogadores.Select(item => item.Id).ToList();
+        var montagem = new DraftMontagem(
+            "Rinha",
+            null,
+            5,
+            DraftMontagemCriterioCapitaes.Manual,
+            jogadoresIds,
+            jogadoresIds.Take(2).ToList());
+        typeof(DraftMontagem)
+            .GetProperty(nameof(DraftMontagem.CicloVersao))!
+            .SetValue(montagem, DraftMontagemCicloVersao.Legado);
+        var versao = montagem.VersaoEstado;
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetJogadoresByIdsAsync(
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 0),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var handler = new SelecionarModoDraftMontagemCommandHandler(
+            repository.Object,
+            new SelecionarModoDraftMontagemValidator());
+
+        var act = () => handler.Handle(
+            new SelecionarModoDraftMontagemCommand(
+                montagem.Id,
+                new SelecionarModoDraftMontagemRequestDto("Manual")),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftClosed);
+        montagem.VersaoEstado.Should().Be(versao);
+        repository.Verify(item => item.GetJogadoresByIdsAsync(
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 0),
+            CancellationToken.None), Times.Once);
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

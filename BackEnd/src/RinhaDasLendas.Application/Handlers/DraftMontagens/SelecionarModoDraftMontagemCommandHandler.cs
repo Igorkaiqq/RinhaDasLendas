@@ -24,7 +24,7 @@ public sealed class SelecionarModoDraftMontagemCommandHandler(
         }
 
         var modo = Enum.Parse<DraftMontagemModo>(command.Request.Modo, true);
-        if (montagem.Modo == modo)
+        if (montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca && montagem.Modo == modo)
         {
             return DraftMontagemResponseDto.FromEntity(montagem);
         }
