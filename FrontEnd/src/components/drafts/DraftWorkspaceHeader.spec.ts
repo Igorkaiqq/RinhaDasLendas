@@ -14,7 +14,8 @@ const draft = {
   id: 'draft-1',
   nome: 'Rinha de domingo com um nome deliberadamente longo para preservar todo o contexto',
   status: 'CapitaesDefinidos',
-  modo: 'Manual',
+  modo: 'TempoReal',
+  cicloVersao: 'ModoPosPresenca',
   tamanhoEquipe: 5,
   quantidadeTimes: 2,
   quantidadeReservas: 1,
@@ -50,13 +51,25 @@ describe('DraftWorkspaceHeader', () => {
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.get('[data-workspace-date]').text()).toContain('27/07/2026')
     expect(wrapper.get('[data-workspace-status]').text()).toBe('Capitães definidos')
+    expect(wrapper.get('[data-workspace-mode]').text()).toBe('Draft em tempo real')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('7 confirmados')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('2 times')
     expect(wrapper.get('[data-workspace-counts]').text()).toContain('1 reserva')
     expect(wrapper.getComponent({ name: 'DraftStateRail' }).props()).toMatchObject({
       status: 'CapitaesDefinidos',
       publicationStatus: 'Pendente',
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
     })
+  })
+
+  it('shows a localized pending mode without inferring legacy choice', () => {
+    const wrapper = mount(DraftWorkspaceHeader, {
+      props: { draft: { ...draft, status: 'PresencaEncerrada', modo: null }, confirmedCount: 7, finalTeamsPublicationStatus: null },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('[data-workspace-mode]').text()).toBe('Modo não escolhido')
   })
 
   it('renders archive state separately from operational status', () => {

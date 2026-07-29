@@ -21,21 +21,32 @@ const player: Player = {
 
 function mountSetup() {
   return mount(DraftVisualSetup, {
-    props: { open: true, players: [player], captains: [player], saving: false, errors: [] },
+    props: { open: true, players: [player], saving: false, errors: [] },
     global: { plugins: [i18n] },
   })
 }
 
 describe('DraftVisualSetup', () => {
-  it('uses the checkbox label as the 44px target while preserving the native checkbox size', () => {
+  it('removes captain configuration from direct creation', () => {
     const wrapper = mountSetup()
-    const label = wrapper.get('.draft-create-form .checkbox-line')
-    const checkbox = label.get('input[type="checkbox"]')
 
-    expect(label.text()).toContain('Sortear capitães automaticamente')
-    expect(label.element.contains(checkbox.element)).toBe(true)
-    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-create-form\s+\.checkbox-line\s*{[^}]*min-height:\s*44px/s)
-    expect(MainCss).toMatch(/\.drafts-page\s+\.draft-create-form\s+\.checkbox-line\s+input\[type='checkbox'\]\s*{[^}]*width:\s*16px[^}]*height:\s*16px[^}]*min-height:\s*16px/s)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('capitães')
+  })
+
+  it('submits neutral compatibility captain fields with the selected players', async () => {
+    const wrapper = mountSetup()
+
+    await wrapper.get('input[required]').setValue('Manual direto')
+    await wrapper.get('.draft-player-option').trigger('click')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
+      nome: 'Manual direto',
+      sortearCapitaes: false,
+      capitaesIds: [],
+      jogadoresIds: ['player-1'],
+    })
   })
 
   it('keeps scrolling on the setup form and lets nested player grids grow', () => {

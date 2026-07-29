@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, reopenDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
+import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, chooseDraftMontagemMode, createDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, reopenDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -22,6 +22,7 @@ const montagem: DraftMontagem = {
   observacoes: null,
   status: 'Aberta',
   modo: 'Manual',
+  cicloVersao: 'Legado',
   tamanhoEquipe: 5,
   quantidadeTimes: 2,
   quantidadeReservas: 1,
@@ -72,7 +73,7 @@ describe('draftMontagens service', () => {
   })
 
   it('loads the explicit administrative projection by id', async () => {
-    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], acoesAdministrativas: [], publicacoesDiscord: [] }
+    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], capitaesElegiveisIds: [], acoesAdministrativas: [], publicacoesDiscord: [] }
     vi.mocked(api.get).mockResolvedValue({ data: adminMontagem })
 
     const result = await getDraftMontagemAdminById('montagem-1')
@@ -87,6 +88,37 @@ describe('draftMontagens service', () => {
     await cancelDraftMontagem('montagem-1', 'motivo')
 
     expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/cancelar', { motivo: 'motivo' })
+  })
+
+  it('chooses the operational mode through the dedicated endpoint', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { ...montagem, modo: 'TempoReal' } })
+
+    const result = await chooseDraftMontagemMode('draft/id', 'TempoReal')
+
+    expect(api.patch).toHaveBeenCalledWith('/api/v1/draft-montagens/draft%2Fid/modo', { modo: 'TempoReal' })
+    expect(result.modo).toBe('TempoReal')
+  })
+
+  it('keeps the compatibility captain fields neutral when creating a direct manual draft', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: montagem })
+
+    await createDraftMontagem({
+      nome: 'Manual direto',
+      tamanhoEquipe: 5,
+      horarioEncerramentoPresenca: null,
+      sortearCapitaes: false,
+      capitaesIds: [],
+      jogadoresIds: ['jogador-1'],
+    })
+
+    expect(api.post).toHaveBeenCalledWith('/api/v1/draft-montagens', {
+      nome: 'Manual direto',
+      tamanhoEquipe: 5,
+      horarioEncerramentoPresenca: null,
+      sortearCapitaes: false,
+      capitaesIds: [],
+      jogadoresIds: ['jogador-1'],
+    })
   })
 
   it('adds manual presence to a visual draft assembly with reason', async () => {

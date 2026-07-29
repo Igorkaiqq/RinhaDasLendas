@@ -19,6 +19,7 @@ const draft: DraftMontagem = {
   nome: 'Rinha de domingo',
   status: 'PresencaAberta',
   modo: 'Manual',
+  cicloVersao: 'Legado',
   tamanhoEquipe: 5,
   quantidadeTimes: 2,
   quantidadeReservas: 2,
@@ -62,11 +63,13 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
       canClosePresence: true,
       canContinueManualPresence: true,
       canManageManualPresence: true,
+      canChooseMode: false,
       canSelectCaptains: false,
       canReopenPresence: false,
       canDefineCaptains: false,
       canDrawOrder: false,
       captainSelection: [],
+      eligibleCaptainIds: [],
       manualPresenceSearch: '',
       selectedManualPresencePlayerId: '',
       availableManualPresencePlayers: [
@@ -153,6 +156,7 @@ describe('DraftPreparationPanel', () => {
       canContinueManualPresence: false,
       canManageManualPresence: false,
       canSelectCaptains: true,
+      eligibleCaptainIds: ['player-0', 'player-1'],
       captainSelection: ['player-0'],
       confirmedPresences: presences(2),
     })
@@ -177,8 +181,41 @@ describe('DraftPreparationPanel', () => {
     expect(wrapper.emitted('toggle-captain')).toEqual([['player-0']])
   })
 
+  it('offers both localized v2 modes and emits the exact choice', async () => {
+    const wrapper = mountPanel({
+      draft: { ...draft, status: 'PresencaEncerrada', modo: null, cicloVersao: 'ModoPosPresenca' },
+      canConfirmPresence: false,
+      canClosePresence: false,
+      canContinueManualPresence: false,
+      canManageManualPresence: false,
+      canChooseMode: true,
+    })
+
+    expect(wrapper.get('[data-mode-choice]').text()).toContain('Montagem manual')
+    expect(wrapper.get('[data-mode-choice]').text()).toContain('Draft em tempo real')
+    await wrapper.get('[data-testid="choose-mode-manual"]').trigger('click')
+    await wrapper.get('[data-testid="choose-mode-realtime"]').trigger('click')
+
+    expect(wrapper.emitted('choose-mode')).toEqual([['Manual'], ['TempoReal']])
+  })
+
+  it('offers captain controls only for backend-projected eligible starters', () => {
+    const wrapper = mountPanel({
+      draft: { ...draft, status: 'PresencaEncerrada', modo: 'TempoReal', cicloVersao: 'ModoPosPresenca' },
+      canClosePresence: false,
+      canContinueManualPresence: false,
+      canManageManualPresence: false,
+      canSelectCaptains: true,
+      eligibleCaptainIds: ['player-0'],
+      confirmedPresences: presences(2),
+    })
+
+    expect(wrapper.find('[data-testid="toggle-captain-player-0"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="toggle-captain-player-1"]').exists()).toBe(false)
+  })
+
   it('emits captain and order intents only from their matching states', async () => {
-    const captains = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, canConfirmPresence: false, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canSelectCaptains: true, canDefineCaptains: true, captainSelection: ['player-0', 'player-1'], confirmedPresences: presences(2) })
+    const captains = mountPanel({ draft: { ...draft, status: 'PresencaEncerrada' }, canConfirmPresence: false, canClosePresence: false, canContinueManualPresence: false, canManageManualPresence: false, canSelectCaptains: true, canDefineCaptains: true, captainSelection: ['player-0', 'player-1'], eligibleCaptainIds: ['player-0', 'player-1'], confirmedPresences: presences(2) })
     await captains.get('[data-testid="define-captains"]').trigger('click')
     expect(captains.emitted('define-captains')).toEqual([[]])
 
@@ -195,6 +232,7 @@ describe('DraftPreparationPanel', () => {
       canContinueManualPresence: false,
       canManageManualPresence: false,
       canSelectCaptains: true,
+      eligibleCaptainIds: ['player-0', 'player-1', 'player-2'],
       canReopenPresence: true,
       canDefineCaptains: true,
       captainSelection: ['player-0', 'player-1', 'player-2'],

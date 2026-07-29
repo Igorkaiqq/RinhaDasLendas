@@ -21,6 +21,11 @@ const { locale, t } = useI18n()
 const header = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('header')
 const knownStatuses = new Set<string>(DRAFT_MONTAGEM_STATUS_OPTIONS)
 const statusLabel = computed(() => t(knownStatuses.has(props.draft.status) ? `drafts.status.${props.draft.status}` : 'drafts.status.unknown'))
+const modeLabel = computed(() => props.draft.modo === 'Manual'
+  ? t('drafts.mode.manual')
+  : props.draft.modo === 'TempoReal'
+    ? t('drafts.mode.realtime')
+    : t('drafts.mode.pending'))
 const draftDate = computed(() => {
   const value = props.dataRinha ?? props.draft.horarioEncerramentoPresenca
   if (!value) return t('drafts.noRinhaDate')
@@ -52,12 +57,13 @@ defineExpose({ focusStage })
       </div>
       <div class="draft-hero-actions">
         <Badge v-if="draft.arquivado" variant="secondary" data-workspace-archived>{{ t('drafts.archive.badge') }}</Badge>
+        <Badge variant="secondary" data-workspace-mode>{{ modeLabel }}</Badge>
         <Badge variant="outline" data-workspace-status>{{ statusLabel }}</Badge>
         <span data-workspace-counts><span>{{ t('drafts.metrics.confirmed', confirmedCount) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.teams', draft.quantidadeTimes) }}</span><span aria-hidden="true"> · </span><span>{{ t('drafts.metrics.reserves', draft.quantidadeReservas) }}</span></span>
       </div>
     </div>
 
-    <DraftStateRail :status="draft.status" :publication-status="finalTeamsPublicationStatus" />
+    <DraftStateRail :status="draft.status" :modo="draft.modo" :ciclo-versao="draft.cicloVersao" :publication-status="finalTeamsPublicationStatus" />
 
     <div class="draft-hero-actions">
       <div data-action-group="primary"><slot name="primary-action" /></div>

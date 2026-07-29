@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Player } from '@/services/players'
 import type { DraftMontagemPayload } from '@/types/draftMontagem'
 
-const props = defineProps<{ open: boolean; players: Player[]; captains: Player[]; saving: boolean; errors: string[] }>()
+const props = defineProps<{ open: boolean; players: Player[]; saving: boolean; errors: string[] }>()
 const { t } = useI18n()
 
 const emit = defineEmits<{ close: []; submit: [payload: DraftMontagemPayload] }>()
@@ -16,9 +16,7 @@ const form = reactive({
   observacoes: '',
   tamanhoEquipe: 5,
   horarioEncerramentoPresenca: '',
-  sortearCapitaes: true,
   jogadoresIds: [] as string[],
-  capitaesIds: [] as string[],
 })
 
 const filteredPlayers = computed(() => {
@@ -29,27 +27,13 @@ const filteredPlayers = computed(() => {
 const quantidadeTimes = computed(() => Math.floor(form.jogadoresIds.length / Math.max(form.tamanhoEquipe, 1)))
 const quantidadeReservas = computed(() => form.jogadoresIds.length % Math.max(form.tamanhoEquipe, 1))
 const canSubmit = computed(() => Boolean(form.nome.trim()))
-const selectedPlayers = computed(() => props.players.filter((player) => form.jogadoresIds.includes(player.id)))
-const selectedCaptains = computed(() => props.captains.filter((player) => form.jogadoresIds.includes(player.id)))
 
 function togglePlayer(playerId: string) {
   if (form.jogadoresIds.includes(playerId)) {
     form.jogadoresIds = form.jogadoresIds.filter((id) => id !== playerId)
-    form.capitaesIds = form.capitaesIds.filter((id) => id !== playerId)
     return
   }
   form.jogadoresIds = [...form.jogadoresIds, playerId]
-}
-
-function toggleCaptain(playerId: string) {
-  if (form.capitaesIds.includes(playerId)) {
-    form.capitaesIds = form.capitaesIds.filter((id) => id !== playerId)
-    return
-  }
-  if (form.capitaesIds.length >= quantidadeTimes.value) {
-    return
-  }
-  form.capitaesIds = [...form.capitaesIds, playerId]
 }
 
 function submit() {
@@ -61,8 +45,8 @@ function submit() {
     observacoes: form.observacoes || null,
     tamanhoEquipe: form.tamanhoEquipe,
     horarioEncerramentoPresenca: form.horarioEncerramentoPresenca || null,
-    sortearCapitaes: form.sortearCapitaes,
-    capitaesIds: form.sortearCapitaes ? [] : form.capitaesIds,
+    sortearCapitaes: false,
+    capitaesIds: [],
     jogadoresIds: form.jogadoresIds,
   })
 }
@@ -106,7 +90,7 @@ function submit() {
               <span class="eyebrow">{{ t('drafts.visualSetup.players') }}</span>
               <h3>{{ t('drafts.createModal.selectedCount', { count: form.jogadoresIds.length }) }}</h3>
             </div>
-            <span>{{ t('drafts.visualSetup.summary', { teams: quantidadeTimes, captains: quantidadeTimes, reserves: quantidadeReservas }) }}</span>
+            <span>{{ t('drafts.visualSetup.manualSummary', { teams: quantidadeTimes, reserves: quantidadeReservas }) }}</span>
           </div>
           <label class="draft-search-field">
             <span aria-hidden="true">⌕</span>
@@ -120,24 +104,6 @@ function submit() {
                 <small>{{ player.elo ? `${player.elo} ${player.divisao ?? ''}` : t('common.eloNotInformed') }}</small>
               </span>
             </button>
-          </div>
-        </section>
-
-        <label class="checkbox-line">
-          <input v-model="form.sortearCapitaes" type="checkbox" />
-          {{ t('drafts.visualSetup.drawCaptainsAutomatically') }}
-        </label>
-
-        <section v-if="!form.sortearCapitaes" class="draft-player-picker player-form__field--wide">
-          <div class="draft-player-picker__header">
-            <h3>{{ t('drafts.visualSetup.captainsCount', { selected: form.capitaesIds.length, total: quantidadeTimes }) }}</h3>
-          </div>
-          <div class="draft-player-picker__grid">
-            <button v-for="player in selectedCaptains" :key="player.id" type="button" class="draft-player-option" :class="{ 'is-selected': form.capitaesIds.includes(player.id) }" @click="toggleCaptain(player.id)">
-              <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
-              <span><strong>{{ player.nomeExibicao }}</strong><small>{{ t('drafts.roles.captain') }}</small></span>
-            </button>
-            <p v-if="selectedPlayers.length && !selectedCaptains.length">{{ t('drafts.visualSetup.noCaptainRole') }}</p>
           </div>
         </section>
 

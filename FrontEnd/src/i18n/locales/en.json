@@ -541,11 +541,20 @@
     "kicker": "Strategy room",
     "title": "Player Draft",
     "subtitle": "Build teams with captains, pick order, and transparent history.",
-    "visualSubtitle": "Build teams visually with captains, reserves, routes, and persisted layout.",
+    "visualSubtitle": "Choose the mode and build teams with reserves, routes, and a persisted layout.",
+    "mode": {
+      "eyebrow": "Next stage",
+      "title": "Choose the draft mode",
+      "description": "Use manual assembly to place players directly, or realtime to define captains and pick order.",
+      "manual": "Manual assembly",
+      "realtime": "Realtime draft",
+      "pending": "Mode not selected"
+    },
     "rail": {
       "label": "Draft flow",
       "presenceOpen": "Presence open",
       "presenceClosed": "Presence closed",
+      "mode": "Draft mode",
       "captains": "Captains",
       "order": "Order",
       "picking": "Picks",
@@ -641,7 +650,8 @@
     "messages": {
       "layoutSaved": "Draft layout saved.",
       "captainsDrawn": "Captains drawn.",
-      "finished": "Draft finished."
+      "finished": "Draft finished.",
+      "modeSelected": "Draft mode selected."
     },
     "realtime": {
       "start": "Start realtime",
@@ -878,6 +888,7 @@
       "teamSize": "Team size",
       "players": "Players",
       "summary": "{teams} teams · {captains} captains · {reserves} reserves",
+      "manualSummary": "{teams} teams · {reserves} reserves",
       "searchPlayer": "Search player",
       "drawCaptainsAutomatically": "Draw captains automatically",
       "captainsCount": "{selected} / {total} captains",
@@ -889,6 +900,7 @@
       "saveLayout": "Save layout",
       "exportImage": "Export image",
       "finalize": "Finalize",
+      "manualIncomplete": "Place every starter and complete each team before finalizing.",
       "oddTeams": "Odd teams",
       "evenTeams": "Even teams",
       "pending": "pending",

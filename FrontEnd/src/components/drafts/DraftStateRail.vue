@@ -4,9 +4,12 @@ import { useI18n } from 'vue-i18n'
 
 import DraftRail, { type DraftRailStep } from '@/components/layout/DraftRail.vue'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
+import type { DraftMontagemCicloVersao, DraftMontagemModo } from '@/types/draftMontagem'
 
 const props = defineProps<{
   status: string
+  modo: DraftMontagemModo | null
+  cicloVersao: DraftMontagemCicloVersao
   publicationStatus?: string | null
 }>()
 
@@ -16,6 +19,7 @@ const operationalStatuses = DRAFT_MONTAGEM_STATUS_OPTIONS.filter((status) => sta
 const labels: Record<string, string> = {
   PresencaAberta: 'drafts.rail.presenceOpen',
   PresencaEncerrada: 'drafts.rail.presenceClosed',
+  Modo: 'drafts.rail.mode',
   CapitaesDefinidos: 'drafts.rail.captains',
   OrdemDefinida: 'drafts.rail.order',
   Aberta: 'drafts.rail.picking',
@@ -47,12 +51,19 @@ const steps = computed<DraftRailStep[]>(() => {
     return [step('cancelled', t('drafts.rail.cancelled'), 'terminal')]
   }
 
-  const activeIndex = operationalStatuses.findIndex((status) => status === props.status)
+  const v2 = props.cicloVersao === 'ModoPosPresenca'
+  const sequence = !v2
+    ? operationalStatuses
+    : props.modo === 'Manual'
+      ? ['PresencaAberta', 'PresencaEncerrada', 'Aberta', 'Finalizada']
+      : ['PresencaAberta', 'PresencaEncerrada', 'Modo', 'CapitaesDefinidos', 'OrdemDefinida', 'Aberta', 'Finalizada']
+  const currentId = v2 && props.modo === null && props.status === 'PresencaEncerrada' ? 'Modo' : props.status
+  const activeIndex = sequence.findIndex((status) => status === currentId)
   if (activeIndex === -1) {
     return [step('unknown', t('drafts.rail.unknown'), 'unknown')]
   }
 
-  return operationalStatuses.map((status, index) => {
+  return sequence.map((status, index) => {
     const state = (index < activeIndex ? 'done' : index === activeIndex ? status === 'Finalizada' ? 'terminal' : 'active' : 'pending') as DraftRailStep['state']
     return step(status, t(labels[status] ?? status), state, index === activeIndex)
   })

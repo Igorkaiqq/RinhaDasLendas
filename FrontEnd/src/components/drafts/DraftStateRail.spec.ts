@@ -10,9 +10,9 @@ import { i18n, setLocale } from '@/i18n'
 import DraftStateRail from './DraftStateRail.vue'
 const MainCss = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
-function mountRail(status = 'Aberta', publicationStatus: string | null = 'Pendente') {
+function mountRail(status = 'Aberta', publicationStatus: string | null = 'Pendente', modo: 'Manual' | 'TempoReal' | null = 'TempoReal', cicloVersao: 'Legado' | 'ModoPosPresenca' = 'Legado') {
   return mount(DraftStateRail, {
-    props: { status, publicationStatus },
+    props: { status, publicationStatus, modo, cicloVersao },
     global: { plugins: [i18n] },
   })
 }
@@ -80,6 +80,28 @@ describe('DraftStateRail', () => {
     const expectedIds = DRAFT_MONTAGEM_STATUS_OPTIONS.filter((status) => status !== 'Cancelada')
 
     expect(wrapper.get('ol').findAll('.draft-rail__step').map((step) => step.attributes('data-step-id'))).toEqual(expectedIds)
+  })
+
+  it('uses a shorter captain-free sequence for a v2 manual draft', () => {
+    const wrapper = mountRail('Aberta', null, 'Manual', 'ModoPosPresenca')
+
+    expect(wrapper.get('ol').findAll('.draft-rail__step').map((step) => step.attributes('data-step-id'))).toEqual([
+      'PresencaAberta',
+      'PresencaEncerrada',
+      'Aberta',
+      'Finalizada',
+    ])
+    expect(wrapper.find('[data-step-id="CapitaesDefinidos"]').exists()).toBe(false)
+    expect(wrapper.find('[data-step-id="OrdemDefinida"]').exists()).toBe(false)
+  })
+
+  it('shows mode selection as the current v2 step without changing legacy rails', () => {
+    const v2 = mountRail('PresencaEncerrada', null, null, 'ModoPosPresenca')
+    const legacy = mountRail('PresencaEncerrada', null, null, 'Legado')
+
+    expect(v2.get('[aria-current="step"]').attributes('data-step-id')).toBe('Modo')
+    expect(v2.get('[aria-current="step"]').text()).toContain('Modo do draft')
+    expect(legacy.find('[data-step-id="Modo"]').exists()).toBe(false)
   })
 
   it.each([

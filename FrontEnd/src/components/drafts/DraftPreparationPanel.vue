@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import type { DraftMontagem, DraftMontagemPresenca } from '@/types/draftMontagem'
+import { Button } from '@/components/ui/button'
+import type { DraftMontagem, DraftMontagemModo, DraftMontagemPresenca } from '@/types/draftMontagem'
 
 interface EligiblePresencePlayer {
   id: string
@@ -17,11 +18,13 @@ const props = defineProps<{
   canClosePresence: boolean
   canContinueManualPresence: boolean
   canManageManualPresence: boolean
+  canChooseMode: boolean
   canSelectCaptains: boolean
   canReopenPresence: boolean
   canDefineCaptains: boolean
   canDrawOrder: boolean
   captainSelection: readonly string[]
+  eligibleCaptainIds: readonly string[]
   manualPresenceSearch: string
   selectedManualPresencePlayerId: string
   availableManualPresencePlayers: readonly EligiblePresencePlayer[]
@@ -36,6 +39,7 @@ const emit = defineEmits<{
   'update:selectedManualPresencePlayerId': [value: string]
   'add-manual-presence': []
   'remove-manual-presence': [jogadorId: string, jogadorNome: string]
+  'choose-mode': [modo: DraftMontagemModo]
   'toggle-captain': [jogadorId: string]
   'reopen-presence': []
   'define-captains': []
@@ -153,6 +157,22 @@ function updateManualSelection(event: ControlEvent) {
       </button>
     </div>
 
+    <section v-if="canChooseMode" data-mode-choice class="draft-preparation__mode" :aria-labelledby="`draft-mode-title-${draft.id}`">
+      <div>
+        <p class="page-kicker">{{ t('drafts.mode.eyebrow') }}</p>
+        <h3 :id="`draft-mode-title-${draft.id}`">{{ t('drafts.mode.title') }}</h3>
+        <p>{{ t('drafts.mode.description') }}</p>
+      </div>
+      <div class="draft-preparation__mode-actions">
+        <Button data-testid="choose-mode-manual" type="button" variant="outline" :disabled="saving" @click="emit('choose-mode', 'Manual')">
+          {{ t('drafts.mode.manual') }}
+        </Button>
+        <Button data-testid="choose-mode-realtime" data-stage-primary-action type="button" :disabled="saving" @click="emit('choose-mode', 'TempoReal')">
+          {{ t('drafts.mode.realtime') }}
+        </Button>
+      </div>
+    </section>
+
     <ul data-presence-roster class="draft-preparation__roster" :aria-label="t('drafts.presence.rosterLabel')">
       <li
         v-for="presence in confirmedPresences"
@@ -168,7 +188,7 @@ function updateManualSelection(event: ControlEvent) {
         <span data-presence-origin class="draft-preparation__origin">{{ t(`drafts.presenceOrigin.${presence.origemConfirmacao}`) }}</span>
         <div data-presence-actions class="draft-preparation__player-actions">
           <button
-            v-if="canSelectCaptains"
+            v-if="canSelectCaptains && eligibleCaptainIds.includes(presence.jogadorId)"
             :data-testid="`toggle-captain-${presence.jogadorId}`"
             type="button"
             class="button-secondary draft-preparation__captain-toggle"
@@ -263,6 +283,27 @@ function updateManualSelection(event: ControlEvent) {
   background: var(--color-surface-2);
 }
 
+.draft-preparation__mode {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+}
+
+.draft-preparation__mode :is(h3, p) {
+  margin: 0;
+}
+
+.draft-preparation__mode-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
 .draft-preparation__manual label {
   display: grid;
   gap: var(--space-xxs);
@@ -353,6 +394,7 @@ function updateManualSelection(event: ControlEvent) {
 
 @media (max-width: 768px) {
   .draft-preparation__manual,
+  .draft-preparation__mode,
   .draft-preparation__player {
     grid-template-columns: minmax(0, 1fr);
   }

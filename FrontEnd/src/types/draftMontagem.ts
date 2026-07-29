@@ -14,6 +14,7 @@ export type DraftMontagemStatus = (typeof DraftMontagemStatusValues)[keyof typeo
 export type DraftMontagemEstado = (typeof DraftMontagemEstadoValues)[keyof typeof DraftMontagemEstadoValues]
 export type DraftMontagemRota = 'Top' | 'Jungle' | 'Mid' | 'Adc' | 'Support'
 export type DraftMontagemModo = (typeof DraftMontagemModoValues)[keyof typeof DraftMontagemModoValues]
+export type DraftMontagemCicloVersao = 'Legado' | 'ModoPosPresenca'
 export type DraftMontagemEscolhaTipo = (typeof DraftMontagemEscolhaTipoValues)[keyof typeof DraftMontagemEscolhaTipoValues]
 export type DraftMontagemOrdemEscolhaModo = (typeof DraftMontagemOrdemEscolhaModoValues)[keyof typeof DraftMontagemOrdemEscolhaModoValues]
 export type DraftMontagemPresencaStatus = (typeof DraftMontagemPresencaStatusValues)[keyof typeof DraftMontagemPresencaStatusValues]
@@ -54,7 +55,8 @@ export interface DraftMontagem {
   nome: string
   observacoes?: string | null
   status: DraftMontagemStatus
-  modo: DraftMontagemModo
+  modo: DraftMontagemModo | null
+  cicloVersao: DraftMontagemCicloVersao
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
@@ -138,6 +140,7 @@ export interface DraftMontagemAdmin extends DraftMontagem {
   substituicoes: DraftMontagemAdminSubstituicao[]
   publicacoesDiscord: DraftMontagemAdminPublicacaoDiscord[]
   acoesAdministrativas: DraftMontagemAcaoAdministrativa[]
+  capitaesElegiveisIds: string[]
   motivoCancelamento?: string | null
 }
 
@@ -145,7 +148,8 @@ export interface DraftMontagemResumo {
   id: string
   nome: string
   status: DraftMontagemStatus
-  modo: DraftMontagemModo
+  modo: DraftMontagemModo | null
+  cicloVersao: DraftMontagemCicloVersao
   tamanhoEquipe: number
   quantidadeTimes: number
   quantidadeReservas: number
@@ -207,6 +211,18 @@ export interface DraftMontagemPayload {
   discordGuildId?: string | null
   capitaesIds: string[]
   jogadoresIds: string[]
+}
+
+export interface DraftMontagemModoPayload {
+  modo: DraftMontagemModo
+}
+
+export interface DraftMontagemSubstituicaoPayload {
+  timeId: string
+  jogadorSaiuId: string
+  reservaEntrouId: string
+  novoCapitaoId?: string | null
+  motivo?: string | null
 }
 
 export interface DraftMontagemManualPresencePayload {

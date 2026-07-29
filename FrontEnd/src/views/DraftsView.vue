@@ -14,16 +14,18 @@ import PageFrame from '@/components/layout/PageFrame.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PendingPlayerProfileNotice from '@/components/users/PendingPlayerProfileNotice.vue'
 import { Button } from '@/components/ui/button'
+import { AuthRoles } from '@/constants/authRoles'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
 import { Permissions } from '@/constants/permissions'
 import { useAuthState } from '@/services/authState'
-import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
+import { listPlayers, type Player } from '@/services/players'
 import {
   addManualDraftMontagemPresence,
   archiveDraftMontagem,
   cancelDraftMontagem,
   cancelDraftMontagemPresence,
   closeDraftMontagemPresence,
+  chooseDraftMontagemMode,
   confirmDraftMontagemPresence,
   createDraftMontagem,
   defineDraftMontagemCaptains,
@@ -50,13 +52,12 @@ import {
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
 import { DraftMontagemEstadoValues, DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemModo, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
 const { locale, t, te } = useI18n()
 const route = useRoute()
 const auth = useAuthState()
-const captains = ref<Player[]>([])
 const loading = ref(true)
 const listLoadFailed = ref(false)
 const saving = ref(false)
@@ -107,6 +108,8 @@ const preparationStatuses: readonly DraftMontagemStatus[] = [
 const operationalDiscordPublicationTypes: readonly DraftMontagemPublicacaoDiscordTipo[] = ['Presenca', 'ChamadaPresenca', 'TimesDefinidos']
 const hasDraftManagementPermission = computed(() => auth.hasPermission(Permissions.CanManageDrafts))
 const canManageDrafts = computed(() => hasDraftManagementPermission.value && !adminAccessDenied.value)
+const isAdminPlus = computed(() => auth.hasRole(AuthRoles.Admin) || auth.hasRole(AuthRoles.SuperAdmin))
+const canManageDraftCycle = computed(() => canManageDrafts.value && isAdminPlus.value)
 const hasDraftArchivePermission = computed(() => auth.hasPermission(Permissions.CanArchiveDrafts))
 const canArchiveDrafts = computed(() => hasDraftArchivePermission.value && !archiveAccessDenied.value)
 const currentUserId = computed(() => auth.user.value?.id ?? null)
@@ -120,6 +123,10 @@ const myPresence = computed(
 const currentPlayerId = computed(() => currentAuthPlayerId.value ?? myPresence.value?.jogadorId ?? null)
 const hasPlayerProfile = computed(() => Boolean(currentPlayerId.value))
 const confirmedPresences = computed(() => selectedMontagem.value?.presencas.filter((presence) => presence.status === DraftMontagemPresencaStatusValues.Confirmada) ?? [])
+const eligibleCaptainIds = computed(() => (selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisIds ?? [])
+const selectableCaptainIds = computed(() => selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
+  ? eligibleCaptainIds.value
+  : confirmedPresences.value.map((presence) => presence.jogadorId))
 const availableManualPresencePlayers = computed(() => {
   const confirmed = new Set(confirmedPresences.value.map((presence) => presence.jogadorId))
   return manualPresencePlayers.value.filter((player) => !confirmed.has(player.id))
@@ -149,7 +156,11 @@ const preparationCapabilities = computed(() => {
   const presenceOpen = status === DraftMontagemStatusValues.PresencaAberta
   const presenceClosed = status === DraftMontagemStatusValues.PresencaEncerrada
   const canManageOpenPresence = operational && canManageDrafts.value && presenceOpen
-  const canSelectCaptains = operational && canManageDrafts.value && presenceClosed
+  const canSelectCaptains = operational
+    && presenceClosed
+    && (selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
+      ? canManageDraftCycle.value && selectedMontagem.value.modo === 'TempoReal'
+      : canManageDrafts.value)
 
   return {
     canConfirmPresence: operational && presenceOpen && !myPresence.value,
@@ -157,12 +168,21 @@ const preparationCapabilities = computed(() => {
     canClosePresence: canManageOpenPresence,
     canContinueManualPresence: canManageOpenPresence && confirmedPresences.value.length < 10,
     canManageManualPresence: canManageOpenPresence,
+    canChooseMode: operational
+      && canManageDraftCycle.value
+      && presenceClosed
+      && selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
+      && selectedMontagem.value.modo === null,
     canSelectCaptains,
-    canReopenPresence: canSelectCaptains,
+    canReopenPresence: operational && canManageDrafts.value && presenceClosed,
     canDefineCaptains: canSelectCaptains
       && captainSelection.value.length === selectedMontagem.value?.quantidadeTimes
-      && captainSelection.value.every((id) => confirmedPresences.value.some((presence) => presence.jogadorId === id)),
-    canDrawOrder: operational && canManageDrafts.value && status === DraftMontagemStatusValues.CapitaesDefinidos,
+      && captainSelection.value.every((id) => selectableCaptainIds.value.includes(id)),
+    canDrawOrder: operational
+      && status === DraftMontagemStatusValues.CapitaesDefinidos
+      && (selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
+        ? canManageDraftCycle.value && selectedMontagem.value.modo === 'TempoReal'
+        : canManageDrafts.value),
   }
 })
 const discordRepublishableTypes = computed<readonly DraftMontagemPublicacaoDiscordTipo[]>(() => {
@@ -195,7 +215,7 @@ const filteredDrafts = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadPlayers(), loadCaptains(), loadVisualMontagens()])
+  await Promise.all([loadPlayers(), loadVisualMontagens()])
 })
 
 onUnmounted(async () => {
@@ -213,10 +233,6 @@ async function loadPlayers() {
   } catch {
     players.value = []
   }
-}
-
-async function loadCaptains() {
-  captains.value = await listEligibleCaptains()
 }
 
 async function loadVisualMontagens() {
@@ -255,6 +271,10 @@ async function loadVisualMontagens() {
   } finally {
     if (requestVersion === listRequestVersion) loading.value = false
   }
+}
+
+function openVisualSetup() {
+  if (canManageDraftCycle.value) visualSetupOpen.value = true
 }
 
 async function openMontagemFromLink(id: string) {
@@ -381,7 +401,7 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
     applyPublicMontagemState(publicProjection)
   }
 
-  if (hasDraftManagementPermission.value && !adminAccessDenied.value) {
+  if (canManageDraftCycle.value) {
     try {
       detail = await getDraftMontagemAdminById(id)
     } catch (error) {
@@ -552,12 +572,37 @@ async function closePresence(continueWithLess = false) {
   }
 }
 
+async function chooseMode(modo: DraftMontagemModo) {
+  if (saving.value || !preparationCapabilities.value.canChooseMode) return
+  const context = beginSelectedDraftUpdate()
+  if (!context) return
+
+  let completed = false
+  saving.value = true
+  errors.value = []
+  try {
+    const montagem = await chooseDraftMontagemMode(context.draftId, modo)
+    if (await applyMutationProjection(context, montagem)) {
+      notification.value = t('drafts.messages.modeSelected')
+      completed = true
+    }
+  } catch (error) {
+    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+  } finally {
+    if (isActiveDraft(context.draftId, context.generation)) {
+      saving.value = false
+      if (completed) await restoreStageFocus()
+    }
+  }
+}
+
 function toggleCaptainSelection(jogadorId: string) {
   if (
     saving.value
-    || !canManageDrafts.value
+    || !(selectedMontagem.value?.cicloVersao === 'ModoPosPresenca' ? canManageDraftCycle.value : canManageDrafts.value)
     || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
-    || !confirmedPresences.value.some((presence) => presence.jogadorId === jogadorId)
+    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca' && selectedMontagem.value.modo !== 'TempoReal')
+    || !selectableCaptainIds.value.includes(jogadorId)
   ) return
   if (captainSelection.value.includes(jogadorId)) {
     captainSelection.value = captainSelection.value.filter((id) => id !== jogadorId)
@@ -570,10 +615,11 @@ function toggleCaptainSelection(jogadorId: string) {
 async function defineCaptains() {
   if (
     saving.value
-    || !canManageDrafts.value
+    || !(selectedMontagem.value?.cicloVersao === 'ModoPosPresenca' ? canManageDraftCycle.value : canManageDrafts.value)
     || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
+    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca' && selectedMontagem.value.modo !== 'TempoReal')
     || captainSelection.value.length !== selectedMontagem.value.quantidadeTimes
-    || captainSelection.value.some((id) => !confirmedPresences.value.some((presence) => presence.jogadorId === id))
+    || captainSelection.value.some((id) => !selectableCaptainIds.value.includes(id))
   ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
@@ -596,7 +642,14 @@ async function defineCaptains() {
 }
 
 async function drawPickOrder() {
-  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.CapitaesDefinidos) return
+  if (
+    saving.value
+    || !selectedMontagem.value
+    || selectedMontagem.value.status !== DraftMontagemStatusValues.CapitaesDefinidos
+    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca'
+      ? !canManageDraftCycle.value || selectedMontagem.value.modo !== 'TempoReal'
+      : !canManageDrafts.value)
+  ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   let completed = false
@@ -659,6 +712,7 @@ function applyMontagemState(montagem: DraftMontagem) {
           ...item,
           status: montagem.status,
           modo: montagem.modo,
+          cicloVersao: montagem.cicloVersao,
           quantidadeTimes: montagem.quantidadeTimes,
           quantidadeReservas: montagem.quantidadeReservas,
           arquivado: montagem.arquivado,
@@ -676,7 +730,7 @@ async function disconnectRealtime() {
 }
 
 async function saveMontagem(payload: DraftMontagemPayload) {
-  if (!canManageDrafts.value) {
+  if (!canManageDraftCycle.value) {
     return
   }
 
@@ -696,7 +750,7 @@ async function saveMontagem(payload: DraftMontagemPayload) {
 }
 
 async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
-  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  if (saving.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
@@ -714,7 +768,14 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
 }
 
 async function startRealtime() {
-  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  if (
+    saving.value
+    || !canManageDraftCycle.value
+    || !selectedMontagem.value
+    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca'
+      ? selectedMontagem.value.status !== DraftMontagemStatusValues.OrdemDefinida || selectedMontagem.value.modo !== 'TempoReal'
+      : selectedMontagem.value.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual')
+  ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
 
@@ -769,12 +830,12 @@ async function pickRealtime(jogadorId: string) {
   }
 }
 
-async function substituteReserve(payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }) {
+async function substituteReserve(payload: DraftMontagemSubstituicaoPayload) {
   const current = selectedMontagem.value
   const team = current?.times.find((item) => item.id === payload.timeId)
   if (
     saving.value
-    || !canManageDrafts.value
+    || !canManageDraftCycle.value
     || !current
     || current.status !== DraftMontagemStatusValues.Aberta
     || !team?.jogadores.some((player) => player.jogadorId === payload.jogadorSaiuId)
@@ -796,7 +857,7 @@ async function substituteReserve(payload: { timeId: string; jogadorSaiuId: strin
 }
 
 async function drawMontagemCaptains() {
-  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  if (saving.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
@@ -811,7 +872,7 @@ async function drawMontagemCaptains() {
 }
 
 async function finalizeMontagem() {
-  if (saving.value || !canManageDrafts.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  if (saving.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   let completed = false
@@ -1134,7 +1195,7 @@ function captureError(error: unknown) {
     <PageHeader :eyebrow="t('drafts.kicker')" :title="t('drafts.title')" :description="t('drafts.visualSubtitle')">
       <template #actions>
         <span class="page-hero__metric">{{ t('drafts.metrics.visible', { total: filteredDrafts.length }) }}</span>
-        <Button v-if="canManageDrafts" type="button" @click="visualSetupOpen = true">{{ t('drafts.createWithIcon') }}</Button>
+        <Button v-if="canManageDraftCycle" type="button" @click="openVisualSetup">{{ t('drafts.createWithIcon') }}</Button>
       </template>
     </PageHeader>
 
@@ -1154,7 +1215,7 @@ function captureError(error: unknown) {
         :loading="loading"
         :load-failed="listLoadFailed"
         :has-known-drafts="hasKnownDrafts"
-        :can-create="canManageDrafts"
+        :can-create="canManageDraftCycle"
         :can-include-archived="canArchiveDrafts"
         :include-archived="includeArchived"
         @update:search-term="searchTerm = $event"
@@ -1163,7 +1224,7 @@ function captureError(error: unknown) {
         @select="openMontagem"
         @reset="resetFilters"
         @retry="loadVisualMontagens"
-        @create="visualSetupOpen = true"
+        @create="openVisualSetup"
       />
 
       <div class="draft-main" data-draft-workspace>
@@ -1200,11 +1261,13 @@ function captureError(error: unknown) {
           :can-close-presence="preparationCapabilities.canClosePresence"
           :can-continue-manual-presence="preparationCapabilities.canContinueManualPresence"
           :can-manage-manual-presence="preparationCapabilities.canManageManualPresence"
+          :can-choose-mode="preparationCapabilities.canChooseMode"
           :can-select-captains="preparationCapabilities.canSelectCaptains"
           :can-reopen-presence="preparationCapabilities.canReopenPresence"
           :can-define-captains="preparationCapabilities.canDefineCaptains"
           :can-draw-order="preparationCapabilities.canDrawOrder"
           :captain-selection="captainSelection"
+          :eligible-captain-ids="selectableCaptainIds"
           :manual-presence-search="manualPresenceSearch"
           :selected-manual-presence-player-id="selectedManualPresencePlayerId"
           :available-manual-presence-players="availableManualPresencePlayers"
@@ -1216,6 +1279,7 @@ function captureError(error: unknown) {
           @update:selected-manual-presence-player-id="selectedManualPresencePlayerId = $event"
           @add-manual-presence="addManualPresence"
           @remove-manual-presence="requestManualPresenceRemoval"
+          @choose-mode="chooseMode"
           @toggle-captain="toggleCaptainSelection"
           @reopen-presence="requestPresenceReopen"
           @define-captains="defineCaptains"
@@ -1233,7 +1297,7 @@ function captureError(error: unknown) {
           v-if="selectedMontagem && !selectedMontagem.arquivado && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada && selectedMontagem.status !== DraftMontagemStatusValues.CapitaesDefinidos"
           :montagem="selectedMontagem"
           :saving="saving"
-          :can-manage="canManageDrafts"
+          :can-manage="canManageDraftCycle"
           :current-player-id="currentPlayerId"
           :can-current-user-pick="canCurrentUserPick"
           :server-clock-offset-ms="serverClockOffsetMs"
@@ -1270,7 +1334,6 @@ function captureError(error: unknown) {
     <DraftVisualSetup
       :open="visualSetupOpen"
       :players="players"
-      :captains="captains"
       :saving="saving"
       :errors="serviceErrors"
       @close="visualSetupOpen = false"

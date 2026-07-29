@@ -20,6 +20,7 @@ const baseDraft: DraftNavigatorItem = {
   nome: longName,
   status: 'PresencaAberta',
   modo: 'Manual',
+  cicloVersao: 'Legado',
   tamanhoEquipe: 5,
   quantidadeTimes: 2,
   quantidadeReservas: 1,

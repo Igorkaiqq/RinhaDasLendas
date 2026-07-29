@@ -614,6 +614,14 @@ describe('i18n', () => {
       'drafts.visualBoard.moveAnnouncement',
       'drafts.visualBoard.detailsFor',
       'drafts.realtime.liveStatus',
+      'drafts.mode.title',
+      'drafts.mode.manual',
+      'drafts.mode.realtime',
+      'drafts.mode.pending',
+      'drafts.rail.mode',
+      'drafts.messages.modeSelected',
+      'drafts.visualSetup.manualSummary',
+      'drafts.visualBoard.manualIncomplete',
     ]
 
     for (const path of requiredPaths) {

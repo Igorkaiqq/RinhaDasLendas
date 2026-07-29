@@ -39,6 +39,7 @@ function montagem(status: DraftMontagemStatus = 'Aberta', modo: DraftMontagem['m
     nome: 'Rinha ordenada',
     status,
     modo,
+    cicloVersao: 'Legado',
     tamanhoEquipe: 3,
     quantidadeTimes: 2,
     quantidadeReservas: 1,
@@ -181,6 +182,48 @@ describe('DraftVisualBoard', () => {
     })
     expect(draft.times[0]?.nome).toBe('Team B')
     wrapper.unmount()
+  })
+
+  it('keeps an open manual board free from captain, order, realtime, and pick-history controls', async () => {
+    const wrapper = mountBoard({ ...montagem(), cicloVersao: 'ModoPosPresenca' })
+
+    expect(wrapper.find('[data-team-captain]').exists()).toBe(false)
+    expect(wrapper.find('[data-team-order]').exists()).toBe(false)
+    expect(wrapper.find('.draft-pick-overview').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((button) => ['Sortear capitães', 'Iniciar tempo real'].includes(button.text()))).toBe(false)
+    expect(wrapper.get('[data-stage-primary-action]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-team-id="team-a"] input').setValue('Manual A')
+    await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
+    expect((wrapper.emitted('save')?.[0]?.[0] as { times: Array<{ capitaoId: string | null }> }).times.every((time) => time.capitaoId === null)).toBe(true)
+  })
+
+  it('enables manual finalization only for a complete server-shaped layout', () => {
+    const draft = montagem()
+    draft.cicloVersao = 'ModoPosPresenca'
+    draft.times.forEach((team) => {
+      team.capitaoId = null
+      team.jogadores = [
+        player(`${team.id}-1`, `${team.nome} 1`, 'Time'),
+        player(`${team.id}-2`, `${team.nome} 2`, 'Time'),
+        player(`${team.id}-3`, `${team.nome} 3`, 'Time'),
+      ]
+    })
+    draft.livres = []
+
+    const wrapper = mountBoard(draft)
+
+    expect(wrapper.get('[data-stage-primary-action]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('offers explicit realtime start only after realtime order is defined', async () => {
+    const draft = montagem('OrdemDefinida', 'TempoReal')
+    draft.cicloVersao = 'ModoPosPresenca'
+    const wrapper = mountBoard(draft)
+
+    await wrapper.get('[data-testid="start-realtime"]').trigger('click')
+
+    expect(wrapper.emitted('startRealtime')).toEqual([[]])
   })
 
   it('shows explicit team order, captains, pick progress, ordered sequence, and preferred routes', () => {

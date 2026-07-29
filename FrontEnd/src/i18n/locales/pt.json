@@ -541,11 +541,20 @@
     "kicker": "Sala de estratégia",
     "title": "Draft de Jogadores",
     "subtitle": "Monte os times com capitães, ordem de picks e histórico transparente.",
-    "visualSubtitle": "Monte os times visualmente com capitães, reservas, rotas e layout persistente.",
+    "visualSubtitle": "Escolha o modo e monte os times com reservas, rotas e layout persistente.",
+    "mode": {
+      "eyebrow": "Próxima etapa",
+      "title": "Escolha o modo do draft",
+      "description": "Use a montagem manual para distribuir os jogadores diretamente ou o tempo real para definir capitães e ordem de escolhas.",
+      "manual": "Montagem manual",
+      "realtime": "Draft em tempo real",
+      "pending": "Modo não escolhido"
+    },
     "rail": {
       "label": "Fluxo do draft",
       "presenceOpen": "Presença aberta",
       "presenceClosed": "Presença encerrada",
+      "mode": "Modo do draft",
       "captains": "Capitães",
       "order": "Ordem",
       "picking": "Escolhas",
@@ -641,7 +650,8 @@
     "messages": {
       "layoutSaved": "Layout do draft salvo.",
       "captainsDrawn": "Capitães sorteados.",
-      "finished": "Draft finalizado."
+      "finished": "Draft finalizado.",
+      "modeSelected": "Modo do draft definido."
     },
     "realtime": {
       "start": "Iniciar tempo real",
@@ -878,6 +888,7 @@
       "teamSize": "Tamanho da equipe",
       "players": "Jogadores",
       "summary": "{teams} times · {captains} capitães · {reserves} reservas",
+      "manualSummary": "{teams} times · {reserves} reservas",
       "searchPlayer": "Buscar jogador",
       "drawCaptainsAutomatically": "Sortear capitães automaticamente",
       "captainsCount": "{selected} / {total} capitães",
@@ -889,6 +900,7 @@
       "saveLayout": "Salvar layout",
       "exportImage": "Exportar imagem",
       "finalize": "Finalizar",
+      "manualIncomplete": "Distribua todos os titulares e complete os times antes de finalizar.",
       "oddTeams": "Times ímpares",
       "evenTeams": "Times pares",
       "pending": "pendente",

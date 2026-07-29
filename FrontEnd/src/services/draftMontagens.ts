@@ -9,12 +9,15 @@ import type {
   DraftMontagemArquivamentoResultado,
   DraftMontagemLayoutPayload,
   DraftMontagemManualPresencePayload,
+  DraftMontagemModo,
+  DraftMontagemModoPayload,
   DraftMontagemOrdemEscolhaModo,
   DraftMontagemPublicacaoDiscordTipo,
   DraftMontagemPayload,
   DraftMontagemRealtimeState,
   DraftMontagemResumo,
   DraftMontagemStatus,
+  DraftMontagemSubstituicaoPayload,
 } from '@/types/draftMontagem'
 
 import { api } from './api'
@@ -136,6 +139,16 @@ export async function getDraftMontagemRealtimeState(id: string): Promise<DraftMo
 export async function createDraftMontagem(payload: DraftMontagemPayload): Promise<DraftMontagem> {
   try {
     const response = await api.post<DraftMontagem>('/api/v1/draft-montagens', normalizePayload(payload))
+    return response.data
+  } catch (error) {
+    throw toDraftMontagemServiceError(error)
+  }
+}
+
+export async function chooseDraftMontagemMode(id: string, modo: DraftMontagemModo): Promise<DraftMontagem> {
+  try {
+    const payload: DraftMontagemModoPayload = { modo }
+    const response = await api.patch<DraftMontagem>(`/api/v1/draft-montagens/${encodeURIComponent(id)}/modo`, payload)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -265,7 +278,7 @@ export async function registerDraftMontagemPick(id: string, jogadorId: string): 
 
 export async function substituteDraftMontagemReserve(
   id: string,
-  payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null },
+  payload: DraftMontagemSubstituicaoPayload,
 ): Promise<DraftMontagemRealtimeState> {
   try {
     const response = await api.post<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/reservas/substituir`, normalizePayload(payload))
