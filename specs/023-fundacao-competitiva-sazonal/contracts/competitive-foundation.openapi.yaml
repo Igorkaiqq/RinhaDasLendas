@@ -1,0 +1,1775 @@
+openapi: 3.1.0
+info:
+  title: RinhaDasLendas Competitive Foundation API
+  version: 1.0.0
+  description: Contrato da feature 023 para Seasons, competições, rodadas, eventos, séries, partidas mínimas e Fearless.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /temporadas:
+    get:
+      summary: Lista Seasons
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: estado
+          schema:
+            $ref: '#/components/schemas/SeasonEstado'
+      responses:
+        '200':
+          description: Página de Seasons e contexto do calendário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Cria uma Season planejada
+      x-capability: CanManageSeasons
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSeasonRequest'
+      responses:
+        '201':
+          description: Season criada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /temporadas/{seasonId}:
+    parameters:
+      - $ref: '#/components/parameters/SeasonId'
+    get:
+      summary: Consulta uma Season histórica por ID sem filtro implícito
+      responses:
+        '200':
+          description: Season encontrada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Atualiza dados editáveis de uma Season planejada
+      x-capability: CanManageSeasons
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSeasonRequest'
+      responses:
+        '200':
+          description: Season atualizada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /temporadas/{seasonId}/aberturas:
+    post:
+      summary: Ativa a Season e encerra atomicamente a anterior
+      x-capability: CanManageSeasons
+      parameters:
+        - $ref: '#/components/parameters/SeasonId'
+        - $ref: '#/components/parameters/IfMatchCalendar'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Season ativa e calendário atualizado
+          headers:
+            ETag:
+              description: Nova versão do calendário
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /temporadas/{seasonId}/encerramentos:
+    post:
+      summary: Encerra a Season ativa
+      x-capability: CanManageSeasons
+      parameters:
+        - $ref: '#/components/parameters/SeasonId'
+        - $ref: '#/components/parameters/IfMatchCalendar'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Season encerrada
+          headers:
+            ETag:
+              description: Nova versão do calendário
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeasonDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /temporadas/{seasonId}/competicoes:
+    parameters:
+      - $ref: '#/components/parameters/SeasonId'
+    get:
+      summary: Lista competições de uma única Season
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de competições
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionPage'
+    post:
+      summary: Cria competição na Season
+      x-capability: CanManageCompetitions
+      x-resource-condition: Presidente; ou Admin antes de existir Série iniciada no escopo; SuperAdmin negado
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompetitionRequest'
+      responses:
+        '201':
+          description: Competição criada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /temporadas/{seasonId}/regras-publicadas:
+    post:
+      summary: Publica regra geral da Season para Série sem Competição
+      x-capability: CanManageCompetitions
+      x-resource-condition: Exclusivo do Presidente; VicePresidente pendente
+      parameters:
+        - $ref: '#/components/parameters/SeasonId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRulesRequest'
+      responses:
+        '201':
+          description: Versão geral publicada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RulesVersion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /competicoes:
+    get:
+      summary: Lista competições com seleção sazonal comum
+      parameters:
+        - $ref: '#/components/parameters/SeasonIds'
+        - $ref: '#/components/parameters/AllSeasons'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página com seasonsIncluidas, calendarioConfigurado e temporadaAtual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionPage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /competicoes/{competitionId}:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      summary: Consulta competição por ID
+      responses:
+        '200':
+          description: Competição e rodadas
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Atualiza competição
+      x-capability: CanManageCompetitions
+      x-resource-condition: Presidente; ou Admin antes de existir Série iniciada no escopo
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompetitionRequest'
+      responses:
+        '200':
+          description: Competição atualizada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /competicoes/{competitionId}/rodadas:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      summary: Lista rodadas ordenadas
+      responses:
+        '200':
+          description: Rodadas da competição
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Round'
+    post:
+      summary: Cria rodada
+      x-capability: CanManageCompetitions
+      x-resource-condition: Presidente; ou Admin antes de existir Série iniciada no escopo
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoundRequest'
+      responses:
+        '201':
+          description: Rodada criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Round'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /competicoes/{competitionId}/ordenacoes-rodadas:
+    post:
+      summary: Substitui atomicamente a ordem das rodadas
+      x-capability: CanManageCompetitions
+      x-resource-condition: Presidente; ou Admin antes de existir Série iniciada no escopo
+      parameters:
+        - $ref: '#/components/parameters/CompetitionId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rodadaIds]
+              properties:
+                rodadaIds:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Rodadas reordenadas
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Round'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /competicoes/{competitionId}/regras-publicadas:
+    post:
+      summary: Publica uma versão imutável de regras
+      x-capability: CanManageCompetitions
+      x-resource-condition: Exclusivo do Presidente; VicePresidente pendente
+      parameters:
+        - $ref: '#/components/parameters/CompetitionId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRulesRequest'
+      responses:
+        '201':
+          description: Versão publicada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RulesVersion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /eventos:
+    post:
+      summary: Cria evento com quatro Times e draft padrão
+      x-capability: CanManageCompetitions
+      x-resource-condition: Exclusivo do Presidente; VicePresidente pendente
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Evento criado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /eventos/{eventId}:
+    get:
+      summary: Consulta Evento e referências de Séries
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Evento encontrado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /series:
+    get:
+      summary: Lista Séries com seleção sazonal comum
+      parameters:
+        - $ref: '#/components/parameters/SeasonIds'
+        - $ref: '#/components/parameters/AllSeasons'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: tipo
+          schema:
+            $ref: '#/components/schemas/SeriesType'
+        - in: query
+          name: estado
+          schema:
+            $ref: '#/components/schemas/SeriesState'
+      responses:
+        '200':
+          description: Página de Séries e metadados sazonais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesPage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Agenda uma Série oficial ou amistosa
+      x-capability: CanManageMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSeriesRequest'
+      responses:
+        '201':
+          description: Série agendada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /series/{seriesId}:
+    get:
+      summary: Consulta Série histórica por ID sem filtro implícito
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+      responses:
+        '200':
+          description: Série, lados, placar, partidas e bloqueio Fearless
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /series/{seriesId}/inicios:
+    post:
+      summary: Inicia uma Série agendada
+      x-capability: CanManageMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Série em andamento
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /series/{seriesId}/cancelamentos:
+    post:
+      summary: Cancela Série agendada ou em andamento
+      x-capability: CanManageMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ReasonRequest'
+      responses:
+        '200':
+          description: Série cancelada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /series/{seriesId}/anulacoes:
+    post:
+      summary: Anula Série por correção auditada
+      x-capability: CanFinalizeMatches
+      x-resource-condition: Presidente/Admin; SuperAdmin somente manutenção técnica auditada; Moderador negado
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ReasonRequest'
+      responses:
+        '200':
+          description: Série anulada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /series/{seriesId}/partidas:
+    get:
+      summary: Lista Partidas da Série em ordem
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Partidas da Série
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchPage'
+    post:
+      summary: Adiciona a próxima Partida em rascunho
+      x-capability: CanManageMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Partida criada
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /series/{seriesId}/resultado:
+    get:
+      summary: Consulta resultado derivado da Série
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+      responses:
+        '200':
+          description: Placar, vencedor e elegibilidade
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesResult'
+  /series/{seriesId}/auditoria:
+    get:
+      summary: Consulta trilha competitiva sensível
+      x-capability: CanViewCompetitiveAudit
+      x-resource-condition: SuperAdmin/Presidente; Admin somente Série ou Partida; demais negados
+      parameters:
+        - $ref: '#/components/parameters/SeriesId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de registros auditáveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /partidas/{matchId}:
+    get:
+      summary: Consulta Partida histórica por ID
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: Partida mínima, picks e resultado
+          headers:
+            ETag:
+              description: Versão do agregado Série que contém a Partida
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /partidas/{matchId}/picks:
+    post:
+      summary: Registra ou substitui picks do rascunho
+      x-capability: CanManageMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPicksRequest'
+      responses:
+        '200':
+          description: Picks e bloqueio Fearless resultante
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMutationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /partidas/{matchId}/resultados:
+    post:
+      summary: Confirma vencedor e conclui a Série quando atingido o limite
+      x-capability: CanFinalizeMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmResultRequest'
+      responses:
+        '200':
+          description: Resultado da Partida e placar atualizado
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMutationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /partidas/{matchId}/remakes:
+    post:
+      summary: Marca remake e decide o tratamento dos picks
+      x-capability: CanFinalizeMatches
+      x-resource-condition: Presidente/Admin; Moderador somente DiariaTemporaria ou Amistoso; SuperAdmin negado no fluxo normal
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemakeRequest'
+      responses:
+        '200':
+          description: Partida marcada como remake
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMutationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /partidas/{matchId}/anulacoes:
+    post:
+      summary: Anula uma Partida com justificativa
+      x-capability: CanFinalizeMatches
+      x-resource-condition: Presidente/Admin; SuperAdmin somente manutenção técnica auditada; Moderador negado
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnulMatchRequest'
+      responses:
+        '200':
+          description: Partida anulada e projeções reconstruídas
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMutationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /partidas/{matchId}/correcoes:
+    post:
+      summary: Corrige picks ou resultado preservando antes/depois
+      x-capability: CanFinalizeMatches
+      x-resource-condition: Presidente/Admin; SuperAdmin somente manutenção técnica auditada; Moderador negado
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectMatchRequest'
+      responses:
+        '200':
+          description: Nova versão e conflitos Fearless derivados
+          headers:
+            ETag:
+              description: Nova versão da Série
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMutationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auditoria-competitiva:
+    get:
+      summary: Consulta auditoria por tipo e ID de recurso
+      x-capability: CanViewCompetitiveAudit
+      x-resource-condition: SuperAdmin/Presidente para todos; Admin somente Serie ou Partida; demais negados
+      parameters:
+        - in: query
+          name: recursoTipo
+          required: true
+          schema:
+            type: string
+            enum: [Calendario, Season, Competicao, Rodada, VersaoRegras, Evento, Serie, Partida]
+        - in: query
+          name: recursoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de auditoria sem filtro sazonal implícito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  headers:
+    ETag:
+      description: Versão fraca do recurso, por exemplo W/"7"
+      schema:
+        type: string
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      in: query
+      name: pageSize
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SeasonIds:
+      in: query
+      name: temporadaIds
+      description: Repetível; mutuamente exclusivo com todas=true
+      schema:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          format: uuid
+      explode: true
+    AllSeasons:
+      in: query
+      name: todas
+      schema:
+        type: boolean
+        default: false
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 100
+    IfMatch:
+      in: header
+      name: If-Match
+      required: true
+      description: ETag do recurso; em toda rota de Partida, é a ETag do agregado Série
+      schema:
+        type: string
+    IfMatchCalendar:
+      in: header
+      name: If-Match
+      required: true
+      description: ETag do CalendarioCompetitivo, não da Season alvo
+      schema:
+        type: string
+    SeasonId:
+      in: path
+      name: seasonId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CompetitionId:
+      in: path
+      name: competitionId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EventId:
+      in: path
+      name: eventId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SeriesId:
+      in: path
+      name: seriesId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MatchId:
+      in: path
+      name: matchId
+      required: true
+      schema:
+        type: string
+        format: uuid
+  requestBodies:
+    ReasonRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [justificativa]
+            properties:
+              justificativa:
+                type: string
+                minLength: 1
+                maxLength: 500
+  responses:
+    ValidationError:
+      description: Entrada inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Não autenticado
+    Forbidden:
+      description: Capacidade ausente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Recurso inexistente ou oculto
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Estado, versão ou chave idempotente conflitante
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [message, messageCode, errors]
+      properties:
+        message:
+          type: string
+        messageCode:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+    SeasonEstado:
+      type: string
+      enum: [Planejada, Ativa, Encerrada]
+    SeriesType:
+      type: string
+      enum: [DiariaTemporaria, ConfrontoOficial, Amistoso]
+    SeriesState:
+      type: string
+      enum: [Agendada, EmAndamento, Concluida, Cancelada, Anulada]
+    SeriesFormat:
+      type: string
+      enum: [Md3, Md5]
+    DraftMode:
+      type: string
+      enum: [Padrao, Fearless]
+    CreateSeasonRequest:
+      type: object
+      additionalProperties: false
+      required: [nome, ano, ordemNoAno, dataInicio, dataFimExclusiva]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        ano:
+          type: integer
+          minimum: 2009
+          maximum: 9999
+        ordemNoAno:
+          type: integer
+          minimum: 1
+        dataInicio:
+          type: string
+          format: date
+        dataFimExclusiva:
+          type: string
+          format: date
+    UpdateSeasonRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        ano:
+          type: integer
+          minimum: 2009
+          maximum: 9999
+        ordemNoAno:
+          type: integer
+          minimum: 1
+        dataInicio:
+          type: string
+          format: date
+        dataFimExclusiva:
+          type: string
+          format: date
+    SeasonSummary:
+      type: object
+      required: [id, nome, ano, ordemNoAno, dataInicio, dataFimExclusiva, estado, versao]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        ano:
+          type: integer
+        ordemNoAno:
+          type: integer
+        dataInicio:
+          type: string
+          format: date
+        dataFimExclusiva:
+          type: string
+          format: date
+        estado:
+          $ref: '#/components/schemas/SeasonEstado'
+        versao:
+          type: integer
+          format: int64
+    SeasonDetail:
+      allOf:
+        - $ref: '#/components/schemas/SeasonSummary'
+        - type: object
+          required: [quantidadeCompeticoes]
+          properties:
+            quantidadeCompeticoes:
+              type: integer
+              minimum: 0
+            ativadaEm:
+              type: [string, 'null']
+              format: date-time
+            encerradaEm:
+              type: [string, 'null']
+              format: date-time
+            acoesPermitidas:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+    SeasonPage:
+      type: object
+      required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, temporadaAtual, versaoCalendario]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeasonSummary'
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+        calendarioConfigurado:
+          type: boolean
+        temporadaAtual:
+          oneOf:
+            - $ref: '#/components/schemas/SeasonSummary'
+            - type: 'null'
+        versaoCalendario:
+          type: integer
+          format: int64
+    CreateCompetitionRequest:
+      type: object
+      additionalProperties: false
+      required: [nome, codigo, circuitoDiario]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigo:
+          type: string
+          minLength: 1
+          maxLength: 40
+        circuitoDiario:
+          type: boolean
+    UpdateCompetitionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigo:
+          type: string
+          minLength: 1
+          maxLength: 40
+        circuitoDiario:
+          type: boolean
+    CreateRoundRequest:
+      type: object
+      additionalProperties: false
+      required: [nome, ordem]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 80
+        ordem:
+          type: integer
+          minimum: 1
+    PublishRulesRequest:
+      type: object
+      additionalProperties: false
+      required: [formato, modoDraft]
+      properties:
+        formato:
+          $ref: '#/components/schemas/SeriesFormat'
+        modoDraft:
+          $ref: '#/components/schemas/DraftMode'
+    CreateEventRequest:
+      type: object
+      additionalProperties: false
+      required: [seasonId, nome, timeIds]
+      properties:
+        seasonId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        timeIds:
+          type: array
+          minItems: 4
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    CreateSeriesRequest:
+      type: object
+      additionalProperties: false
+      required: [seasonId, versaoRegrasId, tipo, agendadaPara, ladoOrigemIds]
+      properties:
+        seasonId:
+          type: string
+          format: uuid
+        competicaoId:
+          type: [string, 'null']
+          format: uuid
+        rodadaId:
+          type: [string, 'null']
+          format: uuid
+        versaoRegrasId:
+          type: string
+          format: uuid
+        eventoId:
+          type: [string, 'null']
+          format: uuid
+        tipo:
+          $ref: '#/components/schemas/SeriesType'
+        agendadaPara:
+          type: string
+          format: date-time
+          description: A data em America/Sao_Paulo deve pertencer ao período da Season
+        dataLocal:
+          type: [string, 'null']
+          format: date
+          description: Em DiariaTemporaria, deve ser igual à data local derivada de agendadaPara
+        draftMontagemId:
+          type: [string, 'null']
+          format: uuid
+        ladoOrigemIds:
+          type: array
+          minItems: 2
+          maxItems: 2
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    RegisterPicksRequest:
+      type: object
+      additionalProperties: false
+      required: [lados]
+      properties:
+        lados:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: object
+            additionalProperties: false
+            required: [ladoSerieId, championIds]
+            properties:
+              ladoSerieId:
+                type: string
+                format: uuid
+              championIds:
+                type: array
+                minItems: 5
+                maxItems: 5
+                uniqueItems: true
+                items:
+                  type: integer
+                  minimum: 1
+    ConfirmResultRequest:
+      type: object
+      additionalProperties: false
+      required: [ladoVencedorId, motivoTermino]
+      properties:
+        ladoVencedorId:
+          type: string
+          format: uuid
+        motivoTermino:
+          type: string
+          enum: [Normal, Surrender]
+    RemakeRequest:
+      type: object
+      additionalProperties: false
+      required: [decisaoPicks, justificativa]
+      properties:
+        decisaoPicks:
+          type: string
+          enum: [PreservarPicks, DesconsiderarPicks]
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 500
+    AnnulMatchRequest:
+      type: object
+      additionalProperties: false
+      required: [justificativa, anularSerieSeInconclusiva]
+      properties:
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 500
+        anularSerieSeInconclusiva:
+          type: boolean
+          description: Deve ser true quando anular a Partida remover a condição de vitória de Série concluída
+    CorrectMatchRequest:
+      type: object
+      additionalProperties: false
+      required: [justificativa]
+      anyOf:
+        - required: [lados]
+        - required: [ladoVencedorId, motivoTermino]
+      properties:
+        lados:
+          $ref: '#/components/schemas/RegisterPicksRequest/properties/lados'
+        ladoVencedorId:
+          type: string
+          format: uuid
+        motivoTermino:
+          type: string
+          enum: [Normal, Surrender]
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 500
+        anularSerieSeInconclusiva:
+          type: boolean
+          default: false
+          description: Deve ser true para correção de Série concluída que remova a condição de vitória
+    CompetitionDetail:
+      type: object
+      required: [id, seasonId, nome, codigo, circuitoDiario, rodadas, regrasPublicadas, versao]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seasonId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        codigo:
+          type: string
+        circuitoDiario:
+          type: boolean
+        rodadas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Round'
+        regrasPublicadas:
+          type: array
+          items:
+            $ref: '#/components/schemas/RulesVersion'
+        versao:
+          type: integer
+          format: int64
+        acoesPermitidas:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+    CompetitionPage:
+      type: object
+      required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, seasonsIncluidas]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompetitionDetail'
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+        calendarioConfigurado:
+          type: boolean
+        temporadaAtual:
+          oneOf:
+            - $ref: '#/components/schemas/SeasonSummary'
+            - type: 'null'
+        seasonsIncluidas:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeasonSummary'
+    Round:
+      type: object
+      required: [id, competicaoId, nome, ordem, versao]
+      properties:
+        id:
+          type: string
+          format: uuid
+        competicaoId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        ordem:
+          type: integer
+          minimum: 1
+        versao:
+          type: integer
+          format: int64
+    RulesVersion:
+      type: object
+      required: [id, seasonId, numero, formato, modoDraft, publicadaEm]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seasonId:
+          type: string
+          format: uuid
+        competicaoId:
+          type: [string, 'null']
+          format: uuid
+        numero:
+          type: integer
+          minimum: 1
+        formato:
+          $ref: '#/components/schemas/SeriesFormat'
+        modoDraft:
+          $ref: '#/components/schemas/DraftMode'
+        publicadaEm:
+          type: string
+          format: date-time
+    EventDetail:
+      type: object
+      required: [id, seasonId, nome, modoDraft, times, serieIds, versao]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seasonId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        modoDraft:
+          type: string
+          const: Padrao
+        times:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/SideSnapshot'
+        serieIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        versao:
+          type: integer
+          format: int64
+        acoesPermitidas:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+    SideSnapshot:
+      type: object
+      required: [id, tipo, origemId, nome]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [Temporario, TimeOficial]
+        origemId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        tag:
+          type: [string, 'null']
+        capitaoJogadorId:
+          type: [string, 'null']
+          format: uuid
+    SeriesDetail:
+      type: object
+      required: [id, seasonId, versaoRegrasId, tipo, formato, modoDraft, estado, lados, placar, partidas, bloqueiosFearless, elegivelOficial, revisaoNecessaria, versao]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seasonId:
+          type: string
+          format: uuid
+        competicaoId:
+          type: [string, 'null']
+          format: uuid
+        rodadaId:
+          type: [string, 'null']
+          format: uuid
+        versaoRegrasId:
+          type: string
+          format: uuid
+        eventoId:
+          type: [string, 'null']
+          format: uuid
+        tipo:
+          $ref: '#/components/schemas/SeriesType'
+        formato:
+          $ref: '#/components/schemas/SeriesFormat'
+        modoDraft:
+          $ref: '#/components/schemas/DraftMode'
+        estado:
+          $ref: '#/components/schemas/SeriesState'
+        agendadaPara:
+          type: string
+          format: date-time
+        lados:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/SideSnapshot'
+        placar:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: integer
+            minimum: 0
+        partidas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchDetail'
+        bloqueiosFearless:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+        elegivelOficial:
+          type: boolean
+        revisaoNecessaria:
+          type: boolean
+        versao:
+          type: integer
+          format: int64
+        acoesPermitidas:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+    SeriesPage:
+      type: object
+      required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, seasonsIncluidas]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesDetail'
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+        calendarioConfigurado:
+          type: boolean
+        temporadaAtual:
+          oneOf:
+            - $ref: '#/components/schemas/SeasonSummary'
+            - type: 'null'
+        seasonsIncluidas:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeasonSummary'
+    MatchDetail:
+      type: object
+      required: [id, serieId, ordem, estado, picks, conflitoFearless]
+      properties:
+        id:
+          type: string
+          format: uuid
+        serieId:
+          type: string
+          format: uuid
+        ordem:
+          type: integer
+          minimum: 1
+        estado:
+          type: string
+          enum: [Rascunho, Confirmada, Remake, Anulada]
+        ladoVencedorId:
+          type: [string, 'null']
+          format: uuid
+        motivoTermino:
+          type: [string, 'null']
+          enum: [Normal, Surrender, null]
+        decisaoPicksRemake:
+          type: [string, 'null']
+          enum: [PreservarPicks, DesconsiderarPicks, null]
+        picks:
+          type: array
+          items:
+            type: object
+            required: [ladoSerieId, championId, ordem]
+            properties:
+              ladoSerieId:
+                type: string
+                format: uuid
+              championId:
+                type: integer
+                minimum: 1
+              ordem:
+                type: integer
+                minimum: 1
+                maximum: 5
+        conflitoFearless:
+          type: boolean
+        acoesPermitidas:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+    MatchPage:
+      type: object
+      required: [page, pageSize, items, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchDetail'
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    SeriesResult:
+      type: object
+      required: [serieId, placar, concluida, elegivelOficial]
+      properties:
+        serieId:
+          type: string
+          format: uuid
+        placar:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: integer
+        ladoVencedorId:
+          type: [string, 'null']
+          format: uuid
+        concluida:
+          type: boolean
+        elegivelOficial:
+          type: boolean
+    MatchMutationResult:
+      type: object
+      required: [partida, resultadoSerie, bloqueiosFearless, revisaoNecessaria]
+      properties:
+        partida:
+          $ref: '#/components/schemas/MatchDetail'
+        resultadoSerie:
+          $ref: '#/components/schemas/SeriesResult'
+        bloqueiosFearless:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+        revisaoNecessaria:
+          type: boolean
+    AuditRecord:
+      type: object
+      required: [id, recursoTipo, recursoId, acao, atorUsuarioId, capacidade, ocorridoEm]
+      properties:
+        id:
+          type: string
+          format: uuid
+        recursoTipo:
+          type: string
+        recursoId:
+          type: string
+          format: uuid
+        acao:
+          type: string
+        atorUsuarioId:
+          type: string
+          format: uuid
+        capacidade:
+          type: string
+        justificativa:
+          type: [string, 'null']
+        valorAnterior:
+          type: [object, 'null']
+        valorPosterior:
+          type: [object, 'null']
+        ocorridoEm:
+          type: string
+          format: date-time
+    AuditPage:
+      type: object
+      required: [page, pageSize, items, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditRecord'
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
