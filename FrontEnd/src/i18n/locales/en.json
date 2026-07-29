@@ -884,6 +884,7 @@
     "visualSetup": {
       "eyebrow": "Draft",
       "title": "New draft",
+      "description": "Configure presence and select the players for this rinha.",
       "namePlaceholder": "Multi-team rinha",
       "teamSize": "Team size",
       "players": "Players",

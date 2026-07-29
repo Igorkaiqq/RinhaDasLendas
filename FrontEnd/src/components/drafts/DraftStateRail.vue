@@ -57,7 +57,9 @@ const steps = computed<DraftRailStep[]>(() => {
     : props.modo === 'Manual'
       ? ['PresencaAberta', 'PresencaEncerrada', 'Aberta', 'Finalizada']
       : ['PresencaAberta', 'PresencaEncerrada', 'Modo', 'CapitaesDefinidos', 'OrdemDefinida', 'Aberta', 'Finalizada']
-  const currentId = v2 && props.modo === null && props.status === 'PresencaEncerrada' ? 'Modo' : props.status
+  const currentId = v2 && props.status === 'PresencaEncerrada'
+    ? props.modo === null ? 'Modo' : props.modo === 'TempoReal' ? 'CapitaesDefinidos' : props.status
+    : props.status
   const activeIndex = sequence.findIndex((status) => status === currentId)
   if (activeIndex === -1) {
     return [step('unknown', t('drafts.rail.unknown'), 'unknown')]

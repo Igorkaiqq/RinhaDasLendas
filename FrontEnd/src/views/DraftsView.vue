@@ -158,9 +158,8 @@ const preparationCapabilities = computed(() => {
   const canManageOpenPresence = operational && canManageDrafts.value && presenceOpen
   const canSelectCaptains = operational
     && presenceClosed
-    && (selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
-      ? canManageDraftCycle.value && selectedMontagem.value.modo === 'TempoReal'
-      : canManageDrafts.value)
+    && canManageDraftCycle.value
+    && (selectedMontagem.value?.cicloVersao !== 'ModoPosPresenca' || selectedMontagem.value.modo === 'TempoReal')
 
   return {
     canConfirmPresence: operational && presenceOpen && !myPresence.value,
@@ -180,11 +179,30 @@ const preparationCapabilities = computed(() => {
       && captainSelection.value.every((id) => selectableCaptainIds.value.includes(id)),
     canDrawOrder: operational
       && status === DraftMontagemStatusValues.CapitaesDefinidos
-      && (selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
-        ? canManageDraftCycle.value && selectedMontagem.value.modo === 'TempoReal'
-        : canManageDrafts.value),
+      && canManageDraftCycle.value
+      && (selectedMontagem.value?.cicloVersao !== 'ModoPosPresenca' || selectedMontagem.value.modo === 'TempoReal'),
   }
 })
+
+watch(
+  [
+    selectableCaptainIds,
+    canManageDraftCycle,
+    () => selectedMontagem.value?.status,
+    () => selectedMontagem.value?.modo,
+    () => selectedMontagem.value?.cicloVersao,
+  ],
+  ([selectableIds, canManageCycle, status, modo, cicloVersao]) => {
+    const canSelect = canManageCycle
+      && status === DraftMontagemStatusValues.PresencaEncerrada
+      && (cicloVersao !== 'ModoPosPresenca' || modo === 'TempoReal')
+    const reconciled = canSelect
+      ? captainSelection.value.filter((id) => selectableIds.includes(id))
+      : []
+    if (reconciled.length !== captainSelection.value.length) captainSelection.value = reconciled
+  },
+  { flush: 'sync' },
+)
 const discordRepublishableTypes = computed<readonly DraftMontagemPublicacaoDiscordTipo[]>(() => {
   if (selectedMontagem.value?.arquivado) {
     const status = discordPublicationStatus('Cancelamento')
@@ -599,7 +617,7 @@ async function chooseMode(modo: DraftMontagemModo) {
 function toggleCaptainSelection(jogadorId: string) {
   if (
     saving.value
-    || !(selectedMontagem.value?.cicloVersao === 'ModoPosPresenca' ? canManageDraftCycle.value : canManageDrafts.value)
+    || !canManageDraftCycle.value
     || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
     || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca' && selectedMontagem.value.modo !== 'TempoReal')
     || !selectableCaptainIds.value.includes(jogadorId)
@@ -615,7 +633,7 @@ function toggleCaptainSelection(jogadorId: string) {
 async function defineCaptains() {
   if (
     saving.value
-    || !(selectedMontagem.value?.cicloVersao === 'ModoPosPresenca' ? canManageDraftCycle.value : canManageDrafts.value)
+    || !canManageDraftCycle.value
     || selectedMontagem.value?.status !== DraftMontagemStatusValues.PresencaEncerrada
     || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca' && selectedMontagem.value.modo !== 'TempoReal')
     || captainSelection.value.length !== selectedMontagem.value.quantidadeTimes
@@ -646,9 +664,8 @@ async function drawPickOrder() {
     saving.value
     || !selectedMontagem.value
     || selectedMontagem.value.status !== DraftMontagemStatusValues.CapitaesDefinidos
-    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca'
-      ? !canManageDraftCycle.value || selectedMontagem.value.modo !== 'TempoReal'
-      : !canManageDrafts.value)
+    || !canManageDraftCycle.value
+    || (selectedMontagem.value.cicloVersao === 'ModoPosPresenca' && selectedMontagem.value.modo !== 'TempoReal')
   ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
@@ -872,7 +889,18 @@ async function drawMontagemCaptains() {
 }
 
 async function finalizeMontagem() {
-  if (saving.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  const current = selectedMontagem.value
+  if (
+    saving.value
+    || !canManageDraftCycle.value
+    || current?.status !== DraftMontagemStatusValues.Aberta
+    || current.modo !== 'Manual'
+    || (current.cicloVersao === 'ModoPosPresenca' && !(
+      current.times.length === current.quantidadeTimes
+      && current.times.every((team) => team.jogadores.length === current.tamanhoEquipe)
+      && current.livres.length === 0
+    ))
+  ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   let completed = false

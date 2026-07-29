@@ -198,6 +198,19 @@ describe('DraftVisualBoard', () => {
     expect((wrapper.emitted('save')?.[0]?.[0] as { times: Array<{ capitaoId: string | null }> }).times.every((time) => time.capitaoId === null)).toBe(true)
   })
 
+  it.each(['Finalizada', 'Cancelada'] as const)('keeps a terminal v2 manual board captain-free and read-only when %s', (status) => {
+    const wrapper = mountBoard({ ...montagem(status), cicloVersao: 'ModoPosPresenca' })
+
+    expect(wrapper.find('[data-team-captain]').exists()).toBe(false)
+    expect(wrapper.find('[data-team-order]').exists()).toBe(false)
+    expect(wrapper.find('.draft-slot__captain').exists()).toBe(false)
+    expect(wrapper.find('.draft-pick-overview').exists()).toBe(false)
+    expect(wrapper.find('.draft-team__header input').exists()).toBe(false)
+    expect(wrapper.find('[draggable="true"]').exists()).toBe(false)
+    expect(wrapper.find('[data-move-destination]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('enables manual finalization only for a complete server-shaped layout', () => {
     const draft = montagem()
     draft.cicloVersao = 'ModoPosPresenca'

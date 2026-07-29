@@ -2,6 +2,11 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import type { Player } from '@/services/players'
 import type { DraftMontagemPayload } from '@/types/draftMontagem'
 
@@ -50,39 +55,43 @@ function submit() {
     jogadoresIds: form.jogadoresIds,
   })
 }
+
+function setOpen(open: boolean) {
+  if (!open && !props.saving) emit('close')
+}
 </script>
 
 <template>
-  <div v-if="open" class="player-modal-backdrop" role="presentation">
-    <section class="player-modal draft-create-modal" role="dialog" aria-modal="true" aria-labelledby="draft-visual-title">
-      <header class="player-modal__header">
+  <Dialog :open="open" @update:open="setOpen">
+    <DialogContent class="draft-create-modal sm:max-w-[1040px]">
+      <DialogHeader class="player-modal__header">
         <div>
           <span class="eyebrow">{{ t('drafts.visualSetup.eyebrow') }}</span>
-          <h2 id="draft-visual-title">{{ t('drafts.visualSetup.title') }}</h2>
+          <DialogTitle>{{ t('drafts.visualSetup.title') }}</DialogTitle>
+          <DialogDescription>{{ t('drafts.visualSetup.description') }}</DialogDescription>
         </div>
-        <button type="button" :aria-label="t('common.close')" @click="emit('close')">×</button>
-      </header>
+      </DialogHeader>
 
-      <form class="player-form draft-create-form" @submit.prevent="submit">
+      <form id="draft-create-form" class="player-form draft-create-form" @submit.prevent="submit">
         <div v-if="errors.length" class="form-errors" role="alert">
           <p v-for="error in errors" :key="error">{{ error }}</p>
         </div>
-        <label class="player-form__field">
-          {{ t('drafts.createModal.name') }}
-          <input v-model="form.nome" required :placeholder="t('drafts.visualSetup.namePlaceholder')" />
-        </label>
-        <label class="player-form__field">
-          {{ t('drafts.visualSetup.teamSize') }}
-          <input v-model.number="form.tamanhoEquipe" type="number" min="1" max="5" />
-        </label>
-        <label class="player-form__field">
-          {{ t('drafts.presence.closeAt') }}
-          <input v-model="form.horarioEncerramentoPresenca" type="datetime-local" />
-        </label>
-        <label class="player-form__field player-form__field--wide">
-          {{ t('drafts.createModal.notes') }}
-          <textarea v-model="form.observacoes" rows="2" />
-        </label>
+        <Field class="player-form__field">
+          <FieldLabel for="draft-name">{{ t('drafts.createModal.name') }}</FieldLabel>
+          <Input id="draft-name" v-model="form.nome" name="draftName" autocomplete="off" required :placeholder="t('drafts.visualSetup.namePlaceholder')" />
+        </Field>
+        <Field class="player-form__field">
+          <FieldLabel for="draft-team-size">{{ t('drafts.visualSetup.teamSize') }}</FieldLabel>
+          <Input id="draft-team-size" :model-value="form.tamanhoEquipe" name="draftTeamSize" type="number" min="1" max="5" @update:model-value="form.tamanhoEquipe = Number($event)" />
+        </Field>
+        <Field class="player-form__field">
+          <FieldLabel for="draft-presence-close">{{ t('drafts.presence.closeAt') }}</FieldLabel>
+          <Input id="draft-presence-close" v-model="form.horarioEncerramentoPresenca" name="draftPresenceClose" type="datetime-local" />
+        </Field>
+        <Field class="player-form__field player-form__field--wide">
+          <FieldLabel for="draft-notes">{{ t('drafts.createModal.notes') }}</FieldLabel>
+          <Textarea id="draft-notes" v-model="form.observacoes" name="draftNotes" rows="2" />
+        </Field>
 
         <section class="draft-player-picker player-form__field--wide">
           <div class="draft-player-picker__header">
@@ -94,24 +103,24 @@ function submit() {
           </div>
           <label class="draft-search-field">
             <span aria-hidden="true">⌕</span>
-            <input v-model="search" type="search" :placeholder="t('drafts.visualSetup.searchPlayer')" />
+            <Input v-model="search" name="draftPlayerSearch" type="search" :aria-label="t('drafts.visualSetup.searchPlayer')" :placeholder="t('drafts.visualSetup.searchPlayer')" />
           </label>
           <div class="draft-player-picker__grid">
-            <button v-for="player in filteredPlayers" :key="player.id" type="button" class="draft-player-option" :class="{ 'is-selected': form.jogadoresIds.includes(player.id) }" @click="togglePlayer(player.id)">
-              <span class="draft-slot__avatar">{{ player.nomeExibicao.charAt(0) }}</span>
+            <Button v-for="player in filteredPlayers" :key="player.id" type="button" variant="outline" class="draft-player-option" :class="{ 'is-selected': form.jogadoresIds.includes(player.id) }" :aria-pressed="form.jogadoresIds.includes(player.id)" @click="togglePlayer(player.id)">
+              <span class="draft-slot__avatar" aria-hidden="true">{{ player.nomeExibicao.charAt(0) }}</span>
               <span>
                 <strong>{{ player.nomeExibicao }}</strong>
                 <small>{{ player.elo ? `${player.elo} ${player.divisao ?? ''}` : t('common.eloNotInformed') }}</small>
               </span>
-            </button>
+            </Button>
           </div>
         </section>
 
-        <footer class="player-modal__actions">
-          <button type="button" class="button-secondary" @click="emit('close')">{{ t('common.cancel') }}</button>
-          <button type="submit" :disabled="saving || !canSubmit">{{ saving ? t('drafts.createModal.creating') : t('drafts.createModal.submit') }}</button>
-        </footer>
+        <DialogFooter class="player-modal__actions">
+          <Button type="button" variant="outline" :disabled="saving" @click="setOpen(false)">{{ t('common.cancel') }}</Button>
+          <Button type="submit" :disabled="saving || !canSubmit">{{ saving ? t('drafts.createModal.creating') : t('drafts.createModal.submit') }}</Button>
+        </DialogFooter>
       </form>
-    </section>
-  </div>
+    </DialogContent>
+  </Dialog>
 </template>

@@ -2,7 +2,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
@@ -45,7 +45,13 @@ const serviceMocks = vi.hoisted(() => ({
   startDraftMontagemRealtime: vi.fn(),
   substituteDraftMontagemReserve: vi.fn(),
 }))
-const authMock = vi.hoisted(() => ({ canManageDrafts: true, canArchiveDrafts: true, jogadorId: null as string | null, roles: ['Admin'] as string[] }))
+const authMock = vi.hoisted(() => ({
+  canManageDrafts: true,
+  canArchiveDrafts: true,
+  jogadorId: null as string | null,
+  roles: ['Admin'] as string[],
+  rolesRef: null as unknown as { value: string[] },
+}))
 const routeMock = vi.hoisted(() => ({ query: {} as Record<string, string> }))
 const realtimeMock = vi.hoisted(() => ({
   handlers: new Map<string, (state: DraftMontagemRealtimeState) => void | Promise<void>>(),
@@ -57,11 +63,15 @@ const realtimeMock = vi.hoisted(() => ({
 vi.mock('vue-router', () => ({ useRoute: () => routeMock }))
 
 vi.mock('@/services/authState', () => ({
-  useAuthState: () => ({
-    user: ref({ id: 'organizador-1', jogadorId: authMock.jogadorId, roles: authMock.roles }),
+  useAuthState: () => {
+    const roles = ref(authMock.roles)
+    authMock.rolesRef = roles
+    return {
+    user: computed(() => ({ id: 'organizador-1', jogadorId: authMock.jogadorId, roles: roles.value })),
     hasPermission: (permission: string) => permission === 'CanArchiveDrafts' ? authMock.canArchiveDrafts : authMock.canManageDrafts,
-    hasRole: (role: string) => authMock.roles.includes(role),
-  }),
+    hasRole: (role: string) => roles.value.includes(role),
+  }
+  },
 }))
 
 vi.mock('@/services/players', () => ({
@@ -349,6 +359,7 @@ describe('DraftsView reason actions', () => {
     authMock.canArchiveDrafts = true
     authMock.jogadorId = null
     authMock.roles = ['Admin']
+    if (authMock.rolesRef) authMock.rolesRef.value = ['Admin']
     routeMock.query = {}
     realtimeMock.handlers.clear()
     realtimeMock.archivedHandlers.clear()
@@ -1540,7 +1551,7 @@ describe('DraftsView reason actions', () => {
 
     ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
     panel.vm.$emit('toggle-captain', 'jogador-1')
-    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1'])
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual([])
     wrapper.unmount()
   })
 
@@ -1709,6 +1720,7 @@ describe('DraftsView reason actions', () => {
 
   it('requires an explicit Admin+ role for cycle actions even with CanManageDrafts', async () => {
     authMock.roles = ['Moderador']
+    if (authMock.rolesRef) authMock.rolesRef.value = ['Moderador']
     const waiting = { ...montagem, status: 'PresencaEncerrada' as const, modo: null, cicloVersao: 'ModoPosPresenca' as const }
     serviceMocks.getDraftMontagemById.mockResolvedValue(waiting)
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: waiting, canCurrentUserPick: false })
@@ -1721,6 +1733,45 @@ describe('DraftsView reason actions', () => {
     panel.vm.$emit('choose-mode', 'Manual')
     await flushPromises()
     expect(serviceMocks.chooseDraftMontagemMode).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('denies every legacy cycle operation to Moderador even with CanManageDrafts', async () => {
+    authMock.roles = ['Moderador']
+    if (authMock.rolesRef) authMock.rolesRef.value = ['Moderador']
+    const secondPresence = { ...montagem.presencas[0]!, id: 'presenca-2', jogadorId: 'jogador-2', ordemConfirmacao: 2 }
+    const closed = { ...montagem, status: 'PresencaEncerrada' as const, presencas: [...montagem.presencas, secondPresence] }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(closed)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: closed, canCurrentUserPick: false })
+    const wrapper = await mountView()
+    const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+
+    expect(panel.props('canSelectCaptains')).toBe(false)
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    panel.vm.$emit('define-captains')
+    panel.vm.$emit('draw-order')
+
+    const open = { ...closed, status: 'Aberta' as const, modo: 'Manual' as const }
+    serviceMocks.getDraftMontagemById.mockResolvedValue(open)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({ montagem: open, canCurrentUserPick: false })
+    await emitRealtime('montagem-1', open)
+    await flushPromises()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    expect(board.props('canManage')).toBe(false)
+    board.vm.$emit('save', { times: [], livres: [], reservas: [] })
+    board.vm.$emit('start-realtime')
+    board.vm.$emit('substitute-reserve', { timeId: 'time-1', jogadorSaiuId: 'jogador-1', reservaEntrouId: 'reserva-1' })
+    board.vm.$emit('draw-captains')
+    board.vm.$emit('finalize')
+    await flushPromises()
+
+    expect(serviceMocks.defineDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect(serviceMocks.defineDraftMontagemPickOrder).not.toHaveBeenCalled()
+    expect(serviceMocks.saveDraftMontagemLayout).not.toHaveBeenCalled()
+    expect(serviceMocks.startDraftMontagemRealtime).not.toHaveBeenCalled()
+    expect(serviceMocks.substituteDraftMontagemReserve).not.toHaveBeenCalled()
+    expect(serviceMocks.drawDraftMontagemCaptains).not.toHaveBeenCalled()
+    expect(serviceMocks.finalizeDraftMontagem).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -1747,6 +1798,46 @@ describe('DraftsView reason actions', () => {
     panel.vm.$emit('toggle-captain', 'jogador-2')
     await nextTick()
     expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-2'])
+    wrapper.unmount()
+  })
+
+  it('reconciles selected captains after eligibility changes and clears them after Admin+ role loss', async () => {
+    const presencas = ['jogador-1', 'jogador-2', 'jogador-3'].map((jogadorId, index) => ({
+      ...montagem.presencas[0]!,
+      id: `presenca-${index + 1}`,
+      jogadorId,
+      ordemConfirmacao: index + 1,
+    }))
+    const initial = {
+      ...adminProjection('PresencaEncerrada'),
+      modo: 'TempoReal' as const,
+      cicloVersao: 'ModoPosPresenca' as const,
+      presencas,
+      capitaesElegiveisIds: ['jogador-1', 'jogador-2'],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(initial)
+    const wrapper = await mountView()
+    let panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+    panel.vm.$emit('toggle-captain', 'jogador-1')
+    panel.vm.$emit('toggle-captain', 'jogador-2')
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1', 'jogador-2'])
+
+    const changed = { ...initial, capitaesElegiveisIds: ['jogador-2', 'jogador-3'] }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(changed)
+    await emitRealtime('montagem-1', changed)
+    await flushPromises()
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-2'])
+
+    panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
+    panel.vm.$emit('toggle-captain', 'jogador-3')
+    await nextTick()
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-2', 'jogador-3'])
+    expect(panel.props('canDefineCaptains')).toBe(true)
+
+    authMock.rolesRef.value = ['Moderador']
+    await nextTick()
+    expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual([])
+    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('canSelectCaptains')).toBe(false)
     wrapper.unmount()
   })
 
@@ -2384,6 +2475,53 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
 
     expectStageFocus(wrapper)
+    wrapper.unmount()
+  })
+
+  it('rejects a synthetic finalize event until the projected v2 manual layout is complete', async () => {
+    const incomplete = {
+      ...adminProjection('Aberta'),
+      cicloVersao: 'ModoPosPresenca' as const,
+      modo: 'Manual' as const,
+      times: [{ id: 'time-1', nome: 'Time 1', ordem: 1, cor: 'blue', capitaoId: null, jogadores: [] }],
+      livres: [],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(incomplete)
+    const wrapper = await mountView()
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('finalize')
+    await flushPromises()
+    expect(serviceMocks.finalizeDraftMontagem).not.toHaveBeenCalled()
+
+    const teamPlayers = Array.from({ length: incomplete.tamanhoEquipe }, (_, index) => ({
+      jogadorId: `jogador-${index}`,
+      nomeExibicao: `Jogador ${index}`,
+      status: 'Ativo' as const,
+      preferencias: [],
+      estado: 'Time' as const,
+      capitao: false,
+      ordem: index + 1,
+      dataCadastro: montagem.dataCadastro,
+      dataAtualizacao: montagem.dataAtualizacao,
+    }))
+    const complete = {
+      ...incomplete,
+      times: Array.from({ length: incomplete.quantidadeTimes }, (_, index) => ({
+        id: `time-${index + 1}`,
+        nome: `Time ${index + 1}`,
+        ordem: index + 1,
+        cor: 'blue',
+        capitaoId: null,
+        jogadores: teamPlayers.map((player, playerIndex) => ({ ...player, jogadorId: `${index}-${playerIndex}` })),
+      })),
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(complete)
+    await emitRealtime('montagem-1', complete)
+    await flushPromises()
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('finalize')
+    await flushPromises()
+
+    expect(serviceMocks.finalizeDraftMontagem).toHaveBeenCalledWith('montagem-1')
     wrapper.unmount()
   })
 

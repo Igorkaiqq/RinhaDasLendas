@@ -884,6 +884,7 @@
     "visualSetup": {
       "eyebrow": "Draft",
       "title": "Novo draft",
+      "description": "Configure a presença e selecione os jogadores desta rinha.",
       "namePlaceholder": "Rinha multi-times",
       "teamSize": "Tamanho da equipe",
       "players": "Jogadores",

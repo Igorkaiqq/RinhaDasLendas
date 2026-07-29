@@ -104,6 +104,13 @@ describe('DraftStateRail', () => {
     expect(legacy.find('[data-step-id="Modo"]').exists()).toBe(false)
   })
 
+  it('marks mode completed and captains current after realtime mode is selected', () => {
+    const wrapper = mountRail('PresencaEncerrada', null, 'TempoReal', 'ModoPosPresenca')
+
+    expect(wrapper.get('[data-step-id="Modo"]').attributes('data-state')).toBe('done')
+    expect(wrapper.get('[aria-current="step"]').attributes('data-step-id')).toBe('CapitaesDefinidos')
+  })
+
   it.each([
     ['pt', 'Atenção', 'Discord: Atenção'],
     ['en', 'Attention', 'Discord: Attention'],

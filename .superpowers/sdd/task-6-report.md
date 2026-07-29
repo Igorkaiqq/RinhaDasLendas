@@ -19,17 +19,29 @@ Implementada a escolha de modo e o board manual da feature 028 no frontend.
 - Rail e header adaptados ao modo e à versão do ciclo.
 - O novo diálogo de substituição não foi implementado; somente o tipo exigido pelo contrato atual foi incorporado.
 
+## Correções da revisão
+
+- Separados `isManualV2` e `isManualV2Open`: drafts manuais v2 finalizados ou cancelados permanecem sem capitães, ordem e histórico, com o board somente leitura.
+- Operações de ciclo legadas e v2 agora exigem `canManageDraftCycle` com role `Admin` ou `SuperAdmin`; `Moderador` não recebe nem consegue disparar capitães, ordem, início, layout, substituição ou finalização.
+- Rail realtime em `PresencaEncerrada` agora apresenta modo concluído e capitães como etapa atual.
+- Seleção de capitães reconciliada a cada mudança de projeção, elegibilidade, status, modo, versão de ciclo ou capacidade Admin+, removendo IDs obsoletos sem bloquear novas escolhas válidas.
+- `DraftVisualSetup` migrado para `Dialog`, `DialogContent`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `Input`, `Textarea` e `Button` já instalados; foco, Escape e restauração ficam sob responsabilidade do Reka, e opções de jogadores expõem `aria-pressed`.
+- Guarda de layout manual v2 completo repetida em `DraftsView` para rejeitar eventos sintéticos de finalização; o backend permanece autoritativo.
+
 ## TDD
 
 - RED de serviço: 1 falha esperada, `chooseDraftMontagemMode is not a function`.
 - RED de componentes: 16 falhas esperadas cobrindo panel, setup, board, view, rail, header e i18n.
 - GREEN focado: 8 arquivos e 285 testes aprovados antes da regressão adicional de início realtime na view.
 - GREEN final: 38 arquivos e 499 testes aprovados.
+- RED da revisão: 8 falhas esperadas cobrindo os seis findings, após correção de um erro isolado na fixture do teste de reconciliação.
+- GREEN focado da revisão: 4 arquivos e 209 testes aprovados, sem warnings de acessibilidade do Reka.
+- GREEN final após revisão: 38 arquivos e 507 testes aprovados.
 
 ## Verificação
 
 - `npm run lint:check`: aprovado.
-- `npm test`: 38 arquivos, 499 testes aprovados.
+- `npm test`: 38 arquivos, 507 testes aprovados.
 - `npm run build`: aprovado.
 - `git diff --check`: aprovado.
 - Build manteve avisos preexistentes de anotações `PURE` em dependências e chunk principal acima de 500 kB.
