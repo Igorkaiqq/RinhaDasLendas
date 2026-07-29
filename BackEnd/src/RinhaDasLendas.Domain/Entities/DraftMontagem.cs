@@ -584,41 +584,115 @@ public sealed class DraftMontagem
             throw new DomainException(MessageCodes.InconsistentDataFound);
         }
 
+        var manualV2 = CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca && Modo == DraftMontagemModo.Manual;
+        var reservasAtuaisIds = manualV2
+            ? _participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).Select(participante => participante.JogadorId).ToHashSet()
+            : new HashSet<Guid>();
+        var participantesPorId = _participantes.ToDictionary(participante => participante.JogadorId);
+        var timesPorId = _times.ToDictionary(time => time.Id);
+        var timesInformadosIds = new HashSet<Guid>();
         var atribuicoes = new HashSet<Guid>();
         foreach (var timeLayout in times)
         {
-            var time = _times.FirstOrDefault(item => item.Id == timeLayout.TimeId) ?? throw new DomainException(MessageCodes.TeamNotFound);
+            if (!timesInformadosIds.Add(timeLayout.TimeId))
+            {
+                throw new DomainException(MessageCodes.InconsistentDataFound);
+            }
+
+            _ = timesPorId.GetValueOrDefault(timeLayout.TimeId) ?? throw new DomainException(MessageCodes.TeamNotFound);
             if (timeLayout.Jogadores.Count > TamanhoEquipe)
             {
                 throw new DomainException(MessageCodes.TeamPlayerLimitReached);
             }
 
-            if ((CicloVersao != DraftMontagemCicloVersao.ModoPosPresenca || Modo != DraftMontagemModo.Manual)
-                && (timeLayout.CapitaoId is null || !timeLayout.Jogadores.Any(item => item.JogadorId == timeLayout.CapitaoId)))
+            if (manualV2 && timeLayout.CapitaoId is not null)
+            {
+                throw new DomainException(MessageCodes.InconsistentDataFound);
+            }
+
+            if (!manualV2 && (timeLayout.CapitaoId is null || !timeLayout.Jogadores.Any(item => item.JogadorId == timeLayout.CapitaoId)))
             {
                 throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
             }
 
-            time.Atualizar(timeLayout.Nome, timeLayout.CapitaoId);
             foreach (var item in timeLayout.Jogadores)
             {
-                AtribuirParticipante(item, atribuicoes, participante => participante.AtribuirTime(time.Id, item.Ordem, item.JogadorId == timeLayout.CapitaoId, item.RotaContextual));
+                if (!atribuicoes.Add(item.JogadorId))
+                {
+                    throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
+                }
+
+                if (!participantesPorId.ContainsKey(item.JogadorId))
+                {
+                    throw new DomainException(MessageCodes.PlayerNotFound);
+                }
+
+                if (manualV2 && reservasAtuaisIds.Contains(item.JogadorId))
+                {
+                    throw new DomainException(MessageCodes.InconsistentDataFound);
+                }
             }
         }
 
         foreach (var item in livres)
         {
-            AtribuirParticipante(item, atribuicoes, participante => participante.AtribuirLivre(item.Ordem, item.RotaContextual));
+            if (!atribuicoes.Add(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
+            }
+
+            if (!participantesPorId.ContainsKey(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.PlayerNotFound);
+            }
+
+            if (manualV2 && reservasAtuaisIds.Contains(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.InconsistentDataFound);
+            }
         }
 
         foreach (var item in reservas)
         {
-            AtribuirParticipante(item, atribuicoes, participante => participante.AtribuirReserva(item.Ordem, item.RotaContextual));
+            if (!atribuicoes.Add(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
+            }
+
+            if (!participantesPorId.ContainsKey(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.PlayerNotFound);
+            }
+
+            if (manualV2 && !reservasAtuaisIds.Contains(item.JogadorId))
+            {
+                throw new DomainException(MessageCodes.InconsistentDataFound);
+            }
         }
 
         if (atribuicoes.Count != _participantes.Count)
         {
             throw new DomainException(MessageCodes.InconsistentDataFound);
+        }
+
+        foreach (var timeLayout in times)
+        {
+            var time = timesPorId[timeLayout.TimeId];
+            time.Atualizar(timeLayout.Nome, timeLayout.CapitaoId);
+            foreach (var item in timeLayout.Jogadores)
+            {
+                participantesPorId[item.JogadorId].AtribuirTime(time.Id, item.Ordem, item.JogadorId == timeLayout.CapitaoId, item.RotaContextual);
+            }
+        }
+
+        foreach (var item in livres)
+        {
+            participantesPorId[item.JogadorId].AtribuirLivre(item.Ordem, item.RotaContextual);
+        }
+
+        foreach (var item in reservas)
+        {
+            participantesPorId[item.JogadorId].AtribuirReserva(item.Ordem, item.RotaContextual);
         }
 
         Touch();
@@ -752,6 +826,11 @@ public sealed class DraftMontagem
             ?? throw new DomainException(MessageCodes.DraftMontagemReserveRequired);
         var capitaoSaiu = jogadorSaiu.Capitao;
         DraftMontagemParticipante? novoCapitao = null;
+        if (!capitaoSaiu && CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca && novoCapitaoId is not null)
+        {
+            throw new DomainException(MessageCodes.DraftMontagemNewCaptainNotAllowed);
+        }
+
         if (capitaoSaiu && CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
         {
             if (novoCapitaoId is null)
@@ -1040,17 +1119,6 @@ public sealed class DraftMontagem
                 isReserva ? DraftMontagemParticipanteEstado.Reserva : DraftMontagemParticipanteEstado.Livre,
                 isReserva ? ordemReserva++ : ordemLivre++));
         }
-    }
-
-    private void AtribuirParticipante(DraftMontagemLayoutParticipante item, HashSet<Guid> atribuicoes, Action<DraftMontagemParticipante> atribuir)
-    {
-        if (!atribuicoes.Add(item.JogadorId))
-        {
-            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
-        }
-
-        var participante = _participantes.FirstOrDefault(current => current.JogadorId == item.JogadorId) ?? throw new DomainException(MessageCodes.PlayerNotFound);
-        atribuir(participante);
     }
 
     private void EnsureAberta()

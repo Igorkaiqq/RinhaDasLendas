@@ -244,6 +244,103 @@ public sealed class DraftMontagemCoreCycleTests
         montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ManualV2DevePreservarClassificacaoVigenteDeReservasAoSalvarLayout(bool reservaNoTime)
+    {
+        var jogadoresIds = Enumerable.Range(1, 12).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        var times = montagem.Times.OrderBy(time => time.Ordem).ToList();
+        var jogadoresTimeDois = jogadoresIds.Skip(5).Take(5).ToList();
+        IReadOnlyCollection<DraftMontagemLayoutParticipante> livres = [];
+        var reservas = jogadoresIds.Skip(10).Select((id, index) => new DraftMontagemLayoutParticipante(id, index + 1, null)).ToList();
+        if (reservaNoTime)
+        {
+            jogadoresTimeDois[^1] = jogadoresIds[10];
+            livres = [new DraftMontagemLayoutParticipante(jogadoresIds[9], 1, null)];
+            reservas = [new DraftMontagemLayoutParticipante(jogadoresIds[11], 1, null)];
+        }
+        else
+        {
+            jogadoresTimeDois.RemoveAt(jogadoresTimeDois.Count - 1);
+            reservas.Add(new DraftMontagemLayoutParticipante(jogadoresIds[9], 3, null));
+        }
+
+        var act = () => montagem.SalvarLayout(
+        [
+            new DraftMontagemLayoutTime(times[0].Id, times[0].Nome, null, CriarParticipantesLayout(jogadoresIds.Take(5))),
+            new DraftMontagemLayoutTime(times[1].Id, times[1].Nome, null, CriarParticipantesLayout(jogadoresTimeDois)),
+        ],
+        livres,
+        reservas);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.InconsistentDataFound);
+    }
+
+    [Fact]
+    public void ManualV2DeveRejeitarCapitaoNoLayoutSemPersistirAutoridade()
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        var times = montagem.Times.OrderBy(time => time.Ordem).ToList();
+
+        var act = () => montagem.SalvarLayout(
+        [
+            new DraftMontagemLayoutTime(times[0].Id, times[0].Nome, jogadoresIds[0], CriarParticipantesLayout(jogadoresIds.Take(5))),
+            new DraftMontagemLayoutTime(times[1].Id, times[1].Nome, null, CriarParticipantesLayout(jogadoresIds.Skip(5).Take(5))),
+        ],
+        [],
+        []);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.InconsistentDataFound);
+        montagem.Times.Should().OnlyContain(time => time.CapitaoId == null);
+        montagem.Participantes.Should().OnlyContain(participante => !participante.Capitao);
+    }
+
+    [Fact]
+    public void SalvarLayoutComErroTardioDevePreservarEstadoCompletoEVersao()
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        var times = montagem.Times.OrderBy(time => time.Ordem).ToList();
+        var versao = montagem.VersaoEstado;
+        var timesAntes = montagem.Times.Select(time => new { time.Id, time.Nome, time.Ordem, time.CapitaoId }).ToList();
+        var participantesAntes = montagem.Participantes.Select(participante => new
+        {
+            participante.JogadorId,
+            participante.TimeId,
+            participante.Estado,
+            participante.Capitao,
+            participante.Ordem,
+            participante.RotaContextual,
+            participante.DataAtualizacao,
+        }).ToList();
+        var segundoTime = jogadoresIds.Skip(5).Take(4).Append(jogadoresIds[0]);
+
+        var act = () => montagem.SalvarLayout(
+        [
+            new DraftMontagemLayoutTime(times[0].Id, "Nome alterado", null, CriarParticipantesLayout(jogadoresIds.Take(5))),
+            new DraftMontagemLayoutTime(times[1].Id, times[1].Nome, null, CriarParticipantesLayout(segundoTime)),
+        ],
+        [],
+        []);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftPlayerAlreadyPicked);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.Times.Select(time => new { time.Id, time.Nome, time.Ordem, time.CapitaoId }).Should().BeEquivalentTo(timesAntes);
+        montagem.Participantes.Select(participante => new
+        {
+            participante.JogadorId,
+            participante.TimeId,
+            participante.Estado,
+            participante.Capitao,
+            participante.Ordem,
+            participante.RotaContextual,
+            participante.DataAtualizacao,
+        }).Should().BeEquivalentTo(participantesAntes);
+    }
+
     [Fact]
     public void TempoRealV2NaoDeveAceitarFinalizacaoManual()
     {
@@ -344,6 +441,33 @@ public sealed class DraftMontagemCoreCycleTests
         montagem.TurnoAtualCapitaoId.Should().Be(reservaEntrouId);
         montagem.Participantes.Single(item => item.JogadorId == capitaoSaiuId).Capitao.Should().BeFalse();
         montagem.Participantes.Single(item => item.JogadorId == reservaEntrouId).Capitao.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SubstituicaoV2DeJogadorComumDeveRejeitarNovoCapitaoInformado()
+    {
+        var (montagem, jogadoresIds) = CriarTempoRealIniciado(5, 2);
+        var capitaesIds = jogadoresIds.Take(2).ToHashSet();
+        var agora = DateTimeOffset.UtcNow;
+        montagem.RegistrarPickTempoReal(jogadoresIds[0], jogadoresIds[2], agora, capitaesIds);
+        var time = montagem.Times.Single(item => item.Id == montagem.Participantes.Single(participante => participante.JogadorId == jogadoresIds[2]).TimeId);
+        var reservaEntrouId = jogadoresIds[^1];
+        var versao = montagem.VersaoEstado;
+
+        var act = () => montagem.SubstituirPorReserva(
+            time.Id,
+            jogadoresIds[2],
+            reservaEntrouId,
+            Guid.NewGuid(),
+            new HashSet<Guid>(),
+            null,
+            Guid.NewGuid(),
+            agora.AddSeconds(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftMontagemNewCaptainNotAllowed);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.Participantes.Single(item => item.JogadorId == jogadoresIds[2]).Estado.Should().Be(DraftMontagemParticipanteEstado.Time);
+        montagem.Participantes.Single(item => item.JogadorId == reservaEntrouId).Estado.Should().Be(DraftMontagemParticipanteEstado.Reserva);
     }
 
     [Theory]

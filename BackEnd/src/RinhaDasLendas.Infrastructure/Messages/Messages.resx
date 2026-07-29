@@ -210,6 +210,7 @@
   <data name="MV106" xml:space="preserve"><value>A presença só pode ser reaberta após o encerramento e antes da definição dos capitães</value></data>
   <data name="MV107" xml:space="preserve"><value>O capitão do draft deve pertencer ao recorte titular</value></data>
   <data name="MV108" xml:space="preserve"><value>O capitão do draft deve estar ativo, vinculado a um usuário ativo e possuir o cargo Capitão</value></data>
+  <data name="MV109" xml:space="preserve"><value>O novo capitão só pode ser informado quando o capitão atual sair do time</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>

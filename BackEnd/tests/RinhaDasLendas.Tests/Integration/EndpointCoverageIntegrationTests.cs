@@ -780,7 +780,7 @@ public sealed class EndpointCoverageIntegrationTests
                 return new DraftMontagemLayoutTimeDto(
                     time.Id,
                     time.Nome,
-                    jogadoresDoTime[0].JogadorId,
+                    null,
                     jogadoresDoTime);
             }).ToList(),
             [],
