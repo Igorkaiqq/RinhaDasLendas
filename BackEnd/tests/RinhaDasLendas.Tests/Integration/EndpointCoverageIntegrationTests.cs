@@ -749,6 +749,7 @@ public sealed class EndpointCoverageIntegrationTests
         created.Should().NotBeNull();
         created!.QuantidadeTimes.Should().Be(2);
         created.QuantidadeReservas.Should().Be(0);
+        created.Times.Should().OnlyContain(time => time.CapitaoId == null && time.Jogadores.Count == 0);
 
         var listResponse = await client.GetAsync("/api/v1/draft-montagens?page=1&pageSize=20");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -764,17 +765,25 @@ public sealed class EndpointCoverageIntegrationTests
         var activeForDiscordResponse = await client.SendAsync(activeForDiscordRequest);
         activeForDiscordResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var firstFree = created.Livres.First();
-        var secondFree = created.Livres.Skip(1).First();
+        var livres = created.Livres.ToList();
         var layoutRequest = new SalvarLayoutDraftMontagemRequestDto(
-            created.Times.Select((time, index) => new DraftMontagemLayoutTimeDto(
-                time.Id,
-                time.Nome,
-                time.CapitaoId,
-                time.Jogadores.Select((jogador, jogadorIndex) => new DraftMontagemLayoutParticipanteDto(jogador.JogadorId, jogadorIndex + 1, null))
-                    .Append(new DraftMontagemLayoutParticipanteDto(index == 0 ? firstFree.JogadorId : secondFree.JogadorId, time.Jogadores.Count + 1, index == 0 ? "Mid" : "Support"))
-                    .ToList())).ToList(),
-            created.Livres.Where(jogador => jogador.JogadorId != firstFree.JogadorId && jogador.JogadorId != secondFree.JogadorId).Select((jogador, index) => new DraftMontagemLayoutParticipanteDto(jogador.JogadorId, index + 1, null)).ToList(),
+            created.Times.Select((time, index) =>
+            {
+                var jogadoresDoTime = livres
+                    .Skip(index * created.TamanhoEquipe)
+                    .Take(created.TamanhoEquipe)
+                    .Select((jogador, jogadorIndex) => new DraftMontagemLayoutParticipanteDto(
+                        jogador.JogadorId,
+                        jogadorIndex + 1,
+                        jogadorIndex == 0 ? (index == 0 ? "Mid" : "Support") : null))
+                    .ToList();
+                return new DraftMontagemLayoutTimeDto(
+                    time.Id,
+                    time.Nome,
+                    jogadoresDoTime[0].JogadorId,
+                    jogadoresDoTime);
+            }).ToList(),
+            [],
             []);
 
         var saveLayoutResponse = await client.PutAsJsonAsync($"/api/v1/draft-montagens/{created.Id}/layout", layoutRequest);

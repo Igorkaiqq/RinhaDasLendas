@@ -83,6 +83,33 @@ public sealed class DraftMontagem
     public IReadOnlyCollection<DraftMontagemPublicacaoDiscord> PublicacoesDiscord => _publicacoesDiscord;
     public IReadOnlyCollection<DraftMontagemAcaoAdministrativa> AcoesAdministrativas => _acoesAdministrativas;
 
+    public static DraftMontagem CriarPorPresenca(string nome, string? observacoes, int tamanhoEquipe)
+    {
+        var montagem = new DraftMontagem(
+            nome,
+            observacoes,
+            tamanhoEquipe,
+            DraftMontagemCriterioCapitaes.Manual,
+            [],
+            []);
+        montagem.CicloVersao = DraftMontagemCicloVersao.ModoPosPresenca;
+        montagem.Modo = null;
+        return montagem;
+    }
+
+    public static DraftMontagem CriarManualDireto(
+        string nome,
+        string? observacoes,
+        int tamanhoEquipe,
+        IReadOnlyCollection<Guid> jogadoresIds)
+    {
+        var montagem = CriarPorPresenca(nome, observacoes, tamanhoEquipe);
+        montagem.ConfigurarParticipantesSemCapitaes(jogadoresIds, criarTimes: true);
+        montagem.Modo = DraftMontagemModo.Manual;
+        montagem.Status = DraftMontagemStatus.Aberta;
+        return montagem;
+    }
+
     public static (int QuantidadeTimes, int QuantidadeReservas) CalcularEstrutura(int totalJogadores, int tamanhoEquipe)
     {
         if (tamanhoEquipe is < MinimoTamanhoEquipe or > MaximoTamanhoEquipe)
@@ -392,6 +419,53 @@ public sealed class DraftMontagem
         PresencaContinuadaManualmente = false;
         HorarioEncerramentoPresenca = null;
         _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("ReaberturaPresenca", responsavelUsuarioId, null));
+        Touch();
+    }
+
+    public void SelecionarModo(DraftMontagemModo modo, IReadOnlySet<Guid> jogadoresAtivosIds)
+    {
+        if (CicloVersao != DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            throw new DomainException(MessageCodes.DraftClosed);
+        }
+
+        if (Modo is not null)
+        {
+            if (Modo == modo)
+            {
+                return;
+            }
+
+            throw new DomainException(MessageCodes.DraftClosed);
+        }
+
+        if (Status != DraftMontagemStatus.PresencaEncerrada)
+        {
+            throw new DomainException(MessageCodes.DraftMontagemPresenceMustBeClosed);
+        }
+
+        if (!Enum.IsDefined(modo))
+        {
+            throw new DomainException(MessageCodes.FieldRequired);
+        }
+
+        var jogadoresIds = _presencas
+            .Where(item => item.Confirmada)
+            .OrderBy(item => item.OrdemFinal ?? item.OrdemManual ?? item.OrdemConfirmacao)
+            .Select(item => item.JogadorId)
+            .ToList();
+        if (jogadoresIds.Any(id => !jogadoresAtivosIds.Contains(id)))
+        {
+            throw new DomainException(MessageCodes.InactivePlayerCannotJoinQueue);
+        }
+
+        ConfigurarParticipantesSemCapitaes(jogadoresIds, criarTimes: modo == DraftMontagemModo.Manual);
+        Modo = modo;
+        if (modo == DraftMontagemModo.Manual)
+        {
+            Status = DraftMontagemStatus.Aberta;
+        }
+
         Touch();
     }
 
@@ -803,6 +877,47 @@ public sealed class DraftMontagem
                 participante.AtribuirTime(timeCapitao.Id, 0, true, null);
             }
             _participantes.Add(participante);
+        }
+    }
+
+    private void ConfigurarParticipantesSemCapitaes(IReadOnlyCollection<Guid> jogadoresIds, bool criarTimes)
+    {
+        var jogadores = jogadoresIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        if (jogadores.Count != jogadoresIds.Count)
+        {
+            throw new DomainException(MessageCodes.DraftPlayerAlreadyPicked);
+        }
+
+        var (quantidadeTimes, quantidadeReservas) = CalcularEstrutura(jogadores.Count, TamanhoEquipe);
+        if (quantidadeTimes < 1)
+        {
+            throw new DomainException(MessageCodes.DraftMontagemInsufficientPlayers);
+        }
+
+        QuantidadeTimes = quantidadeTimes;
+        QuantidadeReservas = quantidadeReservas;
+        CriterioCapitaes = DraftMontagemCriterioCapitaes.Manual;
+
+        _times.Clear();
+        _participantes.Clear();
+        if (criarTimes)
+        {
+            for (var index = 0; index < quantidadeTimes; index++)
+            {
+                _times.Add(new DraftMontagemTime($"Time {index + 1}", index + 1, CoresPadrao[index % CoresPadrao.Length]));
+            }
+        }
+
+        var reservas = jogadores.TakeLast(quantidadeReservas).ToHashSet();
+        var ordemLivre = 1;
+        var ordemReserva = 1;
+        foreach (var jogadorId in jogadores)
+        {
+            var isReserva = reservas.Contains(jogadorId);
+            _participantes.Add(new DraftMontagemParticipante(
+                jogadorId,
+                isReserva ? DraftMontagemParticipanteEstado.Reserva : DraftMontagemParticipanteEstado.Livre,
+                isReserva ? ordemReserva++ : ordemLivre++));
         }
     }
 

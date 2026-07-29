@@ -311,13 +311,10 @@ public sealed class ProcessarAgendamentosPresencaDevidosCommandHandler(
             return missed.IsTerminal;
         }
 
-        var draft = new DraftMontagem(
+        var draft = DraftMontagem.CriarPorPresenca(
             $"{claim.NomeSnapshot} - {date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}",
             claim.ObservacaoSnapshot,
-            5,
-            DraftMontagemCriterioCapitaes.Manual,
-            [],
-            []);
+            5);
         draft.ConfigurarEncerramentoPresenca(closureAt);
         draft.ConfigurarPublicacaoDiscord(configuration.GuildId, null);
         if (!await repository.TryCompleteWithDraftAsync(

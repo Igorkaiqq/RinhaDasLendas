@@ -3,7 +3,6 @@ using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Entities;
-using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
@@ -18,15 +17,16 @@ public sealed class CreateDraftMontagemCommandHandler(
         var jogadoresIds = command.Request.JogadoresIds.ToList();
         var jogadores = await repository.GetJogadoresByIdsAsync(jogadoresIds, cancellationToken);
         DraftMontagemHandlerHelpers.EnsureActivePlayers(jogadores, jogadoresIds);
-        var capitaes = DraftMontagemHandlerHelpers.ResolveCapitaes(command.Request);
-
-        var montagem = new DraftMontagem(
-            command.Request.Nome,
-            command.Request.Observacoes,
-            command.Request.TamanhoEquipe,
-            command.Request.SortearCapitaes ? DraftMontagemCriterioCapitaes.Sorteio : DraftMontagemCriterioCapitaes.Manual,
-            jogadoresIds,
-            capitaes);
+        var montagem = jogadoresIds.Count == 0
+            ? DraftMontagem.CriarPorPresenca(
+                command.Request.Nome,
+                command.Request.Observacoes,
+                command.Request.TamanhoEquipe)
+            : DraftMontagem.CriarManualDireto(
+                command.Request.Nome,
+                command.Request.Observacoes,
+                command.Request.TamanhoEquipe,
+                jogadoresIds);
         montagem.ConfigurarEncerramentoPresenca(command.Request.HorarioEncerramentoPresenca);
         montagem.ConfigurarPublicacaoDiscord(command.Request.DiscordGuildId, null);
 

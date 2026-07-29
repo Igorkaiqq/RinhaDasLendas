@@ -110,6 +110,9 @@ public sealed class AgendamentoPresencaTask5RevisionTests
         completedDraft.Should().NotBeNull();
         completedDraft!.Nome.Should().Be("Nome original - 24/07/2026");
         completedDraft.Observacoes.Should().Be("Observacao original");
+        completedDraft.CicloVersao.Should().Be(DraftMontagemCicloVersao.ModoPosPresenca);
+        completedDraft.Modo.Should().BeNull();
+        completedDraft.Times.Should().BeEmpty();
     }
 
     [Fact]
