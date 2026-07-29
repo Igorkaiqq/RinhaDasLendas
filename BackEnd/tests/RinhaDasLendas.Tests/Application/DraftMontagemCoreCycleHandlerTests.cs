@@ -4,6 +4,8 @@ using Moq;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Handlers.DraftMontagens;
+using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Queries.DraftMontagens;
 using RinhaDasLendas.Application.Validators;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
@@ -203,6 +205,121 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         }
     }
 
+    [Fact]
+    public async Task DefinirCapitaesV2DeveConsultarElegibilidadeAtualAntesDeMutar()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarPresencaEncerrada(jogadores);
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadores.Select(jogador => jogador.Id).ToHashSet());
+        var capitaesIds = jogadores.Take(2).Select(jogador => jogador.Id).ToList();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == jogadores.Count),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(capitaesIds);
+        var handler = new DefinirCapitaesDraftMontagemCommandHandler(
+            repository.Object,
+            new DefinirCapitaesDraftMontagemValidator());
+
+        await handler.Handle(
+            new DefinirCapitaesDraftMontagemCommand(
+                montagem.Id,
+                new DefinirCapitaesDraftMontagemRequestDto(capitaesIds)),
+            CancellationToken.None);
+
+        montagem.Status.Should().Be(DraftMontagemStatus.CapitaesDefinidos);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
+        repository.Verify(item => item.SaveChangesAsync(CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConsultaAdminDeveProjetarSomenteCapitaesAtualmenteElegiveis()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarPresencaEncerrada(jogadores);
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadores.Select(jogador => jogador.Id).ToHashSet());
+        var elegiveisIds = jogadores.Take(3).Select(jogador => jogador.Id).ToList();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elegiveisIds);
+        var handler = new GetDraftMontagemAdminQueryHandler(repository.Object);
+
+        var result = await handler.Handle(new GetDraftMontagemAdminQuery(montagem.Id), CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.CapitaesElegiveisIds.Should().BeEquivalentTo(elegiveisIds);
+    }
+
+    [Fact]
+    public async Task IniciarV2DeveRevalidarCapitaesAntesDeCriarPrimeiroTurno()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarTempoRealComOrdemDefinida(jogadores);
+        var capitaesIds = montagem.Times.Select(time => time.CapitaoId!.Value).ToList();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(capitaesIds);
+        var currentUser = new Mock<ICurrentUser>();
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var handler = new IniciarDraftMontagemTempoRealCommandHandler(repository.Object, currentUser.Object, notifier.Object);
+
+        await handler.Handle(new IniciarDraftMontagemTempoRealCommand(montagem.Id), CancellationToken.None);
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+        montagem.TurnoSequencia.Should().Be(1);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task PickV2DeveRevalidarCapitaoAntesDeRegistrarEscolha()
+    {
+        var jogadores = CriarJogadores(10).ToList();
+        var montagem = CriarTempoRealComOrdemDefinida(jogadores);
+        var capitaesIds = montagem.Times.Select(time => time.CapitaoId!.Value).ToList();
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow, capitaesIds.ToHashSet());
+        var capitao = jogadores.Single(jogador => jogador.Id == capitaesIds[0]);
+        var usuarioId = Guid.NewGuid();
+        capitao.VincularUsuario(usuarioId);
+        var jogadorEscolhidoId = jogadores.First(jogador => !capitaesIds.Contains(jogador.Id)).Id;
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetJogadorByUsuarioIdAsync(usuarioId, It.IsAny<CancellationToken>())).ReturnsAsync(capitao);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(capitaesIds);
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var metrics = new Mock<IDraftMontagemMetrics>();
+        var handler = new RegistrarPickDraftMontagemCommandHandler(
+            repository.Object,
+            currentUser.Object,
+            new RegistrarPickDraftMontagemValidator(),
+            notifier.Object,
+            metrics.Object);
+
+        await handler.Handle(
+            new RegistrarPickDraftMontagemCommand(
+                montagem.Id,
+                new RegistrarPickDraftMontagemRequestDto(jogadorEscolhidoId)),
+            CancellationToken.None);
+
+        montagem.Escolhas.Should().ContainSingle(escolha => escolha.JogadorId == jogadorEscolhidoId);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
+    }
+
     private static DraftMontagem CriarPresencaEncerrada(IReadOnlyCollection<Jogador> jogadores)
     {
         var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, 5);
@@ -212,6 +329,17 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         }
 
         montagem.EncerrarPresenca(false, 5);
+        return montagem;
+    }
+
+    private static DraftMontagem CriarTempoRealComOrdemDefinida(IReadOnlyCollection<Jogador> jogadores)
+    {
+        var montagem = CriarPresencaEncerrada(jogadores);
+        var jogadoresIds = jogadores.Select(jogador => jogador.Id).ToList();
+        var capitaesIds = jogadoresIds.Take(2).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
         return montagem;
     }
 

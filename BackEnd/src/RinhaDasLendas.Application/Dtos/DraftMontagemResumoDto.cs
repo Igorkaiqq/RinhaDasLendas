@@ -7,7 +7,7 @@ public sealed record DraftMontagemResumoDto(
     Guid Id,
     string Nome,
     string Status,
-    string Modo,
+    string? Modo,
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,

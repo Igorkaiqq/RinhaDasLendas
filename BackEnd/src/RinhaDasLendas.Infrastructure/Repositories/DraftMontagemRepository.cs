@@ -99,6 +99,22 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return await dbContext.Jogadores.Where(jogador => jogadoresIds.Contains(jogador.Id)).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<Guid>> GetCapitaesElegiveisIdsAsync(
+        IReadOnlyCollection<Guid> jogadoresIds,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Jogadores
+            .AsNoTracking()
+            .Where(jogador => jogadoresIds.Contains(jogador.Id)
+                && jogador.Status == JogadorStatus.Ativo
+                && jogador.UsuarioId != null)
+            .Where(jogador => dbContext.Users.Any(usuario => usuario.Id == jogador.UsuarioId && usuario.Ativo))
+            .Where(jogador => dbContext.UserRoles.Any(usuarioRole => usuarioRole.UserId == jogador.UsuarioId
+                && dbContext.Roles.Any(role => role.Id == usuarioRole.RoleId && role.Name == AuthRoles.Capitao)))
+            .Select(jogador => jogador.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken)
     {
         return dbContext.Jogadores

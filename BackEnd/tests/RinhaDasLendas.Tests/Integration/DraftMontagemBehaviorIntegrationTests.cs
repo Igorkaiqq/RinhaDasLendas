@@ -1208,6 +1208,9 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             }
 
             var draft = new DraftMontagem("Jornada de 19 e 20 jogadores", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+            typeof(DraftMontagem)
+                .GetProperty(nameof(DraftMontagem.CicloVersao))!
+                .SetValue(draft, DraftMontagemCicloVersao.Legado);
             if (presenceDeadline is not null)
             {
                 draft.ConfigurarEncerramentoPresenca(presenceDeadline.Value);
@@ -1637,6 +1640,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, includeArchived, page, pageSize, cancellationToken);
         public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken) => inner.CountAsync(search, status, includeCancelled, includeArchived, cancellationToken);
         public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetJogadoresByIdsAsync(jogadoresIds, cancellationToken);
+        public Task<IReadOnlyCollection<Guid>> GetCapitaesElegiveisIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetCapitaesElegiveisIdsAsync(jogadoresIds, cancellationToken);
         public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => inner.GetJogadorByUsuarioIdAsync(usuarioId, cancellationToken);
         public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => inner.SearchJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, page, pageSize, cancellationToken);
         public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => inner.CountJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, cancellationToken);

@@ -23,7 +23,12 @@ public sealed class DefinirCapitaesDraftMontagemCommandHandler(
             return null;
         }
 
-        montagem.DefinirCapitaes(command.Request.CapitaesIds);
+        var capitaesElegiveisIds = montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca
+            ? (await repository.GetCapitaesElegiveisIdsAsync(
+                montagem.Participantes.Select(participante => participante.JogadorId).ToList(),
+                cancellationToken)).ToHashSet()
+            : [];
+        montagem.DefinirCapitaes(command.Request.CapitaesIds, capitaesElegiveisIds);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         return DraftMontagemResponseDto.FromEntity(updated);

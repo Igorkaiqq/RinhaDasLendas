@@ -1018,6 +1018,8 @@ public sealed class SecurityHardeningTests
 
         public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Jogador>>(jogadores.Where(jogador => jogadoresIds.Contains(jogador.Id)).ToArray());
 
+        public Task<IReadOnlyCollection<Guid>> GetCapitaesElegiveisIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Guid>>([]);
+
         public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => Task.FromResult(jogadores.FirstOrDefault(jogador => jogador.UsuarioId == usuarioId));
 
         public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Jogador>>([]);

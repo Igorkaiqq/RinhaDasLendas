@@ -471,6 +471,11 @@ public sealed class DraftMontagem
 
     public void DefinirCapitaes(IReadOnlyCollection<Guid> capitaesIds)
     {
+        DefinirCapitaes(capitaesIds, new HashSet<Guid>());
+    }
+
+    public void DefinirCapitaes(IReadOnlyCollection<Guid> capitaesIds, IReadOnlySet<Guid> capitaesElegiveisIds)
+    {
         if (Status != DraftMontagemStatus.PresencaEncerrada)
         {
             throw new DomainException(MessageCodes.DraftMontagemPresenceMustBeClosed);
@@ -486,6 +491,25 @@ public sealed class DraftMontagem
         if (capitaesIds.Any(id => !jogadores.Contains(id)))
         {
             throw new DomainException(MessageCodes.DraftMontagemCaptainsMustBePlayers);
+        }
+
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            if (Modo != DraftMontagemModo.TempoReal)
+            {
+                throw new DomainException(MessageCodes.DraftClosed);
+            }
+
+            var recorteTitulares = _participantes
+                .Where(participante => participante.Estado != DraftMontagemParticipanteEstado.Reserva)
+                .Select(participante => participante.JogadorId)
+                .ToHashSet();
+            if (capitaesIds.Any(id => !recorteTitulares.Contains(id)))
+            {
+                throw new DomainException(MessageCodes.DraftMontagemCaptainMustBeStarter);
+            }
+
+            ValidarCapitaesElegiveis(capitaesIds, capitaesElegiveisIds);
         }
 
         _times.Clear();
@@ -540,7 +564,9 @@ public sealed class DraftMontagem
         }
 
         OrdemEscolhaModo = modo;
-        Status = DraftMontagemStatus.Aberta;
+        Status = CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca
+            ? DraftMontagemStatus.OrdemDefinida
+            : DraftMontagemStatus.Aberta;
         Touch();
     }
 
@@ -598,10 +624,27 @@ public sealed class DraftMontagem
 
     public void IniciarTempoReal(DateTimeOffset agora)
     {
-        EnsureAberta();
-        if (Modo == DraftMontagemModo.TempoReal)
+        IniciarTempoReal(agora, new HashSet<Guid>());
+    }
+
+    public void IniciarTempoReal(DateTimeOffset agora, IReadOnlySet<Guid> capitaesElegiveisIds)
+    {
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
         {
-            throw new DomainException(MessageCodes.DraftMontagemAlreadyRealtime);
+            if (Status != DraftMontagemStatus.OrdemDefinida || Modo != DraftMontagemModo.TempoReal)
+            {
+                throw new DomainException(MessageCodes.DraftMontagemRealtimeNotStarted);
+            }
+
+            ValidarCapitaesElegiveis(_times.Select(time => time.CapitaoId!.Value), capitaesElegiveisIds);
+        }
+        else
+        {
+            EnsureAberta();
+            if (Modo == DraftMontagemModo.TempoReal)
+            {
+                throw new DomainException(MessageCodes.DraftMontagemAlreadyRealtime);
+            }
         }
 
         foreach (var time in _times)
@@ -614,6 +657,7 @@ public sealed class DraftMontagem
         }
 
         Modo = DraftMontagemModo.TempoReal;
+        Status = DraftMontagemStatus.Aberta;
         DuracaoTurnoSegundos = DuracaoTurnoPadraoSegundos;
         IniciarProximoTurno(agora, 1);
         Touch();
@@ -621,10 +665,24 @@ public sealed class DraftMontagem
 
     public void RegistrarPickTempoReal(Guid capitaoId, Guid jogadorId, DateTimeOffset agora)
     {
+        RegistrarPickTempoReal(capitaoId, jogadorId, agora, new HashSet<Guid>());
+    }
+
+    public void RegistrarPickTempoReal(
+        Guid capitaoId,
+        Guid jogadorId,
+        DateTimeOffset agora,
+        IReadOnlySet<Guid> capitaesElegiveisIds)
+    {
         EnsureTurnoAtivo(agora);
         if (TurnoAtualCapitaoId != capitaoId)
         {
             throw new DomainException(MessageCodes.DraftMontagemNotCaptainTurn);
+        }
+
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            ValidarCapitaesElegiveis([capitaoId], capitaesElegiveisIds);
         }
 
         var time = _times.FirstOrDefault(item => item.Id == TurnoAtualTimeId) ?? throw new DomainException(MessageCodes.TeamNotFound);
@@ -877,6 +935,14 @@ public sealed class DraftMontagem
                 participante.AtribuirTime(timeCapitao.Id, 0, true, null);
             }
             _participantes.Add(participante);
+        }
+    }
+
+    private static void ValidarCapitaesElegiveis(IEnumerable<Guid> capitaesIds, IReadOnlySet<Guid> capitaesElegiveisIds)
+    {
+        if (capitaesIds.Any(id => !capitaesElegiveisIds.Contains(id)))
+        {
+            throw new DomainException(MessageCodes.DraftMontagemCaptainMustBeEligible);
         }
     }
 

@@ -8,7 +8,7 @@ public sealed record DraftMontagemAdminResponseDto(
     string Nome,
     string? Observacoes,
     string Status,
-    string Modo,
+    string? Modo,
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,
@@ -28,6 +28,7 @@ public sealed record DraftMontagemAdminResponseDto(
     IReadOnlyCollection<DraftMontagemTimeResponseDto> Times,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Livres,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Reservas,
+    IReadOnlyCollection<Guid> CapitaesElegiveisIds,
     IReadOnlyCollection<DraftMontagemEscolhaResponseDto> Escolhas,
     IReadOnlyCollection<DraftMontagemSubstituicaoResponseDto> Substituicoes,
     IReadOnlyCollection<DraftMontagemPublicacaoDiscordAdminResponseDto> PublicacoesDiscord,
@@ -36,7 +37,9 @@ public sealed record DraftMontagemAdminResponseDto(
     DateTimeOffset DataCadastro,
     DateTimeOffset DataAtualizacao)
 {
-    public static DraftMontagemAdminResponseDto FromEntity(DraftMontagem montagem)
+    public static DraftMontagemAdminResponseDto FromEntity(
+        DraftMontagem montagem,
+        IReadOnlyCollection<Guid>? capitaesElegiveisIds = null)
     {
         var participantes = montagem.Participantes.ToList();
         var cancelamentoOriginadoPorArquivamento = montagem.AcoesAdministrativas.Any(
@@ -46,7 +49,7 @@ public sealed record DraftMontagemAdminResponseDto(
             montagem.Nome,
             montagem.Observacoes,
             montagem.Status.ToString(),
-            montagem.Modo.ToString(),
+            montagem.Modo?.ToString(),
             montagem.TamanhoEquipe,
             montagem.QuantidadeTimes,
             montagem.QuantidadeReservas,
@@ -66,6 +69,7 @@ public sealed record DraftMontagemAdminResponseDto(
             montagem.Times.OrderBy(time => time.Ordem).Select(time => DraftMontagemTimeResponseDto.FromEntity(time, participantes)).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
+            capitaesElegiveisIds ?? [],
             montagem.Escolhas.OrderBy(escolha => escolha.Sequencia).Select(DraftMontagemEscolhaResponseDto.FromEntity).ToList(),
             montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoResponseDto.FromEntity).ToList(),
             montagem.PublicacoesDiscord.OrderBy(publicacao => publicacao.Tipo).Select(DraftMontagemPublicacaoDiscordAdminResponseDto.FromEntity).ToList(),

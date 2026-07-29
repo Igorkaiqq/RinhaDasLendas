@@ -4,6 +4,7 @@ using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
 
@@ -32,7 +33,12 @@ public sealed class RegistrarPickDraftMontagemCommandHandler(
 
         var capitao = await repository.GetJogadorByUsuarioIdAsync(userId, cancellationToken) ?? throw new DomainException(MessageCodes.PlayerProfileNotFound);
         var now = DateTimeOffset.UtcNow;
-        montagem.RegistrarPickTempoReal(capitao.Id, command.Request.JogadorId, now);
+        var capitaesElegiveisIds = montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca
+            ? (await repository.GetCapitaesElegiveisIdsAsync(
+                montagem.Participantes.Select(participante => participante.JogadorId).ToList(),
+                cancellationToken)).ToHashSet()
+            : [];
+        montagem.RegistrarPickTempoReal(capitao.Id, command.Request.JogadorId, now, capitaesElegiveisIds);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         var state = await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, now, cancellationToken);

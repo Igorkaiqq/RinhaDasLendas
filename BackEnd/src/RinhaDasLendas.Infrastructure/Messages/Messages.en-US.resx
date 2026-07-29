@@ -208,6 +208,8 @@
   <data name="MV104" xml:space="preserve"><value>The draft state version is invalid</value></data>
   <data name="MV105" xml:space="preserve"><value>Use the administrative cancellation endpoint to republish this publication</value></data>
   <data name="MV106" xml:space="preserve"><value>Presence can only be reopened after closing and before captains are defined</value></data>
+  <data name="MV107" xml:space="preserve"><value>The draft captain must be part of the starter pool</value></data>
+  <data name="MV108" xml:space="preserve"><value>The draft captain must be active, linked to an active user, and have the Captain role</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>
