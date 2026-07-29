@@ -1,6 +1,7 @@
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
@@ -19,6 +20,29 @@ public static class DraftMontagemRealtimeStateFactory
             : null;
 
         var canPick = jogador is not null && montagem.TurnoAtualCapitaoId == jogador.Id;
+        if (canPick && montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            var turnoValido = montagem.Status == DraftMontagemStatus.Aberta
+                && montagem.Modo == DraftMontagemModo.TempoReal
+                && montagem.TurnoAtualTimeId is Guid timeId
+                && montagem.TurnoSequencia is not null
+                && montagem.TurnoIniciadoEm <= now
+                && montagem.TurnoExpiraEm > now
+                && montagem.Times.Any(time => time.Id == timeId && time.CapitaoId == jogador!.Id)
+                && montagem.Participantes.Any(participante => participante.JogadorId == jogador!.Id
+                    && participante.TimeId == timeId
+                    && participante.Estado == DraftMontagemParticipanteEstado.Time
+                    && participante.Capitao);
+            if (!turnoValido)
+            {
+                canPick = false;
+            }
+            else
+            {
+                var elegiveis = await repository.GetCapitaesElegiveisIdsAsync([jogador!.Id], cancellationToken);
+                canPick = elegiveis.Contains(jogador.Id);
+            }
+        }
         return Create(montagem, now, canPick);
     }
 

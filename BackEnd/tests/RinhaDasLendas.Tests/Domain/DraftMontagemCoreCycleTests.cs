@@ -470,6 +470,113 @@ public sealed class DraftMontagemCoreCycleTests
         montagem.Participantes.Single(item => item.JogadorId == reservaEntrouId).Estado.Should().Be(DraftMontagemParticipanteEstado.Reserva);
     }
 
+    [Fact]
+    public void ReabrirPresencaV2AposEscolhaTempoRealDeveInvalidarTodaPreparacaoEPreservarConfirmacoes()
+    {
+        var (montagem, jogadoresIds) = CriarPresencaEncerrada(10);
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        var presencasIds = montagem.Presencas.Select(item => item.Id).ToList();
+
+        montagem.ReabrirPresenca(Guid.NewGuid());
+
+        montagem.Status.Should().Be(DraftMontagemStatus.PresencaAberta);
+        montagem.Modo.Should().BeNull();
+        montagem.Times.Should().BeEmpty();
+        montagem.Participantes.Should().BeEmpty();
+        montagem.OrdemEscolhaModo.Should().BeNull();
+        montagem.TurnoAtualTimeId.Should().BeNull();
+        montagem.TurnoAtualCapitaoId.Should().BeNull();
+        montagem.TurnoSequencia.Should().BeNull();
+        montagem.CriterioCapitaes.Should().Be(DraftMontagemCriterioCapitaes.Manual);
+        montagem.Presencas.Select(item => item.Id).Should().Equal(presencasIds);
+
+        montagem.EncerrarPresenca(false, 5);
+        montagem.Modo.Should().BeNull();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        montagem.Participantes.Should().HaveCount(10);
+    }
+
+    [Fact]
+    public void SorteioDeCapitaesDeveRejeitarDraftV2ManualSemMutacao()
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        montagem.SalvarLayout(CriarLayoutCompleto(montagem, jogadoresIds), [], []);
+        var versao = montagem.VersaoEstado;
+
+        var act = montagem.SortearCapitaes;
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.Times.Should().OnlyContain(time => time.CapitaoId == null);
+        montagem.Participantes.Should().OnlyContain(participante => !participante.Capitao);
+    }
+
+    [Theory]
+    [InlineData(DraftMontagemStatus.CapitaesDefinidos)]
+    [InlineData(DraftMontagemStatus.OrdemDefinida)]
+    [InlineData(DraftMontagemStatus.Aberta)]
+    public void SorteioDeCapitaesDeveRejeitarDraftV2TempoRealEmQualquerEstadoSemMutacao(DraftMontagemStatus status)
+    {
+        var (montagem, jogadoresIds) = CriarPresencaEncerrada(10);
+        var capitaesIds = jogadoresIds.Take(2).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        if (status is DraftMontagemStatus.OrdemDefinida or DraftMontagemStatus.Aberta)
+        {
+            montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
+        }
+        if (status == DraftMontagemStatus.Aberta)
+        {
+            montagem.IniciarTempoReal(DateTimeOffset.UtcNow, capitaesIds.ToHashSet());
+        }
+        var versao = montagem.VersaoEstado;
+        var capitaesAntes = montagem.Times.Select(time => time.CapitaoId).ToList();
+
+        var act = montagem.SortearCapitaes;
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+        montagem.VersaoEstado.Should().Be(versao);
+        montagem.Times.Select(time => time.CapitaoId).Should().Equal(capitaesAntes);
+    }
+
+    [Theory]
+    [InlineData(DraftMontagemStatus.CapitaesDefinidos)]
+    [InlineData(DraftMontagemStatus.OrdemDefinida)]
+    public void SubstituicaoDeCapitaoInelegivelAntesDoInicioDevePermitirRecuperacaoEInicioPosterior(DraftMontagemStatus status)
+    {
+        var (montagem, jogadoresIds) = CriarPresencaEncerrada(11);
+        var capitaesIds = jogadoresIds.Take(2).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        if (status == DraftMontagemStatus.OrdemDefinida)
+        {
+            montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
+        }
+        var time = montagem.Times.Single(item => item.CapitaoId == capitaesIds[0]);
+        var reservaId = jogadoresIds[^1];
+
+        montagem.SubstituirPorReserva(
+            time.Id,
+            capitaesIds[0],
+            reservaId,
+            reservaId,
+            new HashSet<Guid> { capitaesIds[1], reservaId },
+            null,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+
+        montagem.Status.Should().Be(status);
+        time.CapitaoId.Should().Be(reservaId);
+        if (status == DraftMontagemStatus.CapitaesDefinidos)
+        {
+            montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, [reservaId, capitaesIds[1]]);
+        }
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow, new HashSet<Guid> { capitaesIds[1], reservaId });
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+        montagem.TurnoAtualCapitaoId.Should().Be(reservaId);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

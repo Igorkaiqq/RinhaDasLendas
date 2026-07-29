@@ -632,6 +632,27 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it.each(['CapitaesDefinidos', 'OrdemDefinida'] as const)('allows explicit captain recovery while realtime is %s', async (status) => {
+    const draft = montagem(status, 'TempoReal')
+    draft.cicloVersao = 'ModoPosPresenca'
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1'] })
+
+    const trigger = wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action')
+    await trigger.trigger('click')
+    const selects = wrapper.findAllComponents(Select)
+    selects[0]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    selects[1]!.vm.$emit('update:modelValue', 'reserve-1')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('substituteReserve')?.[0]?.[0]).toMatchObject({
+      jogadorSaiuId: 'captain-a',
+      reservaEntrouId: 'reserve-1',
+      novoCapitaoId: 'reserve-1',
+    })
+    wrapper.unmount()
+  })
+
   it('keeps selections while substitution is pending, supports retry, and closes only after an advanced projection', async () => {
     const draft = montagem('Aberta', 'TempoReal')
     draft.cicloVersao = 'ModoPosPresenca'

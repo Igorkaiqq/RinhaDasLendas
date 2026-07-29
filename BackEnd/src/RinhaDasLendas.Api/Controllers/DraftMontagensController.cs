@@ -141,7 +141,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> StartRealtime([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new IniciarDraftMontagemTempoRealCommand(id), cancellationToken);
@@ -254,7 +257,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPost("{id:guid}/capitaes")]
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DefineCaptains([FromRoute] Guid id, [FromBody] DefinirCapitaesDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new DefinirCapitaesDraftMontagemCommand(id, request), cancellationToken);
@@ -264,7 +270,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPost("{id:guid}/ordem-escolha")]
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DefinePickOrder([FromRoute] Guid id, [FromBody] DefinirOrdemEscolhaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new DefinirOrdemEscolhaDraftMontagemCommand(id, request), cancellationToken);
@@ -342,7 +351,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SubstituteReserve([FromRoute] Guid id, [FromBody] SubstituirReservaDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new SubstituirReservaDraftMontagemCommand(id, request), cancellationToken);
@@ -353,7 +365,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SaveLayout([FromRoute] Guid id, [FromBody] SalvarLayoutDraftMontagemRequestDto request, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new SalvarLayoutDraftMontagemCommand(id, request), cancellationToken);
@@ -363,7 +378,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPost("{id:guid}/capitaes/sortear")]
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DrawCaptains([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new SortearCapitaesDraftMontagemCommand(id), cancellationToken);
@@ -373,7 +391,10 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     [HttpPatch("{id:guid}/finalizar")]
     [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Finalize([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var montagem = await sender.Send(new FinalizarDraftMontagemCommand(id), cancellationToken);

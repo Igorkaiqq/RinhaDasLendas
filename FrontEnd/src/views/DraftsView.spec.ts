@@ -1505,6 +1505,39 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it.each(['CapitaesDefinidos', 'OrdemDefinida'] as const)('exposes and submits captain recovery while realtime is %s', async (status) => {
+    const outgoingCaptain = { ...realtimeCaptain, jogadorId: 'outgoing-captain' }
+    const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', estado: 'Reserva' as const, capitao: false }
+    const preStartDraft: DraftMontagem = {
+      ...montagem,
+      status,
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+      times: [{ ...realtimeTeam, capitaoId: outgoingCaptain.jogadorId, jogadores: [outgoingCaptain] }],
+      reservas: [reserve],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
+      ...adminProjection(status),
+      ...preStartDraft,
+      capitaesElegiveisIds: ['reserve-1'],
+    })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: preStartDraft, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
+    serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: { ...preStartDraft, versaoEstado: preStartDraft.versaoEstado + 1 }, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
+    const wrapper = await mountView()
+
+    expect(wrapper.findComponent({ name: 'DraftVisualBoard' }).exists()).toBe(true)
+    await (wrapper.vm as unknown as { substituteReserve: (payload: DraftMontagemSubstituicaoPayload) => Promise<void> }).substituteReserve({
+      timeId: 'time-1',
+      jogadorSaiuId: 'outgoing-captain',
+      reservaEntrouId: 'reserve-1',
+      novoCapitaoId: 'reserve-1',
+      motivo: null,
+    })
+
+    expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledWith('montagem-1', expect.objectContaining({ novoCapitaoId: 'reserve-1' }))
+    wrapper.unmount()
+  })
+
   it.each<[string, {
     status?: DraftMontagemStatus
     times?: DraftMontagem['times']

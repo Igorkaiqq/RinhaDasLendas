@@ -416,6 +416,67 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         repository.Verify(item => item.SaveChangesAsync(CancellationToken.None), Times.Once);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EstadoRealtimeV2SoDeveAutorizarPickQuandoCapitaoDoTurnoPermaneceElegivel(bool elegivel)
+    {
+        var jogadores = CriarJogadores(10).ToList();
+        var montagem = CriarTempoRealComOrdemDefinida(jogadores);
+        var capitaesIds = montagem.Times.Select(time => time.CapitaoId!.Value).ToList();
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow, capitaesIds.ToHashSet());
+        var capitao = jogadores.Single(jogador => jogador.Id == montagem.TurnoAtualCapitaoId);
+        var usuarioId = Guid.NewGuid();
+        capitao.VincularUsuario(usuarioId);
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetJogadorByUsuarioIdAsync(usuarioId, It.IsAny<CancellationToken>())).ReturnsAsync(capitao);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(capitao.Id)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elegivel ? [capitao.Id] : []);
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
+
+        var state = await DraftMontagemRealtimeStateFactory.CreateAsync(
+            montagem,
+            repository.Object,
+            currentUser.Object,
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+
+        state.CanCurrentUserPick.Should().Be(elegivel);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task EstadoRealtimeLegadoDevePreservarAutoridadePorVinculoETurnoSemConsultarRole()
+    {
+        var jogadores = CriarJogadores(10).ToList();
+        var jogadoresIds = jogadores.Select(item => item.Id).ToList();
+        var capitao = jogadores[0];
+        var usuarioId = Guid.NewGuid();
+        capitao.VincularUsuario(usuarioId);
+        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, jogadoresIds, jogadoresIds.Take(2).ToList());
+        typeof(DraftMontagem).GetProperty(nameof(DraftMontagem.CicloVersao))!.SetValue(montagem, DraftMontagemCicloVersao.Legado);
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow);
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetJogadorByUsuarioIdAsync(usuarioId, It.IsAny<CancellationToken>())).ReturnsAsync(capitao);
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
+
+        var state = await DraftMontagemRealtimeStateFactory.CreateAsync(
+            montagem,
+            repository.Object,
+            currentUser.Object,
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+
+        state.CanCurrentUserPick.Should().BeTrue();
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static DraftMontagem CriarPresencaEncerrada(IReadOnlyCollection<Jogador> jogadores)
     {
         var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, 5);

@@ -75,6 +75,13 @@ const isRealtime = computed(() => localMontagem.value.modo === DraftMontagemModo
 const isTerminal = computed(() => localMontagem.value.status === DraftMontagemStatusValues.Finalizada || localMontagem.value.status === DraftMontagemStatusValues.Cancelada)
 const isReadOnly = computed(() => !props.canManage || localMontagem.value.status !== DraftMontagemStatusValues.Aberta || isRealtime.value)
 const isOpen = computed(() => localMontagem.value.status === DraftMontagemStatusValues.Aberta)
+const canSubstitute = computed(() => props.canManage && !isTerminal.value && (
+  isOpen.value
+  || (localMontagem.value.cicloVersao === 'ModoPosPresenca'
+    && isRealtime.value
+    && (localMontagem.value.status === DraftMontagemStatusValues.CapitaesDefinidos
+      || localMontagem.value.status === DraftMontagemStatusValues.OrdemDefinida))
+))
 const isManualV2 = computed(() => localMontagem.value.modo === DraftMontagemModoValues.Manual && localMontagem.value.cicloVersao === 'ModoPosPresenca')
 const isManualV2Open = computed(() => isManualV2.value && isOpen.value)
 const canStartRealtime = computed(() => (
@@ -170,9 +177,7 @@ const substitutionPlayer = computed(() => {
 const substitutionContextValid = computed(() => Boolean(
   substitutionContext.value
   && localMontagem.value.versaoEstado === substitutionContext.value.openedVersion
-  && isOpen.value
-  && !isTerminal.value
-  && props.canManage
+  && canSubstitute.value
   && substitutionTeam.value
   && substitutionPlayer.value
   && idsEqual(substitutionContext.value.teamMemberIds, substitutionTeam.value.jogadores.map((player) => player.jogadorId))
@@ -380,9 +385,7 @@ function requestSubstitution(timeId: string, jogadorSaiuId: string, event: Board
   if (
     substituteLocked.value
     || props.saving
-    || !props.canManage
-    || !isOpen.value
-    || isTerminal.value
+    || !canSubstitute.value
     || !team
     || !player
     || !localMontagem.value.reservas.some((reserve) => reserve.estado === DraftMontagemEstadoValues.Reserva)
@@ -644,7 +647,7 @@ async function exportImage() {
                 </span>
               </button>
               <span v-if="!isManualV2 && player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
-              <button v-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
+              <button v-if="canSubstitute && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
               <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
@@ -751,7 +754,7 @@ async function exportImage() {
                 </span>
               </button>
               <span v-if="!isManualV2 && player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
-              <button v-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
+              <button v-if="canSubstitute && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
               <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>

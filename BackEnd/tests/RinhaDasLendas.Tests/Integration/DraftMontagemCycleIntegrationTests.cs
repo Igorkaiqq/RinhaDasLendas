@@ -115,6 +115,62 @@ public sealed class DraftMontagemCycleIntegrationTests
     }
 
     [Fact]
+    public async Task ReabrirV2AposEscolhaTempoReal_DeveExigirNovoModoERecalcularRecorteNoFechamentoSeguinte()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+
+        var reopened = await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca", null);
+
+        reopened.Status.Should().Be(nameof(DraftMontagemStatus.PresencaAberta));
+        reopened.Modo.Should().BeNull();
+        reopened.Times.Should().BeEmpty();
+        reopened.Livres.Should().BeEmpty();
+        reopened.Reservas.Should().BeEmpty();
+        reopened.Presencas.Should().HaveCount(5);
+
+        var closedAgain = await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        closedAgain.Modo.Should().BeNull();
+        var selectedAgain = await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+        selectedAgain.Livres.Should().HaveCount(4);
+        selectedAgain.Reservas.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task SubstituirCapitaoAntesDoInicio_DevePermitirDefinirOrdemEIniciarDepois()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+        var captains = await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
+        var team = captains.Times.Single(item => item.CapitaoId == fixture.Players[0].PlayerId);
+
+        var substituted = await PostAndReadAsync<DraftMontagemRealtimeStateDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/reservas/substituir", new
+        {
+            TimeId = team.Id,
+            JogadorSaiuId = fixture.Players[0].PlayerId,
+            ReservaEntrouId = fixture.Players[4].PlayerId,
+            NovoCapitaoId = fixture.Players[4].PlayerId,
+            Motivo = "capitão inelegível",
+        });
+        substituted.Montagem.Status.Should().Be(nameof(DraftMontagemStatus.CapitaesDefinidos));
+
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/ordem-escolha", new
+        {
+            Modo = nameof(DraftMontagemOrdemEscolhaModo.Manual),
+            CapitaesIds = new[] { fixture.Players[4].PlayerId, fixture.Players[1].PlayerId },
+        });
+        var started = await PostAndReadAsync<DraftMontagemRealtimeStateDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/iniciar-tempo-real", null);
+        started.Montagem.Status.Should().Be(nameof(DraftMontagemStatus.Aberta));
+        started.Montagem.TurnoAtualCapitaoId.Should().Be(fixture.Players[4].PlayerId);
+    }
+
+    [Fact]
     public async Task EscolhasDeModoConcorrentes_DevemPersistirUmaTransicaoERecusarAOutra()
     {
         await using var factory = new DraftMontagemCycleApiFactory();

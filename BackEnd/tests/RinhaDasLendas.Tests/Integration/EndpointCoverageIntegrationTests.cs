@@ -508,6 +508,29 @@ public sealed class EndpointCoverageIntegrationTests
         ]);
     }
 
+    [Theory]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/capitaes")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/ordem-escolha")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/iniciar-tempo-real")]
+    [InlineData("PUT", "/api/v1/draft-montagens/{id}/layout")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/reservas/substituir")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/capitaes/sortear")]
+    [InlineData("PATCH", "/api/v1/draft-montagens/{id}/finalizar")]
+    public async Task AdminCycleEndpointInventory_ShouldDeclareAuthenticationAuthorizationAndConflict(
+        string method,
+        string route)
+    {
+        await using var factory = new PostgreSqlApiFactory();
+
+        var endpoint = DiscoverEndpoints(factory).Single(item => item.Key == EndpointKey.From(method, route));
+
+        endpoint.Responses.Should().Contain([
+            new EndpointResponse((int)HttpStatusCode.Unauthorized, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Forbidden, nameof(ApiErrorResponse)),
+            new EndpointResponse((int)HttpStatusCode.Conflict, nameof(ApiErrorResponse)),
+        ]);
+    }
+
     [Fact]
     public async Task CriticalEndpointFlows_ShouldExecuteAndGenerateEndpointInventory()
     {
@@ -812,7 +835,7 @@ public sealed class EndpointCoverageIntegrationTests
         saved!.Times.SelectMany(time => time.Jogadores).Should().Contain(jogador => jogador.RotaContextual == "Mid");
 
         var drawResponse = await client.PostAsync($"/api/v1/draft-montagens/{created.Id}/capitaes/sortear", null);
-        drawResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        drawResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var finalizeResponse = await client.PatchAsync($"/api/v1/draft-montagens/{created.Id}/finalizar", null);
         finalizeResponse.StatusCode.Should().Be(HttpStatusCode.OK);

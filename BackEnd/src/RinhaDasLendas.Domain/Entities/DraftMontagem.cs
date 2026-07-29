@@ -418,6 +418,17 @@ public sealed class DraftMontagem
         QuantidadeReservas = 0;
         PresencaContinuadaManualmente = false;
         HorarioEncerramentoPresenca = null;
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            Modo = null;
+            CriterioCapitaes = DraftMontagemCriterioCapitaes.Manual;
+            OrdemEscolhaModo = null;
+            _times.Clear();
+            _participantes.Clear();
+            _escolhas.Clear();
+            _substituicoes.Clear();
+            LimparTurno();
+        }
         _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("ReaberturaPresenca", responsavelUsuarioId, null));
         Touch();
     }
@@ -870,6 +881,11 @@ public sealed class DraftMontagem
 
     public void SortearCapitaes()
     {
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            throw new DomainException(MessageCodes.DraftClosed);
+        }
+
         EnsureAberta();
         foreach (var participante in _participantes)
         {

@@ -857,11 +857,16 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, comp
     ...(team?.jogadores.filter((player) => player.jogadorId !== payload.jogadorSaiuId).map((player) => player.jogadorId) ?? []),
     payload.reservaEntrouId,
   ])
+  const substitutionStatusAllowed = current?.status === DraftMontagemStatusValues.Aberta
+    || (current?.cicloVersao === 'ModoPosPresenca'
+      && current.modo === 'TempoReal'
+      && (current.status === DraftMontagemStatusValues.CapitaesDefinidos
+        || current.status === DraftMontagemStatusValues.OrdemDefinida))
   if (
     saving.value
     || !canManageDraftCycle.value
     || !current
-    || current.status !== DraftMontagemStatusValues.Aberta
+    || !substitutionStatusAllowed
     || !team?.jogadores.some((player) => player.jogadorId === payload.jogadorSaiuId)
     || !current.reservas.some((player) => player.jogadorId === payload.reservaEntrouId && player.estado === DraftMontagemEstadoValues.Reserva)
     || (captainLeaving && (!payload.novoCapitaoId || !eligibleCaptainIds.value.includes(payload.novoCapitaoId) || !resultingCaptainIds.has(payload.novoCapitaoId)))
@@ -1342,7 +1347,7 @@ function captureError(error: unknown) {
           @republish="requestDiscordRepublish"
         />
         <DraftVisualBoard
-          v-if="selectedMontagem && !selectedMontagem.arquivado && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada && selectedMontagem.status !== DraftMontagemStatusValues.CapitaesDefinidos"
+          v-if="selectedMontagem && !selectedMontagem.arquivado && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada"
           :montagem="selectedMontagem"
           :saving="saving"
           :can-manage="canManageDraftCycle"

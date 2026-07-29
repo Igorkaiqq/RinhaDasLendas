@@ -74,6 +74,29 @@ public sealed class DraftMontagemProjectionContractTests
     }
 
     [Theory]
+    [InlineData(nameof(DraftMontagensController.DefineCaptains))]
+    [InlineData(nameof(DraftMontagensController.DefinePickOrder))]
+    [InlineData(nameof(DraftMontagensController.StartRealtime))]
+    [InlineData(nameof(DraftMontagensController.SaveLayout))]
+    [InlineData(nameof(DraftMontagensController.SubstituteReserve))]
+    [InlineData(nameof(DraftMontagensController.DrawCaptains))]
+    [InlineData(nameof(DraftMontagensController.Finalize))]
+    public void OperacoesAdministrativasDoCicloDevemDeclarar401_403_409NoSwagger(string actionName)
+    {
+        var statusCodes = typeof(DraftMontagensController)
+            .GetMethod(actionName)!
+            .GetCustomAttributes(typeof(ProducesResponseTypeAttribute), true)
+            .Cast<ProducesResponseTypeAttribute>()
+            .Select(attribute => attribute.StatusCode);
+
+        statusCodes.Should().Contain([
+            StatusCodes.Status401Unauthorized,
+            StatusCodes.Status403Forbidden,
+            StatusCodes.Status409Conflict,
+        ]);
+    }
+
+    [Theory]
     [InlineData("MV107", "pt-BR", "O capitão do draft deve pertencer ao recorte titular")]
     [InlineData("MV107", "en-US", "The draft captain must be part of the starter pool")]
     [InlineData("MV108", "pt-BR", "O capitão do draft deve estar ativo, vinculado a um usuário ativo e possuir o cargo Capitão")]
