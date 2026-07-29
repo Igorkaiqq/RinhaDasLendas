@@ -265,7 +265,12 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.Property(montagem => montagem.Nome).HasColumnName("nome").HasMaxLength(120).IsRequired();
             entity.Property(montagem => montagem.Observacoes).HasColumnName("observacoes").HasMaxLength(500);
             entity.Property(montagem => montagem.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(montagem => montagem.Modo).HasColumnName("modo").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(montagem => montagem.CicloVersao)
+                .HasColumnName("ciclo_versao")
+                .HasDefaultValue(DraftMontagemCicloVersao.ModoPosPresenca)
+                .HasSentinel((DraftMontagemCicloVersao)0)
+                .IsRequired();
+            entity.Property(montagem => montagem.Modo).HasColumnName("modo").HasConversion<string>().HasMaxLength(20);
             entity.Property(montagem => montagem.TamanhoEquipe).HasColumnName("tamanho_equipe").IsRequired();
             entity.Property(montagem => montagem.QuantidadeTimes).HasColumnName("quantidade_times").IsRequired();
             entity.Property(montagem => montagem.QuantidadeReservas).HasColumnName("quantidade_reservas").IsRequired();

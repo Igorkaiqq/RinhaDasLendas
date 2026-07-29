@@ -50,7 +50,8 @@ public sealed class DraftMontagem
     public string Nome { get; private set; } = string.Empty;
     public string? Observacoes { get; private set; }
     public DraftMontagemStatus Status { get; private set; }
-    public DraftMontagemModo Modo { get; private set; }
+    public DraftMontagemCicloVersao CicloVersao { get; private set; }
+    public DraftMontagemModo? Modo { get; private set; }
     public int TamanhoEquipe { get; private set; }
     public int QuantidadeTimes { get; private set; }
     public int QuantidadeReservas { get; private set; }
