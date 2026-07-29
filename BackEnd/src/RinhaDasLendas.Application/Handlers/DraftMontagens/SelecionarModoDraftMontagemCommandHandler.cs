@@ -23,6 +23,12 @@ public sealed class SelecionarModoDraftMontagemCommandHandler(
             return null;
         }
 
+        var modo = Enum.Parse<DraftMontagemModo>(command.Request.Modo, true);
+        if (montagem.Modo == modo)
+        {
+            return DraftMontagemResponseDto.FromEntity(montagem);
+        }
+
         var jogadoresIds = montagem.Presencas
             .Where(item => item.Confirmada)
             .Select(item => item.JogadorId)
@@ -31,7 +37,7 @@ public sealed class SelecionarModoDraftMontagemCommandHandler(
         DraftMontagemHandlerHelpers.EnsureActivePlayers(jogadores, jogadoresIds);
         var versaoAnterior = montagem.VersaoEstado;
         montagem.SelecionarModo(
-            Enum.Parse<DraftMontagemModo>(command.Request.Modo, true),
+            modo,
             jogadores.Select(item => item.Id).ToHashSet());
         if (montagem.VersaoEstado != versaoAnterior)
         {

@@ -89,6 +89,36 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task RepetirMesmoModoDeveRetornarProjecaoSemConsultarJogadoresOuPersistir()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarPresencaEncerrada(jogadores);
+        montagem.SelecionarModo(
+            DraftMontagemModo.Manual,
+            jogadores.Select(item => item.Id).ToHashSet());
+        jogadores.First().Inativar();
+        var versao = montagem.VersaoEstado;
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        var handler = new SelecionarModoDraftMontagemCommandHandler(
+            repository.Object,
+            new SelecionarModoDraftMontagemValidator());
+
+        var result = await handler.Handle(
+            new SelecionarModoDraftMontagemCommand(
+                montagem.Id,
+                new SelecionarModoDraftMontagemRequestDto("Manual")),
+            CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Modo.Should().Be(DraftMontagemModo.Manual.ToString());
+        montagem.VersaoEstado.Should().Be(versao);
+        repository.Verify(item => item.GetJogadoresByIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
