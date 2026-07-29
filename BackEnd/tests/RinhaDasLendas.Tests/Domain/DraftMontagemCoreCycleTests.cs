@@ -210,6 +210,183 @@ public sealed class DraftMontagemCoreCycleTests
     }
 
     [Fact]
+    public void ManualV2DeveAceitarLayoutCompletoSemCapitaesEFinalizar()
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+
+        montagem.SalvarLayout(CriarLayoutCompleto(montagem, jogadoresIds), [], []);
+        montagem.Finalizar();
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Finalizada);
+        montagem.Times.Should().OnlyContain(time => time.CapitaoId == null);
+        montagem.Participantes.Should().OnlyContain(participante => !participante.Capitao);
+    }
+
+    [Fact]
+    public void ManualV2DeveRejeitarFinalizacaoComTimeIncompletoETitularLivre()
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        var times = montagem.Times.OrderBy(time => time.Ordem).ToList();
+        var livre = jogadoresIds[^1];
+        montagem.SalvarLayout(
+        [
+            new DraftMontagemLayoutTime(times[0].Id, times[0].Nome, null, CriarParticipantesLayout(jogadoresIds.Take(5))),
+            new DraftMontagemLayoutTime(times[1].Id, times[1].Nome, null, CriarParticipantesLayout(jogadoresIds.Skip(5).Take(4))),
+        ],
+        [new DraftMontagemLayoutParticipante(livre, 1, null)],
+        []);
+
+        var act = montagem.Finalizar;
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.IncompleteDraft);
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+    }
+
+    [Fact]
+    public void TempoRealV2NaoDeveAceitarFinalizacaoManual()
+    {
+        var (montagem, _) = CriarTempoRealIniciado(4, 2);
+
+        var act = montagem.Finalizar;
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+    }
+
+    [Fact]
+    public void TempoRealV2DeveFinalizarSomenteAposUltimoPickCompletarTodosOsTimes()
+    {
+        var (montagem, jogadoresIds) = CriarTempoRealIniciado(4, 2);
+        var capitaesIds = jogadoresIds.Take(2).ToHashSet();
+        var agora = DateTimeOffset.UtcNow;
+
+        montagem.RegistrarPickTempoReal(jogadoresIds[0], jogadoresIds[2], agora, capitaesIds);
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+
+        montagem.RegistrarPickTempoReal(jogadoresIds[1], jogadoresIds[3], agora.AddSeconds(1), capitaesIds);
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Finalizada);
+        montagem.Times.Should().OnlyContain(time => montagem.Participantes.Count(participante => participante.TimeId == time.Id) == 2);
+        montagem.TurnoAtualCapitaoId.Should().BeNull();
+    }
+
+    [Fact]
+    public void TempoRealV2DevePermanecerAbertoAposTimeoutEnquantoHaVagas()
+    {
+        var (montagem, _) = CriarTempoRealIniciado(4, 2);
+
+        montagem.AvancarTurnoPorTimeout(montagem.TurnoExpiraEm!.Value).Should().BeTrue();
+
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+        montagem.TurnoAtualCapitaoId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void TempoRealV2DevePermanecerAbertoQuandoCapitaoDoTurnoNaoForMaisElegivel()
+    {
+        var (montagem, jogadoresIds) = CriarTempoRealIniciado(4, 2);
+
+        var act = () => montagem.RegistrarPickTempoReal(
+            montagem.TurnoAtualCapitaoId!.Value,
+            jogadoresIds[2],
+            DateTimeOffset.UtcNow,
+            new HashSet<Guid>());
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftMontagemCaptainMustBeEligible);
+        montagem.Status.Should().Be(DraftMontagemStatus.Aberta);
+        montagem.TurnoAtualCapitaoId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SubstituicaoV2DeveExigirNovoCapitaoExplicitoSemHerdarAutoridade()
+    {
+        var (montagem, jogadoresIds) = CriarTempoRealIniciado(5, 2);
+        var time = montagem.Times.Single(item => item.CapitaoId == montagem.TurnoAtualCapitaoId);
+        var capitaoSaiuId = time.CapitaoId!.Value;
+        var reservaEntrouId = jogadoresIds[^1];
+
+        var act = () => montagem.SubstituirPorReserva(
+            time.Id,
+            capitaoSaiuId,
+            reservaEntrouId,
+            null,
+            jogadoresIds.ToHashSet(),
+            null,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftMontagemCaptainsRequired);
+        time.CapitaoId.Should().Be(capitaoSaiuId);
+        montagem.Participantes.Single(item => item.JogadorId == reservaEntrouId).Capitao.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SubstituicaoV2DeCapitaoDoTurnoDeveAtualizarAutoridadeParaNovoCapitaoElegivel()
+    {
+        var (montagem, jogadoresIds) = CriarTempoRealIniciado(5, 2);
+        var time = montagem.Times.Single(item => item.CapitaoId == montagem.TurnoAtualCapitaoId);
+        var capitaoSaiuId = time.CapitaoId!.Value;
+        var reservaEntrouId = jogadoresIds[^1];
+
+        montagem.SubstituirPorReserva(
+            time.Id,
+            capitaoSaiuId,
+            reservaEntrouId,
+            reservaEntrouId,
+            new HashSet<Guid> { reservaEntrouId },
+            null,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+
+        time.CapitaoId.Should().Be(reservaEntrouId);
+        montagem.TurnoAtualCapitaoId.Should().Be(reservaEntrouId);
+        montagem.Participantes.Single(item => item.JogadorId == capitaoSaiuId).Capitao.Should().BeFalse();
+        montagem.Participantes.Single(item => item.JogadorId == reservaEntrouId).Capitao.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EstadoTerminalDeveBloquearLayoutSorteioCapitaesPickESubstituicao(bool cancelada)
+    {
+        var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
+        var montagem = DraftMontagem.CriarManualDireto("Rinha", null, 5, jogadoresIds);
+        if (cancelada)
+        {
+            montagem.Cancelar(null);
+        }
+        else
+        {
+            montagem.SalvarLayout(CriarLayoutCompleto(montagem, jogadoresIds), [], []);
+            montagem.Finalizar();
+        }
+
+        Action[] mutacoes =
+        [
+            () => montagem.SalvarLayout([], [], []),
+            montagem.SortearCapitaes,
+            () => montagem.DefinirCapitaes([]),
+            () => montagem.RegistrarPickTempoReal(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow),
+            () => montagem.SubstituirPorReserva(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                null,
+                new HashSet<Guid>(),
+                null,
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow),
+        ];
+
+        foreach (var mutacao in mutacoes)
+        {
+            mutacao.Should().Throw<DomainException>().WithMessage(MessageCodes.DraftClosed);
+        }
+    }
+
+    [Fact]
     public void DraftLegadoDeveIniciarSemRevalidarCapitaesRetroativamente()
     {
         var jogadoresIds = Enumerable.Range(1, 10).Select(_ => Guid.NewGuid()).ToList();
@@ -242,5 +419,46 @@ public sealed class DraftMontagemCoreCycleTests
 
         montagem.EncerrarPresenca(false, 5);
         return (montagem, jogadoresIds);
+    }
+
+    private static IReadOnlyCollection<DraftMontagemLayoutTime> CriarLayoutCompleto(
+        DraftMontagem montagem,
+        IReadOnlyList<Guid> jogadoresIds)
+    {
+        return montagem.Times
+            .OrderBy(time => time.Ordem)
+            .Select((time, index) => new DraftMontagemLayoutTime(
+                time.Id,
+                time.Nome,
+                null,
+                CriarParticipantesLayout(jogadoresIds.Skip(index * montagem.TamanhoEquipe).Take(montagem.TamanhoEquipe))))
+            .ToList();
+    }
+
+    private static (DraftMontagem Montagem, IReadOnlyList<Guid> JogadoresIds) CriarTempoRealIniciado(
+        int quantidade,
+        int tamanhoEquipe)
+    {
+        var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, tamanhoEquipe);
+        var jogadoresIds = Enumerable.Range(1, quantidade).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var jogadorId in jogadoresIds)
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), jogadorId, null, DraftMontagemPresencaOrigem.Web);
+        }
+
+        montagem.EncerrarPresenca(quantidade < 10, tamanhoEquipe);
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        var capitaesIds = jogadoresIds.Take(montagem.QuantidadeTimes).ToList();
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow, capitaesIds.ToHashSet());
+        return (montagem, jogadoresIds);
+    }
+
+    private static IReadOnlyCollection<DraftMontagemLayoutParticipante> CriarParticipantesLayout(IEnumerable<Guid> jogadoresIds)
+    {
+        return jogadoresIds
+            .Select((jogadorId, index) => new DraftMontagemLayoutParticipante(jogadorId, index + 1, null))
+            .ToList();
     }
 }

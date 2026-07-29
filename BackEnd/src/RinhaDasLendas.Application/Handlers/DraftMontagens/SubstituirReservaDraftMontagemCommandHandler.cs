@@ -4,6 +4,7 @@ using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
 
@@ -30,7 +31,20 @@ public sealed class SubstituirReservaDraftMontagemCommandHandler(
         }
 
         var now = DateTimeOffset.UtcNow;
-        montagem.SubstituirPorReserva(command.Request.TimeId, command.Request.JogadorSaiuId, command.Request.ReservaEntrouId, command.Request.Motivo, userId, now);
+        var capitaesElegiveisIds = montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca
+            ? (await repository.GetCapitaesElegiveisIdsAsync(
+                montagem.Participantes.Select(participante => participante.JogadorId).ToList(),
+                cancellationToken)).ToHashSet()
+            : new HashSet<Guid>();
+        montagem.SubstituirPorReserva(
+            command.Request.TimeId,
+            command.Request.JogadorSaiuId,
+            command.Request.ReservaEntrouId,
+            command.Request.NovoCapitaoId,
+            capitaesElegiveisIds,
+            command.Request.Motivo,
+            userId,
+            now);
         await repository.SaveChangesAsync(cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         var state = await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, now, cancellationToken);

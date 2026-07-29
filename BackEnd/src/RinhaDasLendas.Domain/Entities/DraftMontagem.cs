@@ -476,6 +476,7 @@ public sealed class DraftMontagem
 
     public void DefinirCapitaes(IReadOnlyCollection<Guid> capitaesIds, IReadOnlySet<Guid> capitaesElegiveisIds)
     {
+        EnsureNaoTerminal();
         if (Status != DraftMontagemStatus.PresencaEncerrada)
         {
             throw new DomainException(MessageCodes.DraftMontagemPresenceMustBeClosed);
@@ -592,7 +593,8 @@ public sealed class DraftMontagem
                 throw new DomainException(MessageCodes.TeamPlayerLimitReached);
             }
 
-            if (timeLayout.CapitaoId is null || !timeLayout.Jogadores.Any(item => item.JogadorId == timeLayout.CapitaoId))
+            if ((CicloVersao != DraftMontagemCicloVersao.ModoPosPresenca || Modo != DraftMontagemModo.Manual)
+                && (timeLayout.CapitaoId is null || !timeLayout.Jogadores.Any(item => item.JogadorId == timeLayout.CapitaoId)))
             {
                 throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
             }
@@ -728,25 +730,59 @@ public sealed class DraftMontagem
 
     public void SubstituirPorReserva(Guid timeId, Guid jogadorSaiuId, Guid reservaEntrouId, string? motivo, Guid responsavelUsuarioId, DateTimeOffset agora)
     {
-        if (Status == DraftMontagemStatus.Cancelada)
-        {
-            throw new DomainException(MessageCodes.DraftClosed);
-        }
+        SubstituirPorReserva(timeId, jogadorSaiuId, reservaEntrouId, null, new HashSet<Guid>(), motivo, responsavelUsuarioId, agora);
+    }
+
+    public void SubstituirPorReserva(
+        Guid timeId,
+        Guid jogadorSaiuId,
+        Guid reservaEntrouId,
+        Guid? novoCapitaoId,
+        IReadOnlySet<Guid> capitaesElegiveisIds,
+        string? motivo,
+        Guid responsavelUsuarioId,
+        DateTimeOffset agora)
+    {
+        EnsureNaoTerminal();
 
         var time = _times.FirstOrDefault(item => item.Id == timeId) ?? throw new DomainException(MessageCodes.TeamNotFound);
         var jogadorSaiu = _participantes.FirstOrDefault(item => item.JogadorId == jogadorSaiuId && item.TimeId == time.Id && item.Estado == DraftMontagemParticipanteEstado.Time)
             ?? throw new DomainException(MessageCodes.DraftMontagemPlayerNotInTeam);
         var reserva = _participantes.FirstOrDefault(item => item.JogadorId == reservaEntrouId && item.Estado == DraftMontagemParticipanteEstado.Reserva)
             ?? throw new DomainException(MessageCodes.DraftMontagemReserveRequired);
+        var capitaoSaiu = jogadorSaiu.Capitao;
+        DraftMontagemParticipante? novoCapitao = null;
+        if (capitaoSaiu && CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            if (novoCapitaoId is null)
+            {
+                throw new DomainException(MessageCodes.DraftMontagemCaptainsRequired);
+            }
+
+            novoCapitao = novoCapitaoId == reservaEntrouId
+                ? reserva
+                : _participantes.FirstOrDefault(item => item.JogadorId == novoCapitaoId && item.TimeId == time.Id && item.Estado == DraftMontagemParticipanteEstado.Time && item.JogadorId != jogadorSaiuId);
+            if (novoCapitao is null)
+            {
+                throw new DomainException(MessageCodes.TeamCaptainMustBeMember);
+            }
+
+            ValidarCapitaesElegiveis([novoCapitao.JogadorId], capitaesElegiveisIds);
+        }
 
         var ordem = jogadorSaiu.Ordem;
         var rota = jogadorSaiu.RotaContextual;
-        var capitaoSaiu = jogadorSaiu.Capitao;
         jogadorSaiu.AtribuirReserva(reserva.Ordem, jogadorSaiu.RotaContextual);
-        reserva.AtribuirTime(time.Id, ordem, capitaoSaiu, rota);
+        reserva.AtribuirTime(time.Id, ordem, capitaoSaiu && CicloVersao != DraftMontagemCicloVersao.ModoPosPresenca, rota);
         if (capitaoSaiu)
         {
-            time.Atualizar(time.Nome, reserva.JogadorId);
+            var capitaoId = novoCapitao?.JogadorId ?? reserva.JogadorId;
+            novoCapitao?.DefinirCapitao(true);
+            time.Atualizar(time.Nome, capitaoId);
+            if (TurnoAtualCapitaoId == jogadorSaiuId)
+            {
+                TurnoAtualCapitaoId = capitaoId;
+            }
         }
 
         _substituicoes.Add(new DraftMontagemSubstituicao(time.Id, jogadorSaiuId, reservaEntrouId, motivo, responsavelUsuarioId, agora));
@@ -781,6 +817,25 @@ public sealed class DraftMontagem
     public void Finalizar()
     {
         EnsureAberta();
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca && Modo == DraftMontagemModo.Manual)
+        {
+            if (_times.Any(time => QuantidadeNoTime(time.Id) != TamanhoEquipe)
+                || _participantes.Any(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre))
+            {
+                throw new DomainException(MessageCodes.IncompleteDraft);
+            }
+
+            Status = DraftMontagemStatus.Finalizada;
+            LimparTurno();
+            Touch();
+            return;
+        }
+
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca && Modo == DraftMontagemModo.TempoReal)
+        {
+            throw new DomainException(MessageCodes.DraftClosed);
+        }
+
         foreach (var time in _times)
         {
             var membros = _participantes.Where(participante => participante.TimeId == time.Id).ToList();
@@ -1006,6 +1061,14 @@ public sealed class DraftMontagem
         }
     }
 
+    private void EnsureNaoTerminal()
+    {
+        if (Status is DraftMontagemStatus.Finalizada or DraftMontagemStatus.Cancelada)
+        {
+            throw new DomainException(MessageCodes.DraftClosed);
+        }
+    }
+
     private void EnsureTurnoAtivo(DateTimeOffset agora)
     {
         EnsureAberta();
@@ -1023,7 +1086,22 @@ public sealed class DraftMontagem
     private void IniciarProximoTurno(DateTimeOffset agora, int sequencia)
     {
         var proximoTime = ProximoTimeElegivel();
-        if (proximoTime is null || !_participantes.Any(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre))
+        if (CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            if (_times.Count > 0 && _times.All(time => QuantidadeNoTime(time.Id) == TamanhoEquipe))
+            {
+                Status = DraftMontagemStatus.Finalizada;
+                LimparTurno();
+                return;
+            }
+
+            if (proximoTime is null || !_participantes.Any(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre))
+            {
+                LimparTurno();
+                return;
+            }
+        }
+        else if (proximoTime is null || !_participantes.Any(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre))
         {
             Status = DraftMontagemStatus.Finalizada;
             LimparTurno();

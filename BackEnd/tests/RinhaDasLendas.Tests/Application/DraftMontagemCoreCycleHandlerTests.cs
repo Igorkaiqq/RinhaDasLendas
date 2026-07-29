@@ -326,6 +326,64 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
     }
 
+    [Fact]
+    public void ValidatorDeSubstituicaoDeveRejeitarNovoCapitaoVazioQuandoInformado()
+    {
+        var request = new SubstituirReservaDraftMontagemRequestDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.Empty,
+            null);
+
+        var result = new SubstituirReservaDraftMontagemValidator().Validate(request);
+
+        result.Errors.Should().Contain(error => error.ErrorMessage == MessageCodes.DraftMontagemCaptainsRequired);
+    }
+
+    [Fact]
+    public async Task SubstituirCapitaoV2DeveConsultarElegibilidadeEAtualizarAutoridadeDoTurno()
+    {
+        var jogadores = CriarJogadores(5).ToList();
+        var montagem = CriarTempoRealIniciadoComReserva(jogadores);
+        var time = montagem.Times.Single(item => item.CapitaoId == montagem.TurnoAtualCapitaoId);
+        var capitaoSaiuId = time.CapitaoId!.Value;
+        var reservaEntrouId = jogadores[^1].Id;
+        var usuarioId = Guid.NewGuid();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == jogadores.Count),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([reservaEntrouId]);
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var handler = new SubstituirReservaDraftMontagemCommandHandler(
+            repository.Object,
+            currentUser.Object,
+            new SubstituirReservaDraftMontagemValidator(),
+            notifier.Object);
+
+        await handler.Handle(
+            new SubstituirReservaDraftMontagemCommand(
+                montagem.Id,
+                new SubstituirReservaDraftMontagemRequestDto(
+                    time.Id,
+                    capitaoSaiuId,
+                    reservaEntrouId,
+                    reservaEntrouId,
+                    null)),
+            CancellationToken.None);
+
+        montagem.TurnoAtualCapitaoId.Should().Be(reservaEntrouId);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), CancellationToken.None), Times.Once);
+        repository.Verify(item => item.SaveChangesAsync(CancellationToken.None), Times.Once);
+    }
+
     private static DraftMontagem CriarPresencaEncerrada(IReadOnlyCollection<Jogador> jogadores)
     {
         var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, 5);
@@ -346,6 +404,24 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
         montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
         montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
+        return montagem;
+    }
+
+    private static DraftMontagem CriarTempoRealIniciadoComReserva(IReadOnlyCollection<Jogador> jogadores)
+    {
+        var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, 2);
+        foreach (var jogador in jogadores)
+        {
+            montagem.ConfirmarPresenca(Guid.NewGuid(), jogador.Id, null, DraftMontagemPresencaOrigem.Web);
+        }
+
+        montagem.EncerrarPresenca(true, 2);
+        var jogadoresIds = jogadores.Select(jogador => jogador.Id).ToList();
+        var capitaesIds = jogadoresIds.Take(2).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds.ToHashSet());
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        montagem.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, capitaesIds);
+        montagem.IniciarTempoReal(DateTimeOffset.UtcNow, capitaesIds.ToHashSet());
         return montagem;
     }
 
