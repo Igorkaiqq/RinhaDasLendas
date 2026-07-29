@@ -235,23 +235,29 @@ public sealed class DraftMontagemCoreCycleHandlerTests
     }
 
     [Fact]
-    public async Task ConsultaAdminDeveProjetarSomenteCapitaesAtualmenteElegiveis()
+    public async Task ConsultaAdminDeveExcluirReservaAtivaComRoleCapitaoDaProjecaoDeElegiveis()
     {
-        var jogadores = CriarJogadores(10);
+        var jogadores = CriarJogadores(12);
         var montagem = CriarPresencaEncerrada(jogadores);
         montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadores.Select(jogador => jogador.Id).ToHashSet());
-        var elegiveisIds = jogadores.Take(3).Select(jogador => jogador.Id).ToList();
+        var titularesElegiveisIds = jogadores.Take(2).Select(jogador => jogador.Id).ToList();
+        var reservaElegivelId = jogadores.Last().Id;
+        var elegiveisGlobaisIds = titularesElegiveisIds.Append(reservaElegivelId).ToList();
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.GetCapitaesElegiveisIdsAsync(
                 It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(elegiveisIds);
+            .ReturnsAsync(elegiveisGlobaisIds);
         var handler = new GetDraftMontagemAdminQueryHandler(repository.Object);
 
         var result = await handler.Handle(new GetDraftMontagemAdminQuery(montagem.Id), CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.CapitaesElegiveisIds.Should().BeEquivalentTo(elegiveisIds);
+        result!.CapitaesElegiveisIds.Should().BeEquivalentTo(titularesElegiveisIds);
+        result.CapitaesElegiveisIds.Should().NotContain(reservaElegivelId);
+        repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 10 && !ids.Contains(reservaElegivelId)),
+            CancellationToken.None), Times.Once);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Collections.Concurrent;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,70 @@ namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class DraftMontagemBehaviorIntegrationTests
 {
+    [Fact]
+    public async Task ConsultaCapitaesElegiveisDeveAplicarTodosOsFiltrosNoPostgreSql()
+    {
+        await using var factory = new PostgreSqlComposeApiFactory();
+        _ = factory.CreateAnonymousClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        var capitaoRoleId = await dbContext.Roles
+            .Where(role => role.Name == AuthRoles.Capitao)
+            .Select(role => role.Id)
+            .SingleAsync();
+
+        var usuarioElegivel = CriarUsuarioElegibilidade("elegivel", ativo: true);
+        var usuarioJogadorInativo = CriarUsuarioElegibilidade("jogador-inativo", ativo: true);
+        var usuarioInativo = CriarUsuarioElegibilidade("usuario-inativo", ativo: false);
+        var usuarioSemRole = CriarUsuarioElegibilidade("sem-role", ativo: true);
+        var usuarioForaDaEntrada = CriarUsuarioElegibilidade("fora-entrada", ativo: true);
+        dbContext.Users.AddRange(
+            usuarioElegivel,
+            usuarioJogadorInativo,
+            usuarioInativo,
+            usuarioSemRole,
+            usuarioForaDaEntrada);
+
+        var jogadorElegivel = CriarJogadorElegibilidade("Elegível", usuarioElegivel.Id);
+        var jogadorInativo = CriarJogadorElegibilidade("Jogador inativo", usuarioJogadorInativo.Id);
+        jogadorInativo.Inativar();
+        var jogadorSemVinculo = CriarJogadorElegibilidade("Sem vínculo", null);
+        var jogadorComUsuarioInativo = CriarJogadorElegibilidade("Usuário inativo", usuarioInativo.Id);
+        var jogadorSemRole = CriarJogadorElegibilidade("Sem role", usuarioSemRole.Id);
+        var jogadorForaDaEntrada = CriarJogadorElegibilidade("Fora da entrada", usuarioForaDaEntrada.Id);
+        dbContext.Jogadores.AddRange(
+            jogadorElegivel,
+            jogadorInativo,
+            jogadorSemVinculo,
+            jogadorComUsuarioInativo,
+            jogadorSemRole,
+            jogadorForaDaEntrada);
+        dbContext.UserRoles.AddRange(
+            new IdentityUserRole<Guid> { UserId = usuarioElegivel.Id, RoleId = capitaoRoleId },
+            new IdentityUserRole<Guid> { UserId = usuarioJogadorInativo.Id, RoleId = capitaoRoleId },
+            new IdentityUserRole<Guid> { UserId = usuarioInativo.Id, RoleId = capitaoRoleId },
+            new IdentityUserRole<Guid> { UserId = usuarioForaDaEntrada.Id, RoleId = capitaoRoleId });
+        await dbContext.SaveChangesAsync();
+        var idsEntrada = new[]
+        {
+            jogadorElegivel.Id,
+            jogadorInativo.Id,
+            jogadorSemVinculo.Id,
+            jogadorComUsuarioInativo.Id,
+            jogadorSemRole.Id,
+        };
+
+        var result = await new DraftMontagemRepository(dbContext)
+            .GetCapitaesElegiveisIdsAsync(idsEntrada, CancellationToken.None);
+
+        result.Should().ContainSingle().Which.Should().Be(jogadorElegivel.Id);
+        result.Should().NotContain(jogadorInativo.Id);
+        result.Should().NotContain(jogadorSemVinculo.Id);
+        result.Should().NotContain(jogadorComUsuarioInativo.Id);
+        result.Should().NotContain(jogadorSemRole.Id);
+        result.Should().NotContain(jogadorForaDaEntrada.Id);
+    }
+
     [Fact]
     public async Task DuasConfirmacoesHttpConcorrentes_DevemRetornarSemErroInternoEUmaPresenca()
     {
@@ -923,6 +988,46 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var payload = await ReadJsonAsync(response);
         return payload.RootElement.GetProperty("claimId").GetGuid();
+    }
+
+    private static ApplicationUser CriarUsuarioElegibilidade(string nome, bool ativo)
+    {
+        var id = Guid.NewGuid();
+        return new ApplicationUser
+        {
+            Id = id,
+            Nome = nome,
+            UserName = $"eligibility-{nome}-{id:N}",
+            NormalizedUserName = $"ELIGIBILITY-{nome}-{id:N}".ToUpperInvariant(),
+            Ativo = ativo,
+        };
+    }
+
+    private static Jogador CriarJogadorElegibilidade(string nome, Guid? usuarioId)
+    {
+        var jogador = new Jogador(
+            nome,
+            null,
+            $"{Guid.NewGuid():N}#1234",
+            null,
+            null,
+            null,
+            Elo.Ouro,
+            Divisao.II,
+            new[]
+            {
+                new PreferenciaRota(Rota.Top, 1, false),
+                new PreferenciaRota(Rota.Jungle, 2, false),
+                new PreferenciaRota(Rota.Mid, 3, false),
+                new PreferenciaRota(Rota.Adc, 4, false),
+                new PreferenciaRota(Rota.Support, 5, false),
+            });
+        if (usuarioId is Guid id)
+        {
+            jogador.VincularUsuario(id);
+        }
+
+        return jogador;
     }
 
     private sealed class PostgreSqlComposeApiFactory : SecurityApiFactory

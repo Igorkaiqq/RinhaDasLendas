@@ -16,11 +16,18 @@ public sealed class GetDraftMontagemAdminQueryHandler(IDraftMontagemRepository r
             return null;
         }
 
-        var capitaesElegiveisIds = montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca
-            ? await repository.GetCapitaesElegiveisIdsAsync(
-                montagem.Participantes.Select(participante => participante.JogadorId).ToList(),
-                cancellationToken)
-            : [];
+        IReadOnlyCollection<Guid> capitaesElegiveisIds = [];
+        if (montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
+        {
+            var titularesIds = montagem.Participantes
+                .Where(participante => participante.Estado != DraftMontagemParticipanteEstado.Reserva)
+                .Select(participante => participante.JogadorId)
+                .ToHashSet();
+            capitaesElegiveisIds = (await repository.GetCapitaesElegiveisIdsAsync(titularesIds, cancellationToken))
+                .Where(titularesIds.Contains)
+                .ToList();
+        }
+
         return DraftMontagemAdminResponseDto.FromEntity(montagem, capitaesElegiveisIds);
     }
 }
