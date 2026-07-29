@@ -105,6 +105,7 @@ Como organizador, quero concluir drafts ativos criados antes da mudança sem rei
 - Perda do cargo global, inativação ou ausência de um capitão diário exige nova designação antes de sua próxima ação.
 - A entrada de uma reserva nunca concede autoridade de capitão implicitamente.
 - Timeout pode fazer a quantidade de tentativas superar a quantidade de vagas, sem aumentar a capacidade dos times.
+- Se um time permanecer incompleto sem titular livre elegível, o draft aguarda intervenção Admin+ e não finaliza automaticamente.
 - Uma requisição repetida de escolha de modo ou início não cria times, turnos ou histórico duplicados.
 - Alterações concorrentes de pick, timeout, substituição e finalização preservam uma única versão válida do agregado.
 - Criação direta continua restrita a Admin+ e não pode iniciar implicitamente um draft em tempo real.
@@ -129,7 +130,7 @@ Como organizador, quero concluir drafts ativos criados antes da mudança sem rei
 - **FR-014**: Substituição MUST exigir seleção explícita da reserva e MUST NOT transferir o papel de capitão automaticamente.
 - **FR-015**: Substituição do capitão atual MUST exigir novo capitão elegível e atualizar atomicamente a autoridade do turno.
 - **FR-016**: Draft `Finalizada` ou `Cancelada` MUST rejeitar layout, sorteio ou definição de capitães, picks e substituições.
-- **FR-017**: Modo tempo real MUST finalizar automaticamente quando todos os times estiverem completos ou não houver titular livre elegível.
+- **FR-017**: Modo tempo real MUST finalizar automaticamente somente quando todos os times estiverem completos; ausência de titular livre elegível com vaga restante MUST manter o draft aberto para intervenção Admin+.
 - **FR-018**: Drafts ativos anteriores à feature MUST preservar o fluxo legado; drafts novos MUST usar o novo ciclo.
 - **FR-019**: Todas as novas validações MUST usar mensagens localizadas em português e inglês.
 - **FR-020**: O backend MUST permanecer a fonte de verdade para cargo, elegibilidade, estado, capacidade e autorização.
