@@ -847,7 +847,7 @@ async function pickRealtime(jogadorId: string) {
   }
 }
 
-async function substituteReserve(payload: DraftMontagemSubstituicaoPayload) {
+async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, complete?: (success: boolean) => void) {
   const current = selectedMontagem.value
   const team = current?.times.find((item) => item.id === payload.timeId)
   const outgoingPlayer = team?.jogadores.find((player) => player.jogadorId === payload.jogadorSaiuId)
@@ -866,19 +866,30 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload) {
     || !current.reservas.some((player) => player.jogadorId === payload.reservaEntrouId && player.estado === DraftMontagemEstadoValues.Reserva)
     || (captainLeaving && (!payload.novoCapitaoId || !eligibleCaptainIds.value.includes(payload.novoCapitaoId) || !resultingCaptainIds.has(payload.novoCapitaoId)))
     || (!captainLeaving && current.cicloVersao === 'ModoPosPresenca' && Boolean(payload.novoCapitaoId))
-  ) return
+  ) {
+    complete?.(false)
+    return
+  }
   const context = beginSelectedDraftUpdate()
-  if (!context) return
+  if (!context) {
+    complete?.(false)
+    return
+  }
 
+  let completed = false
   saving.value = true
   errors.value = []
   try {
     const state = await substituteDraftMontagemReserve(context.draftId, payload)
-    if (await applyMutationRealtimeState(context, state)) notification.value = t('drafts.realtime.reserveSubstituted')
+    if (await applyMutationRealtimeState(context, state)) {
+      completed = state.montagem.versaoEstado > current.versaoEstado
+      if (completed) notification.value = t('drafts.realtime.reserveSubstituted')
+    }
   } catch (error) {
     if (isActiveDraft(context.draftId, context.generation)) captureError(error)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    complete?.(completed)
   }
 }
 

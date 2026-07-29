@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using FluentAssertions;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
@@ -7,6 +8,26 @@ namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class DraftMontagemLegacyCompatibilityIntegrationTests
 {
+    [Theory]
+    [InlineData(DraftMontagemStatus.PresencaAberta)]
+    [InlineData(DraftMontagemStatus.PresencaEncerrada)]
+    [InlineData(DraftMontagemStatus.Aberta)]
+    [InlineData(DraftMontagemStatus.Finalizada)]
+    [InlineData(DraftMontagemStatus.Cancelada)]
+    public async Task DraftV1_DevePreservarEstadosAtivosETerminais(DraftMontagemStatus status)
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedLegacyOpenDraftAsync(status);
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+
+        var response = await admin.GetAsync($"/api/v1/draft-montagens/{fixture.DraftId}");
+
+        response.EnsureSuccessStatusCode();
+        var draft = await response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>();
+        draft!.CicloVersao.Should().Be(nameof(DraftMontagemCicloVersao.Legado));
+        draft.Status.Should().Be(status.ToString());
+    }
+
     [Fact]
     public async Task DraftV1Aberto_DevePreservarInicioPickESubstituicaoSemNovoCapitao()
     {
@@ -41,5 +62,30 @@ public sealed class DraftMontagemLegacyCompatibilityIntegrationTests
 
         substituted.Montagem.Substituicoes.Should().ContainSingle();
         substituted.Montagem.Times.Single(item => item.Id == team.Id).Jogadores.Select(player => player.JogadorId).Should().Contain(reserveId);
+    }
+
+    [Fact]
+    public async Task DraftV1_DeveTransferirCapitaniaParaReservaQuandoCapitaoSaiSemNovoCapitaoId()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedLegacyOpenDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        var started = await DraftMontagemCycleIntegrationTests.PostAndReadAsync<DraftMontagemRealtimeStateDto>(
+            admin,
+            $"/api/v1/draft-montagens/{fixture.DraftId}/iniciar-tempo-real",
+            null);
+        var outgoingCaptainId = started.Montagem.TurnoAtualCapitaoId!.Value;
+        var team = started.Montagem.Times.Single(item => item.CapitaoId == outgoingCaptainId);
+        var reserve = fixture.Players[4];
+
+        var substituted = await DraftMontagemCycleIntegrationTests.PostAndReadAsync<DraftMontagemRealtimeStateDto>(
+            admin,
+            $"/api/v1/draft-montagens/{fixture.DraftId}/reservas/substituir",
+            new { TimeId = team.Id, JogadorSaiuId = outgoingCaptainId, ReservaEntrouId = reserve.PlayerId, Motivo = (string?)null });
+
+        substituted.Montagem.TurnoAtualCapitaoId.Should().Be(reserve.PlayerId);
+        var resultingTeam = substituted.Montagem.Times.Single(item => item.Id == team.Id);
+        resultingTeam.CapitaoId.Should().Be(reserve.PlayerId);
+        resultingTeam.Jogadores.Single(item => item.JogadorId == reserve.PlayerId).Capitao.Should().BeTrue();
     }
 }

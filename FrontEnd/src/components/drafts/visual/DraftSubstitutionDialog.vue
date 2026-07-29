@@ -45,9 +45,11 @@ const captainCandidates = computed(() => {
   const resultingPlayers = selectedReserve.value ? [...remainingPlayers, selectedReserve.value] : remainingPlayers
   return resultingPlayers.filter((player) => eligibleCaptainIds.value.has(player.jogadorId))
 })
+const selectedCaptainValid = computed(() => !captainLeaving.value
+  || captainCandidates.value.some((player) => player.jogadorId === selectedCaptainId.value))
 const reasonTooLong = computed(() => reason.value.trim().length > 500)
 const valid = computed(() => Boolean(selectedReserve.value)
-  && (!captainLeaving.value || captainCandidates.value.some((player) => player.jogadorId === selectedCaptainId.value))
+  && selectedCaptainValid.value
   && !reasonTooLong.value)
 
 watch(
@@ -63,8 +65,8 @@ watch(
   { immediate: true },
 )
 
-watch(selectedReserveId, () => {
-  if (!captainCandidates.value.some((player) => player.jogadorId === selectedCaptainId.value)) {
+watch(() => captainCandidates.value.map((player) => player.jogadorId), () => {
+  if (!selectedCaptainValid.value) {
     selectedCaptainId.value = ''
   }
 })
@@ -146,14 +148,14 @@ function handleCloseAutoFocus(event: DialogAutoFocusEvent) {
             </FieldError>
           </Field>
 
-          <Field v-if="captainLeaving" data-testid="new-captain-field" :data-invalid="submitted && !selectedCaptainId" :data-disabled="saving">
+          <Field v-if="captainLeaving" data-testid="new-captain-field" :data-invalid="submitted && !selectedCaptainValid" :data-disabled="saving">
             <FieldLabel for="draft-substitution-captain">{{ t('drafts.realtime.substitution.captainLabel') }}</FieldLabel>
             <Select v-model="selectedCaptainId" :disabled="saving || !selectedReserve">
               <SelectTrigger
                 id="draft-substitution-captain"
                 data-testid="new-captain-select"
-                :aria-invalid="submitted && !selectedCaptainId"
-                :aria-describedby="submitted && !selectedCaptainId ? 'draft-substitution-captain-error' : undefined"
+                :aria-invalid="submitted && !selectedCaptainValid"
+                :aria-describedby="submitted && !selectedCaptainValid ? 'draft-substitution-captain-error' : undefined"
               >
                 <SelectValue :placeholder="t('drafts.realtime.substitution.captainPlaceholder')" />
               </SelectTrigger>
@@ -165,7 +167,7 @@ function handleCloseAutoFocus(event: DialogAutoFocusEvent) {
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldError v-if="submitted && !selectedCaptainId" id="draft-substitution-captain-error" data-testid="captain-error">
+            <FieldError v-if="submitted && !selectedCaptainValid" id="draft-substitution-captain-error" data-testid="captain-error">
               {{ t('drafts.realtime.substitution.captainRequired') }}
             </FieldError>
           </Field>

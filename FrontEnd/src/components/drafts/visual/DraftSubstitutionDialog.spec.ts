@@ -135,6 +135,25 @@ describe('DraftSubstitutionDialog', () => {
     wrapper.unmount()
   })
 
+  it('clears a captain that loses eligibility and exposes the reconciled invalid field', async () => {
+    const wrapper = await mountDialog()
+    const selects = wrapper.findAllComponents(Select)
+    selects[0]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    selects[1]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+
+    await wrapper.setProps({ eligibleCaptainIds: ['player-2'] })
+    await nextTick()
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('confirm')).toBeUndefined()
+    expect(wrapper.get('[data-testid="new-captain-select"]').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('[data-testid="new-captain-select"]').text()).not.toContain('Reserva Jinx')
+    expect(wrapper.get('[data-testid="captain-error"]').text()).toContain('capitão')
+    wrapper.unmount()
+  })
+
   it('focuses the reserve control on desktop and the cancel action on mobile', async () => {
     const desktop = await mountDialog()
     await new Promise((resolve) => setTimeout(resolve))

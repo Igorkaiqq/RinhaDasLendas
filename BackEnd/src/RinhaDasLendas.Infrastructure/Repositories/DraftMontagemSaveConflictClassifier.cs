@@ -30,10 +30,22 @@ internal static class DraftMontagemSaveConflictClassifier
                 InnerException: PostgresException
                 {
                     SqlState: PostgresErrorCodes.UniqueViolation,
-                    ConstraintName: DiscordPublicationByTypeIndex or ParticipantByPlayerIndex or TeamByOrderIndex,
+                    ConstraintName: DiscordPublicationByTypeIndex,
                 },
             } => DraftMontagemSaveResultado.ConflitoDeVersao,
             _ => null,
+        };
+    }
+
+    public static bool IsStructuralUniqueViolation(Exception exception)
+    {
+        return exception is DbUpdateException
+        {
+            InnerException: PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: ParticipantByPlayerIndex or TeamByOrderIndex,
+            },
         };
     }
 }

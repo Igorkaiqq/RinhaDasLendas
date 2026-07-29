@@ -606,9 +606,9 @@ describe('DraftVisualBoard', () => {
     substitutions.getComponent(Select).vm.$emit('update:modelValue', 'reserve-1')
     await nextTick()
     await substitutions.get('form').trigger('submit')
-    expect(substitutions.emitted('substituteReserve')).toEqual([[
+    expect(substitutions.emitted('substituteReserve')?.[0]?.[0]).toEqual(
       { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', novoCapitaoId: null, motivo: null },
-    ]])
+    )
     substitutions.unmount()
   })
 
@@ -626,9 +626,71 @@ describe('DraftVisualBoard', () => {
     selects[1]!.vm.$emit('update:modelValue', 'reserve-1')
     await wrapper.get('form').trigger('submit')
 
-    expect(wrapper.emitted('substituteReserve')).toEqual([[
+    expect(wrapper.emitted('substituteReserve')?.[0]?.[0]).toEqual(
       { timeId: 'team-a', jogadorSaiuId: 'captain-a', reservaEntrouId: 'reserve-1', novoCapitaoId: 'reserve-1', motivo: null },
-    ]])
+    )
+    wrapper.unmount()
+  })
+
+  it('keeps selections while substitution is pending, supports retry, and closes only after an advanced projection', async () => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.cicloVersao = 'ModoPosPresenca'
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1'], attachTo: document.body })
+    const trigger = wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action')
+    ;(trigger.element as HTMLElement).focus()
+    await trigger.trigger('click')
+    const selects = wrapper.findAllComponents(Select)
+    selects[0]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    selects[1]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    await wrapper.get('form').trigger('submit')
+
+    const firstEmission = wrapper.emitted('substituteReserve')?.[0]
+    expect(firstEmission?.[0]).toMatchObject({ reservaEntrouId: 'reserve-1', novoCapitaoId: 'reserve-1' })
+    expect(firstEmission?.[1]).toEqual(expect.any(Function))
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="reserve-trigger"]').text()).toContain('Reserve Support')
+
+    await wrapper.setProps({ saving: true })
+    expect(wrapper.get('[data-testid="reserve-trigger"]').attributes('disabled')).toBeDefined()
+    await wrapper.setProps({ saving: false })
+    ;(firstEmission?.[1] as (success: boolean) => void)(false)
+    await nextTick()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="reserve-trigger"]').text()).toContain('Reserve Support')
+
+    await wrapper.get('form').trigger('submit')
+    const secondEmission = wrapper.emitted('substituteReserve')?.[1]
+    const advanced = { ...draft, versaoEstado: draft.versaoEstado + 1 }
+    await wrapper.setProps({ montagem: advanced })
+    ;(secondEmission?.[1] as (success: boolean) => void)(true)
+    await nextTick()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element.isConnected ? trigger.element : wrapper.get('.draft-visual-shell').element)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['version', (draft: DraftMontagem) => ({ ...draft, versaoEstado: draft.versaoEstado + 1 })],
+    ['status', (draft: DraftMontagem) => ({ ...draft, status: 'Finalizada' as const })],
+    ['membership', (draft: DraftMontagem) => ({ ...draft, times: draft.times.map((team) => team.id === 'team-a' ? { ...team, jogadores: [...team.jogadores, player('new-member', 'New Member', 'Time')] } : team) })],
+    ['reserve', (draft: DraftMontagem) => ({ ...draft, reservas: [player('reserve-2', 'Other Reserve', 'Reserva')] })],
+  ] as const)('closes and restores focus when substitution %s context changes', async (_, mutate) => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.cicloVersao = 'ModoPosPresenca'
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1'], attachTo: document.body })
+    const trigger = wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action')
+    ;(trigger.element as HTMLElement).focus()
+    await trigger.trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+
+    await wrapper.setProps({ montagem: mutate(draft) })
+    await nextTick()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element.isConnected ? trigger.element : wrapper.get('.draft-visual-shell').element)
     wrapper.unmount()
   })
 

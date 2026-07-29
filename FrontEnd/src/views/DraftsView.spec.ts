@@ -1409,19 +1409,55 @@ describe('DraftsView reason actions', () => {
     serviceMocks.substituteDraftMontagemReserve.mockReturnValueOnce(new Promise((resolve) => { resolveSubstitution = resolve }))
     const wrapper = await mountView()
     const payload = { timeId: 'time-1', jogadorSaiuId: 'outgoing-1', reservaEntrouId: 'reserve-1', novoCapitaoId: null, motivo: null }
-    const vm = wrapper.vm as unknown as { substituteReserve: (value: typeof payload) => Promise<void> }
+    const vm = wrapper.vm as unknown as { substituteReserve: (value: typeof payload, complete?: (success: boolean) => void) => Promise<void> }
+    const complete = vi.fn()
 
-    void vm.substituteReserve(payload)
+    void vm.substituteReserve(payload, complete)
     void vm.substituteReserve(payload)
     await nextTick()
 
     expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledTimes(1)
     expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledWith('montagem-1', payload)
-    resolveSubstitution({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    expect(complete).not.toHaveBeenCalled()
+    const advancedDraft = { ...activeDraft, versaoEstado: activeDraft.versaoEstado + 1 }
+    resolveSubstitution({ montagem: advancedDraft, canCurrentUserPick: false, serverNow: advancedDraft.dataAtualizacao })
     await flushPromises()
+    expect(complete).toHaveBeenCalledWith(true)
     ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
     await vm.substituteReserve(payload)
     expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('reports substitution failure for retry after the service rejects', async () => {
+    const outgoing = { ...realtimeCaptain, jogadorId: 'outgoing-1', capitao: false, ordem: 2 }
+    const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', estado: 'Reserva' as const, capitao: false }
+    const activeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      times: [{ ...realtimeTeam, jogadores: [realtimeCaptain, outgoing] }],
+      reservas: [reserve],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({ ...adminProjection('Aberta'), ...activeDraft })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    serviceMocks.substituteDraftMontagemReserve.mockRejectedValueOnce(new Error('network'))
+    const wrapper = await mountView()
+    const complete = vi.fn()
+
+    await (wrapper.vm as unknown as {
+      substituteReserve: (value: DraftMontagemSubstituicaoPayload, complete: (success: boolean) => void) => Promise<void>
+    }).substituteReserve({
+      timeId: 'time-1',
+      jogadorSaiuId: 'outgoing-1',
+      reservaEntrouId: 'reserve-1',
+      novoCapitaoId: null,
+      motivo: null,
+    }, complete)
+
+    expect(complete).toHaveBeenCalledOnce()
+    expect(complete).toHaveBeenCalledWith(false)
+    expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(false)
     wrapper.unmount()
   })
 
@@ -1493,14 +1529,16 @@ describe('DraftsView reason actions', () => {
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
     const wrapper = await mountView()
 
-    await (wrapper.vm as unknown as { substituteReserve: (value: object) => Promise<void> }).substituteReserve({
+    const complete = vi.fn()
+    await (wrapper.vm as unknown as { substituteReserve: (value: object, complete: (success: boolean) => void) => Promise<void> }).substituteReserve({
       timeId: 'time-1',
       jogadorSaiuId: scenario.outgoingId ?? 'outgoing-1',
       reservaEntrouId: 'reserve-1',
       motivo: null,
-    })
+    }, complete)
 
     expect(serviceMocks.substituteDraftMontagemReserve).not.toHaveBeenCalled()
+    expect(complete).toHaveBeenCalledWith(false)
     wrapper.unmount()
   })
 

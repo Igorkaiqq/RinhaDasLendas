@@ -428,9 +428,16 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception exception) when (DraftMontagemSaveConflictClassifier.Classify(exception) is not null)
+        catch (Exception exception)
         {
-            throw new DomainException(MessageCodes.DraftStateConflict);
+            if (DraftMontagemSaveConflictClassifier.Classify(exception) is not null
+                || (DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(exception)
+                    && await HasStaleTrackedDraftVersionAsync(cancellationToken)))
+            {
+                throw new DomainException(MessageCodes.DraftStateConflict);
+            }
+
+            throw;
         }
     }
 
@@ -441,10 +448,45 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             await dbContext.SaveChangesAsync(cancellationToken);
             return DraftMontagemSaveResultado.Persistido;
         }
-        catch (Exception exception) when (DraftMontagemSaveConflictClassifier.Classify(exception) is { } result)
+        catch (Exception exception)
         {
-            return result;
+            if (DraftMontagemSaveConflictClassifier.Classify(exception) is { } result)
+            {
+                return result;
+            }
+
+            if (DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(exception)
+                && await HasStaleTrackedDraftVersionAsync(cancellationToken))
+            {
+                return DraftMontagemSaveResultado.ConflitoDeVersao;
+            }
+
+            throw;
         }
+    }
+
+    private async Task<bool> HasStaleTrackedDraftVersionAsync(CancellationToken cancellationToken)
+    {
+        var trackedVersions = dbContext.ChangeTracker.Entries<DraftMontagem>()
+            .Where(entry => entry.State is not EntityState.Added and not EntityState.Detached)
+            .Select(entry => new
+            {
+                entry.Entity.Id,
+                OriginalVersion = entry.Property(montagem => montagem.VersaoEstado).OriginalValue,
+            })
+            .ToList();
+        if (trackedVersions.Count == 0)
+        {
+            return false;
+        }
+
+        var ids = trackedVersions.Select(item => item.Id).ToList();
+        var persistedVersions = await dbContext.DraftMontagens
+            .AsNoTracking()
+            .Where(montagem => ids.Contains(montagem.Id))
+            .Select(montagem => new { montagem.Id, montagem.VersaoEstado })
+            .ToDictionaryAsync(item => item.Id, item => item.VersaoEstado, cancellationToken);
+        return trackedVersions.Any(item => persistedVersions.GetValueOrDefault(item.Id, item.OriginalVersion) != item.OriginalVersion);
     }
 
     private static IQueryable<DraftMontagem> IncludeMontagem(IQueryable<DraftMontagem> query)

@@ -31,7 +31,7 @@ const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
   startRealtime: []
   pick: [jogadorId: string]
-  substituteReserve: [payload: DraftMontagemSubstituicaoPayload]
+  substituteReserve: [payload: DraftMontagemSubstituicaoPayload, complete: (success: boolean) => void]
   drawCaptains: []
   finalize: []
   cancel: []
@@ -47,7 +47,13 @@ const now = ref(Date.now())
 const soundEnabled = ref(false)
 const pickLocked = ref(false)
 const substituteLocked = ref(false)
-const substitutionContext = ref<{ team: DraftMontagem['times'][number]; player: DraftMontagemParticipante } | null>(null)
+const substitutionContext = ref<{
+  timeId: string
+  jogadorSaiuId: string
+  openedVersion: number
+  teamMemberIds: string[]
+  reserveIds: string[]
+} | null>(null)
 const substitutionTrigger = ref<InstanceType<typeof globalThis.HTMLElement> | null>(null)
 const moveAnnouncement = ref('')
 const boardShell = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('boardShell')
@@ -153,6 +159,26 @@ const realtimeAnnouncement = computed(() => hasActiveTurn.value
       total: totalPicks.value,
     })
   : t('drafts.realtime.liveProgress', { current: completedPicks.value, total: totalPicks.value }))
+const substitutionTeam = computed(() => {
+  const context = substitutionContext.value
+  return context ? localMontagem.value.times.find((team) => team.id === context.timeId) ?? null : null
+})
+const substitutionPlayer = computed(() => {
+  const context = substitutionContext.value
+  return context ? substitutionTeam.value?.jogadores.find((player) => player.jogadorId === context.jogadorSaiuId) ?? null : null
+})
+const substitutionContextValid = computed(() => Boolean(
+  substitutionContext.value
+  && localMontagem.value.versaoEstado === substitutionContext.value.openedVersion
+  && isOpen.value
+  && !isTerminal.value
+  && props.canManage
+  && substitutionTeam.value
+  && substitutionPlayer.value
+  && idsEqual(substitutionContext.value.teamMemberIds, substitutionTeam.value.jogadores.map((player) => player.jogadorId))
+  && idsEqual(substitutionContext.value.reserveIds, localMontagem.value.reservas.map((reserve) => reserve.jogadorId))
+  && localMontagem.value.reservas.some((reserve) => reserve.estado === DraftMontagemEstadoValues.Reserva),
+))
 
 watch(
   () => props.montagem,
@@ -161,6 +187,7 @@ watch(
     dirty.value = false
     pickLocked.value = false
     substituteLocked.value = false
+    if (substitutionContext.value && !substitutionContextValid.value) closeSubstitution()
   },
 )
 
@@ -362,24 +389,65 @@ function requestSubstitution(timeId: string, jogadorSaiuId: string, event: Board
   ) return
 
   substitutionTrigger.value = event.currentTarget as InstanceType<typeof globalThis.HTMLElement>
-  substitutionContext.value = { team, player }
+  substitutionContext.value = {
+    timeId,
+    jogadorSaiuId,
+    openedVersion: localMontagem.value.versaoEstado,
+    teamMemberIds: team.jogadores.map((item) => item.jogadorId).sort(),
+    reserveIds: localMontagem.value.reservas.map((reserve) => reserve.jogadorId).sort(),
+  }
 }
 
 function confirmSubstitution(payload: DraftMontagemSubstituicaoPayload) {
+  const context = substitutionContext.value
   if (substituteLocked.value || props.saving) return
+  if (
+    !context
+    || !substitutionContextValid.value
+    || payload.timeId !== context.timeId
+    || payload.jogadorSaiuId !== context.jogadorSaiuId
+    || !localMontagem.value.reservas.some((reserve) => reserve.jogadorId === payload.reservaEntrouId && reserve.estado === DraftMontagemEstadoValues.Reserva)
+  ) {
+    if (context) closeSubstitution()
+    return
+  }
+
   substituteLocked.value = true
-  substitutionContext.value = null
-  emit('substituteReserve', payload)
+  const submittedContext = { ...context }
+  emit('substituteReserve', payload, (success) => {
+    if (
+      !substitutionContext.value
+      || substitutionContext.value.timeId !== submittedContext.timeId
+      || substitutionContext.value.jogadorSaiuId !== submittedContext.jogadorSaiuId
+      || substitutionContext.value.openedVersion !== submittedContext.openedVersion
+    ) return
+
+    substituteLocked.value = false
+    if (success && localMontagem.value.versaoEstado > submittedContext.openedVersion) closeSubstitution()
+  })
 }
 
 function cancelSubstitution() {
   if (props.saving) return
+  closeSubstitution()
+}
+
+function closeSubstitution() {
   substitutionContext.value = null
+  substituteLocked.value = false
   restoreSubstitutionFocus()
 }
 
 function restoreSubstitutionFocus() {
-  void nextTick(() => substitutionTrigger.value?.focus())
+  void nextTick(() => {
+    const trigger = substitutionTrigger.value
+    ;(trigger?.isConnected ? trigger : boardShell.value)?.focus()
+  })
+}
+
+function idsEqual(expected: string[], current: string[]) {
+  const sortedCurrent = [...current].sort()
+  return expected.length === sortedCurrent.length && expected.every((id, index) => id === sortedCurrent[index])
 }
 
 type MoveControlEvent = InstanceType<typeof globalThis.Event>
@@ -491,7 +559,7 @@ async function exportImage() {
 </script>
 
 <template>
-  <section ref="boardShell" class="draft-visual-shell draft-panel" :aria-label="t('drafts.board.label')">
+  <section ref="boardShell" class="draft-visual-shell draft-panel" :aria-label="t('drafts.board.label')" tabindex="-1">
     <div class="draft-visual-actions">
       <button v-if="canManage && localMontagem.cicloVersao === 'Legado' && !isRealtime && isOpen" type="button" class="button-secondary" :disabled="isReadOnly || saving" @click="emit('drawCaptains')">{{ t('drafts.visualBoard.drawCaptains') }}</button>
       <button v-if="canManage && canStartRealtime" data-testid="start-realtime" :data-stage-primary-action="localMontagem.cicloVersao === 'ModoPosPresenca' ? '' : undefined" type="button" :disabled="saving" @click="emit('startRealtime')">{{ t('drafts.realtime.start') }}</button>
@@ -701,13 +769,13 @@ async function exportImage() {
 
     <PlayerDetailsDrawer :player="detailsPlayer" @close="detailsPlayer = null" />
     <DraftSubstitutionDialog
-      v-if="substitutionContext"
+      v-if="substitutionContext && substitutionTeam && substitutionPlayer"
       :open="true"
-      :team="substitutionContext.team"
-      :outgoing-player="substitutionContext.player"
+      :team="substitutionTeam"
+      :outgoing-player="substitutionPlayer"
       :reserves="localMontagem.reservas"
       :eligible-captain-ids="eligibleCaptainIds"
-      :requires-new-captain="localMontagem.cicloVersao === 'ModoPosPresenca' && (substitutionContext.player.capitao || substitutionContext.team.capitaoId === substitutionContext.player.jogadorId)"
+      :requires-new-captain="localMontagem.cicloVersao === 'ModoPosPresenca' && (substitutionPlayer.capitao || substitutionTeam.capitaoId === substitutionPlayer.jogadorId)"
       :saving="saving"
       @confirm="confirmSubstitution"
       @cancel="cancelSubstitution"

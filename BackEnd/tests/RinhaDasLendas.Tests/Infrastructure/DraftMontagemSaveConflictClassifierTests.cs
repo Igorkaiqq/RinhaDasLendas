@@ -27,10 +27,12 @@ public sealed class DraftMontagemSaveConflictClassifierTests
     [Theory]
     [InlineData("IX_draft_montagem_participantes_draft_montagem_id_jogador_id")]
     [InlineData("IX_draft_montagem_times_draft_montagem_id_ordem")]
-    public void Deve_classificar_constraints_estruturais_do_agregado_como_conflito_de_versao(string constraintName)
+    public void Nao_deve_classificar_constraint_estrutural_sem_contexto_de_versao(string constraintName)
     {
         DraftMontagemSaveConflictClassifier.Classify(UniqueViolation(constraintName))
-            .Should().Be(DraftMontagemSaveResultado.ConflitoDeVersao);
+            .Should().BeNull();
+        DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(UniqueViolation(constraintName))
+            .Should().BeTrue();
     }
 
     [Fact]
