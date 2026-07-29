@@ -29,6 +29,7 @@ using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
+using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Tests.Infrastructure;
 using RinhaDasLendas.Tests.Jogadores;
 using ResourceMessageProvider = RinhaDasLendas.Infrastructure.Messages.ResourceMessageProvider;
@@ -206,6 +207,98 @@ public sealed class SecurityHardeningTests
         var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", new { });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task DraftCycleModeEndpoint_ShouldEnforceRealAuthenticationMatrixAndAllowAdminPlus()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var anonymous = factory.CreateAnonymousClient();
+        using var player = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var moderator = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+        using var bot = factory.CreateBotClient();
+        var protectedRoute = $"/api/v1/draft-montagens/{Guid.NewGuid()}/modo";
+
+        (await anonymous.PatchAsJsonAsync(protectedRoute, new { modo = "Manual" })).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await player.PatchAsJsonAsync(protectedRoute, new { modo = "Manual" })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await moderator.PatchAsJsonAsync(protectedRoute, new { modo = "Manual" })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await bot.PatchAsJsonAsync(protectedRoute, new { modo = "Manual" })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var draftId = await factory.SeedManualDraftAsync();
+
+        foreach (var role in new[] { AuthRoles.Admin, AuthRoles.SuperAdmin })
+        {
+            using var adminPlus = factory.CreateJwtClient(Guid.NewGuid(), role);
+            var modeResponse = await adminPlus.PatchAsJsonAsync(
+                $"/api/v1/draft-montagens/{draftId}/modo",
+                new SelecionarModoDraftMontagemRequestDto("Manual"));
+
+            modeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+
+    [Theory]
+    [InlineData("PATCH", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/modo")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/capitaes")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/ordem-escolha")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/iniciar-tempo-real")]
+    [InlineData("PUT", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/layout")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/reservas/substituir")]
+    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/capitaes/sortear")]
+    [InlineData("PATCH", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/finalizar")]
+    public async Task DraftCycleMutationFamily_ShouldRejectModeratorAndBot(string method, string route)
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var anonymous = factory.CreateAnonymousClient();
+        using var moderator = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+        using var bot = factory.CreateBotClient();
+
+        (await SendAsync(anonymous, method, route)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await SendAsync(moderator, method, route)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await SendAsync(bot, method, route)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task CreateDraft_ShouldAllowBotPresenceButRejectBotDirectCreationAndModerator()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var bot = factory.CreateBotClient();
+        using var moderator = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
+
+        var botPresence = await bot.PostAsJsonAsync("/api/v1/draft-montagens", PresenceDraftRequest());
+        var botDirect = await bot.PostAsJsonAsync(
+            "/api/v1/draft-montagens",
+            PresenceDraftRequest() with { JogadoresIds = [Guid.NewGuid()] });
+        var moderatorPresence = await moderator.PostAsJsonAsync("/api/v1/draft-montagens", PresenceDraftRequest());
+
+        botPresence.StatusCode.Should().Be(HttpStatusCode.Created);
+        await AssertApiErrorAsync(
+            botDirect,
+            HttpStatusCode.BadRequest,
+            MessageCodes.DraftMontagemBotCanOnlyCreatePresence,
+            "O bot só pode criar drafts de presença");
+        await AssertApiErrorAsync(
+            moderatorPresence,
+            HttpStatusCode.Forbidden,
+            MessageCodes.AccessDenied,
+            "Acesso negado");
+    }
+
+    [Fact]
+    public async Task CreateDraft_ShouldNotTreatBotScopeFromJwtAsBotIdentity()
+    {
+        await using var factory = new RealAuthenticationApiFactory(100);
+        using var client = factory.CreateJwtClientWithScope(
+            Guid.NewGuid(),
+            AuthRoles.Jogador,
+            AuthPermissions.CanUseDiscordBotApi);
+
+        var response = await client.PostAsJsonAsync("/api/v1/draft-montagens", PresenceDraftRequest());
+
+        await AssertApiErrorAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            MessageCodes.AccessDenied,
+            "Acesso negado");
     }
 
     [Theory]
@@ -553,12 +646,8 @@ public sealed class SecurityHardeningTests
         await AssertApiErrorAsync(botResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
     }
 
-    [Theory]
-    [InlineData("POST", "/api/v1/draft-montagens")]
-    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/encerrar-presenca")]
-    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/capitaes")]
-    [InlineData("POST", "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/ordem-escolha")]
-    public async Task SharedMutationFamily_ShouldAllowManagersAndBotButRejectPlayer(string method, string route)
+    [Fact]
+    public async Task ClosePresence_ShouldKeepAllowingManagersAndBotButRejectPlayer()
     {
         await using var factory = new RealAuthenticationApiFactory(100);
         using var anonymousClient = factory.CreateAnonymousClient();
@@ -567,11 +656,12 @@ public sealed class SecurityHardeningTests
         using var botClient = factory.CreateBotClient();
         using var invalidBotClient = factory.CreateInvalidBotClient();
 
-        var anonymousResponse = await SendAsync(anonymousClient, method, route);
-        var playerResponse = await SendAsync(playerClient, method, route);
-        var managerResponse = await SendAsync(managerClient, method, route);
-        var botResponse = await SendAsync(botClient, method, route);
-        var invalidBotResponse = await SendAsync(invalidBotClient, method, route);
+        const string route = "/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/encerrar-presenca";
+        var anonymousResponse = await SendAsync(anonymousClient, "POST", route);
+        var playerResponse = await SendAsync(playerClient, "POST", route);
+        var managerResponse = await SendAsync(managerClient, "POST", route);
+        var botResponse = await SendAsync(botClient, "POST", route);
+        var invalidBotResponse = await SendAsync(invalidBotClient, "POST", route);
 
         await AssertApiErrorAsync(anonymousResponse, HttpStatusCode.Unauthorized, MessageCodes.AuthenticationFailed, "Falha na autenticação");
         AssertBearerChallenge(anonymousResponse);
@@ -580,6 +670,16 @@ public sealed class SecurityHardeningTests
         botResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         await AssertApiErrorAsync(invalidBotResponse, HttpStatusCode.Unauthorized, MessageCodes.BotInternalTokenInvalid, "Token interno do bot inválido");
     }
+
+    private static CreateDraftMontagemRequestDto PresenceDraftRequest() => new(
+        $"Rinha {Guid.NewGuid():N}",
+        null,
+        5,
+        false,
+        null,
+        null,
+        [],
+        []);
 
     [Theory]
     [InlineData("/api/v1/draft-montagens/00000000-0000-0000-0000-000000000001/presencas/confirmar", HttpStatusCode.BadRequest)]
@@ -1095,6 +1195,22 @@ public sealed class SecurityHardeningTests
             builder
                 .UseSetting("RateLimiting:Api:PermitLimit", permitLimit.ToString())
                 .UseSetting("RateLimiting:Api:WindowSeconds", "60");
+        }
+
+        public async Task<Guid> SeedManualDraftAsync()
+        {
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var jogadores = Enumerable.Range(0, 10).Select(_ => JogadorTestData.JogadorAtivo()).ToList();
+            var montagem = DraftMontagem.CriarManualDireto(
+                $"Rinha {Guid.NewGuid():N}",
+                null,
+                5,
+                jogadores.Select(jogador => jogador.Id).ToList());
+            db.Jogadores.AddRange(jogadores);
+            db.DraftMontagens.Add(montagem);
+            await db.SaveChangesAsync();
+            return montagem.Id;
         }
     }
 }

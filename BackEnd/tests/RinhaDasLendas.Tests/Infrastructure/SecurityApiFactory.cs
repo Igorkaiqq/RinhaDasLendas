@@ -65,6 +65,15 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
         return client;
     }
 
+    internal HttpClient CreateJwtClientWithScope(Guid userId, string role, string scope)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateJwt(userId, [role], DateTime.UtcNow.AddMinutes(5), JwtKey, [new Claim("scope", scope)]));
+        return client;
+    }
+
     internal HttpClient CreateMalformedJwtClient()
     {
         var client = CreateClient();
@@ -95,9 +104,15 @@ internal class SecurityApiFactory : WebApplicationFactory<Program>
         return CreateJwt(userId, roles, DateTime.UtcNow.AddMinutes(5));
     }
 
-    private static string CreateJwt(Guid? userId, string[] roles, DateTime expires, string key = JwtKey)
+    private static string CreateJwt(
+        Guid? userId,
+        string[] roles,
+        DateTime expires,
+        string key = JwtKey,
+        IReadOnlyCollection<Claim>? additionalClaims = null)
     {
         var claims = roles.Select(role => new Claim(ClaimTypes.Role, role)).ToList();
+        claims.AddRange(additionalClaims ?? []);
         if (userId.HasValue)
         {
             claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));

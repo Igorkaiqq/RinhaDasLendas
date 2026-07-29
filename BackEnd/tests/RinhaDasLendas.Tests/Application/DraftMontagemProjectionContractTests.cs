@@ -1,21 +1,25 @@
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RinhaDasLendas.Api.Controllers;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Infrastructure.Messages;
 
 namespace RinhaDasLendas.Tests.Application;
 
 public sealed class DraftMontagemProjectionContractTests
 {
     [Fact]
-    public void GuardaArquiteturalDeveFixarMetadataEDtoExatoDasDezesseteSuperficiesPublicas()
+    public void GuardaArquiteturalDeveFixarMetadataEDtoExatoDasDezoitoSuperficiesPublicas()
     {
         // This guards declared response metadata and DTO families only. The HTTP mutation matrix belongs to T110.
         string[] actionNames =
         [
             nameof(DraftMontagensController.GetById),
             nameof(DraftMontagensController.Create),
+            nameof(DraftMontagensController.SelectMode),
             nameof(DraftMontagensController.StartRealtime),
             nameof(DraftMontagensController.ConfirmPresence),
             nameof(DraftMontagensController.CancelPresence),
@@ -42,9 +46,44 @@ public sealed class DraftMontagemProjectionContractTests
                 .Type)
             .ToList();
 
-        responseTypes.Should().HaveCount(17);
+        responseTypes.Should().HaveCount(18);
         responseTypes.Should().OnlyContain(type => type == typeof(DraftMontagemResponseDto) || type == typeof(DraftMontagemRealtimeStateDto));
         responseTypes.Should().NotContain(typeof(DraftMontagemAdminResponseDto));
         responseTypes.Should().NotContain(typeof(DraftMontagemDiscordOperationalDto));
+    }
+
+    [Fact]
+    public void ProjecoesDevemExporModoAnulavelECicloSemVazarElegibilidadeNoContratoPublico()
+    {
+        var montagem = DraftMontagem.CriarPorPresenca("Rinha", null, 5);
+
+        var publicJson = JsonSerializer.Serialize(
+            DraftMontagemResponseDto.FromEntity(montagem),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var adminJson = JsonSerializer.Serialize(
+            DraftMontagemAdminResponseDto.FromEntity(montagem, [Guid.NewGuid()]),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        publicJson.Should().Contain("\"modo\":null")
+            .And.Contain("\"cicloVersao\":\"ModoPosPresenca\"")
+            .And.NotContain("capitaesElegiveisIds");
+        adminJson.Should().Contain("\"modo\":null")
+            .And.Contain("\"cicloVersao\":\"ModoPosPresenca\"")
+            .And.Contain("capitaesElegiveisIds");
+        typeof(DraftMontagemResumoDto).GetProperty("CicloVersao").Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData("MV107", "pt-BR", "O capitão do draft deve pertencer ao recorte titular")]
+    [InlineData("MV107", "en-US", "The draft captain must be part of the starter pool")]
+    [InlineData("MV108", "pt-BR", "O capitão do draft deve estar ativo, vinculado a um usuário ativo e possuir o cargo Capitão")]
+    [InlineData("MV108", "en-US", "The draft captain must be active, linked to an active user, and have the Captain role")]
+    [InlineData("MV109", "pt-BR", "O novo capitão só pode ser informado quando o capitão atual sair do time")]
+    [InlineData("MV109", "en-US", "The new captain may only be provided when the current captain leaves the team")]
+    [InlineData("MV110", "pt-BR", "O bot só pode criar drafts de presença")]
+    [InlineData("MV110", "en-US", "The bot can only create presence drafts")]
+    public void NovosCodigosDevemResolverMensagensLocalizadas(string code, string culture, string expected)
+    {
+        new ResourceMessageProvider().GetMessage(code, culture).Should().Be(expected);
     }
 }

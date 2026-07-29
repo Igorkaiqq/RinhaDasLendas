@@ -490,6 +490,19 @@ public sealed class EndpointCoverageIntegrationTests
     }
 
     [Fact]
+    public async Task SelectModeEndpoint_ShouldDeclarePatchContract()
+    {
+        await using var factory = new PostgreSqlApiFactory();
+
+        var endpoint = DiscoverEndpoints(factory).Single(item =>
+            item.Key == EndpointKey.From("PATCH", "/api/v1/draft-montagens/{id}/modo"));
+
+        endpoint.InputDtos.Should().ContainSingle().Which.Should().Be(nameof(SelecionarModoDraftMontagemRequestDto));
+        endpoint.Responses.Should().Contain(new EndpointResponse((int)HttpStatusCode.OK, nameof(DraftMontagemResponseDto)));
+        endpoint.Responses.Should().Contain(new EndpointResponse((int)HttpStatusCode.NotFound, nameof(ApiErrorResponse)));
+    }
+
+    [Fact]
     public async Task CriticalEndpointFlows_ShouldExecuteAndGenerateEndpointInventory()
     {
         await using var factory = new PostgreSqlApiFactory();

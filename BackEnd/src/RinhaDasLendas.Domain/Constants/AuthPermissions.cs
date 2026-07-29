@@ -8,6 +8,8 @@ public static class AuthPermissions
     public const string CanResetUserPassword = nameof(CanResetUserPassword);
     public const string CanActivateDeactivateUsers = nameof(CanActivateDeactivateUsers);
     public const string CanManageDrafts = nameof(CanManageDrafts);
+    public const string CanManageDraftCycle = nameof(CanManageDraftCycle);
+    public const string CanCreateDraftPresenceOrManageCycle = nameof(CanCreateDraftPresenceOrManageCycle);
     public const string CanArchiveDrafts = nameof(CanArchiveDrafts);
     public const string CanManageMatches = nameof(CanManageMatches);
     public const string CanConfirmPresence = nameof(CanConfirmPresence);

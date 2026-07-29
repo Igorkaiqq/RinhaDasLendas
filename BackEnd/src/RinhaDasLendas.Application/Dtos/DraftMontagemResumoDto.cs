@@ -8,6 +8,7 @@ public sealed record DraftMontagemResumoDto(
     string Nome,
     string Status,
     string? Modo,
+    string CicloVersao,
     int TamanhoEquipe,
     int QuantidadeTimes,
     int QuantidadeReservas,

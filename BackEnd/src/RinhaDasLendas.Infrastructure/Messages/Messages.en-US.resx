@@ -211,6 +211,7 @@
   <data name="MV107" xml:space="preserve"><value>The draft captain must be part of the starter pool</value></data>
   <data name="MV108" xml:space="preserve"><value>The draft captain must be active, linked to an active user, and have the Captain role</value></data>
   <data name="MV109" xml:space="preserve"><value>The new captain may only be provided when the current captain leaves the team</value></data>
+  <data name="MV110" xml:space="preserve"><value>The bot can only create presence drafts</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

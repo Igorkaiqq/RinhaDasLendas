@@ -16,6 +16,9 @@ public sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICur
 
     public IReadOnlyCollection<string> Roles => httpContextAccessor.HttpContext?.User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray() ?? [];
 
+    public bool IsBot => httpContextAccessor.HttpContext?.User.Identities.Any(identity =>
+        identity.IsAuthenticated && identity.AuthenticationType == BotInternalAuthOptions.SchemeName) == true;
+
     public string? IpAddress => httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
     public string? UserAgent => httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString();

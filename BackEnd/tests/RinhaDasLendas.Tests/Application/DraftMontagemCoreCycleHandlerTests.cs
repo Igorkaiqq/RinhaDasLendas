@@ -185,7 +185,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .Callback<DraftMontagem, CancellationToken>((montagem, _) => adicionada = montagem)
             .Returns(Task.CompletedTask);
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var handler = new CreateDraftMontagemCommandHandler(repository.Object, new CreateDraftMontagemValidator());
+        var currentUser = new Mock<ICurrentUser>();
+        var handler = new CreateDraftMontagemCommandHandler(repository.Object, new CreateDraftMontagemValidator(), currentUser.Object);
 
         await handler.Handle(new CreateDraftMontagemCommand(request), CancellationToken.None);
 
@@ -203,6 +204,37 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             adicionada.Modo.Should().BeNull();
             adicionada.Times.Should().BeEmpty();
         }
+    }
+
+    [Fact]
+    public async Task BotNaoDeveCriarMontagemDiretaComJogadores()
+    {
+        var jogadorId = Guid.NewGuid();
+        var request = new CreateDraftMontagemRequestDto(
+            "Rinha",
+            null,
+            5,
+            false,
+            null,
+            null,
+            [],
+            [jogadorId]);
+        var repository = new Mock<IDraftMontagemRepository>();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(item => item.IsBot).Returns(true);
+        var handler = new CreateDraftMontagemCommandHandler(
+            repository.Object,
+            new CreateDraftMontagemValidator(),
+            currentUser.Object);
+
+        var act = () => handler.Handle(new CreateDraftMontagemCommand(request), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage(MessageCodes.DraftMontagemBotCanOnlyCreatePresence);
+        repository.Verify(item => item.GetJogadoresByIdsAsync(
+            It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        repository.Verify(item => item.AddAsync(
+            It.IsAny<DraftMontagem>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

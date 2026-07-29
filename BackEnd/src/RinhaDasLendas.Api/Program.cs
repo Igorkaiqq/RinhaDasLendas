@@ -150,6 +150,8 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanResetUserPassword, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanManageDraftCycle, policy => policy.RequireAssertion(_ => true));
+        options.AddPolicy(AuthPermissions.CanCreateDraftPresenceOrManageCycle, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
@@ -174,6 +176,16 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanResetUserPassword, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
+        options.AddPolicy(AuthPermissions.CanManageDraftCycle, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
+        options.AddPolicy(AuthPermissions.CanCreateDraftPresenceOrManageCycle, policy => policy
+            .AddAuthenticationSchemes(ApiAuthenticationDefaults.SchemeName)
+            .RequireAssertion(context =>
+                context.User.IsInRole(AuthRoles.SuperAdmin)
+                || context.User.IsInRole(AuthRoles.Admin)
+                || context.User.Identities.Any(identity =>
+                    identity.IsAuthenticated
+                    && identity.AuthenticationType == BotInternalAuthOptions.SchemeName
+                    && identity.HasClaim("scope", AuthPermissions.CanUseDiscordBotApi))));
         options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireRole(AuthRoles.SuperAdmin));

@@ -114,7 +114,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthPermissions.CanManageDraftsOrUseDiscordBotApi)]
+    [Authorize(Policy = AuthPermissions.CanCreateDraftPresenceOrManageCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateDraftMontagemRequestDto request, CancellationToken cancellationToken)
@@ -123,8 +123,19 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
         return CreatedAtAction(nameof(GetById), new { id = montagem.Id }, montagem);
     }
 
+    [HttpPatch("{id:guid}/modo")]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
+    [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SelectMode([FromRoute] Guid id, [FromBody] SelecionarModoDraftMontagemRequestDto request, CancellationToken cancellationToken)
+    {
+        var montagem = await sender.Send(new SelecionarModoDraftMontagemCommand(id, request), cancellationToken);
+        return montagem is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(montagem);
+    }
+
     [HttpPost("{id:guid}/iniciar-tempo-real")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -238,7 +249,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/capitaes")]
-    [Authorize(Policy = AuthPermissions.CanManageDraftsOrUseDiscordBotApi)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DefineCaptains([FromRoute] Guid id, [FromBody] DefinirCapitaesDraftMontagemRequestDto request, CancellationToken cancellationToken)
@@ -248,7 +259,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/ordem-escolha")]
-    [Authorize(Policy = AuthPermissions.CanManageDraftsOrUseDiscordBotApi)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DefinePickOrder([FromRoute] Guid id, [FromBody] DefinirOrdemEscolhaDraftMontagemRequestDto request, CancellationToken cancellationToken)
@@ -325,7 +336,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/reservas/substituir")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemRealtimeStateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -336,7 +347,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPut("{id:guid}/layout")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
@@ -347,7 +358,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPost("{id:guid}/capitaes/sortear")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DrawCaptains([FromRoute] Guid id, CancellationToken cancellationToken)
@@ -357,7 +368,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     }
 
     [HttpPatch("{id:guid}/finalizar")]
-    [Authorize(Policy = AuthPermissions.CanManageDrafts)]
+    [Authorize(Policy = AuthPermissions.CanManageDraftCycle)]
     [ProducesResponseType(typeof(DraftMontagemResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Finalize([FromRoute] Guid id, CancellationToken cancellationToken)
