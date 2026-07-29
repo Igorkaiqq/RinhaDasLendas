@@ -666,6 +666,20 @@
       "emergencyReserve": "Reserva emergencial",
       "substitute": "Substituir",
       "reserveSubstituted": "Reserva substituída no time.",
+      "substitution": {
+        "title": "Substituir jogador",
+        "description": "Escolha quem entra no lugar de {player} no {team}.",
+        "reserveLabel": "Reserva",
+        "reservePlaceholder": "Selecione uma reserva",
+        "reserveRequired": "Selecione explicitamente a reserva que entrará no time.",
+        "captainLabel": "Novo capitão",
+        "captainPlaceholder": "Selecione o novo capitão",
+        "captainRequired": "Selecione um novo capitão elegível para o time.",
+        "reasonLabel": "Motivo (opcional)",
+        "reasonPlaceholder": "Descreva o motivo da substituição",
+        "reasonMaxLength": "O motivo deve ter no máximo 500 caracteres.",
+        "confirm": "Confirmar substituição"
+      },
       "liveStatus": "Vez de {captain} no {team}. {current} de {total} escolhas concluídas.",
       "liveProgress": "{current} de {total} escolhas concluídas."
     },

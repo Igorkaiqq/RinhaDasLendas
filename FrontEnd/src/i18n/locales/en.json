@@ -666,6 +666,20 @@
       "emergencyReserve": "Emergency reserve",
       "substitute": "Substitute",
       "reserveSubstituted": "Reserve substituted into the team.",
+      "substitution": {
+        "title": "Substitute player",
+        "description": "Choose who replaces {player} on {team}.",
+        "reserveLabel": "Reserve",
+        "reservePlaceholder": "Select a reserve",
+        "reserveRequired": "Explicitly select the reserve who will join the team.",
+        "captainLabel": "New captain",
+        "captainPlaceholder": "Select the new captain",
+        "captainRequired": "Select a new eligible captain for the team.",
+        "reasonLabel": "Reason (optional)",
+        "reasonPlaceholder": "Describe the reason for the substitution",
+        "reasonMaxLength": "The reason must not exceed 500 characters.",
+        "confirm": "Confirm substitution"
+      },
       "liveStatus": "{captain} is on the clock for {team}. {current} of {total} picks completed.",
       "liveProgress": "{current} of {total} picks completed."
     },

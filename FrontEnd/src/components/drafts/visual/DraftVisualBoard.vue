@@ -15,17 +15,23 @@ import type {
   DraftMontagemLayoutPayload,
   DraftMontagemParticipante,
   DraftMontagemRota,
+  DraftMontagemSubstituicaoPayload,
 } from '@/types/draftMontagem'
 
+import DraftSubstitutionDialog from './DraftSubstitutionDialog.vue'
 import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
-const props = defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number }>()
+type BoardEvent = InstanceType<typeof globalThis.Event>
+
+const props = withDefaults(defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[] }>(), {
+  eligibleCaptainIds: () => [],
+})
 const { t } = useI18n()
 const emit = defineEmits<{
   save: [payload: DraftMontagemLayoutPayload]
   startRealtime: []
   pick: [jogadorId: string]
-  substituteReserve: [payload: { timeId: string; jogadorSaiuId: string; reservaEntrouId: string; motivo?: string | null }]
+  substituteReserve: [payload: DraftMontagemSubstituicaoPayload]
   drawCaptains: []
   finalize: []
   cancel: []
@@ -41,6 +47,8 @@ const now = ref(Date.now())
 const soundEnabled = ref(false)
 const pickLocked = ref(false)
 const substituteLocked = ref(false)
+const substitutionContext = ref<{ team: DraftMontagem['times'][number]; player: DraftMontagemParticipante } | null>(null)
+const substitutionTrigger = ref<InstanceType<typeof globalThis.HTMLElement> | null>(null)
 const moveAnnouncement = ref('')
 const boardShell = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('boardShell')
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
@@ -339,21 +347,39 @@ function isTurnTeam(timeId: string) {
   return hasActiveTurn.value && localMontagem.value.turnoAtualTimeId === timeId
 }
 
-function substituteWithFirstReserve(timeId: string, jogadorSaiuId: string) {
+function requestSubstitution(timeId: string, jogadorSaiuId: string, event: BoardEvent) {
   const team = localMontagem.value.times.find((item) => item.id === timeId)
-  const reserve = localMontagem.value.reservas.find((player) => player.estado === DraftMontagemEstadoValues.Reserva)
+  const player = team?.jogadores.find((item) => item.jogadorId === jogadorSaiuId)
   if (
     substituteLocked.value
     || props.saving
     || !props.canManage
     || !isOpen.value
     || isTerminal.value
-    || !team?.jogadores.some((player) => player.jogadorId === jogadorSaiuId)
-    || !reserve
+    || !team
+    || !player
+    || !localMontagem.value.reservas.some((reserve) => reserve.estado === DraftMontagemEstadoValues.Reserva)
   ) return
 
+  substitutionTrigger.value = event.currentTarget as InstanceType<typeof globalThis.HTMLElement>
+  substitutionContext.value = { team, player }
+}
+
+function confirmSubstitution(payload: DraftMontagemSubstituicaoPayload) {
+  if (substituteLocked.value || props.saving) return
   substituteLocked.value = true
-  emit('substituteReserve', { timeId, jogadorSaiuId, reservaEntrouId: reserve.jogadorId, motivo: null })
+  substitutionContext.value = null
+  emit('substituteReserve', payload)
+}
+
+function cancelSubstitution() {
+  if (props.saving) return
+  substitutionContext.value = null
+  restoreSubstitutionFocus()
+}
+
+function restoreSubstitutionFocus() {
+  void nextTick(() => substitutionTrigger.value?.focus())
 }
 
 type MoveControlEvent = InstanceType<typeof globalThis.Event>
@@ -550,7 +576,7 @@ async function exportImage() {
                 </span>
               </button>
               <span v-if="!isManualV2 && player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
-              <button v-else-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
+              <button v-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
               <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
@@ -657,7 +683,7 @@ async function exportImage() {
                 </span>
               </button>
               <span v-if="!isManualV2 && player.jogadorId === time.capitaoId" class="draft-slot__captain">{{ t('drafts.roles.captainShort') }}</span>
-              <button v-else-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="substituteWithFirstReserve(time.id, player.jogadorId)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
+              <button v-if="canManage && isOpen && localMontagem.reservas.length" type="button" class="button-secondary draft-substitute-action" :disabled="saving || substituteLocked || isTerminal" @click.stop="requestSubstitution(time.id, player.jogadorId, $event)" @keydown.stop>{{ t('drafts.realtime.substitute') }}</button>
               <select v-if="!isReadOnly" data-move-destination :name="`draft-move-${player.jogadorId}`" autocomplete="off" :aria-label="moveDestinationLabel(player)" @change="moveFromControl(player, $event)" @keydown.stop>
                 <option value="">{{ t('drafts.visualBoard.moveDestinationOption') }}</option>
                 <option value="livres">{{ t('drafts.visualBoard.moveToFree') }}</option>
@@ -674,5 +700,18 @@ async function exportImage() {
     </div>
 
     <PlayerDetailsDrawer :player="detailsPlayer" @close="detailsPlayer = null" />
+    <DraftSubstitutionDialog
+      v-if="substitutionContext"
+      :open="true"
+      :team="substitutionContext.team"
+      :outgoing-player="substitutionContext.player"
+      :reserves="localMontagem.reservas"
+      :eligible-captain-ids="eligibleCaptainIds"
+      :requires-new-captain="localMontagem.cicloVersao === 'ModoPosPresenca' && (substitutionContext.player.capitao || substitutionContext.team.capitaoId === substitutionContext.player.jogadorId)"
+      :saving="saving"
+      @confirm="confirmSubstitution"
+      @cancel="cancelSubstitution"
+      @restore-focus="restoreSubstitutionFocus"
+    />
   </section>
 </template>

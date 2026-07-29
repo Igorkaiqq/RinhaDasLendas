@@ -6,7 +6,7 @@ import { computed, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemParticipante, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus } from '@/types/draftMontagem'
+import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemParticipante, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
 
 import DraftsView from './DraftsView.vue'
 import DraftsViewSource from './DraftsView.vue?raw'
@@ -1408,7 +1408,7 @@ describe('DraftsView reason actions', () => {
     let resolveSubstitution!: (value: DraftMontagemRealtimeState) => void
     serviceMocks.substituteDraftMontagemReserve.mockReturnValueOnce(new Promise((resolve) => { resolveSubstitution = resolve }))
     const wrapper = await mountView()
-    const payload = { timeId: 'time-1', jogadorSaiuId: 'outgoing-1', reservaEntrouId: 'reserve-1', motivo: null }
+    const payload = { timeId: 'time-1', jogadorSaiuId: 'outgoing-1', reservaEntrouId: 'reserve-1', novoCapitaoId: null, motivo: null }
     const vm = wrapper.vm as unknown as { substituteReserve: (value: typeof payload) => Promise<void> }
 
     void vm.substituteReserve(payload)
@@ -1422,6 +1422,50 @@ describe('DraftsView reason actions', () => {
     ;(wrapper.vm as unknown as { adminAccessDenied: boolean }).adminAccessDenied = true
     await vm.substituteReserve(payload)
     expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('projects captain eligibility to the board and requires a valid resulting-team captain for v2', async () => {
+    const outgoingCaptain = { ...realtimeCaptain, jogadorId: 'outgoing-captain', nomeExibicao: 'Capitão atual' }
+    const teammate = { ...realtimeCaptain, jogadorId: 'teammate-1', nomeExibicao: 'Novo capitão', capitao: false, ordem: 2 }
+    const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', nomeExibicao: 'Reserva elegível', estado: 'Reserva' as const, capitao: false }
+    const activeDraft: DraftMontagem = {
+      ...montagem,
+      status: 'Aberta',
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+      times: [{ ...realtimeTeam, capitaoId: outgoingCaptain.jogadorId, jogadores: [outgoingCaptain, teammate] }],
+      reservas: [reserve],
+    }
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
+      ...adminProjection('Aberta'),
+      ...activeDraft,
+      capitaesElegiveisIds: ['teammate-1', 'reserve-1'],
+    })
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    const vm = wrapper.vm as unknown as { substituteReserve: (payload: DraftMontagemSubstituicaoPayload) => Promise<void> }
+
+    expect(board.props('eligibleCaptainIds')).toEqual(['teammate-1', 'reserve-1'])
+    await vm.substituteReserve({
+      timeId: 'time-1',
+      jogadorSaiuId: 'outgoing-captain',
+      reservaEntrouId: 'reserve-1',
+      novoCapitaoId: null,
+      motivo: null,
+    })
+    expect(serviceMocks.substituteDraftMontagemReserve).not.toHaveBeenCalled()
+
+    await vm.substituteReserve({
+      timeId: 'time-1',
+      jogadorSaiuId: 'outgoing-captain',
+      reservaEntrouId: 'reserve-1',
+      novoCapitaoId: 'teammate-1',
+      motivo: null,
+    })
+    expect(serviceMocks.substituteDraftMontagemReserve).toHaveBeenCalledWith('montagem-1', expect.objectContaining({ novoCapitaoId: 'teammate-1' }))
     wrapper.unmount()
   })
 

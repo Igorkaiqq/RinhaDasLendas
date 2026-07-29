@@ -24,6 +24,15 @@ public sealed class DraftMontagemSaveConflictClassifierTests
             .Should().Be(DraftMontagemSaveResultado.ConflitoDePresencaConfirmada);
     }
 
+    [Theory]
+    [InlineData("IX_draft_montagem_participantes_draft_montagem_id_jogador_id")]
+    [InlineData("IX_draft_montagem_times_draft_montagem_id_ordem")]
+    public void Deve_classificar_constraints_estruturais_do_agregado_como_conflito_de_versao(string constraintName)
+    {
+        DraftMontagemSaveConflictClassifier.Classify(UniqueViolation(constraintName))
+            .Should().Be(DraftMontagemSaveResultado.ConflitoDeVersao);
+    }
+
     [Fact]
     public void Nao_deve_classificar_constraint_diferente()
     {

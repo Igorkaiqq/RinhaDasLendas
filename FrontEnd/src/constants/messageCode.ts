@@ -160,6 +160,10 @@ export enum MessageCode {
   DiscordChannelInvalid = 'MV078',
   BotInternalTokenInvalid = 'MV079',
   DraftMontagemPresenceCannotBeReopened = 'MV106',
+  DraftMontagemCaptainMustBeStarter = 'MV107',
+  DraftMontagemCaptainMustBeEligible = 'MV108',
+  DraftMontagemNewCaptainNotAllowed = 'MV109',
+  DraftMontagemBotCanOnlyCreatePresence = 'MV110',
 
   ConfirmAction = 'MC001',
   ConfirmPlayerDeactivate = 'MC002',

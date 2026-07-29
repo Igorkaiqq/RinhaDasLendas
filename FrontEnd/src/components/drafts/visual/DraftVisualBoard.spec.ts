@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
+import { Select } from '@/components/ui/select'
 import type { DraftMontagem, DraftMontagemParticipante, DraftMontagemStatus } from '@/types/draftMontagem'
 
 import DraftVisualBoard from './DraftVisualBoard.vue'
@@ -126,7 +127,7 @@ function largeMontagem(): DraftMontagem {
   }
 }
 
-function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; attachTo?: Element } = {}) {
+function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[]; attachTo?: Element } = {}) {
   return mount(DraftVisualBoard, {
     attachTo: overrides.attachTo,
     props: {
@@ -136,8 +137,9 @@ function mountBoard(draft = montagem(), overrides: { canManage?: boolean; curren
       currentPlayerId: overrides.currentPlayerId ?? null,
       canCurrentUserPick: overrides.canCurrentUserPick,
       serverClockOffsetMs: overrides.serverClockOffsetMs,
+      eligibleCaptainIds: overrides.eligibleCaptainIds ?? [],
     },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' } } },
   })
 }
 
@@ -592,29 +594,56 @@ describe('DraftVisualBoard', () => {
     const substitutionDraft = montagem()
     substitutionDraft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
     const substitutions = mountBoard(substitutionDraft)
-    const substitute = substitutions.get('[data-team-id="team-a"] .draft-substitute-action')
+    const substitute = substitutions.get('[data-team-id="team-a"] [data-player-id="team-player"] .draft-substitute-action')
     const substituteBubbled = vi.fn()
     substitutions.get('[data-team-id="team-a"] .draft-visual-slot:not(.is-captain)').element.addEventListener('keydown', substituteBubbled)
     await substitute.trigger('keydown', { key: ' ' })
     await substitute.trigger('click')
-    expect(substitutions.emitted('substituteReserve')).toEqual([[
-      { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', motivo: null },
-    ]])
+    expect(substitutions.emitted('substituteReserve')).toBeUndefined()
     expect(substituteBubbled).not.toHaveBeenCalled()
-    expect(substitutions.find('[role="dialog"]').exists()).toBe(false)
+    expect(substitutions.find('[role="dialog"]').exists()).toBe(true)
+
+    substitutions.getComponent(Select).vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    await substitutions.get('form').trigger('submit')
+    expect(substitutions.emitted('substituteReserve')).toEqual([[
+      { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', novoCapitaoId: null, motivo: null },
+    ]])
     substitutions.unmount()
   })
 
-  it('disables substitutions while saving or terminal and locks rapid duplicate emits', async () => {
+  it('requires an explicit eligible new captain when the daily captain leaves', async () => {
+    const draft = montagem('Aberta', 'TempoReal')
+    draft.cicloVersao = 'ModoPosPresenca'
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1', 'captain-b'] })
+
+    await wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action').trigger('click')
+    const selects = wrapper.findAllComponents(Select)
+    selects[0]!.vm.$emit('update:modelValue', 'reserve-1')
+    await nextTick()
+    expect(wrapper.emitted('substituteReserve')).toBeUndefined()
+
+    selects[1]!.vm.$emit('update:modelValue', 'reserve-1')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('substituteReserve')).toEqual([[
+      { timeId: 'team-a', jogadorSaiuId: 'captain-a', reservaEntrouId: 'reserve-1', novoCapitaoId: 'reserve-1', motivo: null },
+    ]])
+    wrapper.unmount()
+  })
+
+  it('disables substitutions while saving or terminal and restores the triggering action after cancel', async () => {
     const draft = montagem()
     draft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
-    const wrapper = mountBoard(draft)
+    const wrapper = mountBoard(draft, { attachTo: document.body })
     const substitute = wrapper.get('.draft-substitute-action')
 
-    await Promise.all([substitute.trigger('click'), substitute.trigger('click')])
-    expect(wrapper.emitted('substituteReserve')).toEqual([[
-      { timeId: 'team-a', jogadorSaiuId: 'team-player', reservaEntrouId: 'reserve-1', motivo: null },
-    ]])
+    ;(substitute.element as HTMLElement).focus()
+    await substitute.trigger('click')
+    await wrapper.get('[data-testid="substitution-cancel"]').trigger('click')
+    await nextTick()
+    expect(document.activeElement).toBe(substitute.element)
+    expect(wrapper.emitted('substituteReserve')).toBeUndefined()
 
     await wrapper.setProps({ saving: true })
     expect(wrapper.get('.draft-substitute-action').attributes('disabled')).toBeDefined()

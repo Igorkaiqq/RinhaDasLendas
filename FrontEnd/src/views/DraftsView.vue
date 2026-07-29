@@ -850,6 +850,13 @@ async function pickRealtime(jogadorId: string) {
 async function substituteReserve(payload: DraftMontagemSubstituicaoPayload) {
   const current = selectedMontagem.value
   const team = current?.times.find((item) => item.id === payload.timeId)
+  const outgoingPlayer = team?.jogadores.find((player) => player.jogadorId === payload.jogadorSaiuId)
+  const captainLeaving = current?.cicloVersao === 'ModoPosPresenca'
+    && Boolean(outgoingPlayer?.capitao || team?.capitaoId === payload.jogadorSaiuId)
+  const resultingCaptainIds = new Set([
+    ...(team?.jogadores.filter((player) => player.jogadorId !== payload.jogadorSaiuId).map((player) => player.jogadorId) ?? []),
+    payload.reservaEntrouId,
+  ])
   if (
     saving.value
     || !canManageDraftCycle.value
@@ -857,6 +864,8 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload) {
     || current.status !== DraftMontagemStatusValues.Aberta
     || !team?.jogadores.some((player) => player.jogadorId === payload.jogadorSaiuId)
     || !current.reservas.some((player) => player.jogadorId === payload.reservaEntrouId && player.estado === DraftMontagemEstadoValues.Reserva)
+    || (captainLeaving && (!payload.novoCapitaoId || !eligibleCaptainIds.value.includes(payload.novoCapitaoId) || !resultingCaptainIds.has(payload.novoCapitaoId)))
+    || (!captainLeaving && current.cicloVersao === 'ModoPosPresenca' && Boolean(payload.novoCapitaoId))
   ) return
   const context = beginSelectedDraftUpdate()
   if (!context) return
@@ -1329,6 +1338,7 @@ function captureError(error: unknown) {
           :current-player-id="currentPlayerId"
           :can-current-user-pick="canCurrentUserPick"
           :server-clock-offset-ms="serverClockOffsetMs"
+          :eligible-captain-ids="eligibleCaptainIds"
           @save="saveMontagemLayout"
           @start-realtime="startRealtime"
           @pick="pickRealtime"

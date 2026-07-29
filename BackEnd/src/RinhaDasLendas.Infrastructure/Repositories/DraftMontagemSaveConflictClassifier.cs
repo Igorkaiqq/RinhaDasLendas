@@ -9,6 +9,8 @@ internal static class DraftMontagemSaveConflictClassifier
     private const string PresenceByUserIndex = "ix_draft_montagem_presencas_draft_montagem_id_usuario_id";
     private const string PresenceByPlayerIndex = "ix_draft_montagem_presencas_draft_montagem_id_jogador_id";
     private const string DiscordPublicationByTypeIndex = "IX_draft_montagem_publicacoes_discord_draft_montagem_id_tipo";
+    private const string ParticipantByPlayerIndex = "IX_draft_montagem_participantes_draft_montagem_id_jogador_id";
+    private const string TeamByOrderIndex = "IX_draft_montagem_times_draft_montagem_id_ordem";
 
     public static DraftMontagemSaveResultado? Classify(Exception exception)
     {
@@ -28,7 +30,7 @@ internal static class DraftMontagemSaveConflictClassifier
                 InnerException: PostgresException
                 {
                     SqlState: PostgresErrorCodes.UniqueViolation,
-                    ConstraintName: DiscordPublicationByTypeIndex,
+                    ConstraintName: DiscordPublicationByTypeIndex or ParticipantByPlayerIndex or TeamByOrderIndex,
                 },
             } => DraftMontagemSaveResultado.ConflitoDeVersao,
             _ => null,
