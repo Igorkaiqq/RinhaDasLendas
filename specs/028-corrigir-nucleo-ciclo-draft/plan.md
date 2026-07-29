@@ -101,7 +101,7 @@ O request inclui `NovoCapitaoId`. A reserva nunca herda capitania. Se o capitão
 
 ### Authorization
 
-Adicionar `CanManageDraftCycle` para Admin/SuperAdmin. Aplicar a criação direta, escolha de modo, capitães, ordem, início, layout, substituição, sorteio e finalização. Presença e consultas preservam políticas existentes; pick continua autenticado e validado pelo domínio.
+Adicionar `CanManageDraftCycle` para Admin/SuperAdmin e `CanCreateDraftPresenceOrManageCycle` para Admin/SuperAdmin ou bot. O endpoint de criação usa a segunda policy, exclui Moderador e rejeita payload com jogadores quando a identidade é do bot; assim o bot preserva somente a criação de presença. Escolha de modo, capitães, ordem, início, layout, substituição, sorteio e finalização usam `CanManageDraftCycle`. Presença e consultas preservam políticas existentes; pick continua autenticado e validado pelo domínio.
 
 ## Delivery Phases
 

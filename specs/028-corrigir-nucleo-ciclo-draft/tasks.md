@@ -24,7 +24,7 @@
 - [ ] T007 Gerar e revisar a migration `CorrigirNucleoCicloDraft` em `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/` com backfill legado sem alterar estado, times, participantes ou histórico
 - [ ] T008 Executar GREEN de migration e atualizar o snapshot em `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/RinhaDasLendasDbContextModelSnapshot.cs`
 - [ ] T009 [P] Atualizar `Modo`, `CicloVersao` e payload de substituição em `BackEnd/src/RinhaDasLendas.Application/Dtos/` e `FrontEnd/src/types/draftMontagem.ts`
-- [ ] T010 [P] Criar a policy `CanManageDraftCycle` para Admin/SuperAdmin em `BackEnd/src/RinhaDasLendas.Domain/Constants/AuthPermissions.cs` e `BackEnd/src/RinhaDasLendas.Api/Program.cs`
+- [ ] T010 [P] Criar `CanManageDraftCycle` para Admin+ e `CanCreateDraftPresenceOrManageCycle` para Admin+/bot em `BackEnd/src/RinhaDasLendas.Domain/Constants/AuthPermissions.cs` e `BackEnd/src/RinhaDasLendas.Api/Program.cs`
 
 **Checkpoint**: Dados existentes classificados como legado; contratos compilam com modo anulável.
 

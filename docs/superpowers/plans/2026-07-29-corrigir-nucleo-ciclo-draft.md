@@ -13,7 +13,7 @@
 - Implementar todos os requisitos FR-001 a FR-022 de `specs/028-corrigir-nucleo-ciclo-draft/spec.md`.
 - Usar `DraftMontagemCicloVersao.Legado = 1` e `ModoPosPresenca = 2`; não inferir coorte por data, modo ou status.
 - Preservar todos os valores existentes durante migration; não revalidar retroativamente capitães legados.
-- Restringir administração do ciclo v2 a Admin/SuperAdmin com policy dedicada.
+- Restringir administração do ciclo v2 a Admin/SuperAdmin; preservar criação de presença pelo bot sem permitir criação direta com jogadores.
 - Manter regras no domínio, DTOs fora do domínio, EF fora do domínio e controllers finos.
 - Seguir TDD em cada task e commitar em português após GREEN.
 - Todo erro backend deve usar `MessageCodes` e resources PT-BR/EN-US.
@@ -252,6 +252,7 @@ As projeções retornam modo nulo sem serialização quebrada e todos os novos c
 
 ```csharp
 public const string CanManageDraftCycle = nameof(CanManageDraftCycle);
+public const string CanCreateDraftPresenceOrManageCycle = nameof(CanCreateDraftPresenceOrManageCycle);
 options.AddPolicy(AuthPermissions.CanManageDraftCycle,
     policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
 ```
