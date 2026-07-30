@@ -1,5 +1,6 @@
 using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Enums;
 
 namespace RinhaDasLendas.Api.Services;
 
@@ -23,7 +24,7 @@ public sealed class DraftMontagemPublicationReconciliationService(
             cancellationToken);
         foreach (var stamp in reconciled)
         {
-            await publisher.PublishAfterCommitAsync(stamp.Id);
+            await publisher.PublishAfterCommitAsync(stamp.Id, DraftMontagemSnapshotScope.IncludingArchived);
         }
 
         if (reconciled.Count > 0)

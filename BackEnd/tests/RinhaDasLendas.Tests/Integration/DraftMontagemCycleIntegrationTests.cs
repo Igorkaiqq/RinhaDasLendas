@@ -631,7 +631,10 @@ internal sealed class RecordingDraftMontagemRealtimePublisher : IDraftMontagemRe
 
     public IReadOnlyCollection<(Guid DraftId, DraftMontagemAvailabilityChange Availability)> Publications => _publications;
 
-    public Task PublishAfterCommitAsync(Guid draftId, DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
+    public Task PublishAfterCommitAsync(
+        Guid draftId,
+        DraftMontagemSnapshotScope snapshotScope = DraftMontagemSnapshotScope.Active,
+        DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
     {
         _publications.Enqueue((draftId, availability));
         return Task.CompletedTask;

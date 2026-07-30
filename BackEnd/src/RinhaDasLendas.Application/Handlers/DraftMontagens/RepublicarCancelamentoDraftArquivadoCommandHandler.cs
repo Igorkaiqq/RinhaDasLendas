@@ -1,6 +1,7 @@
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
@@ -31,7 +32,7 @@ public sealed class RepublicarCancelamentoDraftArquivadoCommandHandler(
         }
 
         await repository.SaveChangesAsync(cancellationToken);
-        await publisher.PublishAfterCommitAsync(stamp.Id);
+        await publisher.PublishAfterCommitAsync(stamp.Id, DraftMontagemSnapshotScope.IncludingArchived);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

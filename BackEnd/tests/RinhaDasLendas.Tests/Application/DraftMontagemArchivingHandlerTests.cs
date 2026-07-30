@@ -34,7 +34,10 @@ public sealed class DraftMontagemArchivingHandlerTests
         result!.Arquivado.Should().BeTrue();
         montagem.AcoesAdministrativas.Should().OnlyContain(acao => acao.ResponsavelUsuarioId == usuarioId);
         repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        publisher.Verify(item => item.PublishAfterCommitAsync(montagem.Id, DraftMontagemAvailabilityChange.Archived), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            montagem.Id,
+            DraftMontagemSnapshotScope.IncludingArchived,
+            DraftMontagemAvailabilityChange.Archived), Times.Once);
     }
 
     [Fact]
@@ -71,7 +74,10 @@ public sealed class DraftMontagemArchivingHandlerTests
         result!.Arquivado.Should().BeFalse();
         montagem.Status.Should().Be(DraftMontagemStatus.Cancelada);
         montagem.AcoesAdministrativas.Select(acao => acao.Tipo).Should().Contain(["Arquivamento", "Restauracao"]);
-        publisher.Verify(item => item.PublishAfterCommitAsync(montagem.Id, DraftMontagemAvailabilityChange.Restored), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            montagem.Id,
+            DraftMontagemSnapshotScope.Active,
+            DraftMontagemAvailabilityChange.Restored), Times.Once);
     }
 
     [Fact]

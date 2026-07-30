@@ -1076,6 +1076,7 @@ public sealed class SecurityHardeningTests
 
         public Task PublishAfterCommitAsync(
             Guid draftId,
+            RinhaDasLendas.Application.Enums.DraftMontagemSnapshotScope snapshotScope = RinhaDasLendas.Application.Enums.DraftMontagemSnapshotScope.Active,
             RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange availability = RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange.None)
         {
             Calls++;

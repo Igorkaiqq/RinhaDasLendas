@@ -8,8 +8,10 @@
 - Republicacao por agregado retorna stamp exato; publicacao ja pendente retorna `null` sem `Touch`, save ou evento.
 - Claims concorrentes continuam serializados pelo advisory lock; exatamente um concorrente recebe claim e stamp.
 - Handlers e reconciliacao usam `IDraftMontagemRealtimePublisher` somente depois do commit.
+- `DraftMontagemSnapshotScope` separa explicitamente o reload ativo/incluindo arquivados do evento de disponibilidade.
+- Claim, sucesso, falha, reconciliacao de expirados e republicacao de `Cancelamento` arquivado publicam um shared snapshot com `IncludingArchived` e availability `None`.
 - Archive e restore preservam os eventos exatos `DraftMontagemArchived` e `DraftMontagemRestored` via `Archived`/`Restored`.
-- O helper `DraftMontagemRealtimeNotificationPublisher`, `StateUpdatedAsync` e seus adapters/doubles obsoletos foram removidos apos a migracao dos callers.
+- O helper, metodo de notificacao personalizada e adapters/doubles obsoletos foram removidos apos a migracao dos callers.
 - Feature 030 nao foi alterada.
 
 ### TDD
@@ -17,6 +19,7 @@
 - RED observado: compilacao falhou pela ausencia de `DraftMontagemVersionStamp` e `DraftMontagemPublicacaoClaimResult`.
 - GREEN inicial encontrou e corrigiu a visibilidade de CTEs modificadores no snapshot PostgreSQL.
 - Teste relacionado de concorrencia encontrou e corrigiu o retorno 404 do vencedor quando a publicacao ainda nao existia.
+- A revisao adicionou RED para snapshot de arquivado sem evento de disponibilidade e GREEN com escopo de reload independente.
 - Os testes usam bancos PostgreSQL isolados reais por `SecurityApiFactory(useIsolatedPostgreSql: true)`.
 
 ### Transacoes e concorrencia
@@ -26,13 +29,16 @@
 - A reconciliacao deduplica `draft_montagem_id` antes de incrementar o pai.
 - Nenhum update do pai ocorre quando o CTE de transicao nao retorna linha.
 - Republicacao depende do controle otimista EF existente e publica apenas depois de `SaveChangesAsync` concluir.
+- Trigger PostgreSQL de teste prova que falha no update do pai reverte a alteracao do filho no mesmo statement.
+- Conflito otimista de republicacao prova rollback de filho/auditoria/pai e zero tentativa de publicacao parcial.
+- No-op de republicacao normal e de cancelamento arquivado preserva filho, pai, auditoria e contagem de eventos.
 - `versao_estado` permanece a ordenacao autoritativa; `data_atualizacao` nao e usada para resolver concorrencia.
 
 ### Verificacao
 
-- Focused + related: 193 passaram, 0 falharam, 0 ignorados.
+- Focused + related: 248 passaram, 0 falharam, 0 ignorados.
 - Build Release: sucesso, 0 warnings, 0 erros.
-- Busca por `DraftMontagemRealtimeNotificationPublisher` e `StateUpdatedAsync(` fora de docs/specs: zero referencias.
+- Busca pelos simbolos legados fora de docs/specs: zero referencias.
 - `git diff --check`: sucesso.
 
 ### Auditoria de internacionalizacao

@@ -46,7 +46,10 @@ public sealed class RestaurarDraftMontagemCommandHandler(
             }
             throw new DomainException(MessageCodes.DraftStateConflict);
         }
-        await publisher.PublishAfterCommitAsync(command.Id, DraftMontagemAvailabilityChange.Restored);
+        await publisher.PublishAfterCommitAsync(
+            command.Id,
+            DraftMontagemSnapshotScope.Active,
+            DraftMontagemAvailabilityChange.Restored);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

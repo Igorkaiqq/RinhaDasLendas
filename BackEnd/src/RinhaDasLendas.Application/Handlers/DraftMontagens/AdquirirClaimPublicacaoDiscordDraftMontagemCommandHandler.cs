@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -31,7 +32,7 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
         var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
         foreach (var expirado in expirados)
         {
-            await publisher.PublishAfterCommitAsync(expirado.Id);
+            await publisher.PublishAfterCommitAsync(expirado.Id, DraftMontagemSnapshotScope.IncludingArchived);
         }
         var result = await repository.TryClaimPublicacaoDiscordAsync(
             command.Id,
@@ -42,7 +43,11 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
             cancellationToken);
         if (result?.VersionStamp is not null)
         {
-            await publisher.PublishAfterCommitAsync(result.VersionStamp.Id);
+            await publisher.PublishAfterCommitAsync(
+                result.VersionStamp.Id,
+                tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
+                    ? DraftMontagemSnapshotScope.IncludingArchived
+                    : DraftMontagemSnapshotScope.Active);
         }
 
         return result is null ? null : ClaimPublicacaoDiscordResponseDto.FromModel(result.Claim);

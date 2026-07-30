@@ -31,7 +31,10 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
             .Callback(() => sequence.Add("save"))
             .Returns(Task.CompletedTask);
         var publisher = new Mock<IDraftMontagemRealtimePublisher>();
-        publisher.Setup(item => item.PublishAfterCommitAsync(draft.Id, It.IsAny<DraftMontagemAvailabilityChange>()))
+        publisher.Setup(item => item.PublishAfterCommitAsync(
+                draft.Id,
+                It.IsAny<DraftMontagemSnapshotScope>(),
+                It.IsAny<DraftMontagemAvailabilityChange>()))
             .Callback(() => sequence.Add("publish"))
             .Returns(Task.CompletedTask);
         using var requestCancellation = new CancellationTokenSource();
@@ -46,7 +49,10 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
             requestCancellation.Token);
 
         sequence.Should().Equal("save", "publish");
-        publisher.Verify(item => item.PublishAfterCommitAsync(draft.Id, DraftMontagemAvailabilityChange.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            draft.Id,
+            DraftMontagemSnapshotScope.Active,
+            DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]
@@ -72,7 +78,7 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
             CancellationToken.None);
 
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemSnapshotScope>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]
@@ -98,7 +104,7 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
         var act = () => handler.Handle(new FinalizarDraftMontagemCommand(draft.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftStateConflict);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemSnapshotScope>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]
@@ -120,7 +126,7 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
             CancellationToken.None);
 
         repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemSnapshotScope>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]
@@ -150,7 +156,7 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
         draft.VersaoEstado.Should().Be(initialVersion);
         draft.Times.Select(team => (team.Id, team.Nome)).Should().Equal(initialTeams);
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemSnapshotScope>(), It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]

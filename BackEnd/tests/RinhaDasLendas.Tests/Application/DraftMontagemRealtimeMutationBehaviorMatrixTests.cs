@@ -29,7 +29,12 @@ public sealed class DraftMontagemRealtimeMutationBehaviorMatrixTests
 
         scenario.Sequence.Should().Equal("save", "publish");
         scenario.Publisher.Verify(
-            item => item.PublishAfterCommitAsync(scenario.Draft.Id, scenario.Availability),
+            item => item.PublishAfterCommitAsync(
+                scenario.Draft.Id,
+                scenario.Availability == DraftMontagemAvailabilityChange.Archived
+                    ? DraftMontagemSnapshotScope.IncludingArchived
+                    : DraftMontagemSnapshotScope.Active,
+                scenario.Availability),
             Times.Once);
         result.Should().BeOfType(scenario.ResultType);
         GetResultDraftId(result).Should().Be(scenario.Draft.Id);
@@ -77,7 +82,10 @@ public sealed class DraftMontagemRealtimeMutationBehaviorMatrixTests
         scenario.Repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         scenario.Repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         scenario.Publisher.Verify(
-            item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemAvailabilityChange>()),
+            item => item.PublishAfterCommitAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<DraftMontagemSnapshotScope>(),
+                It.IsAny<DraftMontagemAvailabilityChange>()),
             Times.Never);
     }
 
@@ -553,7 +561,10 @@ public sealed class DraftMontagemRealtimeMutationBehaviorMatrixTests
                 .Callback(() => sequence.Add("save"))
                 .ReturnsAsync(DraftMontagemSaveResultado.Persistido);
             var publisher = new Mock<IDraftMontagemRealtimePublisher>();
-            publisher.Setup(item => item.PublishAfterCommitAsync(draft.Id, It.IsAny<DraftMontagemAvailabilityChange>()))
+            publisher.Setup(item => item.PublishAfterCommitAsync(
+                    draft.Id,
+                    It.IsAny<DraftMontagemSnapshotScope>(),
+                    It.IsAny<DraftMontagemAvailabilityChange>()))
                 .Callback(() => sequence.Add("publish"))
                 .Returns(Task.CompletedTask);
             return new MutationScenario(draft, repository, publisher, sequence, resultType, availability);

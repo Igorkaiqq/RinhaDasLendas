@@ -30,7 +30,10 @@ public sealed class DraftMontagemCommandHandlerTests
         montagem.AcoesAdministrativas.Should().ContainSingle(acao =>
             acao.Tipo == "ReaberturaPresenca" && acao.ResponsavelUsuarioId == usuarioId);
         repository.Verify(item => item.SaveChangesAsync(CancellationToken.None), Times.Once);
-        publisher.Verify(item => item.PublishAfterCommitAsync(montagem.Id, DraftMontagemAvailabilityChange.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            montagem.Id,
+            DraftMontagemSnapshotScope.Active,
+            DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]
@@ -48,6 +51,7 @@ public sealed class DraftMontagemCommandHandlerTests
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemSnapshotScope>(),
             It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 

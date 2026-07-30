@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 
@@ -44,7 +45,10 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
         repository.Verify(item => item.MarcarPublicacoesExpiradasParaReconciliacaoAsync(
             It.IsAny<DateTimeOffset>(),
             CancellationToken.None), Times.Once);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsIn(stamps.Select(stamp => stamp.Id)), default), Times.Exactly(2));
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            It.IsIn(stamps.Select(stamp => stamp.Id)),
+            DraftMontagemSnapshotScope.IncludingArchived,
+            DraftMontagemAvailabilityChange.None), Times.Exactly(2));
     }
 
     [Fact]
@@ -70,6 +74,9 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
         var result = await service.RunCycleAsync(CancellationToken.None);
 
         result.Should().Be(0);
-        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), default), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemSnapshotScope>(),
+            It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -38,7 +39,7 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
             var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
             foreach (var expirado in expirados)
             {
-                await publisher.PublishAfterCommitAsync(expirado.Id);
+                await publisher.PublishAfterCommitAsync(expirado.Id, DraftMontagemSnapshotScope.IncludingArchived);
             }
             var existente = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
                 ? await repository.GetByIdIncludingArchivedAsync(command.Id, cancellationToken)
@@ -51,7 +52,11 @@ public sealed class RegistrarFalhaPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
-        await publisher.PublishAfterCommitAsync(stamp.Id);
+        await publisher.PublishAfterCommitAsync(
+            stamp.Id,
+            tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
+                ? DraftMontagemSnapshotScope.IncludingArchived
+                : DraftMontagemSnapshotScope.Active);
         var montagem = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
             ? await repository.ReloadByIdIncludingArchivedAsync(command.Id, cancellationToken)
             : await repository.ReloadByIdAsync(command.Id, cancellationToken);

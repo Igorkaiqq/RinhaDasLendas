@@ -36,7 +36,10 @@ public sealed class DraftMontagemCancellationMetricsTests
         var metrics = new Mock<IDraftMontagemMetrics>(MockBehavior.Strict);
         metrics.Setup(item => item.RecordDraftCancelled(id)).Callback(() => metricRecorded.SetResult());
         var publisher = new Mock<IDraftMontagemRealtimePublisher>(MockBehavior.Strict);
-        publisher.Setup(item => item.PublishAfterCommitAsync(id, It.IsAny<DraftMontagemAvailabilityChange>()))
+        publisher.Setup(item => item.PublishAfterCommitAsync(
+                id,
+                It.IsAny<DraftMontagemSnapshotScope>(),
+                It.IsAny<DraftMontagemAvailabilityChange>()))
             .Callback(() => metricRecorded.Task.IsCompletedSuccessfully.Should().BeTrue())
             .Returns(Task.CompletedTask);
         var handler = CreateHandler(repository.Object, publisher.Object, metrics.Object);
@@ -50,13 +53,17 @@ public sealed class DraftMontagemCancellationMetricsTests
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
         publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemSnapshotScope>(),
             It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
 
         releaseSave.SetResult();
         await handlerTask;
 
         metrics.Verify(item => item.RecordDraftCancelled(id), Times.Once);
-        publisher.Verify(item => item.PublishAfterCommitAsync(id, DraftMontagemAvailabilityChange.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(
+            id,
+            DraftMontagemSnapshotScope.Active,
+            DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]
@@ -78,6 +85,7 @@ public sealed class DraftMontagemCancellationMetricsTests
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
         publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemSnapshotScope>(),
             It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
@@ -100,6 +108,7 @@ public sealed class DraftMontagemCancellationMetricsTests
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
         publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemSnapshotScope>(),
             It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 

@@ -17,12 +17,13 @@ public sealed class DraftMontagemRealtimePublisher(
 
     public async Task PublishAfterCommitAsync(
         Guid draftId,
+        DraftMontagemSnapshotScope snapshotScope = DraftMontagemSnapshotScope.Active,
         DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
     {
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var montagem = await ReloadAsync(draftId, availability);
+            var montagem = await ReloadAsync(draftId, snapshotScope);
             if (montagem is null)
             {
                 return;
@@ -89,9 +90,9 @@ public sealed class DraftMontagemRealtimePublisher(
 
     private async Task<DraftMontagem?> ReloadAsync(
         Guid draftId,
-        DraftMontagemAvailabilityChange availability)
+        DraftMontagemSnapshotScope snapshotScope)
     {
-        var operation = availability == DraftMontagemAvailabilityChange.Archived
+        var operation = snapshotScope == DraftMontagemSnapshotScope.IncludingArchived
             ? nameof(IDraftMontagemRepository.ReloadByIdIncludingArchivedAsync)
             : nameof(IDraftMontagemRepository.ReloadByIdAsync);
         var stopwatch = Stopwatch.StartNew();
@@ -99,7 +100,7 @@ public sealed class DraftMontagemRealtimePublisher(
 
         try
         {
-            return availability == DraftMontagemAvailabilityChange.Archived
+            return snapshotScope == DraftMontagemSnapshotScope.IncludingArchived
                 ? await repository.ReloadByIdIncludingArchivedAsync(draftId, timeout.Token)
                 : await repository.ReloadByIdAsync(draftId, timeout.Token);
         }

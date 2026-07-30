@@ -55,6 +55,30 @@ public sealed class DraftMontagemRealtimePublisherTests
     }
 
     [Fact]
+    public async Task SnapshotDeDraftArquivado_DeveUsarReloadIncludingArchivedSemEventoDeDisponibilidade()
+    {
+        var draft = CreateDraft();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository
+            .Setup(item => item.ReloadByIdIncludingArchivedAsync(draft.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(draft);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, new TestTelemetry());
+
+        await publisher.PublishAfterCommitAsync(
+            draft.Id,
+            DraftMontagemSnapshotScope.IncludingArchived,
+            DraftMontagemAvailabilityChange.None);
+
+        notifier.Verify(item => item.SharedStateUpdatedAsync(
+            draft.Id,
+            It.IsAny<DraftMontagemRealtimeSnapshotDto>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        notifier.Verify(item => item.ArchivedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        notifier.Verify(item => item.RestoredAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task PublicacaoPosCommit_NaoDeveDependerDoTokenCanceladoDaRequest()
     {
         using var requestCancellation = new CancellationTokenSource();
@@ -128,7 +152,12 @@ public sealed class DraftMontagemRealtimePublisherTests
         notifier.Setup(item => item.RestoredAsync(draft.Id, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, new TestTelemetry());
 
-        await publisher.PublishAfterCommitAsync(draft.Id, availability);
+        await publisher.PublishAfterCommitAsync(
+            draft.Id,
+            availability == DraftMontagemAvailabilityChange.Archived
+                ? DraftMontagemSnapshotScope.IncludingArchived
+                : DraftMontagemSnapshotScope.Active,
+            availability);
 
         repository.Verify(
             item => item.ReloadByIdIncludingArchivedAsync(draft.Id, It.IsAny<CancellationToken>()),
@@ -162,7 +191,10 @@ public sealed class DraftMontagemRealtimePublisherTests
         var telemetry = new TestTelemetry();
         var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry);
 
-        var act = () => publisher.PublishAfterCommitAsync(draft.Id, DraftMontagemAvailabilityChange.Archived);
+        var act = () => publisher.PublishAfterCommitAsync(
+            draft.Id,
+            DraftMontagemSnapshotScope.IncludingArchived,
+            DraftMontagemAvailabilityChange.Archived);
 
         await act.Should().NotThrowAsync();
         notifier.Verify(item => item.ArchivedAsync(draft.Id, It.IsAny<CancellationToken>()), Times.Once);
@@ -271,7 +303,10 @@ public sealed class DraftMontagemRealtimePublisherTests
             .Throws(new InvalidOperationException("telemetry failure"));
         var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry.Object);
 
-        var act = () => publisher.PublishAfterCommitAsync(draft.Id, DraftMontagemAvailabilityChange.Archived);
+        var act = () => publisher.PublishAfterCommitAsync(
+            draft.Id,
+            DraftMontagemSnapshotScope.IncludingArchived,
+            DraftMontagemAvailabilityChange.Archived);
 
         await act.Should().NotThrowAsync();
         notifier.Verify(item => item.ArchivedAsync(draft.Id, It.IsAny<CancellationToken>()), Times.Once);
