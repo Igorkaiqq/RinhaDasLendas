@@ -5,11 +5,8 @@ import type { DraftConnectionStatus, DraftMontagemRealtimeSnapshot } from '@/typ
 const signalRMock = vi.hoisted(() => {
   let stateUpdated: ((state: DraftMontagemRealtimeSnapshot) => void) | undefined
   let archived: ((draftMontagemId: string) => void) | undefined
-  const connection = {
-    on: vi.fn((event: string, handler: (state: DraftMontagemRealtimeSnapshot) => void) => {
-      if (event === 'DraftMontagemStateUpdated') stateUpdated = handler
-      if (event === 'DraftMontagemArchived') archived = handler as unknown as (draftMontagemId: string) => void
-    }),
+  const createConnection = () => ({
+    on: vi.fn(),
     onreconnecting: vi.fn(),
     onreconnected: vi.fn(),
     onclose: vi.fn(),
@@ -17,16 +14,21 @@ const signalRMock = vi.hoisted(() => {
     start: vi.fn().mockResolvedValue(undefined),
     invoke: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
-  }
+  })
+  const connection = createConnection()
+  const queuedConnections: ReturnType<typeof createConnection>[] = []
   const builder = {
     withUrl: vi.fn().mockReturnThis(),
     withAutomaticReconnect: vi.fn().mockReturnThis(),
-    build: vi.fn(() => connection),
+    build: vi.fn(() => queuedConnections.shift() ?? connection),
   }
 
   return {
     connection,
     builder,
+    createConnection,
+    queueConnections: (...connections: ReturnType<typeof createConnection>[]) => queuedConnections.push(...connections),
+    resetConnections: () => queuedConnections.splice(0),
     emitStateUpdated: (state: DraftMontagemRealtimeSnapshot) => stateUpdated?.(state),
     emitArchived: (draftMontagemId: string) => archived?.(draftMontagemId),
   }
@@ -58,6 +60,7 @@ describe('DraftMontagemRealtimeConnection', () => {
   beforeEach(() => {
     vi.useRealTimers()
     vi.clearAllMocks()
+    signalRMock.resetConnections()
     signalRMock.connection.state = 'Connected'
     signalRMock.connection.start.mockResolvedValue(undefined)
     signalRMock.connection.invoke.mockResolvedValue(undefined)
@@ -243,6 +246,66 @@ describe('DraftMontagemRealtimeConnection', () => {
 
     expect(signalRMock.connection.invoke).toHaveBeenCalledWith('LeaveDraftMontagem', 'draft-1')
     expect(signalRMock.connection.stop).toHaveBeenCalledOnce()
+  })
+
+  it('absorbs stop failure and remains idempotently disconnected', async () => {
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+    await connection.connect(vi.fn())
+    signalRMock.connection.stop.mockRejectedValueOnce(new Error('stop failed'))
+
+    await expect(connection.disconnect()).resolves.toBeUndefined()
+    await expect(connection.disconnect()).resolves.toBeUndefined()
+
+    expect(signalRMock.connection.stop).toHaveBeenCalledOnce()
+  })
+
+  it('keeps only the latest concurrent connect ready', async () => {
+    let releaseFirstStart: (() => void) | undefined
+    const first = signalRMock.createConnection()
+    first.start.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstStart = resolve
+        }),
+    )
+    const second = signalRMock.createConnection()
+    signalRMock.queueConnections(first, second)
+    const firstReady = vi.fn()
+    const secondReady = vi.fn()
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+
+    const firstConnect = connection.connect(vi.fn(), firstReady)
+    const secondConnect = connection.connect(vi.fn(), secondReady)
+    await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce())
+    releaseFirstStart?.()
+    await Promise.all([firstConnect, secondConnect])
+
+    expect(firstReady).not.toHaveBeenCalled()
+    expect(secondReady).toHaveBeenCalledOnce()
+    expect(second.invoke).toHaveBeenCalledWith('JoinDraftMontagem', 'draft-1')
+  })
+
+  it('stops a connection replaced during concurrent start', async () => {
+    let releaseFirstStart: (() => void) | undefined
+    const first = signalRMock.createConnection()
+    first.start.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstStart = resolve
+        }),
+    )
+    const second = signalRMock.createConnection()
+    signalRMock.queueConnections(first, second)
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+
+    const firstConnect = connection.connect(vi.fn())
+    const secondConnect = connection.connect(vi.fn())
+    await vi.waitFor(() => expect(second.start).toHaveBeenCalledOnce())
+    releaseFirstStart?.()
+    await Promise.all([firstConnect, secondConnect])
+
+    expect(first.stop).toHaveBeenCalledOnce()
+    expect(second.stop).not.toHaveBeenCalled()
   })
 
   it('consumes the shared event without personalized HTTP fields', async () => {

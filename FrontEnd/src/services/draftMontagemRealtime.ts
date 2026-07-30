@@ -7,6 +7,14 @@ import { getAccessToken } from './authState'
 
 const RETRY_DELAYS = [0, 2000, 5000, 10000, 15000]
 
+async function stopBestEffort(connection: signalR.HubConnection) {
+  try {
+    await connection.stop()
+  } catch {
+    // Lifecycle invalidation remains authoritative when transport cleanup fails.
+  }
+}
+
 export type DraftMontagemRealtimeHandler = (state: DraftMontagemRealtimeSnapshot) => void
 export type DraftMontagemRealtimeReadyHandler = () => void | Promise<void>
 export type DraftMontagemArchivedHandler = (draftMontagemId: string) => void | Promise<void>
@@ -70,9 +78,7 @@ export class DraftMontagemRealtimeConnection {
       reportDegraded('fallback')
       stoppingForRestart = true
       try {
-        await connection.stop()
-      } catch {
-        // Restart remains authoritative even when best-effort stop fails.
+        await stopBestEffort(connection)
       } finally {
         stoppingForRestart = false
       }
@@ -85,7 +91,10 @@ export class DraftMontagemRealtimeConnection {
         await stopAndScheduleRestart()
         return false
       }
-      if (!isCurrent()) return false
+      if (!isCurrent()) {
+        await stopBestEffort(connection)
+        return false
+      }
       restartAttempt = 0
       await reportReady()
       return true
@@ -94,10 +103,17 @@ export class DraftMontagemRealtimeConnection {
       try {
         await connection.start()
       } catch {
-        if (isCurrent()) await stopAndScheduleRestart()
+        if (isCurrent()) {
+          await stopAndScheduleRestart()
+        } else {
+          await stopBestEffort(connection)
+        }
         return
       }
-      if (!isCurrent()) return
+      if (!isCurrent()) {
+        await stopBestEffort(connection)
+        return
+      }
       await join()
     }
 
@@ -152,7 +168,7 @@ export class DraftMontagemRealtimeConnection {
           }
         }
       } finally {
-        await connection.stop()
+        await stopBestEffort(connection)
       }
     })()
     this.disconnecting = disconnecting

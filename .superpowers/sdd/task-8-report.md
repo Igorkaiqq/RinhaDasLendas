@@ -116,3 +116,61 @@ Mensagem: `feat: degradar conexão quando entrada no draft falhar`.
 - Placeholders, botões, títulos, badges, toasts e estados vazios revisados: **Sim**. Nenhum desses elementos foi alterado.
 - Validações frontend/backend usam i18n/recurso: **Sim**. Nenhuma validação foi adicionada ou modificada.
 - Novos arquivos respeitam o padrão de internacionalização: **Sim**.
+
+## Correções após revisão
+
+Todos os findings da revisão da Unidade 8 foram corrigidos sem alterar os contratos públicos do transporte:
+
+- `disconnect()` passou a absorver também rejeições de `HubConnection.stop()`;
+- chamadas concorrentes de `connect()` continuam elegendo somente a generation mais recente para readiness;
+- uma conexão local substituída enquanto `start()` ou `JoinDraftMontagem` está pendente é interrompida best-effort assim que a operação assíncrona retorna;
+- a conexão mais recente não é interrompida pela limpeza da conexão stale.
+
+### RED da revisão
+
+Comando:
+
+```text
+npm --prefix FrontEnd test -- src/services/draftMontagemRealtime.spec.ts
+```
+
+Resultado esperado observado:
+
+```text
+Test Files  1 failed (1)
+Tests       2 failed | 12 passed (14)
+```
+
+As falhas reproduziram especificamente o escape da rejeição de `stop()` durante `disconnect()` e a conexão substituída que permanecia aberta após concluir um `start()` stale. O teste de race confirmou separadamente que apenas o segundo `connect()` recebia readiness.
+
+### GREEN da revisão
+
+O mesmo comando focado passou após a correção:
+
+```text
+Test Files  1 passed (1)
+Tests       14 passed (14)
+```
+
+Os três testes novos cobrem falha de `stop`, race entre dois `connect` e encerramento da conexão substituída.
+
+### Build, lint e diff-check da revisão
+
+```text
+npm --prefix FrontEnd run lint:check
+npm --prefix FrontEnd run build
+git diff --check
+```
+
+Todos concluíram com exit code 0. Permaneceram apenas os avisos preexistentes do Vite sobre anotações PURE de dependências e tamanho de chunk.
+
+### Auditoria de internacionalização da revisão
+
+- Ausência de novos textos hardcoded no frontend: **Sim**.
+- Ausência de novas mensagens backend hardcoded para usuário: **Sim**.
+- `pt.json` e `en.json` permanecem sincronizados: **Sim**. Nenhum locale foi alterado.
+- Recursos backend atualizados quando necessários: **Sim**. Nenhuma mensagem foi criada.
+- Acentuação em português revisada: **Sim**.
+- Placeholders, botões, títulos, badges, toasts e estados vazios revisados: **Sim**. Não foram alterados.
+- Validações frontend/backend usam i18n/recurso: **Sim**. Não foram alteradas.
+- Arquivos modificados respeitam o padrão de internacionalização: **Sim**.
