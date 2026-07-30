@@ -110,7 +110,7 @@ public sealed class DraftMontagensController(ISender sender, IMessageProvider me
     public async Task<IActionResult> GetRealtimeState([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var state = await sender.Send(new GetDraftMontagemRealtimeStateQuery(id), cancellationToken);
-        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftMontagemNotFound)) : Ok(state);
+        return state is null ? NotFound(ApiErrorResponse.FromCode(messages, MessageCodes.DraftRealtimeUnavailable)) : Ok(state);
     }
 
     [HttpPost]

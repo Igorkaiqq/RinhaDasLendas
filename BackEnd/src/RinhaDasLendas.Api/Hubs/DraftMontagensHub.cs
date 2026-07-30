@@ -1,14 +1,23 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using MediatR;
+using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Queries.DraftMontagens;
+using RinhaDasLendas.Domain.Constants;
 
 namespace RinhaDasLendas.Api.Hubs;
 
 [Authorize]
-public sealed class DraftMontagensHub : Hub
+public sealed class DraftMontagensHub(ISender sender, IMessageProvider messages) : Hub
 {
-    public Task JoinDraftMontagem(Guid draftMontagemId)
+    public async Task JoinDraftMontagem(Guid draftMontagemId)
     {
-        return Groups.AddToGroupAsync(Context.ConnectionId, GroupName(draftMontagemId));
+        if (!await sender.Send(new CanViewDraftMontagemQuery(draftMontagemId), Context.ConnectionAborted))
+        {
+            throw new HubException(messages.GetMessage(MessageCodes.DraftRealtimeUnavailable));
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(draftMontagemId), Context.ConnectionAborted);
     }
 
     public Task LeaveDraftMontagem(Guid draftMontagemId)

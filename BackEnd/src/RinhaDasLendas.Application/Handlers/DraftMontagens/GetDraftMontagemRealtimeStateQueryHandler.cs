@@ -8,10 +8,16 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class GetDraftMontagemRealtimeStateQueryHandler(
     IDraftMontagemRepository repository,
-    ICurrentUser currentUser) : IRequestHandler<GetDraftMontagemRealtimeStateQuery, DraftMontagemRealtimeStateDto?>
+    ICurrentUser currentUser,
+    ISender sender) : IRequestHandler<GetDraftMontagemRealtimeStateQuery, DraftMontagemRealtimeStateDto?>
 {
     public async Task<DraftMontagemRealtimeStateDto?> Handle(GetDraftMontagemRealtimeStateQuery query, CancellationToken cancellationToken)
     {
+        if (!await sender.Send(new CanViewDraftMontagemQuery(query.Id), cancellationToken))
+        {
+            return null;
+        }
+
         var montagem = await repository.GetByIdAsync(query.Id, cancellationToken);
         return montagem is null
             ? null
