@@ -48,6 +48,10 @@ public static class DraftMontagemRealtimeStateFactory
 
     public static DraftMontagemRealtimeStateDto Create(DraftMontagem montagem, DateTimeOffset now, bool canCurrentUserPick = false)
     {
-        return new DraftMontagemRealtimeStateDto(DraftMontagemResponseDto.FromEntity(montagem), now, canCurrentUserPick);
+        var snapshot = CreateShared(montagem, now);
+        return new DraftMontagemRealtimeStateDto(snapshot.Montagem, snapshot.ServerNow, canCurrentUserPick);
     }
+
+    public static DraftMontagemRealtimeSnapshotDto CreateShared(DraftMontagem montagem, DateTimeOffset now)
+        => new(DraftMontagemResponseDto.FromEntity(montagem), now);
 }

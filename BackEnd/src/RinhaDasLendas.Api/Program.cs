@@ -17,6 +17,7 @@ using RinhaDasLendas.Api.Serialization;
 using RinhaDasLendas.Application;
 using RinhaDasLendas.Application.Commands.AgendamentosPresenca;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Services;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure;
 using RinhaDasLendas.Infrastructure.Messages;
@@ -37,6 +38,8 @@ builder.Services.AddSingleton((builder.Configuration
     .Get<AgendamentoPresencaProcessingOptions>() ?? new AgendamentoPresencaProcessingOptions()).Normalize());
 builder.Services.AddScoped<IDraftMontagemMetrics, DraftMontagemMetrics>();
 builder.Services.AddScoped<IDraftMontagemRealtimeNotifier, DraftMontagemRealtimeNotifier>();
+builder.Services.AddScoped<IDraftMontagemRealtimePublisher, DraftMontagemRealtimePublisher>();
+builder.Services.AddSingleton<IDraftMontagemRealtimeTelemetry, DraftMontagemRealtimeTelemetry>();
 builder.Services.AddHostedService<DraftMontagemTurnTimerService>();
 builder.Services.AddHostedService<DraftMontagemPresenceClosureService>();
 builder.Services.AddHostedService<DraftMontagemPublicationReconciliationService>();

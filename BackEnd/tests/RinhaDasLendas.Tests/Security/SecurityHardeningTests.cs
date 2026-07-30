@@ -1081,7 +1081,12 @@ public sealed class SecurityHardeningTests
             return Task.CompletedTask;
         }
 
+        public Task SharedStateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeSnapshotDto state, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task RestoredAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class TestDraftMontagemMetrics : IDraftMontagemMetrics

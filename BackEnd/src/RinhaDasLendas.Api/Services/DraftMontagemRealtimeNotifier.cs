@@ -12,8 +12,18 @@ public sealed class DraftMontagemRealtimeNotifier(IHubContext<DraftMontagensHub>
         return hubContext.Clients.Group(DraftMontagensHub.GroupName(draftMontagemId)).SendAsync("DraftMontagemStateUpdated", state, cancellationToken);
     }
 
+    public Task SharedStateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeSnapshotDto state, CancellationToken cancellationToken)
+    {
+        return hubContext.Clients.Group(DraftMontagensHub.GroupName(draftMontagemId)).SendAsync("DraftMontagemStateUpdated", state, cancellationToken);
+    }
+
     public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken)
     {
         return hubContext.Clients.All.SendAsync("DraftMontagemArchived", draftMontagemId, cancellationToken);
+    }
+
+    public Task RestoredAsync(Guid draftMontagemId, CancellationToken cancellationToken)
+    {
+        return hubContext.Clients.All.SendAsync("DraftMontagemRestored", draftMontagemId, cancellationToken);
     }
 }

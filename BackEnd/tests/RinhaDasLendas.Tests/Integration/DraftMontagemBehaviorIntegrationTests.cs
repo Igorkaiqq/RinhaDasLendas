@@ -1708,7 +1708,15 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return Task.CompletedTask;
         }
 
+        public Task SharedStateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeSnapshotDto state, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _realtime);
+            return Task.CompletedTask;
+        }
+
         public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task RestoredAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public void RecordPresenceConfirmed(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceConfirmed);
         public void RecordPresenceCancelled(Guid draftMontagemId, string origin) => Interlocked.Increment(ref _presenceCancelled);
