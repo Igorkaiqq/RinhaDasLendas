@@ -197,11 +197,16 @@ export interface DraftMontagemSubstituicao {
   registradoEm: string
 }
 
-export interface DraftMontagemRealtimeState {
+export interface DraftMontagemRealtimeSnapshot {
   montagem: DraftMontagem
   serverNow: string
+}
+
+export interface DraftMontagemRealtimeState extends DraftMontagemRealtimeSnapshot {
   canCurrentUserPick: boolean
 }
+
+export type DraftConnectionStatus = 'connected' | 'reconnecting' | 'fallback' | 'disconnected'
 
 export interface DraftMontagemPayload {
   nome: string
