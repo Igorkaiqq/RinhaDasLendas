@@ -18,6 +18,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Infrastructure.Identity;
+using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Tests.Infrastructure;
@@ -358,6 +359,35 @@ public sealed class DraftMontagemCycleIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.DraftStateConflict);
+        var after = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        after.VersaoEstado.Should().Be(before.VersaoEstado);
+        after.Times.Select(team => (team.Id, team.Nome)).Should().Equal(before.Times.Select(team => (team.Id, team.Nome)));
+        after.Participantes.Select(item => (item.JogadorId, item.Estado, item.Ordem)).Should()
+            .Equal(before.Participantes.Select(item => (item.JogadorId, item.Estado, item.Ordem)));
+        factory.Publisher.Publications.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SalvarLayoutComVersaoBaseNegativa_DeveRetornarMv104SemMutarSalvarOuPublicar()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        var before = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        factory.Publisher.Reset();
+
+        var response = await admin.PutAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/layout", new
+        {
+            VersaoEstado = -1,
+            Times = Array.Empty<object>(),
+            Livres = Array.Empty<object>(),
+            Reservas = Array.Empty<object>(),
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!;
+        error.MessageCode.Should().Be(MessageCodes.ValidationError);
+        error.Errors.Should().Contain(new ResourceMessageProvider().GetMessage(MessageCodes.DraftStateVersionInvalid, "pt-BR"));
         var after = await factory.GetDraftWithGraphAsync(fixture.DraftId);
         after.VersaoEstado.Should().Be(before.VersaoEstado);
         after.Times.Select(team => (team.Id, team.Nome)).Should().Equal(before.Times.Select(team => (team.Id, team.Nome)));

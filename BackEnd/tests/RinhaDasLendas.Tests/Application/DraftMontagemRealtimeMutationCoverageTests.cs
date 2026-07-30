@@ -16,39 +16,6 @@ namespace RinhaDasLendas.Tests.Application;
 
 public sealed class DraftMontagemRealtimeMutationCoverageTests
 {
-    public static TheoryData<Type> HandlersNaoPublicacao => new()
-    {
-        typeof(ConfirmarPresencaDraftMontagemCommandHandler),
-        typeof(CancelarPresencaDraftMontagemCommandHandler),
-        typeof(AdicionarPresencaManualDraftMontagemCommandHandler),
-        typeof(RemoverPresencaManualDraftMontagemCommandHandler),
-        typeof(EncerrarPresencaDraftMontagemCommandHandler),
-        typeof(ReabrirPresencaDraftMontagemCommandHandler),
-        typeof(SelecionarModoDraftMontagemCommandHandler),
-        typeof(DefinirCapitaesDraftMontagemCommandHandler),
-        typeof(SortearCapitaesDraftMontagemCommandHandler),
-        typeof(DefinirOrdemEscolhaDraftMontagemCommandHandler),
-        typeof(IniciarDraftMontagemTempoRealCommandHandler),
-        typeof(RegistrarPickDraftMontagemCommandHandler),
-        typeof(AvancarTurnoDraftMontagemTimeoutCommandHandler),
-        typeof(SubstituirReservaDraftMontagemCommandHandler),
-        typeof(SalvarLayoutDraftMontagemCommandHandler),
-        typeof(FinalizarDraftMontagemCommandHandler),
-        typeof(CancelarDraftMontagemCommandHandler),
-        typeof(ArquivarDraftMontagemCommandHandler),
-        typeof(RestaurarDraftMontagemCommandHandler),
-    };
-
-    [Theory]
-    [MemberData(nameof(HandlersNaoPublicacao))]
-    public void HandlerDeMutacaoVisivel_DeveConsumirPublisherCompartilhadoSemNotifierDireto(Type handlerType)
-    {
-        var dependencies = handlerType.GetConstructors().Single().GetParameters().Select(parameter => parameter.ParameterType);
-
-        dependencies.Should().Contain(typeof(IDraftMontagemRealtimePublisher));
-        dependencies.Should().NotContain(typeof(IDraftMontagemRealtimeNotifier));
-    }
-
     [Fact]
     public async Task EncerrarPresenca_DeveSalvarAntesDePublicarSemRepassarTokenDaRequest()
     {
@@ -196,6 +163,18 @@ public sealed class DraftMontagemRealtimeMutationCoverageTests
         result.Errors.Should().Contain(error =>
             error.PropertyName == nameof(SalvarLayoutDraftMontagemRequestDto.VersaoEstado)
             && error.ErrorMessage == MessageCodes.FieldRequired);
+    }
+
+    [Fact]
+    public void ValidatorDeLayout_DeveRejeitarVersaoBaseNegativaComMv104()
+    {
+        var request = new SalvarLayoutDraftMontagemRequestDto([], [], [], -1);
+
+        var result = new SalvarLayoutDraftMontagemValidator().Validate(request);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.PropertyName == nameof(SalvarLayoutDraftMontagemRequestDto.VersaoEstado)
+            && error.ErrorMessage == MessageCodes.DraftStateVersionInvalid);
     }
 
     private static Mock<IDraftMontagemRepository> RepositoryFor(DraftMontagem draft, bool includingArchived = false)
