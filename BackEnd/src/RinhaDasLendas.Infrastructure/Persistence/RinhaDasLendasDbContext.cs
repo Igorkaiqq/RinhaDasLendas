@@ -5,6 +5,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Infrastructure.Identity;
+using RinhaDasLendas.Infrastructure.Persistence.Configurations;
 using DomainTime = RinhaDasLendas.Domain.Entities.Time;
 
 namespace RinhaDasLendas.Infrastructure.Persistence;
@@ -37,6 +38,20 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
     public DbSet<AgendamentoPresencaDiaSemana> AgendamentosPresencaDiasSemana => Set<AgendamentoPresencaDiaSemana>();
     public DbSet<OcorrenciaAgendamentoPresenca> OcorrenciasAgendamentosPresenca => Set<OcorrenciaAgendamentoPresenca>();
     public DbSet<HistoricoAgendamentoPresenca> HistoricosAgendamentosPresenca => Set<HistoricoAgendamentoPresenca>();
+    public DbSet<CalendarioCompetitivo> CalendariosCompetitivos => Set<CalendarioCompetitivo>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<Competicao> Competicoes => Set<Competicao>();
+    public DbSet<Rodada> Rodadas => Set<Rodada>();
+    public DbSet<VersaoRegras> VersoesRegras => Set<VersaoRegras>();
+    public DbSet<EventoCompetitivo> EventosCompetitivos => Set<EventoCompetitivo>();
+    public DbSet<EventoTime> EventoTimes => Set<EventoTime>();
+    public DbSet<Serie> Series => Set<Serie>();
+    public DbSet<LadoSerie> LadosSeries => Set<LadoSerie>();
+    public DbSet<ParticipanteEsperadoSerie> ParticipantesEsperadosSeries => Set<ParticipanteEsperadoSerie>();
+    public DbSet<Partida> Partidas => Set<Partida>();
+    public DbSet<PickPartida> PicksPartidas => Set<PickPartida>();
+    public DbSet<RegistroAuditoriaCompetitiva> RegistrosAuditoriaCompetitiva => Set<RegistroAuditoriaCompetitiva>();
+    public DbSet<OperacaoIdempotente> OperacoesIdempotentes => Set<OperacaoIdempotente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,7 +60,6 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
         ConfigureIdentity(modelBuilder);
 
         ConfigureAgendamentosPresenca(modelBuilder);
-
         modelBuilder.Entity<Jogador>(entity =>
         {
             entity.ToTable("jogadores");
@@ -557,6 +571,8 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             entity.HasIndex(substituicao => substituicao.TimeId);
             entity.HasIndex(substituicao => substituicao.ReservaEntrouId);
         });
+
+        CompetitiveModelConfiguration.Apply(modelBuilder);
     }
 
     private static void ConfigureAgendamentosPresenca(ModelBuilder modelBuilder)
@@ -921,6 +937,8 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
             AuthRoles.Admin => Guid.Parse("10000000-0000-0000-0000-000000000002"),
             AuthRoles.Moderador => Guid.Parse("10000000-0000-0000-0000-000000000003"),
             AuthRoles.Capitao => Guid.Parse("10000000-0000-0000-0000-000000000004"),
+            AuthRoles.Presidente => Guid.Parse("10000000-0000-0000-0000-000000000006"),
+            AuthRoles.VicePresidente => Guid.Parse("10000000-0000-0000-0000-000000000007"),
             _ => Guid.Parse("10000000-0000-0000-0000-000000000005"),
         };
     }

@@ -239,6 +239,115 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.CalendarioCompetitivo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid>("AtualizadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_usuario_id");
+
+                    b.Property<Guid?>("SeasonAtivaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_ativa_id");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadoPorUsuarioId")
+                        .HasDatabaseName("ix_calendarios_competitivos_atualizado_por_usuario_id");
+
+                    b.HasIndex("SeasonAtivaId")
+                        .HasDatabaseName("ix_calendarios_competitivos_season_ativa_id");
+
+                    b.ToTable("calendarios_competitivos", (string)null);
+
+                    b.HasAnnotation("RinhaDasLendas:ExpressionIndex:ux_calendarios_competitivos_singleton", "(true)");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Competicao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizada_em");
+
+                    b.Property<Guid>("AtualizadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizada_por_usuario_id");
+
+                    b.Property<bool>("CircuitoDiario")
+                        .HasColumnType("boolean")
+                        .HasColumnName("circuito_diario");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("codigo");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<Guid>("CriadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criada_por_usuario_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("nome");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "SeasonId")
+                        .HasName("ak_competicoes_id_season_id");
+
+                    b.HasIndex("AtualizadaPorUsuarioId")
+                        .HasDatabaseName("ix_competicoes_atualizada_por_usuario_id");
+
+                    b.HasIndex("CriadaPorUsuarioId")
+                        .HasDatabaseName("ix_competicoes_criada_por_usuario_id");
+
+                    b.HasIndex("SeasonId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_competicoes_circuito_diario")
+                        .HasFilter("circuito_diario");
+
+                    b.HasIndex("SeasonId", "Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_competicoes_season_id_codigo");
+
+                    b.ToTable("competicoes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_competicoes_id_nao_reservado", "id <> '00000000-0000-0000-0000-000000000000'::uuid");
+                        });
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DiscordServerConfiguration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1024,6 +1133,117 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("drafts", (string)null);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.EventoCompetitivo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid>("AtualizadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_usuario_id");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
+                    b.Property<string>("ModoDraft")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("modo_draft");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("nome");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "SeasonId")
+                        .HasName("ak_eventos_competitivos_id_season_id");
+
+                    b.HasIndex("AtualizadoPorUsuarioId")
+                        .HasDatabaseName("ix_eventos_competitivos_atualizado_por_usuario_id");
+
+                    b.HasIndex("CriadoPorUsuarioId")
+                        .HasDatabaseName("ix_eventos_competitivos_criado_por_usuario_id");
+
+                    b.HasIndex("SeasonId")
+                        .HasDatabaseName("ix_eventos_competitivos_season_id");
+
+                    b.ToTable("eventos_competitivos", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_eventos_competitivos_modo_draft_padrao", "modo_draft = 'Padrao'");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.EventoTime", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EventoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evento_id");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome_snapshot");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<string>("TagSnapshot")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("tag_snapshot");
+
+                    b.Property<Guid>("TimeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("time_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimeId")
+                        .HasDatabaseName("ix_evento_times_time_id");
+
+                    b.HasIndex("EventoId", "Ordem")
+                        .IsUnique()
+                        .HasDatabaseName("ux_evento_times_evento_id_ordem");
+
+                    b.HasIndex("EventoId", "TimeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_evento_times_evento_id_time_id");
+
+                    b.ToTable("evento_times", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_evento_times_ordem_valida", "ordem >= 1 AND ordem <= 4");
+                        });
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.HistoricoAgendamentoPresenca", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1139,6 +1359,70 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("jogadores", (string)null);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.LadoSerie", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CapitaoJogadorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("capitao_jogador_id");
+
+                    b.Property<string>("CapitaoNomeSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("capitao_nome_snapshot");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome_snapshot");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<Guid>("OrigemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("origem_id");
+
+                    b.Property<Guid>("SerieId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("serie_id");
+
+                    b.Property<string>("TagSnapshot")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("tag_snapshot");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "SerieId")
+                        .HasName("ak_lados_series_id_serie_id");
+
+                    b.HasIndex("CapitaoJogadorId")
+                        .HasDatabaseName("ix_lados_series_capitao_jogador_id");
+
+                    b.HasIndex("SerieId", "Ordem")
+                        .IsUnique()
+                        .HasDatabaseName("ux_lados_series_serie_id_ordem");
+
+                    b.ToTable("lados_series", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_lados_series_ordem_valida", "ordem >= 1 AND ordem <= 2");
+
+                            t.HasCheckConstraint("ck_lados_series_tipo_valido", "tipo IN ('Temporario', 'TimeOficial')");
+                        });
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.OcorrenciaAgendamentoPresenca", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1230,6 +1514,262 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.OperacaoIdempotente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AtorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ator_usuario_id");
+
+                    b.Property<string>("Chave")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("chave");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em");
+
+                    b.Property<string>("Metodo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("metodo");
+
+                    b.Property<Guid?>("RecursoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recurso_id");
+
+                    b.Property<string>("RecursoTipo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("recurso_tipo");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("RespostaMinima")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("resposta_minima");
+
+                    b.Property<string>("Rota")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rota");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtorUsuarioId", "Metodo", "Rota", "Chave")
+                        .IsUnique()
+                        .HasDatabaseName("ux_operacoes_idempotentes_ator_metodo_rota_chave");
+
+                    b.ToTable("operacoes_idempotentes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_operacoes_idempotentes_recurso_tipo_valido", "recurso_tipo IN ('CalendarioCompetitivo', 'Season', 'Competicao', 'Rodada', 'VersaoRegras', 'EventoCompetitivo', 'Serie', 'Partida')");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.ParticipanteEsperadoSerie", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("JogadorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jogador_id");
+
+                    b.Property<Guid>("LadoSerieId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lado_serie_id");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome_snapshot");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogadorId")
+                        .HasDatabaseName("ix_participantes_esperados_series_jogador_id");
+
+                    b.HasIndex("LadoSerieId")
+                        .HasDatabaseName("ix_participantes_esperados_series_lado_serie_id");
+
+                    b.ToTable("participantes_esperados_series", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_participantes_esperados_series_ordem_positiva", "ordem > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Partida", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizada_em");
+
+                    b.Property<DateTimeOffset?>("ConfirmadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmada_em");
+
+                    b.Property<bool>("ConflitoFearless")
+                        .HasColumnType("boolean")
+                        .HasColumnName("conflito_fearless");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<string>("DecisaoPicksRemake")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("decisao_picks_remake");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("estado");
+
+                    b.Property<Guid?>("LadoVencedorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lado_vencedor_id");
+
+                    b.Property<string>("MotivoTermino")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("motivo_termino");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<Guid>("SerieId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("serie_id");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "SerieId")
+                        .HasName("ak_partidas_id_serie_id");
+
+                    b.HasIndex("LadoVencedorId", "SerieId")
+                        .HasDatabaseName("ix_partidas_lado_vencedor_id_serie_id");
+
+                    b.HasIndex("SerieId", "Ordem")
+                        .IsUnique()
+                        .HasDatabaseName("ux_partidas_serie_id_ordem");
+
+                    b.ToTable("partidas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_partidas_decisao_picks_remake_valida", "decisao_picks_remake IS NULL OR decisao_picks_remake IN ('PreservarPicks', 'DesconsiderarPicks')");
+
+                            t.HasCheckConstraint("ck_partidas_estado_valido", "estado IN ('Rascunho', 'Confirmada', 'Remake', 'Anulada')");
+
+                            t.HasCheckConstraint("ck_partidas_motivo_termino_valido", "motivo_termino IS NULL OR motivo_termino IN ('Normal', 'Surrender')");
+
+                            t.HasCheckConstraint("ck_partidas_ordem_positiva", "ordem > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.PickPartida", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChampionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("champion_id");
+
+                    b.Property<Guid>("LadoSerieId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lado_serie_id");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<Guid>("PartidaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("partida_id");
+
+                    b.Property<DateTimeOffset>("RegistradoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registrado_em");
+
+                    b.Property<Guid>("SerieId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("serie_id");
+
+                    b.Property<bool>("Valido")
+                        .HasColumnType("boolean")
+                        .HasColumnName("valido");
+
+                    b.Property<int>("VersaoFato")
+                        .HasColumnType("integer")
+                        .HasColumnName("versao_fato");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LadoSerieId", "SerieId")
+                        .HasDatabaseName("ix_picks_partidas_lado_serie_id_serie_id");
+
+                    b.HasIndex("PartidaId", "ChampionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_picks_partidas_champion_valido")
+                        .HasFilter("valido");
+
+                    b.HasIndex("PartidaId", "SerieId")
+                        .HasDatabaseName("ix_picks_partidas_partida_id_serie_id");
+
+                    b.HasIndex("PartidaId", "LadoSerieId", "Ordem")
+                        .IsUnique()
+                        .HasDatabaseName("ux_picks_partidas_slot_valido")
+                        .HasFilter("valido");
+
+                    b.ToTable("picks_partidas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_picks_partidas_champion_id_positivo", "champion_id > 0");
+
+                            t.HasCheckConstraint("ck_picks_partidas_ordem_valida", "ordem >= 1 AND ordem <= 5");
+
+                            t.HasCheckConstraint("ck_picks_partidas_versao_fato_positiva", "versao_fato > 0");
+                        });
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.PreferenciaRota", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1266,6 +1806,363 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("preferencias_rotas", null, t =>
                         {
                             t.HasCheckConstraint("ck_preferencias_rotas_prioridade", "prioridade >= 1 AND prioridade <= 5");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.RegistroAuditoriaCompetitiva", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("acao");
+
+                    b.Property<Guid>("AtorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ator_usuario_id");
+
+                    b.Property<string>("Capacidade")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("capacidade");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<string>("Justificativa")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("justificativa");
+
+                    b.Property<DateTimeOffset>("OcorridoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ocorrido_em");
+
+                    b.Property<Guid>("RecursoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recurso_id");
+
+                    b.Property<string>("RecursoTipo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("recurso_tipo");
+
+                    b.Property<string>("ValorAnterior")
+                        .HasColumnType("text")
+                        .HasColumnName("valor_anterior");
+
+                    b.Property<string>("ValorPosterior")
+                        .HasColumnType("text")
+                        .HasColumnName("valor_posterior");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtorUsuarioId")
+                        .HasDatabaseName("ix_registros_auditoria_competitiva_ator_usuario_id");
+
+                    b.ToTable("registros_auditoria_competitiva", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
+
+                            t.HasCheckConstraint("ck_registros_auditoria_competitiva_recurso_tipo_valido", "recurso_tipo IN ('CalendarioCompetitivo', 'Season', 'Competicao', 'Rodada', 'VersaoRegras', 'EventoCompetitivo', 'Serie', 'Partida')");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Rodada", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizada_em");
+
+                    b.Property<Guid>("CompeticaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competicao_id");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "CompeticaoId")
+                        .HasName("ak_rodadas_id_competicao_id");
+
+                    b.HasIndex("CompeticaoId", "Ordem")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rodadas_competicao_id_ordem");
+
+                    b.ToTable("rodadas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_rodadas_ordem_positiva", "ordem > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Season", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Ano")
+                        .HasColumnType("integer")
+                        .HasColumnName("ano");
+
+                    b.Property<DateTimeOffset?>("AtivadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ativada_em");
+
+                    b.Property<DateTimeOffset>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizada_em");
+
+                    b.Property<Guid>("AtualizadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizada_por_usuario_id");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<Guid>("CriadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criada_por_usuario_id");
+
+                    b.Property<DateOnly>("DataFimExclusiva")
+                        .HasColumnType("date")
+                        .HasColumnName("data_fim_exclusiva");
+
+                    b.Property<DateOnly>("DataInicio")
+                        .HasColumnType("date")
+                        .HasColumnName("data_inicio");
+
+                    b.Property<DateTimeOffset?>("EncerradaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("encerrada_em");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("estado");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("OrdemNoAno")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem_no_ano");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadaPorUsuarioId")
+                        .HasDatabaseName("ix_seasons_atualizada_por_usuario_id");
+
+                    b.HasIndex("CriadaPorUsuarioId")
+                        .HasDatabaseName("ix_seasons_criada_por_usuario_id");
+
+                    b.HasIndex("Estado")
+                        .IsUnique()
+                        .HasDatabaseName("ux_seasons_ativa")
+                        .HasFilter("estado = 'Ativa'");
+
+                    b.HasIndex("Ano", "OrdemNoAno")
+                        .IsUnique()
+                        .HasDatabaseName("ux_seasons_ano_ordem_no_ano");
+
+                    b.ToTable("seasons", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_seasons_ano_valido", "ano >= 2009 AND ano <= 9999");
+
+                            t.HasCheckConstraint("ck_seasons_estado_valido", "estado IN ('Planejada', 'Ativa', 'Encerrada')");
+
+                            t.HasCheckConstraint("ck_seasons_intervalo_valido", "data_fim_exclusiva > data_inicio");
+
+                            t.HasCheckConstraint("ck_seasons_ordem_no_ano_positiva", "ordem_no_ano > 0");
+                        });
+
+                    b.HasAnnotation("Npgsql:ExclusionConstraint:ex_seasons_periodo", "daterange(data_inicio, data_fim_exclusiva, '[)') WITH &&");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Serie", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AgendadaPara")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("agendada_para");
+
+                    b.Property<DateTimeOffset>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizada_em");
+
+                    b.Property<Guid>("AtualizadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizada_por_usuario_id");
+
+                    b.Property<Guid>("CompeticaoEscopoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("competicao_escopo_id")
+                        .HasComputedColumnSql("COALESCE(competicao_id, '00000000-0000-0000-0000-000000000000'::uuid)", true);
+
+                    b.Property<Guid?>("CompeticaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competicao_id");
+
+                    b.Property<DateTimeOffset?>("ConcluidaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("concluida_em");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<Guid>("CriadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criada_por_usuario_id");
+
+                    b.Property<DateOnly?>("DataLocal")
+                        .HasColumnType("date")
+                        .HasColumnName("data_local");
+
+                    b.Property<Guid?>("DraftMontagemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("draft_montagem_id");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("estado");
+
+                    b.Property<Guid?>("EventoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evento_id");
+
+                    b.Property<bool>("FearlessHabilitado")
+                        .HasColumnType("boolean")
+                        .HasColumnName("fearless_habilitado");
+
+                    b.Property<string>("Formato")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("formato");
+
+                    b.Property<Guid?>("LadoVencedorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lado_vencedor_id");
+
+                    b.Property<string>("ModoDraft")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("modo_draft");
+
+                    b.Property<bool>("RevisaoNecessaria")
+                        .HasColumnType("boolean")
+                        .HasColumnName("revisao_necessaria");
+
+                    b.Property<Guid?>("RodadaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rodada_id");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("tipo");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("versao");
+
+                    b.Property<Guid>("VersaoRegrasId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("versao_regras_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadaPorUsuarioId")
+                        .HasDatabaseName("ix_series_atualizada_por_usuario_id");
+
+                    b.HasIndex("CriadaPorUsuarioId")
+                        .HasDatabaseName("ix_series_criada_por_usuario_id");
+
+                    b.HasIndex("DraftMontagemId")
+                        .HasDatabaseName("ix_series_draft_montagem_id");
+
+                    b.HasIndex("SeasonId")
+                        .HasDatabaseName("ix_series_season_id");
+
+                    b.HasIndex("CompeticaoId", "SeasonId")
+                        .HasDatabaseName("ix_series_competicao_id_season_id");
+
+                    b.HasIndex("EventoId", "SeasonId")
+                        .HasDatabaseName("ix_series_evento_id_season_id");
+
+                    b.HasIndex("LadoVencedorId", "Id")
+                        .HasDatabaseName("ix_series_lado_vencedor_id_id");
+
+                    b.HasIndex("RodadaId", "CompeticaoId")
+                        .HasDatabaseName("ix_series_rodada_id_competicao_id");
+
+                    b.HasIndex("VersaoRegrasId", "CompeticaoEscopoId")
+                        .HasDatabaseName("ix_series_versao_regras_id_competicao_id");
+
+                    b.HasIndex("VersaoRegrasId", "SeasonId")
+                        .HasDatabaseName("ix_series_versao_regras_id_season_id");
+
+                    b.ToTable("series", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_series_estado_valido", "estado IN ('Agendada', 'EmAndamento', 'Concluida', 'Cancelada', 'Anulada')");
+
+                            t.HasCheckConstraint("ck_series_formato_valido", "formato IN ('Md3', 'Md5')");
+
+                            t.HasCheckConstraint("ck_series_modo_draft_valido", "modo_draft IN ('Padrao', 'Fearless')");
+
+                            t.HasCheckConstraint("ck_series_tipo_valido", "tipo IN ('DiariaTemporaria', 'ConfrontoOficial', 'Amistoso')");
                         });
                 });
 
@@ -1375,6 +2272,87 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.ToTable("time_membros", (string)null);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.VersaoRegras", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompeticaoEscopoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("competicao_escopo_id")
+                        .HasComputedColumnSql("COALESCE(competicao_id, '00000000-0000-0000-0000-000000000000'::uuid)", true);
+
+                    b.Property<Guid?>("CompeticaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competicao_id");
+
+                    b.Property<string>("Formato")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("formato");
+
+                    b.Property<string>("ModoDraft")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("modo_draft");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero");
+
+                    b.Property<DateTimeOffset>("PublicadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("publicada_em");
+
+                    b.Property<Guid>("PublicadaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("publicada_por_usuario_id");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "CompeticaoEscopoId")
+                        .HasName("ak_versoes_regras_id_competicao_escopo_id");
+
+                    b.HasAlternateKey("Id", "SeasonId")
+                        .HasName("ak_versoes_regras_id_season_id");
+
+                    b.HasIndex("PublicadaPorUsuarioId")
+                        .HasDatabaseName("ix_versoes_regras_publicada_por_usuario_id");
+
+                    b.HasIndex("SeasonId")
+                        .HasDatabaseName("ix_versoes_regras_season_id");
+
+                    b.HasIndex("CompeticaoId", "Numero")
+                        .IsUnique()
+                        .HasDatabaseName("ux_versoes_regras_competicao_numero")
+                        .HasFilter("competicao_id IS NOT NULL");
+
+                    b.HasIndex("CompeticaoId", "SeasonId")
+                        .HasDatabaseName("ix_versoes_regras_competicao_id_season_id");
+
+                    b.HasIndex("SeasonId", "Numero")
+                        .IsUnique()
+                        .HasDatabaseName("ux_versoes_regras_season_numero_geral")
+                        .HasFilter("competicao_id IS NULL");
+
+                    b.ToTable("versoes_regras", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_versoes_regras_formato_valido", "formato IN ('Md3', 'Md5')");
+
+                            t.HasCheckConstraint("ck_versoes_regras_modo_draft_valido", "modo_draft IN ('Padrao', 'Fearless')");
+
+                            t.HasCheckConstraint("ck_versoes_regras_numero_positivo", "numero > 0");
+                        });
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1416,8 +2394,24 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                             Id = new Guid("10000000-0000-0000-0000-000000000001"),
                             ConcurrencyStamp = "10000000-0000-0000-0000-000000000001",
                             Name = "SuperAdmin",
-                            NivelHierarquico = 500,
+                            NivelHierarquico = 700,
                             NormalizedName = "SUPERADMIN"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000006"),
+                            ConcurrencyStamp = "10000000-0000-0000-0000-000000000006",
+                            Name = "Presidente",
+                            NivelHierarquico = 600,
+                            NormalizedName = "PRESIDENTE"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000007"),
+                            ConcurrencyStamp = "10000000-0000-0000-0000-000000000007",
+                            Name = "VicePresidente",
+                            NivelHierarquico = 500,
+                            NormalizedName = "VICEPRESIDENTE"
                         },
                         new
                         {
@@ -1921,6 +2915,46 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.CalendarioCompetitivo", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendarios_competitivos_atualizado_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonAtivaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_calendarios_competitivos_season_ativa_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Competicao", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_competicoes_atualizada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CriadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_competicoes_criada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_competicoes_season_id");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.DraftEscolha", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", "Capitao")
@@ -2141,6 +3175,47 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.EventoCompetitivo", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_eventos_competitivos_atualizado_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_eventos_competitivos_criado_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_eventos_competitivos_season_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.EventoTime", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.EventoCompetitivo", null)
+                        .WithMany("Times")
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_evento_times_evento_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Time", null)
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_evento_times_time_id");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.HistoricoAgendamentoPresenca", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.AgendamentoPresenca", null)
@@ -2164,6 +3239,22 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.LadoSerie", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                        .WithMany()
+                        .HasForeignKey("CapitaoJogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_lados_series_capitao_jogador_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Serie", null)
+                        .WithMany("Lados")
+                        .HasForeignKey("SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lados_series_serie_id");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.OcorrenciaAgendamentoPresenca", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.AgendamentoPresenca", null)
@@ -2178,6 +3269,71 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.OperacaoIdempotente", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_operacoes_idempotentes_ator_usuario_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.ParticipanteEsperadoSerie", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_participantes_esperados_series_jogador_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.LadoSerie", null)
+                        .WithMany("ParticipantesEsperados")
+                        .HasForeignKey("LadoSerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_participantes_esperados_series_lado_serie_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Partida", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Serie", null)
+                        .WithMany("Partidas")
+                        .HasForeignKey("SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_partidas_serie_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.LadoSerie", null)
+                        .WithMany()
+                        .HasForeignKey("LadoVencedorId", "SerieId")
+                        .HasPrincipalKey("Id", "SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_partidas_lado_vencedor_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.PickPartida", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.LadoSerie", null)
+                        .WithMany()
+                        .HasForeignKey("LadoSerieId", "SerieId")
+                        .HasPrincipalKey("Id", "SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_picks_partidas_lado_serie_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Partida", "_partida")
+                        .WithMany("Picks")
+                        .HasForeignKey("PartidaId", "SerieId")
+                        .HasPrincipalKey("Id", "SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_picks_partidas_partida_id");
+
+                    b.Navigation("_partida");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.PreferenciaRota", b =>
                 {
                     b.HasOne("RinhaDasLendas.Domain.Entities.Jogador", null)
@@ -2185,6 +3341,117 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasForeignKey("JogadorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.RegistroAuditoriaCompetitiva", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_registros_auditoria_competitiva_ator_usuario_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Rodada", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Competicao", null)
+                        .WithMany()
+                        .HasForeignKey("CompeticaoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_rodadas_competicao_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Season", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_seasons_atualizada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CriadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_seasons_criada_por_usuario_id");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Serie", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_series_atualizada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CriadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_series_criada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.DraftMontagem", null)
+                        .WithMany()
+                        .HasForeignKey("DraftMontagemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_series_draft_montagem_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_series_season_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Competicao", null)
+                        .WithMany()
+                        .HasForeignKey("CompeticaoId", "SeasonId")
+                        .HasPrincipalKey("Id", "SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_series_competicao_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.EventoCompetitivo", null)
+                        .WithMany()
+                        .HasForeignKey("EventoId", "SeasonId")
+                        .HasPrincipalKey("Id", "SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_series_evento_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.LadoSerie", null)
+                        .WithMany()
+                        .HasForeignKey("LadoVencedorId", "Id")
+                        .HasPrincipalKey("Id", "SerieId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_series_lado_vencedor_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Rodada", null)
+                        .WithMany()
+                        .HasForeignKey("RodadaId", "CompeticaoId")
+                        .HasPrincipalKey("Id", "CompeticaoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_series_rodada_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.VersaoRegras", null)
+                        .WithMany()
+                        .HasForeignKey("VersaoRegrasId", "CompeticaoEscopoId")
+                        .HasPrincipalKey("Id", "CompeticaoEscopoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_series_versao_regras_competicao_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.VersaoRegras", null)
+                        .WithMany()
+                        .HasForeignKey("VersaoRegrasId", "SeasonId")
+                        .HasPrincipalKey("Id", "SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_series_versao_regras_id");
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Time", b =>
@@ -2210,6 +3477,30 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Jogador");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.VersaoRegras", b =>
+                {
+                    b.HasOne("RinhaDasLendas.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PublicadaPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_versoes_regras_publicada_por_usuario_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_versoes_regras_season_id");
+
+                    b.HasOne("RinhaDasLendas.Domain.Entities.Competicao", null)
+                        .WithMany()
+                        .HasForeignKey("CompeticaoId", "SeasonId")
+                        .HasPrincipalKey("Id", "SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_versoes_regras_competicao_id");
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Infrastructure.Identity.ExternalAccount", b =>
@@ -2262,9 +3553,31 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.Navigation("Participantes");
                 });
 
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.EventoCompetitivo", b =>
+                {
+                    b.Navigation("Times");
+                });
+
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Jogador", b =>
                 {
                     b.Navigation("Preferencias");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.LadoSerie", b =>
+                {
+                    b.Navigation("ParticipantesEsperados");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Partida", b =>
+                {
+                    b.Navigation("Picks");
+                });
+
+            modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Serie", b =>
+                {
+                    b.Navigation("Lados");
+
+                    b.Navigation("Partidas");
                 });
 
             modelBuilder.Entity("RinhaDasLendas.Domain.Entities.Time", b =>

@@ -81,6 +81,15 @@
   <data name="ME042" xml:space="preserve"><value>O token interno do bot não está configurado com segurança.</value></data>
   <data name="ME043" xml:space="preserve"><value>Limite de requisições excedido. Tente novamente mais tarde.</value></data>
   <data name="ME044" xml:space="preserve"><value>A configuração de rate limit exige PermitLimit e WindowSeconds maiores que zero.</value></data>
+  <data name="ME045" xml:space="preserve"><value>Temporada não encontrada</value></data>
+  <data name="ME046" xml:space="preserve"><value>Competição não encontrada</value></data>
+  <data name="ME047" xml:space="preserve"><value>Rodada não encontrada</value></data>
+  <data name="ME048" xml:space="preserve"><value>Versão de regras não encontrada</value></data>
+  <data name="ME049" xml:space="preserve"><value>Evento competitivo não encontrado</value></data>
+  <data name="ME050" xml:space="preserve"><value>Série competitiva não encontrada</value></data>
+  <data name="ME051" xml:space="preserve"><value>Partida competitiva não encontrada</value></data>
+  <data name="ME052" xml:space="preserve"><value>Não há temporada ativa</value></data>
+  <data name="ME053" xml:space="preserve"><value>Acesso competitivo negado</value></data>
   <data name="MV001" xml:space="preserve"><value>Campo obrigatório</value></data>
   <data name="MV002" xml:space="preserve"><value>Formato de email inválido</value></data>
   <data name="MV003" xml:space="preserve"><value>Nome do jogador deve ser informado</value></data>
@@ -207,6 +216,29 @@
   <data name="MV103" xml:space="preserve"><value>O draft foi alterado por outra operação. Atualize e tente novamente</value></data>
   <data name="MV104" xml:space="preserve"><value>A versão do estado do draft é inválida</value></data>
   <data name="MV105" xml:space="preserve"><value>Use o endpoint administrativo de cancelamento para republicar esta publicação</value></data>
+  <data name="MV106" xml:space="preserve"><value>O nome da temporada é obrigatório</value></data>
+  <data name="MV107" xml:space="preserve"><value>O período da temporada é inválido</value></data>
+  <data name="MV108" xml:space="preserve"><value>O período da temporada sobrepõe outra temporada</value></data>
+  <data name="MV109" xml:space="preserve"><value>A versão do calendário competitivo está desatualizada</value></data>
+  <data name="MV110" xml:space="preserve"><value>A versão do recurso competitivo está desatualizada</value></data>
+  <data name="MV111" xml:space="preserve"><value>Selecione temporadas específicas ou todas as temporadas, não ambas</value></data>
+  <data name="MV112" xml:space="preserve"><value>A competição deve pertencer à mesma temporada</value></data>
+  <data name="MV113" xml:space="preserve"><value>A rodada deve pertencer à mesma temporada</value></data>
+  <data name="MV114" xml:space="preserve"><value>A versão de regras deve pertencer à mesma temporada</value></data>
+  <data name="MV115" xml:space="preserve"><value>A competição do circuito diário é inválida</value></data>
+  <data name="MV116" xml:space="preserve"><value>O draft da série diária deve estar finalizado</value></data>
+  <data name="MV117" xml:space="preserve"><value>A série diária exige dois capitães distintos</value></data>
+  <data name="MV118" xml:space="preserve"><value>A série diária exige dois lados distintos</value></data>
+  <data name="MV119" xml:space="preserve"><value>A data local da série diária é inválida</value></data>
+  <data name="MV120" xml:space="preserve"><value>Eventos com quatro times não permitem Fearless</value></data>
+  <data name="MV121" xml:space="preserve"><value>O campeão está bloqueado pelo Fearless nesta série</value></data>
+  <data name="MV122" xml:space="preserve"><value>A série já possui um vencedor</value></data>
+  <data name="MV123" xml:space="preserve"><value>A transição de estado da série é inválida</value></data>
+  <data name="MV124" xml:space="preserve"><value>A série exige revisão antes de continuar</value></data>
+  <data name="MV125" xml:space="preserve"><value>Informe se os picks do remake devem ser preservados</value></data>
+  <data name="MV126" xml:space="preserve"><value>A chave de idempotência já foi usada com conteúdo diferente</value></data>
+  <data name="MV127" xml:space="preserve"><value>A justificativa da correção é obrigatória</value></data>
+  <data name="MV128" xml:space="preserve"><value>Confirme a anulação da série para concluir a correção</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>

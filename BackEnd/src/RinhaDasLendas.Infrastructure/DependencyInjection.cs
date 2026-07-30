@@ -14,6 +14,7 @@ using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Infrastructure.Discord;
 using RinhaDasLendas.Infrastructure.Time;
+using RinhaDasLendas.Infrastructure.Services;
 
 namespace RinhaDasLendas.Infrastructure;
 
@@ -56,6 +57,7 @@ public static class DependencyInjection
             .AddDefaultTokenProviders();
 
         services.AddScoped<RoleHierarchyService>();
+        services.AddScoped<ICompetitiveAuthorizationService, CompetitiveAuthorizationService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IDiscordIdentityLookupService, DiscordIdentityLookupService>();
         services.AddScoped<IDiscordConfigurationService, DiscordConfigurationService>();
@@ -66,6 +68,12 @@ public static class DependencyInjection
         services.AddScoped<IDraftRepository, DraftRepository>();
         services.AddScoped<IDraftMontagemRepository, DraftMontagemRepository>();
         services.AddScoped<IAgendamentoPresencaRepository, AgendamentoPresencaRepository>();
+        services.AddScoped<CompetitiveUnitOfWork>();
+        services.AddScoped<ICompetitiveUnitOfWork>(provider =>
+            provider.GetRequiredService<CompetitiveUnitOfWork>());
+        services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
+        services.AddScoped<IIdempotencyService, IdempotencyService>();
+        services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IAgendamentoPresencaTimeZone, SaoPauloAgendamentoPresencaTimeZone>();
         services.AddSingleton<IMessageProvider, ResourceMessageProvider>();
 

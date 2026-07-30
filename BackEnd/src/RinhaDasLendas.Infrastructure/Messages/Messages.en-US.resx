@@ -81,6 +81,15 @@
   <data name="ME042" xml:space="preserve"><value>The bot internal token is not configured securely.</value></data>
   <data name="ME043" xml:space="preserve"><value>Request limit exceeded. Try again later.</value></data>
   <data name="ME044" xml:space="preserve"><value>The rate limit configuration requires PermitLimit and WindowSeconds greater than zero.</value></data>
+  <data name="ME045" xml:space="preserve"><value>Season not found</value></data>
+  <data name="ME046" xml:space="preserve"><value>Competition not found</value></data>
+  <data name="ME047" xml:space="preserve"><value>Round not found</value></data>
+  <data name="ME048" xml:space="preserve"><value>Rules version not found</value></data>
+  <data name="ME049" xml:space="preserve"><value>Competitive event not found</value></data>
+  <data name="ME050" xml:space="preserve"><value>Competitive series not found</value></data>
+  <data name="ME051" xml:space="preserve"><value>Competitive match not found</value></data>
+  <data name="ME052" xml:space="preserve"><value>There is no active Season</value></data>
+  <data name="ME053" xml:space="preserve"><value>Competitive access denied</value></data>
   <data name="MV001" xml:space="preserve"><value>Required field</value></data>
   <data name="MV002" xml:space="preserve"><value>Invalid email format</value></data>
   <data name="MV003" xml:space="preserve"><value>Player name is required</value></data>
@@ -207,6 +216,29 @@
   <data name="MV103" xml:space="preserve"><value>The draft was changed by another operation. Refresh and try again</value></data>
   <data name="MV104" xml:space="preserve"><value>The draft state version is invalid</value></data>
   <data name="MV105" xml:space="preserve"><value>Use the administrative cancellation endpoint to republish this publication</value></data>
+  <data name="MV106" xml:space="preserve"><value>Season name is required</value></data>
+  <data name="MV107" xml:space="preserve"><value>Season period is invalid</value></data>
+  <data name="MV108" xml:space="preserve"><value>Season period overlaps another Season</value></data>
+  <data name="MV109" xml:space="preserve"><value>Competitive calendar version is stale</value></data>
+  <data name="MV110" xml:space="preserve"><value>Competitive resource version is stale</value></data>
+  <data name="MV111" xml:space="preserve"><value>Select specific Seasons or all Seasons, not both</value></data>
+  <data name="MV112" xml:space="preserve"><value>Competition must belong to the same Season</value></data>
+  <data name="MV113" xml:space="preserve"><value>Round must belong to the same Season</value></data>
+  <data name="MV114" xml:space="preserve"><value>Rules version must belong to the same Season</value></data>
+  <data name="MV115" xml:space="preserve"><value>Daily circuit competition is invalid</value></data>
+  <data name="MV116" xml:space="preserve"><value>Daily series draft must be finalized</value></data>
+  <data name="MV117" xml:space="preserve"><value>Daily series requires two distinct captains</value></data>
+  <data name="MV118" xml:space="preserve"><value>Daily series requires two distinct sides</value></data>
+  <data name="MV119" xml:space="preserve"><value>Daily series local date is invalid</value></data>
+  <data name="MV120" xml:space="preserve"><value>Four-team events do not allow Fearless</value></data>
+  <data name="MV121" xml:space="preserve"><value>Champion is blocked by Fearless in this series</value></data>
+  <data name="MV122" xml:space="preserve"><value>Series already has a winner</value></data>
+  <data name="MV123" xml:space="preserve"><value>Series state transition is invalid</value></data>
+  <data name="MV124" xml:space="preserve"><value>Series requires review before continuing</value></data>
+  <data name="MV125" xml:space="preserve"><value>Specify whether remake picks must be preserved</value></data>
+  <data name="MV126" xml:space="preserve"><value>Idempotency key was already used with different content</value></data>
+  <data name="MV127" xml:space="preserve"><value>Correction justification is required</value></data>
+  <data name="MV128" xml:space="preserve"><value>Confirm Series annulment to complete the correction</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

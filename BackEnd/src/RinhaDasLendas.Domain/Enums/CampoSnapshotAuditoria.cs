@@ -1,0 +1,36 @@
+namespace RinhaDasLendas.Domain.Enums;
+
+public enum CampoSnapshotAuditoria
+{
+    Id,
+    SeasonId,
+    CompeticaoId,
+    RodadaId,
+    VersaoRegrasId,
+    EventoId,
+    SerieId,
+    PartidaId,
+    LadoSerieId,
+    TimeId,
+    DraftMontagemId,
+    EstadoSeason,
+    EstadoSerie,
+    EstadoPartida,
+    Versao,
+    TipoSerie,
+    TipoLado,
+    FormatoSerie,
+    ModoDraft,
+    Ordem,
+    Resultado,
+    Picks,
+    DataInicio,
+    DataFimExclusiva,
+    AgendadaPara,
+    DataLocal,
+    LadoVencedorId,
+    FearlessHabilitado,
+    RevisaoNecessaria,
+    DecisaoPicksRemake,
+    MotivoTerminoPartida
+}

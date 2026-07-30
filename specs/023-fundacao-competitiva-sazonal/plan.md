@@ -89,7 +89,7 @@ BackEnd/
 │   │   ├── Enums/{SeasonEstado,SerieTipo,SerieEstado,SerieFormato,ModoDraft,PartidaEstado,DecisaoPicksRemake,MotivoTerminoPartida}.cs
 │   │   ├── Events/Competitive/*.cs
 │   │   ├── Rules/{SeasonRules,SerieRules,FearlessRules}.cs
-│   │   └── Repositories/{ICalendarioCompetitivoRepository,ICompeticaoRepository,IEventoCompetitivoRepository,ISerieRepository,ICompetitiveAuditRepository,IIdempotencyRepository}.cs
+│   │   └── Repositories/{ICalendarioCompetitivoRepository,ICompeticaoRepository,IEventoCompetitivoRepository,ISerieRepository,ICompetitiveAuditRepository,IIdempotencyRepository,ICompetitiveUnitOfWork}.cs
 │   ├── RinhaDasLendas.Application/
 │   │   ├── Commands/{Seasons,Competicoes,Eventos,Series,Partidas}/*.cs
 │   │   ├── Queries/{Seasons,Competicoes,Eventos,Series,Partidas}/*.cs
@@ -100,7 +100,7 @@ BackEnd/
 │   ├── RinhaDasLendas.Infrastructure/
 │   │   ├── Identity/AuthService.cs
 │   │   ├── Messages/Messages*.resx
-│   │   ├── Persistence/RinhaDasLendasDbContext.cs
+│   │   ├── Persistence/{RinhaDasLendasDbContext,CompetitiveUnitOfWork}.cs
 │   │   ├── Migrations/*
 │   │   └── Repositories/{CalendarioCompetitivo,Competicao,EventoCompetitivo,Serie,CompetitiveAudit,Idempotency}Repository.cs
 │   └── RinhaDasLendas.Api/

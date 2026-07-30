@@ -34,13 +34,39 @@ Todo evento destinado a consumidores fora da transação contém:
 
 O envelope não inclui token, e-mail, IP irrestrito, segredo, payload bruto de provedor nem texto localizado.
 
+## Catálogo fundamental da feature 023
+
+O catálogo implementado pela fundação competitiva sazonal é:
+
+- `TemporadaCriada`
+- `TemporadaAtivada`
+- `TemporadaEncerrada`
+- `CompeticaoCriada`
+- `RodadaCriada`
+- `RodadasReordenadas`
+- `RegrasCompeticaoPublicadas`
+- `EventoCriado`
+- `SerieCriada`
+- `SerieAdicionadaAoEvento`
+- `SerieIniciada`
+- `PartidaAdicionada`
+- `PicksPartidaRegistrados`
+- `PartidaConfirmada`
+- `PartidaMarcadaComoRemake`
+- `ResultadoSerieConfirmado`
+- `SerieCancelada`
+- `SerieAnulada`
+- `FatoCompetitivoCorrigido`
+
+Eventos adicionais descritos neste documento pertencem às evoluções posteriores de elencos, ingestão, votação, estatísticas e rating.
+
 ## Temporada e competição
 
 ### `TemporadaCriada`
 
 Ocorre após criação válida com nome e período. Não abre automaticamente a temporada.
 
-### `TemporadaAberta`
+### `TemporadaAtivada`
 
 Ocorre quando a temporada passa a aceitar competições, elencos e operação oficial conforme suas regras publicadas.
 
@@ -112,19 +138,19 @@ Registra o discriminador `DiariaTemporaria`, `ConfrontoOficial` ou `Amistoso`, a
 
 Fora de evento, Fearless pertence somente a Série direta de dois lados e é derivado dos picks confirmados das Partidas válidas.
 
-### `PartidaCriada`
+### `PartidaAdicionada`
 
-Registra temporada, competição, tipo `Oficial` ou `Amistoso`, rodada e participantes esperados.
+Registra a adição da Partida ao agregado Série, com seu identificador e ordem.
 
 ### `PartidaIniciada`
 
 Confirma escalações válidas e impede alterações incompatíveis durante o jogo.
 
-### `PickPartidaConfirmado`
+### `PicksPartidaRegistrados`
 
-Registra campeão, lado, Partida e Série. Em Série Fearless elegível, atualiza a projeção bilateral de bloqueios; hover ou intenção não produz este evento. Partida de qualquer Série pertencente a Evento não executa regra Fearless.
+Registra o conjunto confirmado de campeões, lados, Partida e Série. Em Série Fearless elegível, atualiza a projeção bilateral de bloqueios; hover ou intenção não produz este evento. Partida de qualquer Série pertencente a Evento não executa regra Fearless.
 
-### `PartidaEncerrada`
+### `PartidaConfirmada`
 
 Registra resultado operacional. Ainda não significa que estatísticas estejam validadas ou consolidadas.
 
@@ -226,7 +252,7 @@ DadosPartidaImportados
 ### Partida amistosa
 
 ```text
-PartidaEncerrada
+PartidaConfirmada
   -> DadosPartidaImportados
   -> DadosPartidaValidados
   -> PartidaConsolidada

@@ -4,5 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-</Project>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="RinhaDasLendas.Tests" />
+  </ItemGroup>
+</Project>

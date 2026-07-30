@@ -20,7 +20,9 @@ using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure;
 using RinhaDasLendas.Infrastructure.Messages;
+using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
+using RinhaDasLendas.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,9 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<ICurrentActor, CurrentActor>();
+builder.Services.AddScoped<IAuthorizationHandler, CompetitiveCapabilityAuthorizationHandler>();
+builder.Services.AddScoped<IdempotencyMiddleware>();
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ApiMetrics>();
 builder.Services.AddSingleton<IAgendamentoPresencaMetrics, AgendamentoPresencaMetrics>();
@@ -151,7 +156,6 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireAssertion(_ => true));
-        options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
         options.AddPolicy(AuthPermissions.CanManageDraftsOrUseDiscordBotApi, policy => policy.RequireAssertion(_ => true));
@@ -175,7 +179,6 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(AuthPermissions.CanActivateDeactivateUsers, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
         options.AddPolicy(AuthPermissions.CanManageDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanArchiveDrafts, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin));
-        options.AddPolicy(AuthPermissions.CanManageMatches, policy => policy.RequireRole(AuthRoles.SuperAdmin, AuthRoles.Admin, AuthRoles.Moderador));
         options.AddPolicy(AuthPermissions.CanViewAdminLogs, policy => policy.RequireRole(AuthRoles.SuperAdmin));
         options.AddPolicy(AuthPermissions.CanUseDiscordBotApi, policy => policy
             .AddAuthenticationSchemes(BotInternalAuthOptions.SchemeName)
@@ -198,6 +201,12 @@ builder.Services.AddAuthorization(options =>
             .RequireAssertion(context => context.User.Identities.Any(identity =>
                 identity.IsAuthenticated
                 && identity.AuthenticationType == JwtBearerDefaults.AuthenticationScheme)));
+    }
+
+    foreach (var capability in AuthPermissions.CompetitiveCapabilities)
+    {
+        options.AddPolicy(capability, policy =>
+            policy.AddRequirements(new CompetitiveCapabilityRequirement(capability)));
     }
 });
 builder.Services.AddHealthChecks();
@@ -312,6 +321,7 @@ if (app.Environment.IsEnvironment("Testing"))
     });
 }
 app.UseAuthorization();
+app.UseMiddleware<IdempotencyMiddleware>();
 app.MapControllers().RequireRateLimiting("api");
 app.MapHub<DraftMontagensHub>("/hubs/draft-montagens");
 

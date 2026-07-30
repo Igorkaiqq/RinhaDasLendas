@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Security;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Services;
@@ -27,6 +28,7 @@ public sealed class AuthService(
     HttpClient httpClient,
     IUsuarioAuditoriaService auditoriaService,
     RoleHierarchyService roleHierarchyService,
+    ICompetitiveAuthorizationService competitiveAuthorizationService,
     IMessageProvider messages) : IAuthService
 {
     private const string DiscordProvider = "Discord";
@@ -220,7 +222,23 @@ public sealed class AuthService(
         var user = await FindUserOrThrowAsync(userId);
         var roles = await userManager.GetRolesAsync(user);
         var effectiveRole = roleHierarchyService.GetEffectiveRole(roles);
-        var permissions = BuildPermissions(roles).ToArray();
+        var permissions = BuildPermissions(roles).ToHashSet(StringComparer.Ordinal);
+        foreach (var capability in AuthPermissions.CompetitiveCapabilities)
+        {
+            var context = new CompetitiveAuthorizationContext(
+                capability,
+                "CapabilityCheck",
+                "Global",
+                null,
+                null,
+                false,
+                false);
+            if (await competitiveAuthorizationService.AuthorizeAsync(context, cancellationToken))
+            {
+                permissions.Add(capability);
+            }
+        }
+
         return new UserPermissionsDto(roles.ToArray(), permissions, effectiveRole);
     }
 
@@ -645,14 +663,12 @@ public sealed class AuthService(
             yield return AuthPermissions.CanActivateDeactivateUsers;
             yield return AuthPermissions.CanManageDrafts;
             yield return AuthPermissions.CanArchiveDrafts;
-            yield return AuthPermissions.CanManageMatches;
         }
 
         if (roleSet.Contains(AuthRoles.Moderador))
         {
             yield return AuthPermissions.CanViewUsers;
             yield return AuthPermissions.CanManageDrafts;
-            yield return AuthPermissions.CanManageMatches;
         }
 
         if (roleSet.Contains(AuthRoles.SuperAdmin))

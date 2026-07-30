@@ -360,6 +360,7 @@ Reutilizar a chave com hash diferente gera conflito. A limpeza só remove regist
 - `RegrasCompeticaoPublicadas`
 - `EventoCriado`
 - `SerieCriada`
+- `SerieAdicionadaAoEvento`
 - `SerieIniciada`
 - `PartidaAdicionada`
 - `PicksPartidaRegistrados`
@@ -369,6 +370,8 @@ Reutilizar a chave com hash diferente gera conflito. A limpeza só remove regist
 - `SerieCancelada`
 - `SerieAnulada`
 - `FatoCompetitivoCorrigido`
+
+`SerieCriada` contém `eventoId` opcional para preservar o contexto inicial. `SerieAdicionadaAoEvento` registra associações posteriores sem reinterpretar a criação da Série.
 
 Eventos de domínio não carregam mensagens localizadas. Não há evento de integração/outbox nesta fatia sem consumidor assíncrono.
 

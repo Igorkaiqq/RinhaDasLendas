@@ -38,7 +38,7 @@ Como membro com capacidade explícita de operar séries, quero registrar uma sé
 
 **Acceptance Scenarios**:
 
-1. **Given** um draft diário finalizado com dois lados e capitães, **When** o ator com capacidade cria uma série MD3 Fearless, **Then** a série preserva data local, snapshots dos lados, dos capitães e da Season.
+1. **Given** um draft diário finalizado com dois lados e capitães, **When** o ator com capacidade cria uma série MD3 Fearless, **Then** a série preserva a data local, os snapshots dos lados e dos capitães, além do vínculo histórico imutável com a Season por sua identidade (`SeasonId`).
 2. **Given** a primeira partida confirmada, **When** seus dez campeões utilizados são registrados, **Then** todos ficam indisponíveis para ambos os lados nas partidas seguintes da série.
 3. **Given** um campeão bloqueado pelo Fearless, **When** um ator com capacidade tenta confirmá-lo em uma partida posterior, **Then** a confirmação é recusada com explicação clara.
 4. **Given** partidas suficientes para definir o vencedor da MD3 ou MD5, **When** o último resultado é confirmado, **Then** a série é concluída e seu vencedor é calculado.
