@@ -19,34 +19,71 @@ public sealed class DraftMontagemRealtimePublisher(
         Guid draftId,
         DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
     {
-        var montagem = await ReloadAsync(draftId, availability);
-        if (montagem is null)
+        var stopwatch = Stopwatch.StartNew();
+        try
         {
-            return;
-        }
+            var montagem = await ReloadAsync(draftId, availability);
+            if (montagem is null)
+            {
+                return;
+            }
 
-        var snapshot = DraftMontagemRealtimeStateFactory.CreateShared(montagem, DateTimeOffset.UtcNow);
-        await SendAsync(
-            draftId,
-            montagem.VersaoEstado,
-            nameof(IDraftMontagemRealtimeNotifier.SharedStateUpdatedAsync),
-            token => notifier.SharedStateUpdatedAsync(draftId, snapshot, token));
+            var snapshot = CreateSnapshot(draftId, montagem);
+            if (snapshot is null)
+            {
+                return;
+            }
 
-        if (availability == DraftMontagemAvailabilityChange.Archived)
-        {
             await SendAsync(
                 draftId,
                 montagem.VersaoEstado,
-                nameof(IDraftMontagemRealtimeNotifier.ArchivedAsync),
-                token => notifier.ArchivedAsync(draftId, token));
+                nameof(IDraftMontagemRealtimeNotifier.SharedStateUpdatedAsync),
+                token => notifier.SharedStateUpdatedAsync(draftId, snapshot, token));
+
+            if (availability == DraftMontagemAvailabilityChange.Archived)
+            {
+                await SendAsync(
+                    draftId,
+                    montagem.VersaoEstado,
+                    nameof(IDraftMontagemRealtimeNotifier.ArchivedAsync),
+                    token => notifier.ArchivedAsync(draftId, token));
+            }
+            else if (availability == DraftMontagemAvailabilityChange.Restored)
+            {
+                await SendAsync(
+                    draftId,
+                    montagem.VersaoEstado,
+                    nameof(IDraftMontagemRealtimeNotifier.RestoredAsync),
+                    token => notifier.RestoredAsync(draftId, token));
+            }
         }
-        else if (availability == DraftMontagemAvailabilityChange.Restored)
+        catch (Exception exception)
         {
-            await SendAsync(
+            TryRecordFailure(
+                draftId,
+                null,
+                nameof(PublishAfterCommitAsync),
+                stopwatch.ElapsedMilliseconds,
+                exception);
+        }
+    }
+
+    private DraftMontagemRealtimeSnapshotDto? CreateSnapshot(Guid draftId, DraftMontagem montagem)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            return DraftMontagemRealtimeStateFactory.CreateShared(montagem, DateTimeOffset.UtcNow);
+        }
+        catch (Exception exception)
+        {
+            TryRecordFailure(
                 draftId,
                 montagem.VersaoEstado,
-                nameof(IDraftMontagemRealtimeNotifier.RestoredAsync),
-                token => notifier.RestoredAsync(draftId, token));
+                nameof(DraftMontagemRealtimeStateFactory.CreateShared),
+                stopwatch.ElapsedMilliseconds,
+                exception);
+            return null;
         }
     }
 
@@ -68,7 +105,7 @@ public sealed class DraftMontagemRealtimePublisher(
         }
         catch (Exception exception)
         {
-            telemetry.RecordFailure(draftId, null, operation, stopwatch.ElapsedMilliseconds, exception);
+            TryRecordFailure(draftId, null, operation, stopwatch.ElapsedMilliseconds, exception);
             return null;
         }
     }
@@ -88,7 +125,28 @@ public sealed class DraftMontagemRealtimePublisher(
         }
         catch (Exception exception)
         {
-            telemetry.RecordFailure(draftId, stateVersion, operation, stopwatch.ElapsedMilliseconds, exception);
+            TryRecordFailure(draftId, stateVersion, operation, stopwatch.ElapsedMilliseconds, exception);
+        }
+    }
+
+    private void TryRecordFailure(
+        Guid draftId,
+        long? stateVersion,
+        string operation,
+        long elapsedMilliseconds,
+        Exception exception)
+    {
+        var failureType = exception is OperationCanceledException
+            ? nameof(OperationCanceledException)
+            : exception.GetType().Name;
+
+        try
+        {
+            telemetry.RecordFailure(draftId, stateVersion, operation, elapsedMilliseconds, failureType);
+        }
+        catch
+        {
+            // Observability is best-effort and must never change a committed operation result.
         }
     }
 }

@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Reflection;
 using FluentAssertions;
 using Moq;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Enums;
+using RinhaDasLendas.Application.Handlers.DraftMontagens;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Services;
 using RinhaDasLendas.Domain.Entities;
@@ -13,6 +15,17 @@ namespace RinhaDasLendas.Tests.Application;
 
 public sealed class DraftMontagemRealtimePublisherTests
 {
+    [Fact]
+    public void Telemetria_NaoDeveReceberExceptionCompleta()
+    {
+        var parameters = typeof(IDraftMontagemRealtimeTelemetry)
+            .GetMethod(nameof(IDraftMontagemRealtimeTelemetry.RecordFailure))!
+            .GetParameters();
+
+        parameters.Should().NotContain(parameter => typeof(Exception).IsAssignableFrom(parameter.ParameterType));
+        parameters.Should().ContainSingle(parameter => parameter.Name == "failureType" && parameter.ParameterType == typeof(string));
+    }
+
     [Fact]
     public async Task PublicacaoNormal_DeveRecarregarEEnviarSnapshotCompartilhado()
     {
@@ -158,8 +171,124 @@ public sealed class DraftMontagemRealtimePublisherTests
             && failure.FailureType == nameof(InvalidOperationException));
     }
 
+    [Fact]
+    public async Task FalhaNoReload_DeveSerAbsorvidaEImpedirQualquerEnvio()
+    {
+        var draftId = Guid.NewGuid();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository
+            .Setup(item => item.ReloadByIdAsync(draftId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("reload failure"));
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
+        var telemetry = new TestTelemetry();
+        var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry);
+
+        var act = () => publisher.PublishAfterCommitAsync(draftId);
+
+        await act.Should().NotThrowAsync();
+        telemetry.Failures.Should().ContainSingle(failure =>
+            failure.Operation == nameof(IDraftMontagemRepository.ReloadByIdAsync)
+            && failure.FailureType == nameof(InvalidOperationException));
+        VerifyNoSend(notifier);
+    }
+
+    [Fact]
+    public async Task TimeoutNoReload_DeveCancelarEmCincoSegundosSemEnviar()
+    {
+        var draftId = Guid.NewGuid();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository
+            .Setup(item => item.ReloadByIdAsync(draftId, It.IsAny<CancellationToken>()))
+            .Returns<Guid, CancellationToken>(async (_, token) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return null;
+            });
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
+        var telemetry = new TestTelemetry();
+        var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry);
+        var stopwatch = Stopwatch.StartNew();
+
+        var act = () => publisher.PublishAfterCommitAsync(draftId);
+
+        await act.Should().NotThrowAsync();
+        stopwatch.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromSeconds(4.5));
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(7));
+        telemetry.Failures.Should().ContainSingle(failure =>
+            failure.Operation == nameof(IDraftMontagemRepository.ReloadByIdAsync)
+            && failure.FailureType == nameof(OperationCanceledException));
+        VerifyNoSend(notifier);
+    }
+
+    [Fact]
+    public async Task FalhaNoMapper_DeveSerAbsorvidaEImpedirQualquerEnvio()
+    {
+        var draft = CreateDraft();
+        var participantes = (List<DraftMontagemParticipante>)typeof(DraftMontagem)
+            .GetField("_participantes", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(draft)!;
+        participantes.Add(null!);
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository
+            .Setup(item => item.ReloadByIdAsync(draft.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(draft);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
+        var telemetry = new TestTelemetry();
+        var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry);
+
+        var act = () => publisher.PublishAfterCommitAsync(draft.Id);
+
+        await act.Should().NotThrowAsync();
+        telemetry.Failures.Should().ContainSingle(failure =>
+            failure.Operation == nameof(DraftMontagemRealtimeStateFactory.CreateShared)
+            && failure.FailureType == nameof(NullReferenceException));
+        VerifyNoSend(notifier);
+    }
+
+    [Fact]
+    public async Task FalhaNaTelemetria_NaoDeveEscaparNemImpedirProximoEnvioValido()
+    {
+        var draft = CreateDraft();
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository
+            .Setup(item => item.ReloadByIdIncludingArchivedAsync(draft.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(draft);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        notifier
+            .Setup(item => item.SharedStateUpdatedAsync(draft.Id, It.IsAny<DraftMontagemRealtimeSnapshotDto>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("transport failure"));
+        notifier
+            .Setup(item => item.ArchivedAsync(draft.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var telemetry = new Mock<IDraftMontagemRealtimeTelemetry>();
+        telemetry
+            .Setup(item => item.RecordFailure(
+                It.IsAny<Guid>(),
+                It.IsAny<long?>(),
+                It.IsAny<string>(),
+                It.IsAny<long>(),
+                It.IsAny<string>()))
+            .Throws(new InvalidOperationException("telemetry failure"));
+        var publisher = new DraftMontagemRealtimePublisher(repository.Object, notifier.Object, telemetry.Object);
+
+        var act = () => publisher.PublishAfterCommitAsync(draft.Id, DraftMontagemAvailabilityChange.Archived);
+
+        await act.Should().NotThrowAsync();
+        notifier.Verify(item => item.ArchivedAsync(draft.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static DraftMontagem CreateDraft()
         => new("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+
+    private static void VerifyNoSend(Mock<IDraftMontagemRealtimeNotifier> notifier)
+    {
+        notifier.Verify(item => item.SharedStateUpdatedAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<DraftMontagemRealtimeSnapshotDto>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        notifier.Verify(item => item.ArchivedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        notifier.Verify(item => item.RestoredAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
     private sealed class TestTelemetry : IDraftMontagemRealtimeTelemetry
     {
@@ -170,11 +299,8 @@ public sealed class DraftMontagemRealtimePublisherTests
             long? stateVersion,
             string operation,
             long elapsedMilliseconds,
-            Exception exception)
+            string failureType)
         {
-            var failureType = exception is OperationCanceledException
-                ? nameof(OperationCanceledException)
-                : exception.GetType().Name;
             Failures.Add(new Failure(draftId, stateVersion, operation, elapsedMilliseconds, failureType));
         }
     }

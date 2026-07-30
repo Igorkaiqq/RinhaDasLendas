@@ -97,3 +97,51 @@ Implementação: `11daa3d` (`feat: adicionar publisher pós-commit resiliente`).
 - Placeholders, botões, títulos, badges, toasts e estados vazios revisados: **Sim**. Nenhum desses elementos foi alterado.
 - Validações frontend/backend usam i18n/recurso: **Sim**. Nenhuma validação foi adicionada ou modificada.
 - Novos arquivos respeitam o padrão de internacionalização: **Sim**.
+
+## Correções após revisão
+
+Foram corrigidos todos os findings da revisão da Unidade 2:
+
+- o port de telemetria passou a receber somente `failureType`, sem transportar a exceção completa;
+- o adapter registra apenas draft, versão, operação, duração e tipo da falha, sem anexar `Exception` ao logger;
+- reload, factory/mapping, envios e observação ficaram dentro da fronteira best-effort pós-commit;
+- falha da própria telemetria é absorvida e não interrompe o próximo envio independente;
+- falhas de reload ou mapping encerram a pipeline sem qualquer envio indevido;
+- o timeout interno por estágio permanece em cinco segundos.
+
+### RED da revisão
+
+O filtro `FullyQualifiedName~DraftMontagemRealtimePublisherTests` falhou na compilação porque o double já exigia o novo contrato seguro por `failureType`, enquanto `IDraftMontagemRealtimeTelemetry` ainda recebia `Exception`.
+
+### GREEN da revisão
+
+```text
+Passed! - Failed: 0, Passed: 11, Skipped: 0, Total: 11, Duration: 10 s
+```
+
+Os novos testes cobrem contrato de telemetria sem exceção completa, reload com throw, timeout interno do reload, falha real na factory/mapping, telemetria que lança, ausência de exceção externa, ausência de envio após reload/mapping inválido e continuidade do evento de disponibilidade após falha observável.
+
+### Build e diff-check da revisão
+
+```text
+Build succeeded.
+0 Warning(s)
+0 Error(s)
+```
+
+`git diff --check` concluiu sem erros. A busca de código confirmou ausência de logger recebendo `Exception` e ausência de `Exception` no port de telemetria.
+
+### Commit da revisão
+
+Mensagem: `fix: impedir escape de falhas do publisher pós-commit`.
+
+### Auditoria de internacionalização da revisão
+
+- Ausência de novos textos hardcoded no frontend: **Sim**.
+- Ausência de novas mensagens de API hardcoded para usuário: **Sim**. O log operacional não é conteúdo de resposta.
+- `pt.json` e `en.json` permanecem sincronizados: **Sim**. Nenhum locale foi alterado.
+- Recursos backend atualizados quando necessários: **Sim**. Não houve mensagem nova para usuário.
+- Acentuação em português revisada: **Sim**.
+- Placeholders, botões, títulos, badges, toasts e estados vazios revisados: **Sim**. Não foram alterados.
+- Validações frontend/backend usam i18n/recurso: **Sim**. Não foram alteradas.
+- Arquivos modificados respeitam o padrão de internacionalização: **Sim**.

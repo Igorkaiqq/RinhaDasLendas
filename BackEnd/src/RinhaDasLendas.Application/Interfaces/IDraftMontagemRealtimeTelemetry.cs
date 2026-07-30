@@ -7,5 +7,5 @@ public interface IDraftMontagemRealtimeTelemetry
         long? stateVersion,
         string operation,
         long elapsedMilliseconds,
-        Exception exception);
+        string failureType);
 }

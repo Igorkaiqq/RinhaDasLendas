@@ -25,11 +25,8 @@ public sealed class DraftMontagemRealtimeTelemetry : IDraftMontagemRealtimeTelem
         long? stateVersion,
         string operation,
         long elapsedMilliseconds,
-        Exception exception)
+        string failureType)
     {
-        var failureType = exception is OperationCanceledException
-            ? nameof(OperationCanceledException)
-            : exception.GetType().Name;
         var tags = new TagList
         {
             { "draft_id", draftId.ToString() },
@@ -40,7 +37,6 @@ public sealed class DraftMontagemRealtimeTelemetry : IDraftMontagemRealtimeTelem
         failures.Add(1, tags);
         failureDuration.Record(elapsedMilliseconds, tags);
         logger.LogWarning(
-            exception,
             "Draft realtime publication failed. Draft: {DraftId}; State version: {StateVersion}; Operation: {Operation}; Elapsed milliseconds: {ElapsedMilliseconds}; Failure type: {FailureType}",
             draftId,
             stateVersion,
