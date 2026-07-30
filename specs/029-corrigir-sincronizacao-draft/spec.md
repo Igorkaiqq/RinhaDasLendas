@@ -185,4 +185,4 @@ Como operador da plataforma, quero que verificações frequentes consultem apena
 - Event sourcing, eventos incrementais por entidade ou outbox transacional genérico.
 - Redesenho visual da mesa de draft.
 - Alteração de duração, ordem, capacidade, elegibilidade ou demais regras centrais da feature 028.
-- Correções de publicação, polling, guild boundary e credenciais Discord reservadas à feature 030.
+- Entrega, polling, reconciliação externa, guild boundary e credenciais Discord reservadas à feature 030. O versionamento e a propagação do status de publicação já exibido no draft pertencem à feature 029.

@@ -1,0 +1,202 @@
+openapi: 3.1.0
+info:
+  title: RinhaDasLendas Draft Realtime Synchronization Changes
+  version: 1.1.0
+  description: Contratos HTTP existentes afetados pela sincronização/409. SignalR está em realtime-events.md.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /draft-montagens/{id}/realtime-state:
+    get:
+      operationId: getDraftMontagemRealtimeState
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      responses:
+        '200': { $ref: '#/components/responses/PersonalizedState' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RealtimeUnavailable' }
+  /draft-montagens/{id}/administracao:
+    get:
+      operationId: getDraftMontagemAdminById
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      responses:
+        '200':
+          description: Projeção administrativa com autoria humana ou sistêmica.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftMontagemAdmin' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /draft-montagens/{id}/modo:
+    patch:
+      operationId: chooseDraftMontagemMode
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/iniciar-tempo-real:
+    post:
+      operationId: startDraftMontagemRealtime
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      responses: { '200': { $ref: '#/components/responses/PersonalizedState' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/capitaes:
+    post:
+      operationId: defineDraftMontagemCaptains
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/capitaes/sortear:
+    post:
+      operationId: drawDraftMontagemCaptains
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/ordem-escolha:
+    post:
+      operationId: defineDraftMontagemPickOrder
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/picks:
+    post:
+      operationId: registerDraftMontagemPick
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/PersonalizedState' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/reservas/substituir:
+    post:
+      operationId: substituteDraftMontagemReserve
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/PersonalizedState' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/layout:
+    put:
+      operationId: saveDraftMontagemLayout
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SalvarLayoutRequest' }
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/finalizar:
+    patch:
+      operationId: finalizeDraftMontagem
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/cancelar:
+    patch:
+      operationId: cancelDraftMontagem
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/Draft' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/arquivar:
+    patch:
+      operationId: archiveDraftMontagem
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/ArchiveResult' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+  /draft-montagens/{id}/restaurar:
+    patch:
+      operationId: restoreDraftMontagem
+      parameters: [{ $ref: '#/components/parameters/DraftId' }]
+      requestBody: { $ref: '#/components/requestBodies/ExistingCommand' }
+      responses: { '200': { $ref: '#/components/responses/ArchiveResult' }, '409': { $ref: '#/components/responses/DraftStateConflict' } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    DraftId: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+  requestBodies:
+    ExistingCommand:
+      required: true
+      description: DTO existente do comando; esta feature altera somente a resposta de conflito.
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+  schemas:
+    DraftMontagemRealtimeState:
+      type: object
+      additionalProperties: false
+      required: [montagem, serverNow, canCurrentUserPick]
+      properties:
+        montagem: { $ref: '#/components/schemas/DraftMontagem' }
+        serverNow: { type: string, format: date-time }
+        canCurrentUserPick: { type: boolean }
+    DraftMontagem:
+      type: object
+      required: [id, versaoEstado, dataAtualizacao]
+      properties:
+        id: { type: string, format: uuid }
+        versaoEstado: { type: integer, format: int64, minimum: 0 }
+        dataAtualizacao: { type: string, format: date-time }
+      additionalProperties: true
+    DraftMontagemAdmin:
+      allOf:
+        - { $ref: '#/components/schemas/DraftMontagem' }
+        - type: object
+          required: [acoesAdministrativas]
+          properties:
+            acoesAdministrativas:
+              type: array
+              items: { $ref: '#/components/schemas/AdministrativeAction' }
+    AdministrativeAction:
+      type: object
+      additionalProperties: false
+      required: [id, tipo, responsavelTipo, responsavelUsuarioId, registradoEm]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { type: string }
+        responsavelTipo: { type: string, enum: [User, System] }
+        responsavelUsuarioId: { type: [string, 'null'], format: uuid }
+        jogadorAlvoId: { type: [string, 'null'], format: uuid }
+        motivo: { type: [string, 'null'] }
+        registradoEm: { type: string, format: date-time }
+    SalvarLayoutRequest:
+      type: object
+      additionalProperties: false
+      required: [versaoEstado, times, livres, reservas]
+      properties:
+        versaoEstado: { type: integer, format: int64, minimum: 0 }
+        times: { type: array, items: { type: object, additionalProperties: true } }
+        livres: { type: array, items: { type: object, additionalProperties: true } }
+        reservas: { type: array, items: { type: object, additionalProperties: true } }
+    ArchiveResult:
+      type: object
+      required: [id, status, arquivado, versaoEstado]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string }
+        arquivado: { type: boolean }
+        versaoEstado: { type: integer, format: int64 }
+    ApiError:
+      type: object
+      required: [message, errors, messageCode]
+      properties:
+        message: { type: string }
+        errors: { type: array, items: { type: string } }
+        messageCode: { type: string }
+  responses:
+    PersonalizedState:
+      description: Envelope HTTP flat personalizado.
+      content: { application/json: { schema: { $ref: '#/components/schemas/DraftMontagemRealtimeState' } } }
+    Draft:
+      description: Draft atualizado.
+      content: { application/json: { schema: { $ref: '#/components/schemas/DraftMontagem' } } }
+    ArchiveResult:
+      description: Disponibilidade atualizada.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ArchiveResult' } } }
+    DraftStateConflict:
+      description: MV103; reconciliar GET personalizado antes de habilitar outra mutação e nunca repetir automaticamente.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    RealtimeUnavailable:
+      description: Mesma resposta localizada para draft inexistente, arquivado ou identidade não humana.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized: { description: Sessão não autenticada. }
+    Forbidden: { description: Sessão sem permissão para o endpoint administrativo. }
+    NotFound: { description: Recurso não encontrado. }
+x-internal-commands:
+  description: Não são endpoints HTTP e não aparecem em paths.
+  names:
+    - ProcessarTurnoDraftMontagemExpiradoCommand
+    - EncerrarPresencaDraftMontagemAutomaticamenteCommand
