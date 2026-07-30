@@ -57,7 +57,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .ReturnsAsync(jogadores);
         var handler = new SelecionarModoDraftMontagemCommandHandler(
             repository.Object,
-            new SelecionarModoDraftMontagemValidator());
+            new SelecionarModoDraftMontagemValidator(),
+            Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var result = await handler.Handle(
             new SelecionarModoDraftMontagemCommand(
@@ -80,7 +81,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         repository.Setup(item => item.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((DraftMontagem?)null);
         var handler = new SelecionarModoDraftMontagemCommandHandler(
             repository.Object,
-            new SelecionarModoDraftMontagemValidator());
+            new SelecionarModoDraftMontagemValidator(),
+            Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var result = await handler.Handle(
             new SelecionarModoDraftMontagemCommand(id, new SelecionarModoDraftMontagemRequestDto("Manual")),
@@ -106,7 +108,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         var handler = new SelecionarModoDraftMontagemCommandHandler(
             repository.Object,
-            new SelecionarModoDraftMontagemValidator());
+            new SelecionarModoDraftMontagemValidator(),
+            Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var result = await handler.Handle(
             new SelecionarModoDraftMontagemCommand(
@@ -146,7 +149,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .ReturnsAsync([]);
         var handler = new SelecionarModoDraftMontagemCommandHandler(
             repository.Object,
-            new SelecionarModoDraftMontagemValidator());
+            new SelecionarModoDraftMontagemValidator(),
+            Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var act = () => handler.Handle(
             new SelecionarModoDraftMontagemCommand(
@@ -252,7 +256,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .ReturnsAsync(capitaesIds);
         var handler = new DefinirCapitaesDraftMontagemCommandHandler(
             repository.Object,
-            new DefinirCapitaesDraftMontagemValidator());
+            new DefinirCapitaesDraftMontagemValidator(),
+            Mock.Of<IDraftMontagemRealtimePublisher>());
 
         await handler.Handle(
             new DefinirCapitaesDraftMontagemCommand(
@@ -305,10 +310,8 @@ public sealed class DraftMontagemCoreCycleHandlerTests
                 It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(capitaesIds);
         var currentUser = new Mock<ICurrentUser>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        var handler = new IniciarDraftMontagemTempoRealCommandHandler(repository.Object, currentUser.Object, notifier.Object);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
+        var handler = new IniciarDraftMontagemTempoRealCommandHandler(repository.Object, currentUser.Object, publisher.Object);
 
         await handler.Handle(new IniciarDraftMontagemTempoRealCommand(montagem.Id), CancellationToken.None);
 
@@ -337,15 +340,13 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .ReturnsAsync(capitaesIds);
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var metrics = new Mock<IDraftMontagemMetrics>();
         var handler = new RegistrarPickDraftMontagemCommandHandler(
             repository.Object,
             currentUser.Object,
             new RegistrarPickDraftMontagemValidator(),
-            notifier.Object,
+            publisher.Object,
             metrics.Object);
 
         await handler.Handle(
@@ -391,14 +392,12 @@ public sealed class DraftMontagemCoreCycleHandlerTests
             .ReturnsAsync([reservaEntrouId]);
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(item => item.UserId).Returns(usuarioId);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        notifier.Setup(item => item.StateUpdatedAsync(montagem.Id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var handler = new SubstituirReservaDraftMontagemCommandHandler(
             repository.Object,
             currentUser.Object,
             new SubstituirReservaDraftMontagemValidator(),
-            notifier.Object);
+            publisher.Object);
 
         await handler.Handle(
             new SubstituirReservaDraftMontagemCommand(

@@ -12,7 +12,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class DefinirCapitaesDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
-    IValidator<DefinirCapitaesDraftMontagemRequestDto> validator) : IRequestHandler<DefinirCapitaesDraftMontagemCommand, DraftMontagemResponseDto?>
+    IValidator<DefinirCapitaesDraftMontagemRequestDto> validator,
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<DefinirCapitaesDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(DefinirCapitaesDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -30,6 +31,7 @@ public sealed class DefinirCapitaesDraftMontagemCommandHandler(
             : [];
         montagem.DefinirCapitaes(command.Request.CapitaesIds, capitaesElegiveisIds);
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         return DraftMontagemResponseDto.FromEntity(updated);
     }

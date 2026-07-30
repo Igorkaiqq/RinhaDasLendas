@@ -1,12 +1,19 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
+using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -43,6 +50,7 @@ public sealed class DraftMontagemCycleIntegrationTests
         var starters = manual.Livres.ToList();
         var layout = new
         {
+            VersaoEstado = manual.VersaoEstado,
             Times = manual.Times.Select((team, index) => new
             {
                 TimeId = team.Id,
@@ -322,6 +330,42 @@ public sealed class DraftMontagemCycleIntegrationTests
         (await factory.GetDraftAsync(fixture.DraftId)).Status.Should().Be(DraftMontagemStatus.Finalizada);
     }
 
+    [Fact]
+    public async Task SalvarLayoutComVersaoBaseDefasada_DeveRetornarMv103SemMutarSalvarOuPublicar()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        var manual = await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.Manual) });
+        var before = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        factory.Publisher.Reset();
+        var starters = manual.Livres.ToList();
+
+        var response = await admin.PutAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/layout", new
+        {
+            VersaoEstado = manual.VersaoEstado - 1,
+            Times = manual.Times.Select((team, index) => new
+            {
+                TimeId = team.Id,
+                Nome = $"Nome stale {index}",
+                CapitaoId = (Guid?)null,
+                Jogadores = starters.Skip(index * 2).Take(2).Select((player, order) => new { player.JogadorId, Ordem = order + 1, RotaContextual = (string?)null }),
+            }),
+            Livres = Array.Empty<object>(),
+            Reservas = manual.Reservas.Select((player, order) => new { player.JogadorId, Ordem = order + 1, RotaContextual = (string?)null }),
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await response.Content.ReadFromJsonAsync<ApiErrorResponse>())!.MessageCode.Should().Be(MessageCodes.DraftStateConflict);
+        var after = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        after.VersaoEstado.Should().Be(before.VersaoEstado);
+        after.Times.Select(team => (team.Id, team.Nome)).Should().Equal(before.Times.Select(team => (team.Id, team.Nome)));
+        after.Participantes.Select(item => (item.JogadorId, item.Estado, item.Ordem)).Should()
+            .Equal(before.Participantes.Select(item => (item.JogadorId, item.Estado, item.Ordem)));
+        factory.Publisher.Publications.Should().BeEmpty();
+    }
+
     private static async Task PrepareOrderedRealtimeAsync(HttpClient admin, CycleFixture fixture)
     {
         await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
@@ -341,6 +385,7 @@ public sealed class DraftMontagemCycleIntegrationTests
         var starters = manual.Livres.ToList();
         return await PutAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/layout", new
         {
+            VersaoEstado = manual.VersaoEstado,
             Times = manual.Times.Select((team, index) => new
             {
                 TimeId = team.Id,
@@ -384,9 +429,21 @@ public sealed class DraftMontagemCycleIntegrationTests
 
 internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
 {
+    public RecordingDraftMontagemRealtimePublisher Publisher { get; } = new();
+
     public DraftMontagemCycleApiFactory() : base(useIsolatedPostgreSql: true) { }
 
     public HttpClient CreateRoleClient(Guid? userId, params string[] roles) => CreateJwtClient(userId, roles);
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IDraftMontagemRealtimePublisher>();
+            services.AddSingleton<IDraftMontagemRealtimePublisher>(Publisher);
+        });
+    }
 
     public async Task<CycleFixture> SeedV2PresenceDraftAsync()
     {
@@ -537,3 +594,18 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
 
 internal sealed record CyclePlayer(Guid UserId, Guid PlayerId);
 internal sealed record CycleFixture(Guid DraftId, Guid AdminUserId, IReadOnlyList<CyclePlayer> Players);
+
+internal sealed class RecordingDraftMontagemRealtimePublisher : IDraftMontagemRealtimePublisher
+{
+    private readonly ConcurrentQueue<(Guid DraftId, DraftMontagemAvailabilityChange Availability)> _publications = new();
+
+    public IReadOnlyCollection<(Guid DraftId, DraftMontagemAvailabilityChange Availability)> Publications => _publications;
+
+    public Task PublishAfterCommitAsync(Guid draftId, DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
+    {
+        _publications.Enqueue((draftId, availability));
+        return Task.CompletedTask;
+    }
+
+    public void Reset() => _publications.Clear();
+}

@@ -12,8 +12,7 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class FinalizarDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
-    ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<FinalizarDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<FinalizarDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(FinalizarDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -28,8 +27,8 @@ public sealed class FinalizarDraftMontagemCommandHandler(
         {
             throw new DomainException(MessageCodes.DraftStateConflict);
         }
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 }

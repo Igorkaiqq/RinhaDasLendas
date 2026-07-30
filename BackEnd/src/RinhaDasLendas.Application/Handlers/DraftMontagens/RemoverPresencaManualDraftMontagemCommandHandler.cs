@@ -12,7 +12,7 @@ public sealed class RemoverPresencaManualDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<RemoverPresencaManualDraftMontagemRequestDto> validator,
     ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemRealtimePublisher publisher,
     IDraftMontagemMetrics metrics) : IRequestHandler<RemoverPresencaManualDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RemoverPresencaManualDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -27,8 +27,8 @@ public sealed class RemoverPresencaManualDraftMontagemCommandHandler(
 
         montagem.RemoverPresencaManual(command.Request.JogadorId, currentUserId, command.Request.Motivo);
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         metrics.RecordPresenceCancelled(command.Id, DraftMontagemPresencaOrigem.Manual.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }

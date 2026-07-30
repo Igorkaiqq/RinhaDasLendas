@@ -13,6 +13,7 @@ public sealed class SalvarLayoutDraftMontagemValidator : AbstractValidator<Salva
         RuleFor(request => request.Times).NotNull().WithMessage(MessageCodes.FieldRequired);
         RuleFor(request => request.Livres).NotNull().WithMessage(MessageCodes.FieldRequired);
         RuleFor(request => request.Reservas).NotNull().WithMessage(MessageCodes.FieldRequired);
+        RuleFor(request => request.VersaoEstado).NotNull().WithMessage(MessageCodes.FieldRequired);
         RuleForEach(request => request.Times).ChildRules(time =>
         {
             time.RuleFor(item => item.TimeId).NotEmpty().WithMessage(MessageCodes.FieldRequired);

@@ -14,7 +14,7 @@ public sealed class SubstituirReservaDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     ICurrentUser currentUser,
     IValidator<SubstituirReservaDraftMontagemRequestDto> validator,
-    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<SubstituirReservaDraftMontagemCommand, DraftMontagemRealtimeStateDto?>
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<SubstituirReservaDraftMontagemCommand, DraftMontagemRealtimeStateDto?>
 {
     public async Task<DraftMontagemRealtimeStateDto?> Handle(SubstituirReservaDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -46,9 +46,9 @@ public sealed class SubstituirReservaDraftMontagemCommandHandler(
             userId,
             now);
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         var state = await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, now, cancellationToken);
-        await notifier.StateUpdatedAsync(command.Id, state, cancellationToken);
         return state;
     }
 }

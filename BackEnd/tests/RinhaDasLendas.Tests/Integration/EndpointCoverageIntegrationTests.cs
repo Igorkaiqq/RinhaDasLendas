@@ -842,7 +842,8 @@ public sealed class EndpointCoverageIntegrationTests
                     jogadoresDoTime);
             }).ToList(),
             [],
-            []);
+            [],
+            created.VersaoEstado);
 
         var saveLayoutResponse = await client.PutAsJsonAsync($"/api/v1/draft-montagens/{created.Id}/layout", layoutRequest);
         saveLayoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -14,7 +15,7 @@ public sealed class ArquivarDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<ArquivarDraftMontagemRequestDto> validator,
     ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier)
+    IDraftMontagemRealtimePublisher publisher)
     : IRequestHandler<ArquivarDraftMontagemCommand, DraftMontagemArquivamentoResultadoDto?>
 {
     public async Task<DraftMontagemArquivamentoResultadoDto?> Handle(ArquivarDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -28,7 +29,6 @@ public sealed class ArquivarDraftMontagemCommandHandler(
         }
         if (montagem.Arquivado)
         {
-            await notifier.ArchivedAsync(command.Id, CancellationToken.None);
             return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
         }
         if (montagem.VersaoEstado != command.Request.VersaoEstado)
@@ -47,7 +47,7 @@ public sealed class ArquivarDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DraftStateConflict);
         }
 
-        await notifier.ArchivedAsync(command.Id, CancellationToken.None);
+        await publisher.PublishAfterCommitAsync(command.Id, DraftMontagemAvailabilityChange.Archived);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

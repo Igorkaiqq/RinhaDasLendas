@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -13,7 +14,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class RestaurarDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<RestaurarDraftMontagemRequestDto> validator,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IDraftMontagemRealtimePublisher publisher)
     : IRequestHandler<RestaurarDraftMontagemCommand, DraftMontagemArquivamentoResultadoDto?>
 {
     public async Task<DraftMontagemArquivamentoResultadoDto?> Handle(RestaurarDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -44,6 +46,7 @@ public sealed class RestaurarDraftMontagemCommandHandler(
             }
             throw new DomainException(MessageCodes.DraftStateConflict);
         }
+        await publisher.PublishAfterCommitAsync(command.Id, DraftMontagemAvailabilityChange.Restored);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

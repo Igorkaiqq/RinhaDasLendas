@@ -1068,7 +1068,7 @@ public sealed class SecurityHardeningTests
         }
     }
 
-    private sealed class TestDraftMontagemRealtimeNotifier : IDraftMontagemRealtimeNotifier
+    private sealed class TestDraftMontagemRealtimeNotifier : IDraftMontagemRealtimeNotifier, IDraftMontagemRealtimePublisher
     {
         public int Calls { get; private set; }
 
@@ -1078,6 +1078,15 @@ public sealed class SecurityHardeningTests
         {
             Calls++;
             LastDraftMontagemId = draftMontagemId;
+            return Task.CompletedTask;
+        }
+
+        public Task PublishAfterCommitAsync(
+            Guid draftId,
+            RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange availability = RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange.None)
+        {
+            Calls++;
+            LastDraftMontagemId = draftId;
             return Task.CompletedTask;
         }
 

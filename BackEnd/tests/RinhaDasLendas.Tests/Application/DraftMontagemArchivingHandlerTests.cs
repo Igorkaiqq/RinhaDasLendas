@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Handlers.DraftMontagens;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Validators;
@@ -21,10 +22,10 @@ public sealed class DraftMontagemArchivingHandlerTests
         var montagem = NovaMontagem();
         var usuarioId = Guid.NewGuid();
         var repository = new Mock<IDraftMontagemRepository>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.Persistido);
-        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(usuarioId), notifier.Object);
+        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(usuarioId), publisher.Object);
 
         var result = await handler.Handle(
             new ArquivarDraftMontagemCommand(montagem.Id, new ArquivarDraftMontagemRequestDto(" motivo ", montagem.VersaoEstado)),
@@ -33,8 +34,7 @@ public sealed class DraftMontagemArchivingHandlerTests
         result!.Arquivado.Should().BeTrue();
         montagem.AcoesAdministrativas.Should().OnlyContain(acao => acao.ResponsavelUsuarioId == usuarioId);
         repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        notifier.Verify(item => item.ArchivedAsync(montagem.Id, It.IsAny<CancellationToken>()), Times.Once);
-        notifier.Verify(item => item.StateUpdatedAsync(It.IsAny<Guid>(), It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(montagem.Id, DraftMontagemAvailabilityChange.Archived), Times.Once);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class DraftMontagemArchivingHandlerTests
         var montagem = NovaMontagem();
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
-        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimeNotifier>());
+        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var act = () => handler.Handle(
             new ArquivarDraftMontagemCommand(montagem.Id, new ArquivarDraftMontagemRequestDto("motivo", montagem.VersaoEstado + 1)),
@@ -54,60 +54,6 @@ public sealed class DraftMontagemArchivingHandlerTests
     }
 
     [Fact]
-    public async Task Arquivar_QuandoNotificacaoFalhaAposCommit_DeveNotificarNovamenteNoRetrySemDuplicarAuditoria()
-    {
-        var montagem = NovaMontagem();
-        var repository = new Mock<IDraftMontagemRepository>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
-        repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.Persistido);
-        notifier.SetupSequence(item => item.ArchivedAsync(montagem.Id, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("transport unavailable"))
-            .Returns(Task.CompletedTask);
-        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), notifier.Object);
-        var command = new ArquivarDraftMontagemCommand(montagem.Id, new ArquivarDraftMontagemRequestDto("motivo", montagem.VersaoEstado));
-
-        await FluentActions.Invoking(() => handler.Handle(command, CancellationToken.None))
-            .Should().ThrowAsync<InvalidOperationException>();
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        result!.Arquivado.Should().BeTrue();
-        montagem.AcoesAdministrativas.Should().HaveCount(2);
-        repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        notifier.Verify(item => item.ArchivedAsync(montagem.Id, It.IsAny<CancellationToken>()), Times.Exactly(2));
-    }
-
-    [Fact]
-    public async Task Arquivar_QuandoRequestECanceladaAposCommit_DeveNotificarComTokenPosCommitERemitirNoRetry()
-    {
-        var montagem = NovaMontagem();
-        using var requestCancellation = new CancellationTokenSource();
-        var repository = new Mock<IDraftMontagemRepository>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
-        repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
-            {
-                requestCancellation.Cancel();
-                return DraftMontagemSaveResultado.Persistido;
-            });
-        notifier.Setup(item => item.ArchivedAsync(montagem.Id, It.IsAny<CancellationToken>()))
-            .Returns<Guid, CancellationToken>((_, token) => token.IsCancellationRequested
-                ? Task.FromCanceled(token)
-                : Task.CompletedTask);
-        var handler = new ArquivarDraftMontagemCommandHandler(repository.Object, new ArquivarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), notifier.Object);
-        var command = new ArquivarDraftMontagemCommand(montagem.Id, new ArquivarDraftMontagemRequestDto("motivo", montagem.VersaoEstado));
-
-        var first = await handler.Handle(command, requestCancellation.Token);
-        var retry = await handler.Handle(command, CancellationToken.None);
-
-        first!.Arquivado.Should().BeTrue();
-        retry!.Arquivado.Should().BeTrue();
-        montagem.AcoesAdministrativas.Should().HaveCount(2);
-        notifier.Verify(item => item.ArchivedAsync(montagem.Id, CancellationToken.None), Times.Exactly(2));
-    }
-
-    [Fact]
     public async Task Restaurar_DevePreservarCancelamentoEHistorico()
     {
         var montagem = NovaMontagem();
@@ -115,7 +61,7 @@ public sealed class DraftMontagemArchivingHandlerTests
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.Persistido);
-        var handler = new RestaurarDraftMontagemCommandHandler(repository.Object, new RestaurarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()));
+        var handler = new RestaurarDraftMontagemCommandHandler(repository.Object, new RestaurarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var result = await handler.Handle(
             new RestaurarDraftMontagemCommand(montagem.Id, new RestaurarDraftMontagemRequestDto(montagem.VersaoEstado)),
@@ -134,7 +80,7 @@ public sealed class DraftMontagemArchivingHandlerTests
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.ConflitoDeVersao);
-        var handler = new FinalizarDraftMontagemCommandHandler(repository.Object, new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimeNotifier>());
+        var handler = new FinalizarDraftMontagemCommandHandler(repository.Object, Mock.Of<IDraftMontagemRealtimePublisher>());
 
         var act = () => handler.Handle(new FinalizarDraftMontagemCommand(montagem.Id), CancellationToken.None);
 

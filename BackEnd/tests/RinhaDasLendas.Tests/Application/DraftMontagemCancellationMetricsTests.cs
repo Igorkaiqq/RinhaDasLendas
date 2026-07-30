@@ -5,6 +5,7 @@ using Moq;
 using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Handlers.DraftMontagens;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Validators;
@@ -34,11 +35,11 @@ public sealed class DraftMontagemCancellationMetricsTests
             });
         var metrics = new Mock<IDraftMontagemMetrics>(MockBehavior.Strict);
         metrics.Setup(item => item.RecordDraftCancelled(id)).Callback(() => metricRecorded.SetResult());
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
-        notifier.Setup(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), It.IsAny<CancellationToken>()))
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>(MockBehavior.Strict);
+        publisher.Setup(item => item.PublishAfterCommitAsync(id, It.IsAny<DraftMontagemAvailabilityChange>()))
             .Callback(() => metricRecorded.Task.IsCompletedSuccessfully.Should().BeTrue())
             .Returns(Task.CompletedTask);
-        var handler = CreateHandler(repository.Object, notifier.Object, metrics.Object);
+        var handler = CreateHandler(repository.Object, publisher.Object, metrics.Object);
 
         var handlerTask = handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
@@ -47,16 +48,15 @@ public sealed class DraftMontagemCancellationMetricsTests
         await saveStarted.Task;
         handlerTask.IsCompleted.Should().BeFalse();
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
-        notifier.Verify(item => item.StateUpdatedAsync(
+        publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
-            It.IsAny<DraftMontagemRealtimeStateDto>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
 
         releaseSave.SetResult();
         await handlerTask;
 
         metrics.Verify(item => item.RecordDraftCancelled(id), Times.Once);
-        notifier.Verify(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), CancellationToken.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(id, DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public sealed class DraftMontagemCancellationMetricsTests
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((DraftMontagem?)null);
         var metrics = new Mock<IDraftMontagemMetrics>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        var handler = CreateHandler(repository.Object, notifier.Object, metrics.Object);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
+        var handler = CreateHandler(repository.Object, publisher.Object, metrics.Object);
 
         var result = await handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
@@ -76,10 +76,9 @@ public sealed class DraftMontagemCancellationMetricsTests
         result.Should().BeNull();
         repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
-        notifier.Verify(item => item.StateUpdatedAsync(
+        publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
-            It.IsAny<DraftMontagemRealtimeStateDto>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]
@@ -90,8 +89,8 @@ public sealed class DraftMontagemCancellationMetricsTests
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("persistence failure"));
         var metrics = new Mock<IDraftMontagemMetrics>();
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
-        var handler = CreateHandler(repository.Object, notifier.Object, metrics.Object);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
+        var handler = CreateHandler(repository.Object, publisher.Object, metrics.Object);
 
         var act = () => handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
@@ -99,10 +98,9 @@ public sealed class DraftMontagemCancellationMetricsTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         metrics.Verify(item => item.RecordDraftCancelled(It.IsAny<Guid>()), Times.Never);
-        notifier.Verify(item => item.StateUpdatedAsync(
+        publisher.Verify(item => item.PublishAfterCommitAsync(
             It.IsAny<Guid>(),
-            It.IsAny<DraftMontagemRealtimeStateDto>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<DraftMontagemAvailabilityChange>()), Times.Never);
     }
 
     [Fact]
@@ -113,7 +111,7 @@ public sealed class DraftMontagemCancellationMetricsTests
         montagem.Cancelar("cancelamento anterior", Guid.NewGuid());
         var repository = CreateRepository(id, montagem);
         var metrics = new Mock<IDraftMontagemMetrics>();
-        var handler = CreateHandler(repository.Object, Mock.Of<IDraftMontagemRealtimeNotifier>(), metrics.Object);
+        var handler = CreateHandler(repository.Object, Mock.Of<IDraftMontagemRealtimePublisher>(), metrics.Object);
 
         var act = () => handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("novo motivo")),
@@ -169,9 +167,9 @@ public sealed class DraftMontagemCancellationMetricsTests
 
     private static CancelarDraftMontagemCommandHandler CreateHandler(
         IDraftMontagemRepository repository,
-        IDraftMontagemRealtimeNotifier notifier,
+        IDraftMontagemRealtimePublisher publisher,
         IDraftMontagemMetrics metrics) =>
-        new(repository, new CancelarDraftMontagemValidator(), new TestCurrentUser(Guid.NewGuid()), notifier, metrics);
+        new(repository, new CancelarDraftMontagemValidator(), new TestCurrentUser(Guid.NewGuid()), publisher, metrics);
 
     private static Mock<IDraftMontagemRepository> CreateRepository(Guid id, DraftMontagem montagem)
     {

@@ -7,7 +7,9 @@ using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
-public sealed class SortearCapitaesDraftMontagemCommandHandler(IDraftMontagemRepository repository) : IRequestHandler<SortearCapitaesDraftMontagemCommand, DraftMontagemResponseDto?>
+public sealed class SortearCapitaesDraftMontagemCommandHandler(
+    IDraftMontagemRepository repository,
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<SortearCapitaesDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(SortearCapitaesDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -19,6 +21,7 @@ public sealed class SortearCapitaesDraftMontagemCommandHandler(IDraftMontagemRep
 
         montagem.SortearCapitaes();
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         return DraftMontagemResponseDto.FromEntity(updated);
     }

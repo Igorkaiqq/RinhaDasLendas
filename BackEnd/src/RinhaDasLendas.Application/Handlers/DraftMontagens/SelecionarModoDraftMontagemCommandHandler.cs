@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Repositories;
 
@@ -9,7 +10,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class SelecionarModoDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
-    IValidator<SelecionarModoDraftMontagemRequestDto> validator)
+    IValidator<SelecionarModoDraftMontagemRequestDto> validator,
+    IDraftMontagemRealtimePublisher publisher)
     : IRequestHandler<SelecionarModoDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(
@@ -42,6 +44,7 @@ public sealed class SelecionarModoDraftMontagemCommandHandler(
         if (montagem.VersaoEstado != versaoAnterior)
         {
             await repository.SaveChangesAsync(cancellationToken);
+            await publisher.PublishAfterCommitAsync(command.Id);
         }
 
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;

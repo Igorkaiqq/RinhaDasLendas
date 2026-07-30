@@ -28,13 +28,13 @@ public sealed class PresencaConcurrencyHandlerTests
         var initial = NewDraft();
         var reloaded = NewDraft();
         reloaded.ConfirmarPresenca(userId, jogador.Id, null, DraftMontagemPresencaOrigem.Web);
-        var (repository, notifier, metrics) = Setup(initial, reloaded, jogador, saveResult);
+        var (repository, publisher, metrics) = Setup(initial, reloaded, jogador, saveResult);
         var handler = new ConfirmarPresencaDraftMontagemCommandHandler(
             repository.Object,
             new TestCurrentUser(userId),
             Mock.Of<IDiscordIdentityLookupService>(),
             new ConfirmarPresencaDraftMontagemValidator(),
-            notifier.Object,
+            publisher.Object,
             metrics.Object);
 
         var result = await handler.Handle(
@@ -44,7 +44,7 @@ public sealed class PresencaConcurrencyHandlerTests
         result.Should().NotBeNull();
         repository.Verify(instance => instance.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Moq.Times.Once);
         repository.Verify(instance => instance.ReloadByIdAsync(initial.Id, It.IsAny<CancellationToken>()), Moq.Times.Once);
-        notifier.VerifyNoOtherCalls();
+        publisher.VerifyNoOtherCalls();
         metrics.VerifyNoOtherCalls();
     }
 
@@ -57,13 +57,13 @@ public sealed class PresencaConcurrencyHandlerTests
         var jogador = JogadorTestData.JogadorAtivo();
         jogador.VincularUsuario(userId);
         var initial = NewDraft();
-        var (repository, notifier, metrics) = Setup(initial, NewDraft(), jogador, saveResult);
+        var (repository, publisher, metrics) = Setup(initial, NewDraft(), jogador, saveResult);
         var handler = new ConfirmarPresencaDraftMontagemCommandHandler(
             repository.Object,
             new TestCurrentUser(userId),
             Mock.Of<IDiscordIdentityLookupService>(),
             new ConfirmarPresencaDraftMontagemValidator(),
-            notifier.Object,
+            publisher.Object,
             metrics.Object);
 
         var act = () => handler.Handle(
@@ -73,7 +73,7 @@ public sealed class PresencaConcurrencyHandlerTests
         await act.Should().ThrowAsync<DomainException>().Where(exception => exception.Message == MessageCodes.PresencePersistenceConflict);
         repository.Verify(instance => instance.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Moq.Times.Once);
         repository.Verify(instance => instance.ReloadByIdAsync(initial.Id, It.IsAny<CancellationToken>()), Moq.Times.Once);
-        notifier.VerifyNoOtherCalls();
+        publisher.VerifyNoOtherCalls();
         metrics.VerifyNoOtherCalls();
     }
 
@@ -88,12 +88,12 @@ public sealed class PresencaConcurrencyHandlerTests
         var initial = ConfirmedDraft(userId, jogador.Id);
         var reloaded = ConfirmedDraft(userId, jogador.Id);
         reloaded.CancelarPresenca(userId);
-        var (repository, notifier, metrics) = Setup(initial, reloaded, jogador, saveResult);
+        var (repository, publisher, metrics) = Setup(initial, reloaded, jogador, saveResult);
         var handler = new CancelarPresencaDraftMontagemCommandHandler(
             repository.Object,
             new TestCurrentUser(userId),
             Mock.Of<IDiscordIdentityLookupService>(),
-            notifier.Object,
+            publisher.Object,
             metrics.Object);
 
         var result = await handler.Handle(
@@ -103,7 +103,7 @@ public sealed class PresencaConcurrencyHandlerTests
         result.Should().NotBeNull();
         repository.Verify(instance => instance.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Moq.Times.Once);
         repository.Verify(instance => instance.ReloadByIdAsync(initial.Id, It.IsAny<CancellationToken>()), Moq.Times.Once);
-        notifier.VerifyNoOtherCalls();
+        publisher.VerifyNoOtherCalls();
         metrics.VerifyNoOtherCalls();
     }
 
@@ -117,12 +117,12 @@ public sealed class PresencaConcurrencyHandlerTests
         jogador.VincularUsuario(userId);
         var initial = ConfirmedDraft(userId, jogador.Id);
         var reloaded = ConfirmedDraft(userId, jogador.Id);
-        var (repository, notifier, metrics) = Setup(initial, reloaded, jogador, saveResult);
+        var (repository, publisher, metrics) = Setup(initial, reloaded, jogador, saveResult);
         var handler = new CancelarPresencaDraftMontagemCommandHandler(
             repository.Object,
             new TestCurrentUser(userId),
             Mock.Of<IDiscordIdentityLookupService>(),
-            notifier.Object,
+            publisher.Object,
             metrics.Object);
 
         var act = () => handler.Handle(
@@ -132,11 +132,11 @@ public sealed class PresencaConcurrencyHandlerTests
         await act.Should().ThrowAsync<DomainException>().Where(exception => exception.Message == MessageCodes.PresencePersistenceConflict);
         repository.Verify(instance => instance.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Moq.Times.Once);
         repository.Verify(instance => instance.ReloadByIdAsync(initial.Id, It.IsAny<CancellationToken>()), Moq.Times.Once);
-        notifier.VerifyNoOtherCalls();
+        publisher.VerifyNoOtherCalls();
         metrics.VerifyNoOtherCalls();
     }
 
-    private static (Mock<IDraftMontagemRepository> Repository, Mock<IDraftMontagemRealtimeNotifier> Notifier, Mock<IDraftMontagemMetrics> Metrics) Setup(
+    private static (Mock<IDraftMontagemRepository> Repository, Mock<IDraftMontagemRealtimePublisher> Publisher, Mock<IDraftMontagemMetrics> Metrics) Setup(
         DraftMontagem initial,
         DraftMontagem reloaded,
         Jogador jogador,
@@ -147,7 +147,7 @@ public sealed class PresencaConcurrencyHandlerTests
         repository.Setup(instance => instance.GetJogadorByUsuarioIdAsync(jogador.UsuarioId!.Value, It.IsAny<CancellationToken>())).ReturnsAsync(jogador);
         repository.Setup(instance => instance.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(saveResult);
         repository.Setup(instance => instance.ReloadByIdAsync(initial.Id, It.IsAny<CancellationToken>())).ReturnsAsync(reloaded);
-        return (repository, new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict), new Mock<IDraftMontagemMetrics>(MockBehavior.Strict));
+        return (repository, new Mock<IDraftMontagemRealtimePublisher>(MockBehavior.Strict), new Mock<IDraftMontagemMetrics>(MockBehavior.Strict));
     }
 
     private static DraftMontagem NewDraft() => new("Draft", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);

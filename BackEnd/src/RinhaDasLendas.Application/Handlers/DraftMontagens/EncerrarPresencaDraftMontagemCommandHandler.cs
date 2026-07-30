@@ -13,7 +13,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class EncerrarPresencaDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<EncerrarPresencaDraftMontagemRequestDto> validator,
-    IDraftMontagemMetrics metrics) : IRequestHandler<EncerrarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemMetrics metrics,
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<EncerrarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(EncerrarPresencaDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -26,6 +27,7 @@ public sealed class EncerrarPresencaDraftMontagemCommandHandler(
 
         montagem.EncerrarPresenca(command.Request.ContinuarComMenosDez, command.Request.TamanhoEquipe);
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         metrics.RecordPresenceClosed(command.Id);
         return DraftMontagemResponseDto.FromEntity(updated);

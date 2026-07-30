@@ -4,6 +4,7 @@ using Moq;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Handlers.DraftMontagens;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Validators;
@@ -28,19 +29,19 @@ public sealed class DraftMontagemPublicationRealtimeTests
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         repository.Setup(item => item.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.GetJogadorByUsuarioIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Jogador?)null);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var handler = new CancelarDraftMontagemCommandHandler(
             repository.Object,
             new CancelarDraftMontagemValidator(),
             new TestCurrentUser(Guid.NewGuid()),
-            notifier.Object,
+            publisher.Object,
             Mock.Of<IDraftMontagemMetrics>());
 
         await handler.Handle(
             new CancelarDraftMontagemCommand(id, new CancelarDraftMontagemRequestDto("motivo administrativo")),
             CancellationToken.None);
 
-        notifier.Verify(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), CancellationToken.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(id, DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]
@@ -58,12 +59,12 @@ public sealed class DraftMontagemPublicationRealtimeTests
             .ReturnsAsync([jogador]);
         repository.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         repository.Setup(item => item.GetJogadorByUsuarioIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Jogador?)null);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var handler = new AdicionarPresencaManualDraftMontagemCommandHandler(
             repository.Object,
             new AdicionarPresencaManualDraftMontagemValidator(),
             new TestCurrentUser(Guid.NewGuid()),
-            notifier.Object,
+            publisher.Object,
             Mock.Of<IDraftMontagemMetrics>());
 
         await handler.Handle(
@@ -72,7 +73,7 @@ public sealed class DraftMontagemPublicationRealtimeTests
                 new AdicionarPresencaManualDraftMontagemRequestDto(jogador.Id, "inclusao administrativa")),
             CancellationToken.None);
 
-        notifier.Verify(item => item.StateUpdatedAsync(id, It.IsAny<DraftMontagemRealtimeStateDto>(), CancellationToken.None), Times.Once);
+        publisher.Verify(item => item.PublishAfterCommitAsync(id, DraftMontagemAvailabilityChange.None), Times.Once);
     }
 
     [Fact]

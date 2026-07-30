@@ -11,7 +11,7 @@ public sealed class CancelarDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<CancelarDraftMontagemRequestDto> validator,
     ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemRealtimePublisher publisher,
     IDraftMontagemMetrics metrics) : IRequestHandler<CancelarDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(CancelarDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -27,8 +27,8 @@ public sealed class CancelarDraftMontagemCommandHandler(
         montagem.Cancelar(command.Request.Motivo, currentUserId);
         await repository.SaveChangesAsync(cancellationToken);
         metrics.RecordDraftCancelled(command.Id);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 }

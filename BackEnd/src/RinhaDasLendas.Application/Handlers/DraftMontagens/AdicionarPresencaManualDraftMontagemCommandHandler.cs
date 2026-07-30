@@ -14,7 +14,7 @@ public sealed class AdicionarPresencaManualDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<AdicionarPresencaManualDraftMontagemRequestDto> validator,
     ICurrentUser currentUser,
-    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemRealtimePublisher publisher,
     IDraftMontagemMetrics metrics) : IRequestHandler<AdicionarPresencaManualDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(AdicionarPresencaManualDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -41,8 +41,8 @@ public sealed class AdicionarPresencaManualDraftMontagemCommandHandler(
 
         montagem.AdicionarPresencaManual(usuarioId, jogador.Id, currentUserId, command.Request.Motivo);
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         metrics.RecordPresenceConfirmed(command.Id, DraftMontagemPresencaOrigem.Manual.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }

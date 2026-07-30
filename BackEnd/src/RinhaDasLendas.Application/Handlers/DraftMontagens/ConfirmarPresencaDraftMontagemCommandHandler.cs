@@ -15,7 +15,7 @@ public sealed class ConfirmarPresencaDraftMontagemCommandHandler(
     ICurrentUser currentUser,
     IDiscordIdentityLookupService discordIdentityLookup,
     IValidator<ConfirmarPresencaDraftMontagemRequestDto> validator,
-    IDraftMontagemRealtimeNotifier notifier,
+    IDraftMontagemRealtimePublisher publisher,
     IDraftMontagemMetrics metrics) : IRequestHandler<ConfirmarPresencaDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(ConfirmarPresencaDraftMontagemCommand command, CancellationToken cancellationToken)
@@ -53,8 +53,8 @@ public sealed class ConfirmarPresencaDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.PresencePersistenceConflict);
         }
 
+        await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
-        await notifier.StateUpdatedAsync(command.Id, await DraftMontagemRealtimeStateFactory.CreateAsync(updated, repository, currentUser, DateTimeOffset.UtcNow, cancellationToken), cancellationToken);
         metrics.RecordPresenceConfirmed(command.Id, origem.ToString());
         return DraftMontagemResponseDto.FromEntity(updated);
     }
