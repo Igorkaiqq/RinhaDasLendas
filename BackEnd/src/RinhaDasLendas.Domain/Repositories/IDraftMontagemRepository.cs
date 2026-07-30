@@ -7,6 +7,7 @@ namespace RinhaDasLendas.Domain.Repositories;
 public interface IDraftMontagemRepository
 {
     Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken);
+    Task<bool> AnyAsync(Guid id, CancellationToken cancellationToken);
     Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken);

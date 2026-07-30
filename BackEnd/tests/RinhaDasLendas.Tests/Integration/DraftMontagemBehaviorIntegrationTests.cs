@@ -1725,6 +1725,8 @@ public sealed class DraftMontagemBehaviorIntegrationTests
     {
         public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => inner.AddAsync(montagem, cancellationToken);
 
+        public Task<bool> AnyAsync(Guid id, CancellationToken cancellationToken) => inner.AnyAsync(id, cancellationToken);
+
         public async Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
             var montagem = await inner.GetByIdAsync(id, cancellationToken);

@@ -18,6 +18,13 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         await dbContext.DraftMontagens.AddAsync(montagem, cancellationToken);
     }
 
+    public Task<bool> AnyAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return dbContext.DraftMontagens
+            .AsNoTracking()
+            .AnyAsync(montagem => montagem.Id == id && montagem.ArquivadoEm == null, cancellationToken);
+    }
+
     public Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return IncludeMontagem(dbContext.DraftMontagens).FirstOrDefaultAsync(montagem => montagem.Id == id && montagem.ArquivadoEm == null, cancellationToken);

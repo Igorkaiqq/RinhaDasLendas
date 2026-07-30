@@ -1127,6 +1127,8 @@ public sealed class SecurityHardeningTests
 
         public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => Task.CompletedTask;
 
+        public Task<bool> AnyAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(montagens.Any(montagem => montagem.Id == id && !montagem.Arquivado));
+
         public Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(montagens.FirstOrDefault(montagem => montagem.Id == id));
 
         public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => GetByIdAsync(id, cancellationToken);

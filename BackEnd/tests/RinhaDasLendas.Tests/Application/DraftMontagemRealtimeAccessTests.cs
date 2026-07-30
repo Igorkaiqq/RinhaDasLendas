@@ -39,15 +39,10 @@ public sealed class DraftMontagemRealtimeAccessTests
         bool archived)
     {
         var draft = CreateDraft();
-        if (archived)
-        {
-            draft.Arquivar("Motivo de teste", Guid.NewGuid(), DateTimeOffset.UtcNow);
-        }
-
         var repository = new Mock<IDraftMontagemRepository>();
         repository
-            .Setup(item => item.GetByIdAsync(draft.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(draftExists ? draft : null);
+            .Setup(item => item.AnyAsync(draft.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(draftExists && !archived);
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(item => item.UserId).Returns(hasUserId ? Guid.NewGuid() : null);
         currentUser.SetupGet(item => item.IsBot).Returns(isBot);
@@ -56,6 +51,12 @@ public sealed class DraftMontagemRealtimeAccessTests
         var allowed = await handler.Handle(new CanViewDraftMontagemQuery(draft.Id), CancellationToken.None);
 
         allowed.Should().Be(hasUserId && !isBot && draftExists && !archived);
+        repository.Verify(
+            item => item.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        repository.Verify(
+            item => item.AnyAsync(draft.Id, It.IsAny<CancellationToken>()),
+            hasUserId && !isBot ? Times.Once : Times.Never);
     }
 
     [Theory]
@@ -86,8 +87,11 @@ public sealed class DraftMontagemRealtimeAccessTests
         else
         {
             result.Should().BeNull();
-            repository.Verify(item => item.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         }
+
+        repository.Verify(
+            item => item.GetByIdAsync(draft.Id, It.IsAny<CancellationToken>()),
+            allowed ? Times.Once : Times.Never);
     }
 
     [Theory]

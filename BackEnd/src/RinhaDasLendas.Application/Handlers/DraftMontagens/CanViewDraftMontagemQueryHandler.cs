@@ -16,7 +16,6 @@ public sealed class CanViewDraftMontagemQueryHandler(
             return false;
         }
 
-        var montagem = await repository.GetByIdAsync(query.Id, cancellationToken);
-        return montagem is not null && !montagem.Arquivado;
+        return await repository.AnyAsync(query.Id, cancellationToken);
     }
 }
