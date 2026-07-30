@@ -75,11 +75,11 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 8: Frontend Transport Lifecycle
 
-- [ ] T015 [US2] Write failing transport tests for callbacks-before-start, exact start -> Join readiness handoff initially and after recovery, no direct `connected` emission, initial Join failure, rejoin failure, `onclose`, explicit SignalR retry delays, single restart timer and idempotent teardown in `FrontEnd/src/services/draftMontagemRealtime.spec.ts`
-- [ ] T016 [US2] Run the Unit 8 RED suite and confirm failures expose default reconnect and missing Join-health semantics in `FrontEnd/src/services/draftMontagemRealtime.spec.ts`
-- [ ] T017 [US2] Define the shared event and `connected | reconnecting | fallback | disconnected` transport contracts without changing flat HTTP state in `FrontEnd/src/types/draftMontagem.ts`
-- [ ] T018 [US2] Implement callback registration before start, authorized Join/rejoin, transport-ready/degraded handoff for view-owned canonical GET/fallback, SignalR delays `[0, 2000, 5000, 10000, 15000]`, one controlled restart and generation-safe teardown in `FrontEnd/src/services/draftMontagemRealtime.ts`
-- [ ] T019 [US2] Run the Unit 8 tests and frontend production build to prove the transport service never declares final `connected` before the view-owned canonical GET in `FrontEnd/src/services/draftMontagemRealtime.spec.ts` and `FrontEnd/package.json`
+- [x] T015 [US2] Write failing transport tests for callbacks-before-start, exact start -> Join readiness handoff initially and after recovery, no direct `connected` emission, initial Join failure, rejoin failure, `onclose`, explicit SignalR retry delays, single restart timer and idempotent teardown in `FrontEnd/src/services/draftMontagemRealtime.spec.ts`
+- [x] T016 [US2] Run the Unit 8 RED suite and confirm failures expose default reconnect and missing Join-health semantics in `FrontEnd/src/services/draftMontagemRealtime.spec.ts`
+- [x] T017 [US2] Define the shared event and `connected | reconnecting | fallback | disconnected` transport contracts without changing flat HTTP state in `FrontEnd/src/types/draftMontagem.ts`
+- [x] T018 [US2] Implement callback registration before start, authorized Join/rejoin, transport-ready/degraded handoff for view-owned canonical GET/fallback, SignalR delays `[0, 2000, 5000, 10000, 15000]`, one controlled restart and generation-safe teardown in `FrontEnd/src/services/draftMontagemRealtime.ts`
+- [x] T019 [US2] Run the Unit 8 tests and frontend production build to prove the transport service never declares final `connected` before the view-owned canonical GET in `FrontEnd/src/services/draftMontagemRealtime.spec.ts` and `FrontEnd/package.json`
 
 **Checkpoint**: User Story 2 transport lifecycle is independently testable; unhealthy membership degrades visibly through callbacks and active generations continue controlled recovery.
 
