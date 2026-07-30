@@ -9,7 +9,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class RepublicarCancelamentoDraftArquivadoCommandHandler(
     IDraftMontagemRepository repository,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IDraftMontagemRealtimePublisher publisher)
     : IRequestHandler<RepublicarCancelamentoDraftArquivadoCommand, DraftMontagemArquivamentoResultadoDto?>
 {
     public async Task<DraftMontagemArquivamentoResultadoDto?> Handle(RepublicarCancelamentoDraftArquivadoCommand command, CancellationToken cancellationToken)
@@ -23,8 +24,14 @@ public sealed class RepublicarCancelamentoDraftArquivadoCommandHandler(
             return null;
         }
 
-        montagem.SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Cancelamento, userId, null, DateTimeOffset.UtcNow);
+        var stamp = montagem.SolicitarRepublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo.Cancelamento, userId, null, DateTimeOffset.UtcNow);
+        if (stamp is null)
+        {
+            return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
+        }
+
         await repository.SaveChangesAsync(cancellationToken);
+        await publisher.PublishAfterCommitAsync(stamp.Id);
         return DraftMontagemArquivamentoResultadoDto.FromEntity(montagem);
     }
 }

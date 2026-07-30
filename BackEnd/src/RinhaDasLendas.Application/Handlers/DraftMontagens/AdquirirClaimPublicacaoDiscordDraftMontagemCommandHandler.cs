@@ -13,7 +13,7 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto> validator,
-    IDraftMontagemRealtimeNotifier notifier)
+    IDraftMontagemRealtimePublisher publisher)
     : IRequestHandler<AdquirirClaimPublicacaoDiscordDraftMontagemCommand, ClaimPublicacaoDiscordResponseDto?>
 {
     private static readonly TimeSpan ClaimDuration = TimeSpan.FromMinutes(5);
@@ -29,27 +29,22 @@ public sealed class AdquirirClaimPublicacaoDiscordDraftMontagemCommandHandler(
         }
         var agora = DateTimeOffset.UtcNow;
         var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
-        await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(
-            expirados,
-            repository,
-            notifier,
-            cancellationToken);
-        var claim = await repository.TryClaimPublicacaoDiscordAsync(
+        foreach (var expirado in expirados)
+        {
+            await publisher.PublishAfterCommitAsync(expirado.Id);
+        }
+        var result = await repository.TryClaimPublicacaoDiscordAsync(
             command.Id,
             tipo,
             Guid.NewGuid(),
             agora.Add(ClaimDuration),
             agora,
             cancellationToken);
-        if (claim?.Adquirido == true)
+        if (result?.VersionStamp is not null)
         {
-            await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(
-                [command.Id],
-                repository,
-                notifier,
-                cancellationToken);
+            await publisher.PublishAfterCommitAsync(result.VersionStamp.Id);
         }
 
-        return claim is null ? null : ClaimPublicacaoDiscordResponseDto.FromModel(claim);
+        return result is null ? null : ClaimPublicacaoDiscordResponseDto.FromModel(result.Claim);
     }
 }

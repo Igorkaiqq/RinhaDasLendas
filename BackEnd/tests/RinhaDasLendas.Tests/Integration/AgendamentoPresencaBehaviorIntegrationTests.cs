@@ -107,8 +107,8 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             draftId, tipo, Guid.NewGuid(), now.AddMinutes(5), now, CancellationToken.None);
 
         claim.Should().NotBeNull();
-        claim!.Adquirido.Should().BeFalse();
-        claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
+        claim!.Claim.Adquirido.Should().BeFalse();
+        claim.Claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
         (await repository.ListActiveForDiscordAsync(CancellationToken.None)).Should().BeEmpty();
     }
 
@@ -137,8 +137,8 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             draftId, tipo, Guid.NewGuid(), now.AddMinutes(5), now, CancellationToken.None);
 
         claim.Should().NotBeNull();
-        claim!.Adquirido.Should().BeFalse();
-        claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
+        claim!.Claim.Adquirido.Should().BeFalse();
+        claim.Claim.Status.Should().Be(DraftMontagemPublicacaoDiscordStatus.Falha);
         var publication = await db.DraftMontagemPublicacoesDiscord.AsNoTracking().SingleAsync();
         publication.UltimoErroCodigo.Should().Be("PRESENCE_DEADLINE_EXPIRED");
     }
@@ -168,8 +168,8 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             now.AddMinutes(5), now, CancellationToken.None);
 
         claim.Should().NotBeNull();
-        claim!.Adquirido.Should().BeTrue();
-        claim.ExpiraEm.Should().BeCloseTo(closure, TimeSpan.FromMicroseconds(1));
+        claim!.Claim.Adquirido.Should().BeTrue();
+        claim.Claim.ExpiraEm.Should().BeCloseTo(closure, TimeSpan.FromMicroseconds(1));
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
         var repository = new DraftMontagemRepository(db);
         (await repository.TryClaimPublicacaoDiscordAsync(
             draftId, DraftMontagemPublicacaoDiscordTipo.Presenca, claimId,
-            now.AddMinutes(1), now, CancellationToken.None))!.Adquirido.Should().BeTrue();
+            now.AddMinutes(1), now, CancellationToken.None))!.Claim.Adquirido.Should().BeTrue();
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE draft_montagens SET horario_encerramento_presenca = {now.AddMinutes(-1)} WHERE id = {draftId}");
 
@@ -203,7 +203,7 @@ public sealed class AgendamentoPresencaBehaviorIntegrationTests
             draftId, DraftMontagemPublicacaoDiscordTipo.Presenca, claimId,
             "guild", "channel", "message", now, CancellationToken.None);
 
-        completed.Should().BeFalse();
+        completed.Should().BeNull();
     }
 
     [Fact]

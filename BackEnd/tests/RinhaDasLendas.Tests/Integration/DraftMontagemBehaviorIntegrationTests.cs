@@ -1557,7 +1557,9 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         {
             await using var scope = Services.CreateAsyncScope();
             var repository = scope.ServiceProvider.GetRequiredService<RinhaDasLendas.Domain.Repositories.IDraftMontagemRepository>();
-            return await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+            return (await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset.UtcNow, CancellationToken.None))
+                .Select(stamp => stamp.Id)
+                .ToArray();
         }
 
         public async Task<(Guid FirstDraftId, Guid SecondDraftId)> SeedMultipleExpiredPublicationsAsync()
@@ -1702,12 +1704,6 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             Volatile.Write(ref _realtime, 0);
         }
 
-        public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
-        {
-            Interlocked.Increment(ref _realtime);
-            return Task.CompletedTask;
-        }
-
         public Task SharedStateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeSnapshotDto state, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _realtime);
@@ -1759,10 +1755,10 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => inner.GetJogadorByUsuarioIdAsync(usuarioId, cancellationToken);
         public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => inner.SearchJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, page, pageSize, cancellationToken);
         public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => inner.CountJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, cancellationToken);
-        public Task<DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryClaimPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, expiraEm, agora, cancellationToken);
-        public Task<bool> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
-        public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
-        public Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+        public Task<DraftMontagemPublicacaoClaimResult?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryClaimPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, expiraEm, agora, cancellationToken);
+        public Task<DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
+        public Task<DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
 
         public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {

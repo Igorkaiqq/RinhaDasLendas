@@ -145,7 +145,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return ApplyEligibleManualPresenceFilters(draftMontagemId, search).CountAsync(cancellationToken);
     }
 
-    public async Task<DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(
+    public async Task<DraftMontagemPublicacaoClaimResult?> TryClaimPublicacaoDiscordAsync(
         Guid draftMontagemId,
         DraftMontagemPublicacaoDiscordTipo tipo,
         Guid claimId,
@@ -165,8 +165,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             await lockCommand.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        bool adquirido;
-        DateTimeOffset? acquiredExpiry;
+        DraftMontagemPublicacaoClaimResult? result;
         await using (var claimCommand = dbContext.Database.GetDbConnection().CreateCommand())
         {
             claimCommand.Transaction = dbTransaction;
@@ -190,7 +189,8 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                            OR draft.horario_encerramento_presenca <= clock_timestamp())
                       AND publication.tipo = @tipo
                       AND publication.status = 'Pendente'
-                )
+                    RETURNING publication.draft_montagem_id
+                ), claimed AS (
                 INSERT INTO draft_montagem_publicacoes_discord
                     (id, draft_montagem_id, tipo, status, ultima_tentativa_em, claim_id, claim_expira_em)
                 SELECT @id, id, @tipo, 'EmAndamento', @agora, @claimId,
@@ -241,7 +241,45 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                                      SELECT 1 FROM draft_montagem_acoes_administrativas AS action
                                      WHERE action.draft_montagem_id = draft.id
                                        AND action.tipo = 'CancelamentoPorArquivamento'))))
-                RETURNING claim_expira_em
+                RETURNING draft_montagem_id, claim_expira_em
+                ), changed AS (
+                    SELECT draft_montagem_id FROM terminal
+                    UNION
+                    SELECT draft_montagem_id FROM claimed
+                ), parent AS (
+                    UPDATE draft_montagens AS draft
+                    SET versao_estado = draft.versao_estado + 1,
+                        data_atualizacao = @agora
+                    FROM changed
+                    WHERE draft.id = changed.draft_montagem_id
+                    RETURNING draft.id, draft.versao_estado, draft.data_atualizacao
+                ), state AS (
+                    SELECT publication.status
+                    FROM draft_montagem_publicacoes_discord AS publication
+                    WHERE publication.draft_montagem_id = @draftMontagemId
+                      AND publication.tipo = @tipo
+                    UNION ALL
+                    SELECT 'EmAndamento'
+                    WHERE EXISTS (SELECT 1 FROM claimed)
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM draft_montagem_publicacoes_discord AS publication
+                          WHERE publication.draft_montagem_id = @draftMontagemId
+                            AND publication.tipo = @tipo)
+                )
+                SELECT CASE
+                           WHEN terminal.draft_montagem_id IS NOT NULL THEN 'Falha'
+                           WHEN claimed.draft_montagem_id IS NOT NULL THEN 'EmAndamento'
+                           ELSE state.status
+                       END,
+                       claimed.claim_expira_em,
+                       parent.id,
+                       parent.versao_estado,
+                       parent.data_atualizacao
+                FROM state
+                LEFT JOIN terminal ON true
+                LEFT JOIN claimed ON true
+                LEFT JOIN parent ON true
                 """;
             AddParameter(claimCommand, "id", Guid.NewGuid());
             AddParameter(claimCommand, "draftMontagemId", draftMontagemId);
@@ -249,42 +287,36 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             AddParameter(claimCommand, "claimId", claimId);
             AddParameter(claimCommand, "expiraEm", expiraEm);
             AddParameter(claimCommand, "agora", agora);
-            var acquiredValue = await claimCommand.ExecuteScalarAsync(cancellationToken);
-            acquiredExpiry = acquiredValue switch
+            await using var reader = await claimCommand.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
             {
-                DateTimeOffset value => value,
-                DateTime value => new DateTimeOffset(value),
-                _ => null,
-            };
-            adquirido = acquiredExpiry.HasValue;
-        }
-
-        DraftMontagemPublicacaoClaim? result;
-        await using (var stateCommand = dbContext.Database.GetDbConnection().CreateCommand())
-        {
-            stateCommand.Transaction = dbTransaction;
-            stateCommand.CommandText = """
-                SELECT status
-                FROM draft_montagem_publicacoes_discord
-                WHERE draft_montagem_id = @draftMontagemId AND tipo = @tipo
-                """;
-            AddParameter(stateCommand, "draftMontagemId", draftMontagemId);
-            AddParameter(stateCommand, "tipo", tipo.ToString());
-            var status = (string?)await stateCommand.ExecuteScalarAsync(cancellationToken);
-            result = status is null
-                ? null
-                : new DraftMontagemPublicacaoClaim(
-                    adquirido,
-                    adquirido ? claimId : null,
-                    adquirido ? acquiredExpiry : null,
-                    Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(status));
+                result = null;
+            }
+            else
+            {
+                var acquiredExpiry = reader.IsDBNull(1) ? null : reader.GetFieldValue<DateTimeOffset?>(1);
+                var adquirido = acquiredExpiry.HasValue;
+                var stamp = reader.IsDBNull(2)
+                    ? null
+                    : new DraftMontagemVersionStamp(
+                        reader.GetGuid(2),
+                        reader.GetInt64(3),
+                        reader.GetFieldValue<DateTimeOffset>(4));
+                result = new DraftMontagemPublicacaoClaimResult(
+                    new DraftMontagemPublicacaoClaim(
+                        adquirido,
+                        adquirido ? claimId : null,
+                        acquiredExpiry,
+                        Enum.Parse<DraftMontagemPublicacaoDiscordStatus>(reader.GetString(0))),
+                    stamp);
+            }
         }
 
         await transaction.CommitAsync(cancellationToken);
         return result;
     }
 
-    public async Task<bool> TryConcluirPublicacaoDiscordAsync(
+    public async Task<DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(
         Guid draftMontagemId,
         DraftMontagemPublicacaoDiscordTipo tipo,
         Guid claimId,
@@ -329,22 +361,23 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                         AND draft.status = 'PresencaAberta'
                         AND draft.horario_encerramento_presenca > clock_timestamp()))
                 RETURNING draft_montagem_id
-            ), legacy AS (
-                UPDATE draft_montagens
-                SET discord_guild_id = @guildId,
-                    discord_presence_message_id = @messageId,
+            ), parent AS (
+                UPDATE draft_montagens AS draft
+                SET discord_guild_id = CASE WHEN @tipo = 'Presenca' THEN @guildId ELSE draft.discord_guild_id END,
+                    discord_presence_message_id = CASE WHEN @tipo = 'Presenca' THEN @messageId ELSE draft.discord_presence_message_id END,
+                    versao_estado = draft.versao_estado + 1,
                     data_atualizacao = @agora
                 FROM updated
-                WHERE draft_montagens.id = updated.draft_montagem_id
-                  AND @tipo = 'Presenca'
+                WHERE draft.id = updated.draft_montagem_id
+                RETURNING draft.id, draft.versao_estado, draft.data_atualizacao
             )
-            SELECT EXISTS (SELECT 1 FROM updated)
+            SELECT id, versao_estado, data_atualizacao FROM parent
             """;
 
         return await ExecuteTransitionAsync(sql, draftMontagemId, tipo, claimId, guildId, channelId, messageId, null, agora, cancellationToken);
     }
 
-    public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(
+    public Task<DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(
         Guid draftMontagemId,
         DraftMontagemPublicacaoDiscordTipo tipo,
         Guid claimId,
@@ -392,15 +425,22 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                               WHERE draft.id = @draftMontagemId
                                 AND draft.horario_encerramento_presenca <= clock_timestamp()
                                 AND (@tipo <> 'Presenca' OR draft.discord_presence_message_id IS NULL))))
-                RETURNING 1
+                RETURNING draft_montagem_id
+            ), parent AS (
+                UPDATE draft_montagens AS draft
+                SET versao_estado = draft.versao_estado + 1,
+                    data_atualizacao = @agora
+                FROM updated
+                WHERE draft.id = updated.draft_montagem_id
+                RETURNING draft.id, draft.versao_estado, draft.data_atualizacao
             )
-            SELECT EXISTS (SELECT 1 FROM updated)
+            SELECT id, versao_estado, data_atualizacao FROM parent
             """;
 
         return ExecuteTransitionAsync(sql, draftMontagemId, tipo, claimId, guildId, channelId, null, erroCodigo, agora, cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken)
     {
         const string sql = """
             WITH updated AS (
@@ -410,23 +450,35 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
                 WHERE status = 'EmAndamento'
                   AND claim_expira_em <= @agora
                 RETURNING draft_montagem_id
+            ), changed AS (
+                SELECT DISTINCT draft_montagem_id FROM updated
+            ), parent AS (
+                UPDATE draft_montagens AS draft
+                SET versao_estado = draft.versao_estado + 1,
+                    data_atualizacao = @agora
+                FROM changed
+                WHERE draft.id = changed.draft_montagem_id
+                RETURNING draft.id, draft.versao_estado, draft.data_atualizacao
             )
-            SELECT DISTINCT draft_montagem_id
-            FROM updated
+            SELECT id, versao_estado, data_atualizacao
+            FROM parent
             """;
 
         await using var command = dbContext.Database.GetDbConnection().CreateCommand();
         command.CommandText = sql;
         AddParameter(command, "agora", agora);
         await OpenConnectionAsync(cancellationToken);
-        var ids = new List<Guid>();
+        var stamps = new List<DraftMontagemVersionStamp>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            ids.Add(reader.GetGuid(0));
+            stamps.Add(new DraftMontagemVersionStamp(
+                reader.GetGuid(0),
+                reader.GetInt64(1),
+                reader.GetFieldValue<DateTimeOffset>(2)));
         }
 
-        return ids;
+        return stamps;
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
@@ -566,7 +618,7 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return query;
     }
 
-    private async Task<bool> ExecuteTransitionAsync(
+    private async Task<DraftMontagemVersionStamp?> ExecuteTransitionAsync(
         string sql,
         Guid draftMontagemId,
         DraftMontagemPublicacaoDiscordTipo tipo,
@@ -589,7 +641,13 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         AddParameter(command, "erroCodigo", erroCodigo);
         AddParameter(command, "agora", agora);
         await OpenConnectionAsync(cancellationToken);
-        return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new DraftMontagemVersionStamp(
+                reader.GetGuid(0),
+                reader.GetInt64(1),
+                reader.GetFieldValue<DateTimeOffset>(2))
+            : null;
     }
 
     private async Task OpenConnectionAsync(CancellationToken cancellationToken)

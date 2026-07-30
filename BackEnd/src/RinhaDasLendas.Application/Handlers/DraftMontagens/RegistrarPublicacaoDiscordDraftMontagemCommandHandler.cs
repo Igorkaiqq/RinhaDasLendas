@@ -14,7 +14,7 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
     IValidator<RegistrarPublicacaoDiscordDraftMontagemRequestDto> validator,
     IDraftMontagemMetrics metrics,
-    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
+    IDraftMontagemRealtimePublisher publisher) : IRequestHandler<RegistrarPublicacaoDiscordDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(RegistrarPublicacaoDiscordDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -24,7 +24,7 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.FieldRequired);
         }
         var agora = DateTimeOffset.UtcNow;
-        var updated = await repository.TryConcluirPublicacaoDiscordAsync(
+        var stamp = await repository.TryConcluirPublicacaoDiscordAsync(
             command.Id,
             tipo,
             command.Request.ClaimId,
@@ -33,10 +33,13 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
             command.Request.MessageId,
             agora,
             cancellationToken);
-        if (!updated)
+        if (stamp is null)
         {
             var expirados = await repository.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
-            await DraftMontagemRealtimeNotificationPublisher.PublishReloadedAsync(expirados, repository, notifier, cancellationToken);
+            foreach (var expirado in expirados)
+            {
+                await publisher.PublishAfterCommitAsync(expirado.Id);
+            }
             var existente = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
                 ? await repository.GetByIdIncludingArchivedAsync(command.Id, cancellationToken)
                 : await repository.GetByIdAsync(command.Id, cancellationToken);
@@ -48,18 +51,11 @@ public sealed class RegistrarPublicacaoDiscordDraftMontagemCommandHandler(
             throw new DomainException(MessageCodes.DiscordPublicationClaimMismatch);
         }
 
+        await publisher.PublishAfterCommitAsync(stamp.Id);
         var montagem = tipo == DraftMontagemPublicacaoDiscordTipo.Cancelamento
             ? await repository.ReloadByIdIncludingArchivedAsync(command.Id, cancellationToken)
             : await repository.ReloadByIdAsync(command.Id, cancellationToken);
         metrics.RecordDiscordPublication(command.Id, tipo.ToString(), DraftMontagemPublicacaoDiscordStatus.Publicada.ToString());
-        if (montagem is not null && !montagem.Arquivado)
-        {
-            await notifier.StateUpdatedAsync(
-                command.Id,
-                DraftMontagemRealtimeStateFactory.Create(montagem, DateTimeOffset.UtcNow),
-                cancellationToken);
-        }
-
         return montagem is null ? null : DraftMontagemResponseDto.FromEntity(montagem);
     }
 }

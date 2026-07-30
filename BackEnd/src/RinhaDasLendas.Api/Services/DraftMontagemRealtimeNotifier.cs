@@ -7,11 +7,6 @@ namespace RinhaDasLendas.Api.Services;
 
 public sealed class DraftMontagemRealtimeNotifier(IHubContext<DraftMontagensHub> hubContext) : IDraftMontagemRealtimeNotifier
 {
-    public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
-    {
-        return hubContext.Clients.Group(DraftMontagensHub.GroupName(draftMontagemId)).SendAsync("DraftMontagemStateUpdated", state, cancellationToken);
-    }
-
     public Task SharedStateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeSnapshotDto state, CancellationToken cancellationToken)
     {
         return hubContext.Clients.Group(DraftMontagensHub.GroupName(draftMontagemId)).SendAsync("DraftMontagemStateUpdated", state, cancellationToken);

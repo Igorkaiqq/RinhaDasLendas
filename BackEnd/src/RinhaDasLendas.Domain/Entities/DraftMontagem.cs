@@ -1,6 +1,7 @@
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
+using RinhaDasLendas.Domain.Models;
 
 namespace RinhaDasLendas.Domain.Entities;
 
@@ -220,13 +221,14 @@ public sealed class DraftMontagem
         return true;
     }
 
-    public void SolicitarRepublicacaoDiscord(
+    public DraftMontagemVersionStamp? SolicitarRepublicacaoDiscord(
         DraftMontagemPublicacaoDiscordTipo tipo,
         Guid responsavelUsuarioId,
         string? motivo,
         DateTimeOffset agora,
         bool confirmarAusenciaPublicacao = false)
     {
+        agora = new DateTimeOffset(agora.Ticks - (agora.Ticks % 10), agora.Offset);
         var publicacao = _publicacoesDiscord.FirstOrDefault(item => item.Tipo == tipo);
         var criada = publicacao is null;
         if (publicacao is null)
@@ -237,11 +239,12 @@ public sealed class DraftMontagem
 
         if (!criada && !publicacao.SolicitarRepublicacao(agora, confirmarAusenciaPublicacao))
         {
-            return;
+            return null;
         }
 
         _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa($"RepublicacaoDiscord:{tipo}", responsavelUsuarioId, motivo));
         Touch(agora);
+        return new DraftMontagemVersionStamp(Id, VersaoEstado, DataAtualizacao);
     }
 
     private DraftMontagemPublicacaoDiscord ObterPublicacaoDiscord(DraftMontagemPublicacaoDiscordTipo tipo)

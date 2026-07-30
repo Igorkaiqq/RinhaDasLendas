@@ -1074,13 +1074,6 @@ public sealed class SecurityHardeningTests
 
         public Guid? LastDraftMontagemId { get; private set; }
 
-        public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
-        {
-            Calls++;
-            LastDraftMontagemId = draftMontagemId;
-            return Task.CompletedTask;
-        }
-
         public Task PublishAfterCommitAsync(
             Guid draftId,
             RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange availability = RinhaDasLendas.Application.Enums.DraftMontagemAvailabilityChange.None)
@@ -1171,13 +1164,13 @@ public sealed class SecurityHardeningTests
 
         public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => Task.FromResult(0);
 
-        public Task<RinhaDasLendas.Domain.Models.DraftMontagemPublicacaoClaim?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<RinhaDasLendas.Domain.Models.DraftMontagemPublicacaoClaim?>(null);
+        public Task<RinhaDasLendas.Domain.Models.DraftMontagemPublicacaoClaimResult?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<RinhaDasLendas.Domain.Models.DraftMontagemPublicacaoClaimResult?>(null);
 
-        public Task<bool> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp?>(null);
 
-        public Task<bool> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp?>(null);
 
-        public Task<IReadOnlyCollection<Guid>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<Guid>>([]);
+        public Task<IReadOnlyCollection<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp>>([]);
 
         public Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {

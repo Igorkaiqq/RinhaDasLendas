@@ -61,7 +61,8 @@ public sealed class DraftMontagemArchivingHandlerTests
         var repository = new Mock<IDraftMontagemRepository>();
         repository.Setup(item => item.GetByIdIncludingArchivedAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
         repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(DraftMontagemSaveResultado.Persistido);
-        var handler = new RestaurarDraftMontagemCommandHandler(repository.Object, new RestaurarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), Mock.Of<IDraftMontagemRealtimePublisher>());
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
+        var handler = new RestaurarDraftMontagemCommandHandler(repository.Object, new RestaurarDraftMontagemValidator(), new CurrentUser(Guid.NewGuid()), publisher.Object);
 
         var result = await handler.Handle(
             new RestaurarDraftMontagemCommand(montagem.Id, new RestaurarDraftMontagemRequestDto(montagem.VersaoEstado)),
@@ -70,6 +71,7 @@ public sealed class DraftMontagemArchivingHandlerTests
         result!.Arquivado.Should().BeFalse();
         montagem.Status.Should().Be(DraftMontagemStatus.Cancelada);
         montagem.AcoesAdministrativas.Select(acao => acao.Tipo).Should().Contain(["Arquivamento", "Restauracao"]);
+        publisher.Verify(item => item.PublishAfterCommitAsync(montagem.Id, DraftMontagemAvailabilityChange.Restored), Times.Once);
     }
 
     [Fact]

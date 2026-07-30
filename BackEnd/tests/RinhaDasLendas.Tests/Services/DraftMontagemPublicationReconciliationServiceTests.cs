@@ -4,10 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RinhaDasLendas.Api.Services;
-using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Interfaces;
-using RinhaDasLendas.Domain.Entities;
-using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Tests.Services;
@@ -17,21 +15,23 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
     [Fact]
     public async Task CicloDeveCriarEscopoEInvocarExpiracao()
     {
-        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        var montagem = new DraftMontagem("Rinha", null, 5, DraftMontagemCriterioCapitaes.Manual, [], []);
+        var stamps = new[]
+        {
+            new DraftMontagemVersionStamp(Guid.NewGuid(), 7, DateTimeOffset.UtcNow),
+            new DraftMontagemVersionStamp(Guid.NewGuid(), 9, DateTimeOffset.UtcNow),
+        };
         var repository = new Mock<IDraftMontagemRepository>();
         repository
             .Setup(item => item.MarcarPublicacoesExpiradasParaReconciliacaoAsync(
                 It.IsAny<DateTimeOffset>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ids);
-        repository.Setup(item => item.ReloadByIdAsync(It.IsIn(ids), It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+            .ReturnsAsync(stamps);
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var services = new ServiceCollection()
             .AddLogging()
             .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
             .AddScoped(_ => repository.Object)
-            .AddScoped(_ => notifier.Object)
+            .AddScoped(_ => publisher.Object)
             .BuildServiceProvider();
         var service = new DraftMontagemPublicationReconciliationService(
             services.GetRequiredService<IServiceScopeFactory>(),
@@ -44,10 +44,7 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
         repository.Verify(item => item.MarcarPublicacoesExpiradasParaReconciliacaoAsync(
             It.IsAny<DateTimeOffset>(),
             CancellationToken.None), Times.Once);
-        notifier.Verify(item => item.StateUpdatedAsync(
-            It.IsIn(ids),
-            It.IsAny<DraftMontagemRealtimeStateDto>(),
-            CancellationToken.None), Times.Exactly(2));
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsIn(stamps.Select(stamp => stamp.Id)), default), Times.Exactly(2));
     }
 
     [Fact]
@@ -58,12 +55,12 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
                 It.IsAny<DateTimeOffset>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
-        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        var publisher = new Mock<IDraftMontagemRealtimePublisher>();
         var services = new ServiceCollection()
             .AddLogging()
             .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
             .AddScoped(_ => repository.Object)
-            .AddScoped(_ => notifier.Object)
+            .AddScoped(_ => publisher.Object)
             .BuildServiceProvider();
         var service = new DraftMontagemPublicationReconciliationService(
             services.GetRequiredService<IServiceScopeFactory>(),
@@ -73,9 +70,6 @@ public sealed class DraftMontagemPublicationReconciliationServiceTests
         var result = await service.RunCycleAsync(CancellationToken.None);
 
         result.Should().Be(0);
-        notifier.Verify(item => item.StateUpdatedAsync(
-            It.IsAny<Guid>(),
-            It.IsAny<DraftMontagemRealtimeStateDto>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        publisher.Verify(item => item.PublishAfterCommitAsync(It.IsAny<Guid>(), default), Times.Never);
     }
 }
