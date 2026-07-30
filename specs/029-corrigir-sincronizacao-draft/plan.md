@@ -24,7 +24,7 @@ Tornar o ciclo da feature 028 convergente e operável em múltiplos clientes sem
 
 **Project Type**: aplicação web monolítica com API e SPA separadas
 
-**Performance Goals**: mudanças normais visíveis em até 2 s; convergência após retorno do backend em até 5 s; timer a cada 1 s sem carregar coleções dos agregados candidatos
+**Performance Goals**: mudanças normais visíveis em até 2 s; convergência após retorno do backend em até 5 s pelo pior caso de fallback de 3 s + timeout de requisição de 2 s; timer a cada 1 s sem carregar coleções dos agregados candidatos
 
 **Constraints**: snapshot completo, versão monotônica, uma réplica, sem Redis/backplane/outbox/store novo, sem polling saudável permanente, sem alterar as regras centrais da feature 028
 
@@ -94,14 +94,15 @@ FrontEnd/src/
 
 - SignalR envia `DraftMontagemRealtimeSnapshotDto`; HTTP preserva o envelope flat `DraftMontagemRealtimeStateDto(Montagem, ServerNow, CanCurrentUserPick)`.
 - `DraftMontagemRealtimePublisher` fica na Application e depende de notifier/telemetry/repository ports. `PublishAfterCommitAsync` não recebe request token, usa timeout interno de 5 s e absorve inclusive o cancelamento desse timeout.
-- Toda mudança visível, inclusive claim/sucesso/falha/expiração/republicação Discord via SQL, avança atomicamente `versao_estado`/`data_atualizacao` e retorna `DraftMontagemVersionStamp` para publicação pós-commit.
+- Toda mudança visível, inclusive claim/sucesso/falha/expiração/reconciliação de expirados via SQL e republicação Discord via agregado, avança atomicamente `versao_estado`/`data_atualizacao`, retorna `DraftMontagemVersionStamp` e publica cada stamp após commit.
 - Snapshot com a mesma versão nunca reaplica estado compartilhado; HTTP da mesma versão pode atualizar apenas metadados personalizados/temporais aceitos por sequência global própria.
 - `JoinDraftMontagem` e GET compartilham a regra: usuário humano autenticado pode ver draft existente e não arquivado; inexistente, arquivado e identidade não humana recebem a mesma rejeição localizada.
 - Archive publica snapshot carregado `including archived` e evento `DraftMontagemArchived`; restore publica snapshot e `DraftMontagemRestored`, ambos best-effort.
 - Workers consultam candidatos contendo somente `Id`, criam scope + comando por draft, observam qualquer falha do item e continuam; somente cancelamento solicitado pelo host propaga.
 - A autoria usa `DraftMontagemActor` (`User`, `System`) e chega ao DTO/OpenAPI/types/UI como `responsavelTipo`, usuário nullable e label `Sistema`/`System`.
-- O frontend abre na ordem start -> Join -> GET. Falha de Join/rejoin nunca marca `connected`: para/reinicia controladamente e ativa fallback.
-- Estado compartilhado usa draft + generation + `versaoEstado`; metadados personalizados usam sequência global entre lanes; busca auxiliar usa request ID/AbortController próprios.
+- O frontend abre e recupera na ordem start -> Join -> GET canônico; `connected` só é emitido após os três passos. Falha de Join/rejoin/GET mantém degradação, ativa fallback a cada 3 s com timeout de 2 s e agenda restart controlado quando aplicável.
+- Estado compartilhado usa draft + generation + `versaoEstado`; metadados personalizados usam sequência global entre lanes. O detalhe administrativo que carrega o draft canônico usa a lane passiva; somente buscas de elegíveis de presença/capitães usam `auxiliaryRequestId`/`AbortController` independentes.
+- A unidade 3 mantém método/adapter/doubles antigos do notifier para compilação; somente a unidade 4, após migrar publicação/reconciliação e deletar o helper antigo, remove essa superfície e comprova zero referências/build.
 - O board recebe `canonicalResetToken` para descarte explícito e `acceptedSaveVersion` para limpar dirty somente no save correspondente.
 
 ## Delivery Phases
@@ -116,7 +117,7 @@ Definir modelo em [data-model.md](./data-model.md), HTTP em [realtime-sync.opena
 
 ### Phase 2 - Executable TDD Plan
 
-Executar as doze unidades revisáveis de [2026-07-30-corrigir-sincronizacao-draft.md](../../docs/superpowers/plans/2026-07-30-corrigir-sincronizacao-draft.md). `tasks.md` será gerado separadamente pelo fluxo Spec Kit antes de implementação.
+Executar as treze unidades revisáveis de [2026-07-30-corrigir-sincronizacao-draft.md](../../docs/superpowers/plans/2026-07-30-corrigir-sincronizacao-draft.md). `tasks.md` será gerado separadamente pelo fluxo Spec Kit antes de implementação.
 
 ## Complexity Tracking
 

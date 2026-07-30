@@ -14,7 +14,7 @@ Modelo existente; nenhuma nova tabela de snapshot.
 | `TurnoExpiraEm` | `DateTimeOffset?` | `turno_expira_em` | Base da projeção do timer. |
 | `TurnoIniciadoEm` | `DateTimeOffset?` | `turno_iniciado_em` | Fallback para início do realtime. |
 
-Qualquer SQL que altere `draft_montagem_publicacoes_discord` de forma visível também atualiza a linha pai no mesmo comando/transação e retorna `DraftMontagemVersionStamp(Guid Id, long VersaoEstado, DateTimeOffset DataAtualizacao)`. Isso vale para claim adquirido ou terminalizado, sucesso, falha e expiração; no-op retorna stamp nulo e não publica.
+Qualquer SQL ou método de agregado que altere `draft_montagem_publicacoes_discord` de forma visível também atualiza a linha pai no mesmo comando/transação e retorna `DraftMontagemVersionStamp(Guid Id, long VersaoEstado, DateTimeOffset DataAtualizacao)`. Isso vale para claim adquirido ou terminalizado, sucesso, falha, expiração, republicação e reconciliação de expirados; cada stamp retornado é publicado após commit, enquanto no-op retorna stamp nulo e não publica.
 
 ### DraftMontagemActor
 
@@ -77,13 +77,13 @@ O endpoint personalizado pode recalcular capacidade mesmo quando a versão compa
 | `draftId` | `string` | Deve coincidir com a seleção atual. |
 | `generation` | `number` | Incrementa em cada abertura/saída; invalida callbacks antigos. |
 | `highestSharedVersion` | `number` | Maior `versaoEstado` compartilhada aplicada. |
-| `passiveRequestId` | `number` | Ordena estado compartilhado de GET/fallback dentro da lane passiva. |
+| `passiveRequestId` | `number` | Ordena estado compartilhado de GET inicial/recovery/fallback e detalhe administrativo canônico dentro da lane passiva. |
 | `mutationRequestId` | `number` | Ordena respostas dentro da lane de mutação. |
 | `personalizedSequence` | `number` | Sequência global atribuída a toda resposta HTTP personalizada, independentemente da lane. |
 | `lastPersonalizedSequence` | `number` | Maior sequência personalizada aplicada. |
 | `auxiliaryRequestId` | `number` | Ordena somente enriquecimento opcional e nunca invalida GET canônico. |
 | `connectionStatus` | enum | `connected`, `reconnecting`, `fallback`, `disconnected`. |
-| `joined` | `boolean` | `connected` exige true; falha de Join/rejoin força false e degradação. |
+| `joined` | `boolean` | Registra ingresso vigente; `connected` ainda exige GET canônico bem-sucedido depois de start/Join. |
 
 ### LocalLayoutEdit
 
@@ -116,18 +116,20 @@ Persistido versus efêmero: somente `DraftMontagem`, sua versão e auditoria sã
 11. Ação automática usa ator `System`, nunca GUID humano simulado.
 12. Dirty só limpa por mudança de `canonicalResetToken` ou quando `acceptedSaveVersion` corresponde à resposta vigente, é maior que `baseVersion` e coincide com a prop canônica aplicada.
 13. Remoto maior durante dirty não substitui `localMontagem`; fica pendente até decisão.
-14. SQL de publicação visível incrementa versão/data e retorna stamp atomicamente; no-op não incrementa.
+14. SQL/método de publicação visível, inclusive republicação e reconciliação de expirados, incrementa versão/data e retorna stamp atomicamente; no-op não incrementa nem publica.
 15. Usuário humano autenticado só visualiza draft não arquivado; GET e Join aplicam a mesma decisão/rejeição.
 16. Publisher ignora cancelamento da request após commit e limita cada tentativa a 5 s internos.
-17. `connected` implica conexão iniciada e Join vigente; falha de Join/rejoin ativa fallback/restart.
+17. `connected` implica start, Join vigente e GET canônico bem-sucedido na geração; falha de Join/rejoin/GET mantém degradação, com fallback a cada 3 s e timeout de 2 s por requisição.
+18. Detalhe administrativo que carrega o draft canônico usa lane passiva; somente busca de elegíveis de presença/capitães usa lifecycle auxiliar independente.
 
 ## State Transitions
 
 ### Connection
 
 ```text
-disconnected --start+Join success--> connected
+disconnected --start+Join+GET success--> connected
 disconnected/reconnecting --Join failure--> fallback + controlled restart
+disconnected/reconnecting --GET failure after Join--> fallback
 connected --transport loss--> reconnecting
 reconnecting --fallback tick--> fallback
 fallback --reconnected+Join+GET--> connected

@@ -4,8 +4,8 @@
 
 | Concern | Owner |
 |---------|-------|
-| Active draft generation, version gate, request lanes, 409 reconciliation, pending navigation intent | `DraftsView.vue` |
-| SignalR start/Join/retry/callback/stop lifecycle | `draftMontagemRealtime.ts` |
+| Active draft generation, canonical GET/fallback, final status, version gate, request lanes, 409 reconciliation, pending navigation intent | `DraftsView.vue` |
+| SignalR start/Join/retry/callback/stop and readiness/degradation handoff | `draftMontagemRealtime.ts` |
 | Editable clone, dirty/base version, local moves and save payload | `DraftVisualBoard.vue` |
 | One accessible discard/continue decision | `DraftUnsavedLayoutDialog.vue` |
 
@@ -15,13 +15,13 @@ No new Pinia store or transport store is introduced.
 
 1. `DraftsView` increments generation, cancels prior requests/timers and creates a realtime connection.
 2. The realtime service registers callbacks, starts SignalR and invokes authorized `JoinDraftMontagem`.
-3. Only after Join succeeds, `DraftsView` executes personalized `GET /realtime-state`.
-4. Event and GET use the same version gate. An event between Join and GET wins if its version is higher.
+3. Only after Join succeeds, `DraftsView` executes personalized `GET /realtime-state`; initial open and recovery remain degraded until this GET succeeds.
+4. Event and GET use the same version gate. An event between Join and GET wins if its version is higher, but does not bypass the canonical GET health gate.
 5. Optional eligible-player enrichment starts independently and cannot fail the main opening.
 
 ## Snapshot Lanes
 
-`passive`: initial GET, reconnect GET, fallback GET, SignalR-triggered personalized refresh and administrative enrichment.
+`passive`: initial GET, reconnect GET, fallback GET, SignalR-triggered personalized refresh and administrative detail whenever that response carries the canonical draft.
 
 `mutation`: direct success responses for mode, captain, order, start, pick, substitution, layout and other user mutations.
 
@@ -31,7 +31,7 @@ On HTTP 409, the matching mutation remains locked, a passive personalized GET ru
 
 ## Optional Enrichment
 
-Eligible-player/captain searches carry draft ID, generation, independent `auxiliaryRequestId` and `AbortSignal`. They never increment/invalidate passive or mutation request IDs and never consume `personalizedSequence`. A stale response is ignored. Failure clears/disables only the dependent selector, retains detail/realtime state and exposes localized retry guidance only near that control.
+Only eligible-player/presence/captain searches use this lifecycle. They carry draft ID, generation, independent `auxiliaryRequestId` and `AbortSignal`; they never increment/invalidate passive or mutation request IDs and never consume `personalizedSequence`. Administrative detail that carries the canonical draft is not auxiliary and uses the passive lane. A stale auxiliary response is ignored. Failure clears/disables only the dependent selector, retains detail/realtime state and exposes localized retry guidance only near that control.
 
 ## Connection Status
 
@@ -46,7 +46,7 @@ Only degraded values render. The region uses `role="status"`, `aria-live="polite
 
 Connected state removes the region to avoid repeated announcements.
 
-`connected` requires successful Hub start and successful Join for the active generation. Join/rejoin failure emits degraded status, activates fallback, stops/restarts transport in one controlled loop and never briefly reports healthy state.
+`connected` requires successful Hub start, successful Join and successful canonical GET for the active generation, both initially and after recovery. Join/rejoin failure emits degraded status, activates fallback, stops/restarts transport in one controlled loop and never briefly reports healthy state. Canonical GET failure after Join also remains degraded. Fallback runs every 3000 ms with a 2000 ms request timeout; the SignalR retry delays remain `[0, 2000, 5000, 10000, 15000]`.
 
 ## Dirty Board Contract
 

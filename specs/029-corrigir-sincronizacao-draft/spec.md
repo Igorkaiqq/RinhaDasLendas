@@ -37,8 +37,8 @@ Como participante, quero que a tela se recupere automaticamente de interrupçõe
 
 **Acceptance Scenarios**:
 
-1. **Given** um draft aberto, **When** a sessão inicia a sincronização, **Then** ela começa a escutar mudanças antes de buscar o estado canônico inicial.
-2. **Given** perda temporária do canal, **When** a sessão está reconectando, **Then** consultas periódicas mantêm a tela atualizada até a conexão saudável retornar.
+1. **Given** um draft aberto, **When** a sessão inicia a sincronização, **Then** ela começa a escutar mudanças, ingressa no draft e conclui a busca canônica antes de declarar a conexão saudável.
+2. **Given** perda temporária do canal, **When** a sessão está reconectando, **Then** consultas periódicas a cada 3 segundos, limitadas a 2 segundos por requisição, mantêm a tela atualizada até start, Join e GET canônico voltarem a concluir.
 3. **Given** esgotamento das tentativas automáticas, **When** a tela permanece aberta, **Then** novas tentativas controladas continuam sem duplicar consultas ou callbacks.
 4. **Given** troca rápida de draft ou saída da tela, **When** respostas da sessão anterior chegam, **Then** callbacks, consultas e timers antigos são descartados.
 5. **Given** sincronização degradada, **When** seu estado muda, **Then** o usuário recebe indicação discreta, acessível e localizada; conexão saudável não adiciona ruído visual.
@@ -117,10 +117,10 @@ Como operador da plataforma, quero que verificações frequentes consultem apena
 - **FR-004**: Falha de atualização posterior à persistência MUST NOT converter uma operação já confirmada em falha funcional.
 - **FR-005**: Falhas de atualização MUST ser registradas de forma observável, sem dados sensíveis, para diagnóstico e recuperação por reconciliação.
 - **FR-006**: Operações rejeitadas ou conflitantes MUST NOT produzir notificação de sucesso.
-- **FR-007**: A sessão MUST iniciar a escuta e ingressar no contexto do draft antes de consultar o estado canônico inicial.
+- **FR-007**: A sessão MUST iniciar a escuta e ingressar no contexto do draft antes de consultar o estado canônico inicial, e MUST declarar conexão saudável somente após start, Join e GET canônico bem-sucedidos na abertura inicial e na recuperação.
 - **FR-008**: O ingresso no contexto de sincronização MUST validar existência do draft e autorização de visualização.
 - **FR-009**: O cliente MUST tentar reconexão com intervalos limitados e explícitos enquanto a tela permanecer ativa.
-- **FR-010**: Durante conexão degradada, o cliente MUST consultar periodicamente o estado personalizado e MUST interromper esse fallback quando a conexão estiver saudável ou a tela for encerrada.
+- **FR-010**: Durante conexão degradada, o cliente MUST consultar o estado personalizado a cada 3 segundos com timeout de 2 segundos por requisição e MUST interromper esse fallback somente quando start, Join e GET canônico concluírem com sucesso ou quando a tela for encerrada.
 - **FR-011**: Cada abertura de draft MUST possuir uma geração que invalide callbacks, consultas, retries e timers das gerações anteriores.
 - **FR-012**: O cliente MUST aplicar estado compartilhado por identificador do draft, geração atual e versão monotônica persistida.
 - **FR-013**: Uma versão inferior MUST NOT substituir uma versão superior, independentemente da ordem de chegada de resposta HTTP, notificação ou refresh.
@@ -128,9 +128,9 @@ Como operador da plataforma, quero que verificações frequentes consultem apena
 - **FR-015**: O controle de respostas de mutação MUST ser independente do controle de refresh passivo para que uma consulta antiga não invalide um sucesso mais novo.
 - **FR-016**: Após conflito em pick, timeout, capitães, ordem, substituição, layout ou outra mutação do ciclo, o cliente MUST reconciliar imediatamente o estado canônico antes de liberar nova tentativa.
 - **FR-017**: O relógio do turno MUST continuar usando o deslocamento do horário oficial recalculado em cada reconciliação.
-- **FR-018**: O cliente MUST representar conexão saudável, reconectando, fallback e desconectada, exibindo somente estados degradados em região acessível e localizada.
-- **FR-019**: Busca auxiliar MUST ser tratada como enriquecimento opcional e sua falha MUST NOT impedir carregamento do detalhe nem sincronização principal.
-- **FR-020**: Respostas auxiliares de outro draft, geração ou requisição obsoleta MUST ser descartadas.
+- **FR-018**: O cliente MUST representar conexão saudável, reconectando, fallback e desconectada, MUST manter estado degradado quando o GET canônico inicial ou de recuperação falhar e MUST exibir somente estados degradados em região acessível e localizada.
+- **FR-019**: Somente buscas de elegíveis de presença/capitães MUST usar o lifecycle auxiliar opcional e sua falha MUST NOT impedir carregamento do detalhe nem sincronização principal; detalhe administrativo que carrega o draft canônico MUST usar a lane passiva.
+- **FR-020**: Respostas auxiliares de elegíveis de outro draft, geração ou requisição obsoleta MUST ser descartadas sem invalidar lane passiva, lane de mutação ou sequência personalizada.
 - **FR-021**: O board manual MUST comunicar à tela quando possui layout alterado e ainda não persistido.
 - **FR-022**: Atualização remota, troca de draft, mudança de rota, remoção do draft atual, arquivamento ou fechamento da página MUST NOT descartar layout não salvo sem confirmação explícita.
 - **FR-023**: Ao manter a edição após versão remota maior, o sistema MUST preservar layout local e versão-base e MUST exigir reconciliação antes do salvamento.
@@ -158,7 +158,7 @@ Como operador da plataforma, quero que verificações frequentes consultem apena
 ### Measurable Outcomes
 
 - **SC-001**: Em condições normais, 100% das mudanças de turno e estado aparecem nas demais sessões conectadas em até 2 segundos.
-- **SC-002**: Após o backend voltar a ficar disponível, uma sessão degradada converge para o estado canônico em até 5 segundos sem reload manual.
+- **SC-002**: Após o backend voltar a ficar disponível, uma sessão degradada converge para o estado canônico em até 5 segundos sem reload manual, considerando no pior caso 3 segundos até o próximo fallback e 2 segundos de timeout da requisição.
 - **SC-003**: Em testes com respostas fora de ordem, 100% dos snapshots inferiores à maior versão aplicada são descartados.
 - **SC-004**: Todas as transições relevantes do ciclo possuem cobertura que comprova tentativa de atualização pós-persistência e ausência de evento em mutações rejeitadas.
 - **SC-005**: Nenhuma falha exclusiva de notificação transforma uma mutação persistida em resposta funcional de erro ou duplica a operação em nova tentativa.

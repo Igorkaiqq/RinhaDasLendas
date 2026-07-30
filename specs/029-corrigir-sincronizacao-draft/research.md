@@ -18,7 +18,7 @@
 
 ## R03 - Cobertura completa de mutações
 
-**Decision**: Cobrir presença, modo, capitães, ordem, início, pick, timeout, substituição, layout, finalização, cancelamento, archive/restore e publicação Discord. Os SQL de claim, conclusão, falha e expiração alteram publicação visível e portanto atualizam, na mesma transação/comando, `draft_montagens.versao_estado = versao_estado + 1` e `data_atualizacao`, retornando `DraftMontagemVersionStamp(Id, VersaoEstado, DataAtualizacao)`. Republicação por agregado segue a mesma regra de incremento antes do publisher.
+**Decision**: Cobrir presença, modo, capitães, ordem, início, pick, timeout, substituição, layout, finalização, cancelamento, archive/restore e publicação Discord. Os SQL de claim, conclusão, falha e expiração alteram publicação visível e portanto atualizam, na mesma transação/comando, `draft_montagens.versao_estado = versao_estado + 1` e `data_atualizacao`, retornando `DraftMontagemVersionStamp(Id, VersaoEstado, DataAtualizacao)`. Republicação por agregado e reconciliação de expirados seguem a mesma regra e publicam cada stamp retornado após commit; no-op não incrementa nem publica.
 
 **Rationale**: O contrato é snapshot completo; qualquer mudança visível ausente deixa clientes divergentes. A versão evita evento para no-op e rejeição.
 
@@ -58,7 +58,7 @@
 
 ## R08 - Responsabilidades frontend
 
-**Decision**: `DraftsView.vue` coordena geração, lanes, GET, conflito, status e guardas; `draftMontagemRealtime.ts` possui start/Join/retry/callbacks/stop; `DraftVisualBoard.vue` possui clone local, dirty, versão-base e emite estado/intenções.
+**Decision**: `DraftsView.vue` coordena geração, lanes, GET canônico, fallback de 3000/2000 ms, status final, conflito e guardas; `draftMontagemRealtime.ts` possui start/Join/retry/callbacks/stop e entrega readiness/degradação sem declarar `connected`; `DraftVisualBoard.vue` possui clone local, dirty, versão-base e emite estado/intenções.
 
 **Rationale**: A view conhece seleção e navegação, o service conhece SignalR e o board conhece edição. Evita store novo e mantém responsabilidades atuais.
 
@@ -66,15 +66,15 @@
 
 ## R09 - Start -> Join -> GET e ciclo de conexão
 
-**Decision**: Iniciar conexão, registrar callbacks, executar Join autorizado e só então GET personalizado. Join/rejoin é parte da saúde: qualquer falha impede `connected`, interrompe a conexão corrente, ativa fallback e agenda restart único com `[0, 2000, 5000, 10000, 15000]`. `onclose` segue o mesmo caminho.
+**Decision**: Iniciar conexão, registrar callbacks, executar Join autorizado e só então GET personalizado. A abertura inicial e a recuperação só emitem `connected` depois de start + Join + GET canônico bem-sucedidos. Falha de Join/rejoin interrompe a conexão corrente e agenda restart único com `[0, 2000, 5000, 10000, 15000]`; falha do GET mantém o estado degradado. Em ambos os casos o fallback consulta a cada 3000 ms com timeout de 2000 ms por requisição. `onclose` segue o mesmo caminho.
 
-**Rationale**: Join antes do GET fecha a janela de perda; comparação de versão resolve evento entre Join e resposta. `onclose` cobre esgotamento da política automática.
+**Rationale**: Join antes do GET fecha a janela de perda; comparação de versão resolve evento entre Join e resposta. O limite de 3000 ms + 2000 ms torna verificável a convergência de pior caso em até 5000 ms depois que o backend volta. `onclose` cobre esgotamento da política automática.
 
 **Alternatives considered**: GET antes de Join mantém a janela; `withAutomaticReconnect()` padrão não cobre fechamento final; polling permanente cria carga e ruído.
 
 ## R10 - Chave de snapshot, geração e lanes
 
-**Decision**: Aceitar compartilhado por `(draftId, generation, versaoEstado)` e somente quando versão for estritamente maior. Lanes `passive`/`mutation` mantêm request IDs próprios para shared, enquanto toda resposta HTTP personalizada recebe `personalizedSequence` global; metadados só aplicam se essa sequência superar `lastPersonalizedSequence` e a versão não for inferior ao shared atual. Busca auxiliar usa `auxiliaryRequestId` e `AbortController` próprios.
+**Decision**: Aceitar compartilhado por `(draftId, generation, versaoEstado)` e somente quando versão for estritamente maior. Lanes `passive`/`mutation` mantêm request IDs próprios para shared, enquanto toda resposta HTTP personalizada recebe `personalizedSequence` global; metadados só aplicam se essa sequência superar `lastPersonalizedSequence` e a versão não for inferior ao shared atual. O detalhe administrativo que inclui o draft canônico percorre a lane passiva. Busca auxiliar de elegíveis de presença/capitães usa `auxiliaryRequestId` e `AbortController` próprios.
 
 **Rationale**: Ordem de resolução HTTP/SignalR é independente. Uma sequência global de requests pode descartar sucesso novo quando refresh antigo termina depois.
 
@@ -82,7 +82,7 @@
 
 ## R11 - Busca auxiliar opcional
 
-**Decision**: Elegíveis de presença/capitães são enriquecimento opcional com `auxiliaryRequestId` e `AbortController` próprios. Iniciar/finalizar busca auxiliar nunca incrementa request IDs das lanes canônicas nem `personalizedSequence`.
+**Decision**: Elegíveis de presença/capitães são enriquecimento opcional com `auxiliaryRequestId` e `AbortController` próprios. Iniciar/finalizar busca auxiliar nunca incrementa request IDs das lanes canônicas nem `personalizedSequence`. Esta regra não se aplica ao detalhe administrativo que transporta o draft canônico, que usa a lane passiva.
 
 **Rationale**: A busca não é estado canônico do draft e não pode bloquear sincronização.
 
@@ -130,7 +130,7 @@
 
 ## R17 - Migração completa do helper antigo
 
-**Decision**: Migrar handlers, testes/doubles e `DraftMontagemPublicationReconciliationService` para `IDraftMontagemRealtimePublisher`; só remover `DraftMontagemRealtimeNotificationPublisher.cs` após busca de zero referências no repositório.
+**Decision**: Na unidade de handlers, migrar apenas as mutações não relacionadas à publicação e manter aditivos o método antigo do notifier, seu adapter e doubles para preservar compilação. Na unidade de SQL/publicação, migrar `DraftMontagemPublicationReconciliationService`, handlers de publicação e todos os testes/doubles; só então remover `DraftMontagemRealtimeNotificationPublisher.cs`, o método antigo do notifier, seu adapter e doubles após busca de zero referências e build verde.
 
 **Rationale**: Deletar antes deixa callers quebrados; manter dois caminhos preserva semânticas divergentes de retry/cancelamento.
 
