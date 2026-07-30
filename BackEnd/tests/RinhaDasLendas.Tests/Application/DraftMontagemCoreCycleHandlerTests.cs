@@ -267,7 +267,7 @@ public sealed class DraftMontagemCoreCycleHandlerTests
     }
 
     [Fact]
-    public async Task ConsultaAdminDeveExcluirReservaAtivaComRoleCapitaoDaProjecaoDeElegiveis()
+    public async Task ConsultaAdminDeveSepararElegibilidadeInicialDeElegibilidadeParaSubstituicao()
     {
         var jogadores = CriarJogadores(12);
         var montagem = CriarPresencaEncerrada(jogadores);
@@ -287,8 +287,9 @@ public sealed class DraftMontagemCoreCycleHandlerTests
         result.Should().NotBeNull();
         result!.CapitaesElegiveisIds.Should().BeEquivalentTo(titularesElegiveisIds);
         result.CapitaesElegiveisIds.Should().NotContain(reservaElegivelId);
+        result.CapitaesElegiveisSubstituicaoIds.Should().BeEquivalentTo(elegiveisGlobaisIds);
         repository.Verify(item => item.GetCapitaesElegiveisIdsAsync(
-            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 10 && !ids.Contains(reservaElegivelId)),
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 12 && ids.Contains(reservaElegivelId)),
             CancellationToken.None), Times.Once);
     }
 

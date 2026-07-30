@@ -124,6 +124,7 @@ const currentPlayerId = computed(() => currentAuthPlayerId.value ?? myPresence.v
 const hasPlayerProfile = computed(() => Boolean(currentPlayerId.value))
 const confirmedPresences = computed(() => selectedMontagem.value?.presencas.filter((presence) => presence.status === DraftMontagemPresencaStatusValues.Confirmada) ?? [])
 const eligibleCaptainIds = computed(() => (selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisIds ?? [])
+const substitutionEligibleCaptainIds = computed(() => (selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisSubstituicaoIds ?? [])
 const selectableCaptainIds = computed(() => selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
   ? eligibleCaptainIds.value
   : confirmedPresences.value.map((presence) => presence.jogadorId))
@@ -173,7 +174,7 @@ const preparationCapabilities = computed(() => {
       && selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
       && selectedMontagem.value.modo === null,
     canSelectCaptains,
-    canReopenPresence: operational && canManageDrafts.value && presenceClosed,
+    canReopenPresence: operational && canManageDraftCycle.value && presenceClosed,
     canDefineCaptains: canSelectCaptains
       && captainSelection.value.length === selectedMontagem.value?.quantidadeTimes
       && captainSelection.value.every((id) => selectableCaptainIds.value.includes(id)),
@@ -869,7 +870,7 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, comp
     || !substitutionStatusAllowed
     || !team?.jogadores.some((player) => player.jogadorId === payload.jogadorSaiuId)
     || !current.reservas.some((player) => player.jogadorId === payload.reservaEntrouId && player.estado === DraftMontagemEstadoValues.Reserva)
-    || (captainLeaving && (!payload.novoCapitaoId || !eligibleCaptainIds.value.includes(payload.novoCapitaoId) || !resultingCaptainIds.has(payload.novoCapitaoId)))
+    || (captainLeaving && (!payload.novoCapitaoId || !substitutionEligibleCaptainIds.value.includes(payload.novoCapitaoId) || !resultingCaptainIds.has(payload.novoCapitaoId)))
     || (!captainLeaving && current.cicloVersao === 'ModoPosPresenca' && Boolean(payload.novoCapitaoId))
   ) {
     complete?.(false)
@@ -1354,7 +1355,7 @@ function captureError(error: unknown) {
           :current-player-id="currentPlayerId"
           :can-current-user-pick="canCurrentUserPick"
           :server-clock-offset-ms="serverClockOffsetMs"
-          :eligible-captain-ids="eligibleCaptainIds"
+          :eligible-captain-ids="substitutionEligibleCaptainIds"
           @save="saveMontagemLayout"
           @start-realtime="startRealtime"
           @pick="pickRealtime"

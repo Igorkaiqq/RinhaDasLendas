@@ -17,17 +17,24 @@ public sealed class GetDraftMontagemAdminQueryHandler(IDraftMontagemRepository r
         }
 
         IReadOnlyCollection<Guid> capitaesElegiveisIds = [];
+        IReadOnlyCollection<Guid> capitaesElegiveisSubstituicaoIds = [];
         if (montagem.CicloVersao == DraftMontagemCicloVersao.ModoPosPresenca)
         {
+            var participantesIds = montagem.Participantes
+                .Select(participante => participante.JogadorId)
+                .ToHashSet();
             var titularesIds = montagem.Participantes
                 .Where(participante => participante.Estado != DraftMontagemParticipanteEstado.Reserva)
                 .Select(participante => participante.JogadorId)
                 .ToHashSet();
-            capitaesElegiveisIds = (await repository.GetCapitaesElegiveisIdsAsync(titularesIds, cancellationToken))
+            capitaesElegiveisSubstituicaoIds = (await repository.GetCapitaesElegiveisIdsAsync(participantesIds, cancellationToken))
+                .Where(participantesIds.Contains)
+                .ToList();
+            capitaesElegiveisIds = capitaesElegiveisSubstituicaoIds
                 .Where(titularesIds.Contains)
                 .ToList();
         }
 
-        return DraftMontagemAdminResponseDto.FromEntity(montagem, capitaesElegiveisIds);
+        return DraftMontagemAdminResponseDto.FromEntity(montagem, capitaesElegiveisIds, capitaesElegiveisSubstituicaoIds);
     }
 }

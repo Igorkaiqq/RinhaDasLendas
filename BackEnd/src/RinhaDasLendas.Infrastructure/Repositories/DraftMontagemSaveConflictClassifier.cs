@@ -14,38 +14,53 @@ internal static class DraftMontagemSaveConflictClassifier
 
     public static DraftMontagemSaveResultado? Classify(Exception exception)
     {
-        return exception switch
+        if (FindException<DbUpdateConcurrencyException>(exception) is not null)
         {
-            DbUpdateConcurrencyException => DraftMontagemSaveResultado.ConflitoDeVersao,
-            DbUpdateException
-            {
-                InnerException: PostgresException
-                {
-                    SqlState: PostgresErrorCodes.UniqueViolation,
-                    ConstraintName: PresenceByUserIndex or PresenceByPlayerIndex,
-                },
-            } => DraftMontagemSaveResultado.ConflitoDePresencaConfirmada,
-            DbUpdateException
-            {
-                InnerException: PostgresException
-                {
-                    SqlState: PostgresErrorCodes.UniqueViolation,
-                    ConstraintName: DiscordPublicationByTypeIndex,
-                },
-            } => DraftMontagemSaveResultado.ConflitoDeVersao,
+            return DraftMontagemSaveResultado.ConflitoDeVersao;
+        }
+
+        var postgresException = FindException<PostgresException>(exception);
+        if (postgresException?.SqlState == PostgresErrorCodes.DeadlockDetected)
+        {
+            return DraftMontagemSaveResultado.ConflitoDeVersao;
+        }
+
+        if (postgresException?.SqlState != PostgresErrorCodes.UniqueViolation)
+        {
+            return null;
+        }
+
+        return postgresException.ConstraintName switch
+        {
+            PresenceByUserIndex or PresenceByPlayerIndex => DraftMontagemSaveResultado.ConflitoDePresencaConfirmada,
+            DiscordPublicationByTypeIndex => DraftMontagemSaveResultado.ConflitoDeVersao,
             _ => null,
         };
     }
 
     public static bool IsStructuralUniqueViolation(Exception exception)
     {
-        return exception is DbUpdateException
+        var postgresException = FindException<PostgresException>(exception);
+        return postgresException is
         {
-            InnerException: PostgresException
-            {
-                SqlState: PostgresErrorCodes.UniqueViolation,
-                ConstraintName: ParticipantByPlayerIndex or TeamByOrderIndex,
-            },
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: ParticipantByPlayerIndex or TeamByOrderIndex,
         };
+    }
+
+    private static TException? FindException<TException>(Exception? exception)
+        where TException : Exception
+    {
+        while (exception is not null)
+        {
+            if (exception is TException matchingException)
+            {
+                return matchingException;
+            }
+
+            exception = exception.InnerException;
+        }
+
+        return null;
     }
 }

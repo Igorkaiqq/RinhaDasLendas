@@ -456,6 +456,7 @@ public sealed class EndpointCoverageIntegrationTests
         var userId = factory.GetExistingUserId();
         using var anonymous = factory.CreateAnonymousClient();
         using var player = factory.CreateJwtClient(userId, AuthRoles.Jogador);
+        using var moderator = factory.CreateJwtClient(userId, AuthRoles.Moderador);
         using var admin = factory.CreateAdminClient();
         var createRequest = new CreateDraftMontagemRequestDto(
             $"Montagem Reabertura {Guid.NewGuid():N}",
@@ -475,6 +476,7 @@ public sealed class EndpointCoverageIntegrationTests
 
         (await anonymous.PatchAsync(route, null)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await player.PatchAsync(route, null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await moderator.PatchAsync(route, null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         closeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var reopenResponse = await admin.PatchAsync(route, null);
 
@@ -529,6 +531,20 @@ public sealed class EndpointCoverageIntegrationTests
             new EndpointResponse((int)HttpStatusCode.Forbidden, nameof(ApiErrorResponse)),
             new EndpointResponse((int)HttpStatusCode.Conflict, nameof(ApiErrorResponse)),
         ]);
+    }
+
+    [Theory]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/capitaes")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/ordem-escolha")]
+    [InlineData("POST", "/api/v1/draft-montagens/{id}/capitaes/sortear")]
+    [InlineData("PATCH", "/api/v1/draft-montagens/{id}/finalizar")]
+    public async Task DomainMutationInventory_ShouldDeclareBadRequestApiError(string method, string route)
+    {
+        await using var factory = new PostgreSqlApiFactory();
+
+        var endpoint = DiscoverEndpoints(factory).Single(item => item.Key == EndpointKey.From(method, route));
+
+        endpoint.Responses.Should().Contain(new EndpointResponse((int)HttpStatusCode.BadRequest, nameof(ApiErrorResponse)));
     }
 
     [Fact]

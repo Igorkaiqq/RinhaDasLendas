@@ -73,7 +73,7 @@ describe('draftMontagens service', () => {
   })
 
   it('loads the explicit administrative projection by id', async () => {
-    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], capitaesElegiveisIds: [], acoesAdministrativas: [], publicacoesDiscord: [] }
+    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], capitaesElegiveisIds: [], capitaesElegiveisSubstituicaoIds: [], acoesAdministrativas: [], publicacoesDiscord: [] }
     vi.mocked(api.get).mockResolvedValue({ data: adminMontagem })
 
     const result = await getDraftMontagemAdminById('montagem-1')

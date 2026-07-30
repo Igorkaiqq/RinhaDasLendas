@@ -171,6 +171,28 @@ public sealed class DraftMontagemCycleIntegrationTests
     }
 
     [Fact]
+    public async Task ProjecaoAdminReal_DeveExcluirReservaDaSelecaoInicialEIncluiLaNaSubstituicao()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+
+        var projection = await admin.GetFromJsonAsync<DraftMontagemAdminResponseDto>($"/api/v1/draft-montagens/{fixture.DraftId}/administracao");
+
+        projection.Should().NotBeNull();
+        projection!.CapitaesElegiveisIds.Should().BeEquivalentTo(fixture.Players.Take(2).Select(player => player.PlayerId));
+        projection.CapitaesElegiveisIds.Should().NotContain(fixture.Players[4].PlayerId);
+        projection.CapitaesElegiveisSubstituicaoIds.Should().BeEquivalentTo(new[]
+        {
+            fixture.Players[0].PlayerId,
+            fixture.Players[1].PlayerId,
+            fixture.Players[4].PlayerId,
+        });
+    }
+
+    [Fact]
     public async Task EscolhasDeModoConcorrentes_DevemPersistirUmaTransicaoERecusarAOutra()
     {
         await using var factory = new DraftMontagemCycleApiFactory();
@@ -184,9 +206,9 @@ public sealed class DraftMontagemCycleIntegrationTests
             first.PatchAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.Manual) }),
             second.PatchAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) }));
 
-        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
-        responses.Count(response => response.StatusCode != HttpStatusCode.OK).Should().Be(1);
         var responseBodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync()));
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1, string.Join(Environment.NewLine, responseBodies));
+        responses.Count(response => response.StatusCode == HttpStatusCode.Conflict).Should().Be(1, string.Join(Environment.NewLine, responseBodies));
         responses.Should().OnlyContain(response => (int)response.StatusCode < 500, string.Join(Environment.NewLine, responseBodies));
         (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado.Should().BeGreaterThan(0);
     }

@@ -30,6 +30,7 @@ public sealed record DraftMontagemAdminResponseDto(
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Livres,
     IReadOnlyCollection<DraftMontagemParticipanteResponseDto> Reservas,
     IReadOnlyCollection<Guid> CapitaesElegiveisIds,
+    IReadOnlyCollection<Guid> CapitaesElegiveisSubstituicaoIds,
     IReadOnlyCollection<DraftMontagemEscolhaResponseDto> Escolhas,
     IReadOnlyCollection<DraftMontagemSubstituicaoResponseDto> Substituicoes,
     IReadOnlyCollection<DraftMontagemPublicacaoDiscordAdminResponseDto> PublicacoesDiscord,
@@ -40,7 +41,8 @@ public sealed record DraftMontagemAdminResponseDto(
 {
     public static DraftMontagemAdminResponseDto FromEntity(
         DraftMontagem montagem,
-        IReadOnlyCollection<Guid>? capitaesElegiveisIds = null)
+        IReadOnlyCollection<Guid>? capitaesElegiveisIds = null,
+        IReadOnlyCollection<Guid>? capitaesElegiveisSubstituicaoIds = null)
     {
         var participantes = montagem.Participantes.ToList();
         var cancelamentoOriginadoPorArquivamento = montagem.AcoesAdministrativas.Any(
@@ -72,6 +74,7 @@ public sealed record DraftMontagemAdminResponseDto(
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Livre).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             participantes.Where(participante => participante.Estado == DraftMontagemParticipanteEstado.Reserva).OrderBy(participante => participante.Ordem).Select(DraftMontagemParticipanteResponseDto.FromEntity).ToList(),
             capitaesElegiveisIds ?? [],
+            capitaesElegiveisSubstituicaoIds ?? [],
             montagem.Escolhas.OrderBy(escolha => escolha.Sequencia).Select(DraftMontagemEscolhaResponseDto.FromEntity).ToList(),
             montagem.Substituicoes.OrderBy(substituicao => substituicao.RegistradoEm).Select(DraftMontagemSubstituicaoResponseDto.FromEntity).ToList(),
             montagem.PublicacoesDiscord.OrderBy(publicacao => publicacao.Tipo).Select(DraftMontagemPublicacaoDiscordAdminResponseDto.FromEntity).ToList(),

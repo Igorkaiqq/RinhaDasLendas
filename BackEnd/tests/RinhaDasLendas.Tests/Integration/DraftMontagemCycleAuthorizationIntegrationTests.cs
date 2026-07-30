@@ -2,11 +2,37 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Domain.Enums;
 
 namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class DraftMontagemCycleAuthorizationIntegrationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReaberturaV2ELegada_DeveRecusarModeradorSemMutacao(bool legado)
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = legado
+            ? await factory.SeedLegacyOpenDraftAsync(DraftMontagemStatus.PresencaEncerrada)
+            : await factory.SeedV2PresenceDraftAsync();
+        if (!legado)
+        {
+            using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+            await DraftMontagemCycleIntegrationTests.PostAndReadAsync<object>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        }
+        var before = await factory.GetDraftAsync(fixture.DraftId);
+        using var moderator = factory.CreateRoleClient(Guid.NewGuid(), AuthRoles.Moderador);
+
+        var response = await moderator.PatchAsync($"/api/v1/draft-montagens/{fixture.DraftId}/reabrir-presenca", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var after = await factory.GetDraftAsync(fixture.DraftId);
+        after.Status.Should().Be(before.Status);
+        after.VersaoEstado.Should().Be(before.VersaoEstado);
+    }
+
     [Theory]
     [InlineData(AuthRoles.Admin, HttpStatusCode.OK)]
     [InlineData(AuthRoles.SuperAdmin, HttpStatusCode.OK)]

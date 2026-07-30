@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Api.Controllers;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Entities;
@@ -69,7 +70,8 @@ public sealed class DraftMontagemProjectionContractTests
             .And.NotContain("capitaesElegiveisIds");
         adminJson.Should().Contain("\"modo\":null")
             .And.Contain("\"cicloVersao\":\"ModoPosPresenca\"")
-            .And.Contain("capitaesElegiveisIds");
+            .And.Contain("capitaesElegiveisIds")
+            .And.Contain("capitaesElegiveisSubstituicaoIds");
         typeof(DraftMontagemResumoDto).GetProperty("CicloVersao").Should().NotBeNull();
     }
 
@@ -94,6 +96,23 @@ public sealed class DraftMontagemProjectionContractTests
             StatusCodes.Status403Forbidden,
             StatusCodes.Status409Conflict,
         ]);
+    }
+
+    [Theory]
+    [InlineData(nameof(DraftMontagensController.DefineCaptains))]
+    [InlineData(nameof(DraftMontagensController.DefinePickOrder))]
+    [InlineData(nameof(DraftMontagensController.DrawCaptains))]
+    [InlineData(nameof(DraftMontagensController.Finalize))]
+    public void OperacoesComErroDeDominioDevemDeclarar400NoSwagger(string actionName)
+    {
+        var response = typeof(DraftMontagensController)
+            .GetMethod(actionName)!
+            .GetCustomAttributes(typeof(ProducesResponseTypeAttribute), true)
+            .Cast<ProducesResponseTypeAttribute>()
+            .SingleOrDefault(attribute => attribute.StatusCode == StatusCodes.Status400BadRequest);
+
+        response.Should().NotBeNull();
+        response!.Type.Should().Be(typeof(ApiErrorResponse));
     }
 
     [Theory]

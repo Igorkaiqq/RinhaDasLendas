@@ -642,21 +642,24 @@ public sealed class SecurityHardeningTests
     }
 
     [Fact]
-    public async Task ReopenPresence_ShouldRequireCanManageDraftsAndRejectBot()
+    public async Task ReopenPresence_ShouldRequireCanManageDraftCycleAndRejectModeratorAndBot()
     {
         await using var factory = new RealAuthenticationApiFactory(100);
         using var anonymousClient = factory.CreateAnonymousClient();
         using var playerClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Jogador);
+        using var moderatorClient = factory.CreateJwtClient(Guid.NewGuid(), AuthRoles.Moderador);
         using var botClient = factory.CreateBotClient();
         var route = $"/api/v1/draft-montagens/{Guid.NewGuid()}/reabrir-presenca";
 
         var anonymousResponse = await anonymousClient.PatchAsync(route, null);
         var playerResponse = await playerClient.PatchAsync(route, null);
+        var moderatorResponse = await moderatorClient.PatchAsync(route, null);
         var botResponse = await botClient.PatchAsync(route, null);
 
         await AssertApiErrorAsync(anonymousResponse, HttpStatusCode.Unauthorized, MessageCodes.AuthenticationFailed, "Falha na autenticação");
         AssertBearerChallenge(anonymousResponse);
         await AssertApiErrorAsync(playerResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
+        await AssertApiErrorAsync(moderatorResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
         await AssertApiErrorAsync(botResponse, HttpStatusCode.Forbidden, MessageCodes.AccessDenied, "Acesso negado");
     }
 

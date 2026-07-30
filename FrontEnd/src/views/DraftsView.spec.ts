@@ -264,6 +264,7 @@ function adminProjection(status: DraftMontagemStatus = montagem.status, auditRea
       },
     ],
     capitaesElegiveisIds: ['jogador-1', 'jogador-2'],
+    capitaesElegiveisSubstituicaoIds: ['jogador-1', 'jogador-2'],
   }
 }
 
@@ -1461,7 +1462,7 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('projects captain eligibility to the board and requires a valid resulting-team captain for v2', async () => {
+  it('uses substitution eligibility on the board without leaking reserves into initial eligibility', async () => {
     const outgoingCaptain = { ...realtimeCaptain, jogadorId: 'outgoing-captain', nomeExibicao: 'Capitão atual' }
     const teammate = { ...realtimeCaptain, jogadorId: 'teammate-1', nomeExibicao: 'Novo capitão', capitao: false, ordem: 2 }
     const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', nomeExibicao: 'Reserva elegível', estado: 'Reserva' as const, capitao: false }
@@ -1476,7 +1477,8 @@ describe('DraftsView reason actions', () => {
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
       ...adminProjection('Aberta'),
       ...activeDraft,
-      capitaesElegiveisIds: ['teammate-1', 'reserve-1'],
+      capitaesElegiveisIds: ['teammate-1'],
+      capitaesElegiveisSubstituicaoIds: ['teammate-1', 'reserve-1'],
     })
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
     serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
@@ -1519,7 +1521,8 @@ describe('DraftsView reason actions', () => {
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue({
       ...adminProjection(status),
       ...preStartDraft,
-      capitaesElegiveisIds: ['reserve-1'],
+      capitaesElegiveisIds: [],
+      capitaesElegiveisSubstituicaoIds: ['reserve-1'],
     })
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: preStartDraft, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
     serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: { ...preStartDraft, versaoEstado: preStartDraft.versaoEstado + 1 }, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
@@ -1844,6 +1847,7 @@ describe('DraftsView reason actions', () => {
 
     expect(serviceMocks.getDraftMontagemAdminById).not.toHaveBeenCalled()
     expect(panel.props('canChooseMode')).toBe(false)
+    expect(panel.props('canReopenPresence')).toBe(false)
     expect(wrapper.findAll('button').some((button) => button.text().includes('Criar Draft'))).toBe(false)
     panel.vm.$emit('choose-mode', 'Manual')
     await flushPromises()
@@ -1862,9 +1866,12 @@ describe('DraftsView reason actions', () => {
     const panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
 
     expect(panel.props('canSelectCaptains')).toBe(false)
+    expect(panel.props('canReopenPresence')).toBe(false)
+    panel.vm.$emit('reopen-presence')
     panel.vm.$emit('toggle-captain', 'jogador-1')
     panel.vm.$emit('define-captains')
     panel.vm.$emit('draw-order')
+    expect(serviceMocks.reopenDraftMontagemPresence).not.toHaveBeenCalled()
 
     const open = { ...closed, status: 'Aberta' as const, modo: 'Manual' as const }
     serviceMocks.getDraftMontagemById.mockResolvedValue(open)

@@ -141,6 +141,7 @@ export interface DraftMontagemAdmin extends DraftMontagem {
   publicacoesDiscord: DraftMontagemAdminPublicacaoDiscord[]
   acoesAdministrativas: DraftMontagemAcaoAdministrativa[]
   capitaesElegiveisIds: string[]
+  capitaesElegiveisSubstituicaoIds: string[]
   motivoCancelamento?: string | null
 }
 

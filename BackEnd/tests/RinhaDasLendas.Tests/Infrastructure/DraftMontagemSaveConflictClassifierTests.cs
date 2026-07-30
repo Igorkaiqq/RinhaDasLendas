@@ -36,6 +36,33 @@ public sealed class DraftMontagemSaveConflictClassifierTests
     }
 
     [Fact]
+    public void Deve_identificar_constraint_estrutural_em_excecao_encapsulada()
+    {
+        var exception = new InvalidOperationException(
+            "save wrapper",
+            UniqueViolation("IX_draft_montagem_participantes_draft_montagem_id_jogador_id"));
+
+        DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(exception).Should().BeTrue();
+        DraftMontagemSaveConflictClassifier.Classify(exception).Should().BeNull();
+    }
+
+    [Fact]
+    public void Deve_classificar_deadlock_postgresql_encapsulado_como_conflito_de_versao()
+    {
+        var postgresException = new PostgresException(
+            "deadlock detected",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.DeadlockDetected);
+        var exception = new InvalidOperationException(
+            "save wrapper",
+            new DbUpdateException("save failed", postgresException));
+
+        DraftMontagemSaveConflictClassifier.Classify(exception)
+            .Should().Be(DraftMontagemSaveResultado.ConflitoDeVersao);
+    }
+
+    [Fact]
     public void Nao_deve_classificar_constraint_diferente()
     {
         DraftMontagemSaveConflictClassifier.Classify(UniqueViolation("ix_usuarios_normalized_user_name"))
