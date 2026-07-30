@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-29
 
-**Status**: Draft
+**Status**: Concluída
 
 **Input**: Corrigir as regras centrais do ciclo de draft, distinguindo montagem manual de draft em tempo real, aplicando corretamente o cargo global e a designação diária de capitão e protegendo finalização, timeout e substituições.
 
@@ -177,3 +177,12 @@ Como organizador, quero concluir drafts ativos criados antes da mudança sem rei
 - Promoção automática de usuários ao cargo global `Capitão`.
 - Alteração da ordem de presença para incluir capitães confirmados fora do recorte titular.
 - Publicação automática dos times finalizados nesta feature.
+
+## Evidências de Conclusão
+
+- Revisão independente final: aprovada sem findings críticos, importantes ou menores.
+- Backend: `724/724` testes aprovados e build Release sem warnings ou erros.
+- Frontend: `525/525` testes aprovados, lint e build de produção concluídos.
+- Concorrência: cinco rodadas focadas, `25/25`, sem resposta HTTP 500; deadlock PostgreSQL `40P01` convertido em conflito `409`.
+- Chromium: fluxo Admin+ validado em desktop e mobile, incluindo escolha de modo, rail responsivo e criação direta manual sem capitães.
+- Internacionalização: catálogos PT/EN sincronizados, resources backend equivalentes e ausência de novos textos visíveis hardcoded.
