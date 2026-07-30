@@ -32,8 +32,8 @@ description: "Task list for correcting draft synchronization and operation"
 
 **Purpose**: Establish a clean, reproducible baseline and freeze the approved contracts before TDD begins.
 
-- [ ] T001 [P] Record passing backend test/build and frontend test/lint/build baselines using `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
-- [ ] T002 [P] Inventory existing notifier, publisher, mutation, worker and frontend synchronization references against `docs/superpowers/plans/2026-07-30-corrigir-sincronizacao-draft.md` and `specs/029-corrigir-sincronizacao-draft/contracts/`
+- [x] T001 [P] Record passing backend test/build and frontend test/lint/build baselines using `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
+- [x] T002 [P] Inventory existing notifier, publisher, mutation, worker and frontend synchronization references against `docs/superpowers/plans/2026-07-30-corrigir-sincronizacao-draft.md` and `specs/029-corrigir-sincronizacao-draft/contracts/`
 
 **Checkpoint**: Baseline evidence exists and no implementation starts from an unexplained failure.
 
