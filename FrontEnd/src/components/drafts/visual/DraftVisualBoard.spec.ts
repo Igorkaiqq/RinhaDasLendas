@@ -593,7 +593,7 @@ describe('DraftVisualBoard', () => {
 
     const substitutionDraft = montagem()
     substitutionDraft.times[1]!.jogadores.push({ ...player('team-player', 'Team Player', 'Time'), ordem: 2 })
-    const substitutions = mountBoard(substitutionDraft)
+    const substitutions = mountBoard(substitutionDraft, { attachTo: document.body })
     const substitute = substitutions.get('[data-team-id="team-a"] [data-player-id="team-player"] .draft-substitute-action')
     const substituteBubbled = vi.fn()
     substitutions.get('[data-team-id="team-a"] .draft-visual-slot:not(.is-captain)').element.addEventListener('keydown', substituteBubbled)
@@ -615,7 +615,7 @@ describe('DraftVisualBoard', () => {
   it('requires an explicit eligible new captain when the daily captain leaves', async () => {
     const draft = montagem('Aberta', 'TempoReal')
     draft.cicloVersao = 'ModoPosPresenca'
-    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1', 'captain-b'] })
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1', 'captain-b'], attachTo: document.body })
 
     await wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action').trigger('click')
     const selects = wrapper.findAllComponents(Select)
@@ -635,7 +635,7 @@ describe('DraftVisualBoard', () => {
   it.each(['CapitaesDefinidos', 'OrdemDefinida'] as const)('allows explicit captain recovery while realtime is %s', async (status) => {
     const draft = montagem(status, 'TempoReal')
     draft.cicloVersao = 'ModoPosPresenca'
-    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1'] })
+    const wrapper = mountBoard(draft, { eligibleCaptainIds: ['reserve-1'], attachTo: document.body })
 
     const trigger = wrapper.get('[data-team-id="team-a"] [data-player-id="captain-a"] .draft-substitute-action')
     await trigger.trigger('click')
