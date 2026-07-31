@@ -127,9 +127,12 @@ export async function getDraftMontagemAdminById(id: string): Promise<DraftMontag
   }
 }
 
-export async function getDraftMontagemRealtimeState(id: string): Promise<DraftMontagemRealtimeState> {
+export async function getDraftMontagemRealtimeState(id: string, signal?: AbortSignal): Promise<DraftMontagemRealtimeState> {
   try {
-    const response = await api.get<DraftMontagemRealtimeState>(`/api/v1/draft-montagens/${id}/realtime-state`)
+    const url = `/api/v1/draft-montagens/${id}/realtime-state`
+    const response = signal
+      ? await api.get<DraftMontagemRealtimeState>(url, { signal })
+      : await api.get<DraftMontagemRealtimeState>(url)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)
@@ -249,7 +252,7 @@ export async function defineDraftMontagemPickOrder(id: string, modo: DraftMontag
   }
 }
 
-export async function saveDraftMontagemLayout(id: string, payload: DraftMontagemLayoutPayload): Promise<DraftMontagem> {
+export async function saveDraftMontagemLayout(id: string, payload: DraftMontagemLayoutPayload & { versaoEstado: number }): Promise<DraftMontagem> {
   try {
     const response = await api.put<DraftMontagem>(`/api/v1/draft-montagens/${id}/layout`, payload)
     return response.data

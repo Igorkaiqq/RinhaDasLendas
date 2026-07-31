@@ -52,7 +52,7 @@ import {
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
 import { DraftMontagemEstadoValues, DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
-import type { DraftMontagem, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemModo, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
+import type { DraftConnectionStatus, DraftMontagem, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemModo, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
 const { locale, t, te } = useI18n()
@@ -74,6 +74,7 @@ const selectedDraftId = ref<string | null>(null)
 const selectedDataRinha = ref<string | null>(null)
 const canCurrentUserPick = ref<boolean | null>(null)
 const serverClockOffsetMs = ref(0)
+const connectionStatus = ref<DraftConnectionStatus>('disconnected')
 const visualMontagens = ref<DraftMontagemResumo[]>([])
 const hasKnownDrafts = ref(false)
 const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
@@ -86,16 +87,28 @@ const emptyWorkspace = useTemplateRef<InstanceType<typeof globalThis.HTMLElement
 const adminAccessDenied = ref(false)
 const archiveAccessDenied = ref(false)
 let detailRequestVersion = 0
+let passiveRequestId = 0
+let mutationRequestId = 0
+let personalizedSequence = 0
+let lastPersonalizedSequence = 0
+let highestSharedVersion = 0
 let manualPresenceRequestVersion = 0
 let manualPresenceAbortController: AbortController | null = null
 let activeDraftId: string | null = null
 let activeDraftGeneration = 0
 let listRequestVersion = 0
+let fallbackTimer: ReturnType<typeof globalThis.setInterval> | null = null
+let fallbackRequestController: AbortController | null = null
+let fallbackRequestInFlight = false
+
+type DraftUpdateLane = 'passive' | 'mutation'
 
 interface DraftUpdateContext {
   draftId: string
   generation: number
-  requestVersion: number
+  lane: DraftUpdateLane
+  requestId: number
+  personalizedSequence?: number
 }
 
 const captainSelection = ref<string[]>([])
@@ -242,6 +255,7 @@ onUnmounted(async () => {
   selectedDraftId.value = null
   activeDraftGeneration++
   detailRequestVersion = 0
+  stopFallback()
   manualPresenceAbortController?.abort()
   await disconnectRealtime()
 })
@@ -309,6 +323,13 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   selectedDraftId.value = id
   selectedDataRinha.value = visualMontagens.value.find((draft) => draft.id === id)?.dataRinha ?? null
   detailRequestVersion = 0
+  passiveRequestId = 0
+  mutationRequestId = 0
+  personalizedSequence = 0
+  lastPersonalizedSequence = 0
+  highestSharedVersion = 0
+  connectionStatus.value = 'disconnected'
+  stopFallback()
   manualPresenceAbortController?.abort()
   manualPresenceAbortController = null
   manualPresenceRequestVersion++
@@ -326,11 +347,16 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   try {
     await disconnecting
     if (!isActiveDraft(id, generation)) return
-    if (!(await refreshMontagemDetail(id, generation, publicProjection))) return
-    captainSelection.value = []
-    await loadEligibleManualPresencePlayers()
-    if (!isActiveDraft(id, generation)) return
-    await connectRealtime(id, generation)
+    const archived = publicProjection?.arquivado || visualMontagens.value.find((draft) => draft.id === id)?.arquivado
+    if (archived) {
+      if (!(await refreshMontagemDetail(id, generation, publicProjection))) return
+    } else {
+      await connectRealtime(id, generation)
+    }
+    if (selectedMontagem.value) {
+      captainSelection.value = []
+      await loadEligibleManualPresencePlayers()
+    }
   } catch (error) {
     if (isActiveDraft(id, generation)) captureError(error)
   } finally {
@@ -342,59 +368,95 @@ function isActiveDraft(id: string, generation: number) {
   return activeDraftId === id && activeDraftGeneration === generation
 }
 
-function beginDraftUpdate(id: string, generation = activeDraftGeneration): DraftUpdateContext | null {
+function beginDraftUpdate(
+  id: string,
+  generation = activeDraftGeneration,
+  lane: DraftUpdateLane = 'mutation',
+  personalized = false,
+): DraftUpdateContext | null {
   if (!isActiveDraft(id, generation)) return null
-  return { draftId: id, generation, requestVersion: ++detailRequestVersion }
+  detailRequestVersion++
+  const requestId = lane === 'passive' ? ++passiveRequestId : ++mutationRequestId
+  return {
+    draftId: id,
+    generation,
+    lane,
+    requestId,
+    ...(personalized ? { personalizedSequence: ++personalizedSequence } : {}),
+  }
 }
 
 function isCurrentUpdate(context: DraftUpdateContext) {
-  return isActiveDraft(context.draftId, context.generation) && detailRequestVersion === context.requestVersion
+  void detailRequestVersion
+  const currentRequestId = context.lane === 'passive' ? passiveRequestId : mutationRequestId
+  return isActiveDraft(context.draftId, context.generation) && currentRequestId === context.requestId
 }
 
-function beginSelectedDraftUpdate() {
-  return selectedMontagem.value ? beginDraftUpdate(selectedMontagem.value.id) : null
+function beginSelectedDraftUpdate(personalized = false) {
+  return selectedMontagem.value ? beginDraftUpdate(selectedMontagem.value.id, activeDraftGeneration, 'mutation', personalized) : null
 }
 
 async function applyMutationProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
   if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
-
-  void refreshMontagemDetail(context.draftId, context.generation, montagem, context).catch(() => {
+  applySharedProjection(context, montagem)
+  void refreshMontagemDetail(context.draftId, context.generation).catch(() => {
     // The public mutation response is authoritative; administrative enrichment is best-effort.
   })
   return true
 }
 
 async function applyMutationRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
-  if (!(await applyMutationProjection(context, state.montagem))) return false
-  if (!isCurrentUpdate(context)) return false
-  applyPersonalizedRealtimeMetadata(state)
+  if (!applyPersonalizedRealtimeState(context, state)) return false
+  void refreshMontagemDetail(context.draftId, context.generation).catch(() => {
+    // The personalized mutation response is authoritative; administrative enrichment is best-effort.
+  })
   return true
 }
 
-function applyPersonalizedRealtimeMetadata(state: DraftMontagemRealtimeState) {
+function applyPersonalizedRealtimeMetadata(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
+  const sequence = context.personalizedSequence
+  if (sequence === undefined || sequence <= lastPersonalizedSequence || state.montagem.versaoEstado < highestSharedVersion) return
+  lastPersonalizedSequence = sequence
   canCurrentUserPick.value = state.canCurrentUserPick
   const serverNow = Date.parse(state.serverNow)
   if (Number.isFinite(serverNow)) serverClockOffsetMs.value = serverNow - Date.now()
 }
 
-async function applyPersonalizedRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
+function applyPersonalizedRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
   if (!isCurrentUpdate(context) || state.montagem.id !== context.draftId) return false
-  if (!(await refreshMontagemDetail(context.draftId, context.generation, state.montagem, context))) return false
-  if (!isCurrentUpdate(context)) return false
-  applyPersonalizedRealtimeMetadata(state)
+  applySharedProjection(context, state.montagem)
+  applyPersonalizedRealtimeMetadata(context, state)
   return true
 }
 
-async function loadPersonalizedRealtimeState(id: string, generation: number) {
-  const context = beginDraftUpdate(id, generation)
+async function loadPersonalizedRealtimeState(id: string, generation: number, signal?: globalThis.AbortSignal, primeAdministrative = false) {
+  const context = beginDraftUpdate(id, generation, 'passive', true)
   if (!context) return false
-  const state = await getDraftMontagemRealtimeState(id)
+  const state = await getDraftMontagemRealtimeState(id, signal)
   if (!isCurrentUpdate(context)) return false
-  return applyPersonalizedRealtimeState(context, state)
+  if (primeAdministrative) {
+    try {
+      await refreshMontagemDetail(id, generation)
+    } catch {
+      // Initial detail enrichment cannot invalidate a successful personalized health GET.
+    }
+    const applicationContext = beginDraftUpdate(id, generation, 'passive')
+    if (!applicationContext) return false
+    applicationContext.personalizedSequence = context.personalizedSequence
+    if (!applyPersonalizedRealtimeState(applicationContext, state)) return false
+  } else {
+    if (!applyPersonalizedRealtimeState(context, state)) return false
+    try {
+      await refreshMontagemDetail(id, generation)
+    } catch {
+      // Canonical personalized state remains healthy when optional administrative enrichment fails.
+    }
+  }
+  return isActiveDraft(id, generation)
 }
 
-async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem, existingContext?: DraftUpdateContext) {
-  const context = existingContext ?? beginDraftUpdate(id, generation)
+async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem) {
+  const context = beginDraftUpdate(id, generation, 'passive')
   if (!context || !isCurrentUpdate(context)) return false
   let detail = publicProjection
   const summary = visualMontagens.value.find((draft) => draft.id === id)
@@ -404,7 +466,7 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
       const archiving = await getDraftMontagemArchivingById(id)
       if (!isCurrentUpdate(context) || archiving.draft.id !== id) return false
       selectedArchiving.value = archiving
-      applyMontagemState(archiving.draft)
+      applySharedProjection(context, archiving.draft, true)
       return true
     } catch (error) {
       if (!isCurrentUpdate(context)) return false
@@ -417,7 +479,7 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
   }
 
   if (publicProjection) {
-    applyPublicMontagemState(publicProjection)
+    applySharedProjection(context, publicProjection)
   }
 
   if (canManageDraftCycle.value) {
@@ -431,9 +493,10 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
       }
 
       adminAccessDenied.value = true
+      dropAdministrativeState()
       detail = publicProjection ?? (await getDraftMontagemById(id))
       if (!isCurrentUpdate(context)) return false
-      applyMontagemState(detail)
+      applySharedProjection(context, detail)
       return true
     }
   } else if (!detail) {
@@ -447,10 +510,52 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
     selectedArchiving.value = archiving
     detail = { ...detail, arquivado: archiving.draft.arquivado, versaoEstado: archiving.draft.versaoEstado }
   }
-  if (summary) detail = { ...detail, arquivado: summary.arquivado, versaoEstado: summary.versaoEstado }
+  if (summary) detail = { ...detail, arquivado: summary.arquivado }
   if (!selectedArchiving.value) selectedArchiving.value = null
-  applyMontagemState(detail)
+  applySharedProjection(context, detail, canManageDraftCycle.value)
   return true
+}
+
+function applySharedProjection(context: DraftUpdateContext, montagem: DraftMontagem, administrative = false) {
+  if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
+  if (montagem.versaoEstado <= highestSharedVersion) {
+    if (administrative && montagem.versaoEstado === highestSharedVersion) enrichAdministrativeState(montagem as DraftMontagemAdmin)
+    return false
+  }
+
+  highestSharedVersion = montagem.versaoEstado
+  if (administrative) applyMontagemState(montagem)
+  else applyPublicMontagemState(montagem)
+  return true
+}
+
+function enrichAdministrativeState(detail: DraftMontagemAdmin) {
+  const current = selectedMontagem.value
+  if (!current || current.id !== detail.id) return
+  selectedMontagem.value = detail
+  applyPublicMontagemState(current)
+  selectedMontagem.value = {
+    ...(selectedMontagem.value as DraftMontagemAdmin),
+    discordGuildId: detail.discordGuildId,
+    discordPresenceMessageId: detail.discordPresenceMessageId,
+    acoesAdministrativas: detail.acoesAdministrativas,
+    capitaesElegiveisIds: detail.capitaesElegiveisIds,
+    capitaesElegiveisSubstituicaoIds: detail.capitaesElegiveisSubstituicaoIds,
+    motivoCancelamento: detail.motivoCancelamento,
+  } as DraftMontagemAdmin
+}
+
+function dropAdministrativeState() {
+  const current = selectedMontagem.value
+  if (!current) return
+  const publicState = { ...current } as DraftMontagem & Record<string, unknown>
+  delete publicState.discordGuildId
+  delete publicState.discordPresenceMessageId
+  delete publicState.acoesAdministrativas
+  delete publicState.capitaesElegiveisIds
+  delete publicState.capitaesElegiveisSubstituicaoIds
+  delete publicState.motivoCancelamento
+  selectedMontagem.value = publicState
 }
 
 function applyPublicMontagemState(montagem: DraftMontagem) {
@@ -515,7 +620,7 @@ async function confirmPresence() {
       completed = true
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -533,7 +638,7 @@ async function cancelPresence() {
     const montagem = await cancelDraftMontagemPresence(context.draftId)
     if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.presence.cancelled')
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
@@ -582,7 +687,7 @@ async function closePresence(continueWithLess = false) {
       completed = true
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -606,7 +711,7 @@ async function chooseMode(modo: DraftMontagemModo) {
       completed = true
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -651,7 +756,7 @@ async function defineCaptains() {
       completed = true
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -679,7 +784,7 @@ async function drawPickOrder() {
       completed = true
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -690,18 +795,14 @@ async function drawPickOrder() {
 
 async function connectRealtime(id: string, generation: number) {
   if (!isActiveDraft(id, generation)) return
-  try {
-    await loadPersonalizedRealtimeState(id, generation)
-  } catch {
-    // The regular detail endpoint already loaded the board; realtime state errors are shown by later actions.
-  }
-
-  if (!isActiveDraft(id, generation)) return
+  connectionStatus.value = 'reconnecting'
   const connection = new DraftMontagemRealtimeConnection(id)
   realtimeConnection.value = connection
   await connection.connect(
-    async () => {
+    async (snapshot) => {
       if (!isActiveDraft(id, generation)) return
+      const eventContext = beginDraftUpdate(id, generation, 'passive')
+      if (eventContext) applySharedProjection(eventContext, snapshot.montagem)
       try {
         await loadPersonalizedRealtimeState(id, generation)
       } catch {
@@ -710,16 +811,70 @@ async function connectRealtime(id: string, generation: number) {
     },
     async () => {
       if (!isActiveDraft(id, generation)) return
-      await loadPersonalizedRealtimeState(id, generation)
+      try {
+        const loaded = await loadPersonalizedRealtimeState(id, generation, undefined, selectedMontagem.value === null)
+        if (!loaded || !isActiveDraft(id, generation)) {
+          startFallback(id, generation)
+          return
+        }
+        connectionStatus.value = 'connected'
+        stopFallback()
+      } catch {
+        if (isActiveDraft(id, generation)) startFallback(id, generation)
+      }
     },
     async (archivedId) => {
       await handleDraftArchived(archivedId)
+    },
+    (status) => {
+      if (!isActiveDraft(id, generation)) return
+      connectionStatus.value = status
+      startFallback(id, generation, status === 'fallback')
     },
   )
   if (!isActiveDraft(id, generation)) {
     if (realtimeConnection.value === connection) realtimeConnection.value = null
     await connection.disconnect()
   }
+}
+
+function startFallback(id: string, generation: number, markFallback = true) {
+  if (!isActiveDraft(id, generation) || connectionStatus.value === 'connected') return
+  if (markFallback) connectionStatus.value = 'fallback'
+  if (fallbackTimer !== null) return
+  fallbackTimer = globalThis.setInterval(() => {
+    if (isActiveDraft(id, generation) && connectionStatus.value !== 'connected') connectionStatus.value = 'fallback'
+    void runFallbackRequest(id, generation)
+  }, 3000)
+}
+
+async function runFallbackRequest(id: string, generation: number) {
+  if (!isActiveDraft(id, generation) || connectionStatus.value === 'connected' || fallbackRequestInFlight) return
+  fallbackRequestInFlight = true
+  const controller = new AbortController()
+  fallbackRequestController = controller
+  const timeout = globalThis.setTimeout(() => controller.abort(), 2000)
+  try {
+    await loadPersonalizedRealtimeState(id, generation, controller.signal)
+  } catch {
+    // A failed fallback GET preserves the last accepted state and degraded health.
+  } finally {
+    globalThis.clearTimeout(timeout)
+    if (fallbackRequestController === controller) {
+      fallbackRequestController = null
+      fallbackRequestInFlight = false
+    }
+  }
+}
+
+function stopFallback() {
+  if (fallbackTimer !== null) {
+    globalThis.clearInterval(fallbackTimer)
+    fallbackTimer = null
+  }
+  fallbackRequestController?.abort()
+  fallbackRequestController = null
+  fallbackRequestInFlight = false
 }
 
 function applyMontagemState(montagem: DraftMontagem) {
@@ -742,6 +897,7 @@ function applyMontagemState(montagem: DraftMontagem) {
 }
 
 async function disconnectRealtime() {
+  stopFallback()
   const connection = realtimeConnection.value
   realtimeConnection.value = null
   await connection?.disconnect()
@@ -774,12 +930,16 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   saving.value = true
   errors.value = []
   try {
-    const montagem = await saveDraftMontagemLayout(context.draftId, payload)
+    const requestPayload = {
+      ...payload,
+      versaoEstado: (payload as DraftMontagemLayoutPayload & { versaoEstado?: number }).versaoEstado ?? selectedMontagem.value.versaoEstado,
+    }
+    const montagem = await saveDraftMontagemLayout(context.draftId, requestPayload)
     if (!(await applyMutationProjection(context, montagem))) return
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
@@ -794,7 +954,7 @@ async function startRealtime() {
       ? selectedMontagem.value.status !== DraftMontagemStatusValues.OrdemDefinida || selectedMontagem.value.modo !== 'TempoReal'
       : selectedMontagem.value.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual')
   ) return
-  const context = beginSelectedDraftUpdate()
+  const context = beginSelectedDraftUpdate(true)
   if (!context) return
 
   saving.value = true
@@ -803,7 +963,7 @@ async function startRealtime() {
     const state = await startDraftMontagemRealtime(context.draftId)
     if (await applyMutationRealtimeState(context, state)) notification.value = t('drafts.realtime.started')
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
@@ -829,7 +989,7 @@ async function pickRealtime(jogadorId: string) {
     || !Number.isFinite(turnExpiresAt)
     || turnExpiresAt <= Date.now() + serverClockOffsetMs.value
   ) return
-  const context = beginSelectedDraftUpdate()
+  const context = beginSelectedDraftUpdate(true)
   if (!context) return
 
   let completed = false
@@ -839,7 +999,7 @@ async function pickRealtime(jogadorId: string) {
     const state = await registerDraftMontagemPick(context.draftId, jogadorId)
     completed = await applyMutationRealtimeState(context, state)
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -876,7 +1036,7 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, comp
     complete?.(false)
     return
   }
-  const context = beginSelectedDraftUpdate()
+  const context = beginSelectedDraftUpdate(true)
   if (!context) {
     complete?.(false)
     return
@@ -892,7 +1052,7 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, comp
       if (completed) notification.value = t('drafts.realtime.reserveSubstituted')
     }
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
     complete?.(completed)
@@ -908,7 +1068,7 @@ async function drawMontagemCaptains() {
     const montagem = await drawDraftMontagemCaptains(context.draftId)
     if (await applyMutationProjection(context, montagem)) notification.value = t('drafts.messages.captainsDrawn')
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) saving.value = false
   }
@@ -938,7 +1098,7 @@ async function finalizeMontagem() {
     notification.value = t('drafts.messages.finished')
     completed = true
   } catch (error) {
-    if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+    await captureMutationError(error, context)
   } finally {
     if (isActiveDraft(context.draftId, context.generation)) {
       saving.value = false
@@ -1143,7 +1303,7 @@ async function confirmReasonAction(reason: string | null) {
       if (archiveAction && error instanceof DraftMontagemServiceError) {
         await handleArchiveError(error, context.draftId)
       } else {
-        captureError(error)
+        await captureMutationError(error, context)
       }
     }
   } finally {
@@ -1231,6 +1391,18 @@ async function restoreStageFocus() {
   await nextTick()
   if (workspaceHeader.value) await workspaceHeader.value.focusStage()
   else emptyWorkspace.value?.focus()
+}
+
+async function captureMutationError(error: unknown, context: DraftUpdateContext) {
+  if (!isActiveDraft(context.draftId, context.generation)) return
+  if (error instanceof DraftMontagemServiceError && error.status === 409) {
+    try {
+      await loadPersonalizedRealtimeState(context.draftId, context.generation)
+    } catch {
+      // The mutation remains failed; the original conflict is still surfaced after reconciliation fails.
+    }
+  }
+  if (isActiveDraft(context.draftId, context.generation)) captureError(error)
 }
 
 function captureError(error: unknown) {

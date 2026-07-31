@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DraftMontagem, DraftMontagemAdmin } from '@/types/draftMontagem'
 
 import { api } from './api'
-import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, chooseDraftMontagemMode, createDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, reopenDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem } from './draftMontagens'
+import { addManualDraftMontagemPresence, archiveDraftMontagem, cancelDraftMontagem, chooseDraftMontagemMode, createDraftMontagem, getDraftMontagemAdminById, getDraftMontagemArchivingById, getDraftMontagemById, getDraftMontagemRealtimeState, listDraftMontagens, listEligibleManualPresencePlayers, removeManualDraftMontagemPresence, reopenDraftMontagemPresence, republishArchivedDraftCancellation, republishDraftMontagemDiscordPublication, restoreDraftMontagem, saveDraftMontagemLayout } from './draftMontagens'
 import { resolveInitialDraftId } from './draftRoute'
 
 vi.mock('./api', () => ({
@@ -13,6 +13,7 @@ vi.mock('./api', () => ({
     post: vi.fn(),
     delete: vi.fn(),
     patch: vi.fn(),
+    put: vi.fn(),
   },
 }))
 
@@ -52,6 +53,7 @@ describe('draftMontagens service', () => {
     vi.mocked(api.post).mockReset()
     vi.mocked(api.delete).mockReset()
     vi.mocked(api.patch).mockReset()
+    vi.mocked(api.put).mockReset()
   })
 
   it('lists visual draft assemblies', async () => {
@@ -80,6 +82,26 @@ describe('draftMontagens service', () => {
 
     expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/administracao')
     expect(result).toBe(adminMontagem)
+  })
+
+  it('keeps the personalized realtime response flat and forwards its cancellation signal', async () => {
+    const controller = new AbortController()
+    const state = { montagem, canCurrentUserPick: true, serverNow: '2026-07-30T12:00:00Z' }
+    vi.mocked(api.get).mockResolvedValue({ data: state })
+
+    const result = await getDraftMontagemRealtimeState('montagem-1', controller.signal)
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/realtime-state', { signal: controller.signal })
+    expect(result).toBe(state)
+  })
+
+  it('sends the observed state version with the layout payload', async () => {
+    const payload = { times: [], livres: [], reservas: [], versaoEstado: 7 }
+    vi.mocked(api.put).mockResolvedValue({ data: { ...montagem, versaoEstado: 8 } })
+
+    await saveDraftMontagemLayout('montagem-1', payload)
+
+    expect(api.put).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/layout', payload)
   })
 
   it('cancels visual draft assembly with reason', async () => {
