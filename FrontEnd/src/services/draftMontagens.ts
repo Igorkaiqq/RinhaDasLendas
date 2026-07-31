@@ -118,9 +118,12 @@ export async function getDraftMontagemById(id: string): Promise<DraftMontagem> {
   }
 }
 
-export async function getDraftMontagemAdminById(id: string): Promise<DraftMontagemAdmin> {
+export async function getDraftMontagemAdminById(id: string, signal?: AbortSignal): Promise<DraftMontagemAdmin> {
   try {
-    const response = await api.get<DraftMontagemAdmin>(`/api/v1/draft-montagens/${id}/administracao`)
+    const url = `/api/v1/draft-montagens/${id}/administracao`
+    const response = signal
+      ? await api.get<DraftMontagemAdmin>(url, { signal })
+      : await api.get<DraftMontagemAdmin>(url)
     return response.data
   } catch (error) {
     throw toDraftMontagemServiceError(error)

@@ -84,6 +84,17 @@ describe('draftMontagens service', () => {
     expect(result).toBe(adminMontagem)
   })
 
+  it('forwards administrative detail cancellation without changing its flat response', async () => {
+    const controller = new AbortController()
+    const adminMontagem: DraftMontagemAdmin = { ...montagem, presencas: [], substituicoes: [], capitaesElegiveisIds: [], capitaesElegiveisSubstituicaoIds: [], acoesAdministrativas: [], publicacoesDiscord: [] }
+    vi.mocked(api.get).mockResolvedValue({ data: adminMontagem })
+
+    const result = await getDraftMontagemAdminById('montagem-1', controller.signal)
+
+    expect(api.get).toHaveBeenCalledWith('/api/v1/draft-montagens/montagem-1/administracao', { signal: controller.signal })
+    expect(result).toBe(adminMontagem)
+  })
+
   it('keeps the personalized realtime response flat and forwards its cancellation signal', async () => {
     const controller = new AbortController()
     const state = { montagem, canCurrentUserPick: true, serverNow: '2026-07-30T12:00:00Z' }

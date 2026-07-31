@@ -33,7 +33,6 @@ import {
   DraftMontagemServiceError,
   drawDraftMontagemCaptains,
   finalizeDraftMontagem,
-  getDraftMontagemById,
   getDraftMontagemAdminById,
   getDraftMontagemArchivingById,
   getDraftMontagemRealtimeState,
@@ -100,6 +99,9 @@ let listRequestVersion = 0
 let fallbackTimer: ReturnType<typeof globalThis.setInterval> | null = null
 let fallbackRequestController: AbortController | null = null
 let fallbackRequestInFlight = false
+let canonicalRequestController: AbortController | null = null
+let adminRequestController: AbortController | null = null
+let conflictRequestController: AbortController | null = null
 
 type DraftUpdateLane = 'passive' | 'mutation'
 
@@ -255,6 +257,7 @@ onUnmounted(async () => {
   selectedDraftId.value = null
   activeDraftGeneration++
   detailRequestVersion = 0
+  abortGenerationRequests()
   stopFallback()
   manualPresenceAbortController?.abort()
   await disconnectRealtime()
@@ -319,6 +322,7 @@ async function openMontagemFromLink(id: string) {
 
 async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   const generation = ++activeDraftGeneration
+  abortGenerationRequests()
   activeDraftId = id
   selectedDraftId.value = id
   selectedDataRinha.value = visualMontagens.value.find((draft) => draft.id === id)?.dataRinha ?? null
@@ -341,12 +345,13 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   captainSelection.value = []
   manualPresencePlayers.value = []
   selectedManualPresencePlayerId.value = ''
-  const disconnecting = disconnectRealtime()
+  const disconnecting = disconnectRealtime(false)
   saving.value = true
   errors.value = []
   try {
     await disconnecting
     if (!isActiveDraft(id, generation)) return
+    initializeGenerationRequests()
     const archived = publicProjection?.arquivado || visualMontagens.value.find((draft) => draft.id === id)?.arquivado
     if (archived) {
       if (!(await refreshMontagemDetail(id, generation, publicProjection))) return
@@ -399,17 +404,13 @@ function beginSelectedDraftUpdate(personalized = false) {
 async function applyMutationProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
   if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
   applySharedProjection(context, montagem)
-  void refreshMontagemDetail(context.draftId, context.generation).catch(() => {
-    // The public mutation response is authoritative; administrative enrichment is best-effort.
-  })
+  scheduleAdministrativeDetail(context.draftId, context.generation)
   return true
 }
 
 async function applyMutationRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
   if (!applyPersonalizedRealtimeState(context, state)) return false
-  void refreshMontagemDetail(context.draftId, context.generation).catch(() => {
-    // The personalized mutation response is authoritative; administrative enrichment is best-effort.
-  })
+  scheduleAdministrativeDetail(context.draftId, context.generation)
   return true
 }
 
@@ -429,34 +430,26 @@ function applyPersonalizedRealtimeState(context: DraftUpdateContext, state: Draf
   return true
 }
 
-async function loadPersonalizedRealtimeState(id: string, generation: number, signal?: globalThis.AbortSignal, primeAdministrative = false) {
+async function loadPersonalizedRealtimeState(id: string, generation: number, signal = canonicalRequestController?.signal) {
+  if (!signal || signal.aborted) return false
   const context = beginDraftUpdate(id, generation, 'passive', true)
   if (!context) return false
   const state = await getDraftMontagemRealtimeState(id, signal)
   if (!isCurrentUpdate(context)) return false
-  if (primeAdministrative) {
-    try {
-      await refreshMontagemDetail(id, generation)
-    } catch {
-      // Initial detail enrichment cannot invalidate a successful personalized health GET.
-    }
-    const applicationContext = beginDraftUpdate(id, generation, 'passive')
-    if (!applicationContext) return false
-    applicationContext.personalizedSequence = context.personalizedSequence
-    if (!applyPersonalizedRealtimeState(applicationContext, state)) return false
-  } else {
-    if (!applyPersonalizedRealtimeState(context, state)) return false
-    try {
-      await refreshMontagemDetail(id, generation)
-    } catch {
-      // Canonical personalized state remains healthy when optional administrative enrichment fails.
-    }
-  }
+  if (!applyPersonalizedRealtimeState(context, state)) return false
   return isActiveDraft(id, generation)
 }
 
+function scheduleAdministrativeDetail(id: string, generation: number) {
+  if (!canManageDraftCycle.value || !isActiveDraft(id, generation)) return
+  void refreshMontagemDetail(id, generation).catch(() => {
+    // Identity-scoped enrichment is best-effort and never gates canonical health.
+  })
+}
+
 async function refreshMontagemDetail(id: string, generation: number, publicProjection?: DraftMontagem) {
-  const context = beginDraftUpdate(id, generation, 'passive')
+  const administrative = !publicProjection && canManageDraftCycle.value
+  const context = beginDraftUpdate(id, generation, 'passive', administrative)
   if (!context || !isCurrentUpdate(context)) return false
   let detail = publicProjection
   const summary = visualMontagens.value.find((draft) => draft.id === id)
@@ -466,7 +459,7 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
       const archiving = await getDraftMontagemArchivingById(id)
       if (!isCurrentUpdate(context) || archiving.draft.id !== id) return false
       selectedArchiving.value = archiving
-      applySharedProjection(context, archiving.draft, true)
+      applySharedProjection(context, archiving.draft)
       return true
     } catch (error) {
       if (!isCurrentUpdate(context)) return false
@@ -483,8 +476,12 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
   }
 
   if (canManageDraftCycle.value) {
+    adminRequestController?.abort()
+    const controller = new AbortController()
+    adminRequestController = controller
+    const timeout = globalThis.setTimeout(() => controller.abort(), 2000)
     try {
-      detail = await getDraftMontagemAdminById(id)
+      detail = await getDraftMontagemAdminById(id, controller.signal)
     } catch (error) {
       if (!isCurrentUpdate(context)) return false
       if (!(error instanceof DraftMontagemServiceError) || error.status !== 403) {
@@ -494,13 +491,13 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
 
       adminAccessDenied.value = true
       dropAdministrativeState()
-      detail = publicProjection ?? (await getDraftMontagemById(id))
-      if (!isCurrentUpdate(context)) return false
-      applySharedProjection(context, detail)
       return true
+    } finally {
+      globalThis.clearTimeout(timeout)
+      if (adminRequestController === controller) adminRequestController = null
     }
   } else if (!detail) {
-    detail = await getDraftMontagemById(id)
+    return Boolean(selectedMontagem.value?.id === id)
   }
 
   if (!isCurrentUpdate(context) || detail.id !== id) return false
@@ -512,50 +509,89 @@ async function refreshMontagemDetail(id: string, generation: number, publicProje
   }
   if (summary) detail = { ...detail, arquivado: summary.arquivado }
   if (!selectedArchiving.value) selectedArchiving.value = null
-  applySharedProjection(context, detail, canManageDraftCycle.value)
+  if (administrative) {
+    applySharedProjection(context, toSharedDraftMontagem(detail as DraftMontagemAdmin))
+    applyAdministrativeMetadata(context, detail as DraftMontagemAdmin)
+  } else {
+    applySharedProjection(context, detail)
+  }
   return true
 }
 
-function applySharedProjection(context: DraftUpdateContext, montagem: DraftMontagem, administrative = false) {
+function applySharedProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
   if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
-  if (montagem.versaoEstado <= highestSharedVersion) {
-    if (administrative && montagem.versaoEstado === highestSharedVersion) enrichAdministrativeState(montagem as DraftMontagemAdmin)
-    return false
-  }
+  if (montagem.versaoEstado <= highestSharedVersion) return false
 
   highestSharedVersion = montagem.versaoEstado
-  if (administrative) applyMontagemState(montagem)
-  else applyPublicMontagemState(montagem)
+  applyPublicMontagemState(montagem)
   return true
 }
 
-function enrichAdministrativeState(detail: DraftMontagemAdmin) {
+function applyAdministrativeMetadata(context: DraftUpdateContext, detail: DraftMontagemAdmin) {
+  const sequence = context.personalizedSequence
   const current = selectedMontagem.value
-  if (!current || current.id !== detail.id) return
-  selectedMontagem.value = detail
-  applyPublicMontagemState(current)
+  if (
+    sequence === undefined
+    || sequence <= lastPersonalizedSequence
+    || !isActiveDraft(context.draftId, context.generation)
+    || !current
+    || current.id !== detail.id
+    || detail.versaoEstado < highestSharedVersion
+  ) return false
+
+  lastPersonalizedSequence = sequence
+  const shared = toSharedDraftMontagem(current as DraftMontagemAdmin)
   selectedMontagem.value = {
-    ...(selectedMontagem.value as DraftMontagemAdmin),
+    ...shared,
     discordGuildId: detail.discordGuildId,
     discordPresenceMessageId: detail.discordPresenceMessageId,
+    presencas: shared.presencas.map((presence) => ({
+      ...detail.presencas.find((item) => item.id === presence.id),
+      ...presence,
+    })),
+    substituicoes: shared.substituicoes.map((substitution) => ({
+      ...detail.substituicoes.find((item) => item.timeId === substitution.timeId
+        && item.jogadorSaiuId === substitution.jogadorSaiuId
+        && item.reservaEntrouId === substitution.reservaEntrouId),
+      ...substitution,
+    })),
+    publicacoesDiscord: shared.publicacoesDiscord?.map((publication) => ({
+      ...detail.publicacoesDiscord.find((item) => item.tipo === publication.tipo),
+      ...publication,
+    })) ?? [],
     acoesAdministrativas: detail.acoesAdministrativas,
     capitaesElegiveisIds: detail.capitaesElegiveisIds,
     capitaesElegiveisSubstituicaoIds: detail.capitaesElegiveisSubstituicaoIds,
     motivoCancelamento: detail.motivoCancelamento,
   } as DraftMontagemAdmin
+  return true
+}
+
+function toSharedDraftMontagem(detail: DraftMontagemAdmin): DraftMontagem {
+  const shared = {
+    ...detail,
+    presencas: detail.presencas.map((presence) => omitAdministrativeFields(presence, ['discordUserId'])),
+    substituicoes: detail.substituicoes.map((substitution) => omitAdministrativeFields(substitution, ['motivo', 'responsavelUsuarioId'])),
+    publicacoesDiscord: (detail.publicacoesDiscord ?? []).map((publication) => omitAdministrativeFields(publication, [
+      'id', 'guildId', 'channelId', 'messageId', 'ultimoErroCodigo', 'claimId', 'claimExpiraEm', 'publicadaEm', 'ultimaTentativaEm',
+    ])),
+  } as Record<string, unknown>
+  for (const key of ['discordGuildId', 'discordPresenceMessageId', 'acoesAdministrativas', 'capitaesElegiveisIds', 'capitaesElegiveisSubstituicaoIds', 'motivoCancelamento']) {
+    delete shared[key]
+  }
+  return shared as unknown as DraftMontagem
+}
+
+function omitAdministrativeFields(value: object, keys: string[]) {
+  const shared = { ...value } as Record<string, unknown>
+  for (const key of keys) delete shared[key]
+  return shared
 }
 
 function dropAdministrativeState() {
   const current = selectedMontagem.value
   if (!current) return
-  const publicState = { ...current } as DraftMontagem & Record<string, unknown>
-  delete publicState.discordGuildId
-  delete publicState.discordPresenceMessageId
-  delete publicState.acoesAdministrativas
-  delete publicState.capitaesElegiveisIds
-  delete publicState.capitaesElegiveisSubstituicaoIds
-  delete publicState.motivoCancelamento
-  selectedMontagem.value = publicState
+  selectedMontagem.value = toSharedDraftMontagem(current as DraftMontagemAdmin)
 }
 
 function applyPublicMontagemState(montagem: DraftMontagem) {
@@ -793,6 +829,20 @@ async function drawPickOrder() {
   }
 }
 
+function initializeGenerationRequests() {
+  canonicalRequestController = new AbortController()
+  conflictRequestController = new AbortController()
+}
+
+function abortGenerationRequests() {
+  canonicalRequestController?.abort()
+  adminRequestController?.abort()
+  conflictRequestController?.abort()
+  canonicalRequestController = null
+  adminRequestController = null
+  conflictRequestController = null
+}
+
 async function connectRealtime(id: string, generation: number) {
   if (!isActiveDraft(id, generation)) return
   connectionStatus.value = 'reconnecting'
@@ -804,7 +854,7 @@ async function connectRealtime(id: string, generation: number) {
       const eventContext = beginDraftUpdate(id, generation, 'passive')
       if (eventContext) applySharedProjection(eventContext, snapshot.montagem)
       try {
-        await loadPersonalizedRealtimeState(id, generation)
+        if (await loadPersonalizedRealtimeState(id, generation)) scheduleAdministrativeDetail(id, generation)
       } catch {
         // Keep the last personalized projection if its refresh fails.
       }
@@ -812,13 +862,14 @@ async function connectRealtime(id: string, generation: number) {
     async () => {
       if (!isActiveDraft(id, generation)) return
       try {
-        const loaded = await loadPersonalizedRealtimeState(id, generation, undefined, selectedMontagem.value === null)
+        const loaded = await loadPersonalizedRealtimeState(id, generation)
         if (!loaded || !isActiveDraft(id, generation)) {
           startFallback(id, generation)
           return
         }
         connectionStatus.value = 'connected'
         stopFallback()
+        scheduleAdministrativeDetail(id, generation)
       } catch {
         if (isActiveDraft(id, generation)) startFallback(id, generation)
       }
@@ -853,18 +904,22 @@ async function runFallbackRequest(id: string, generation: number) {
   fallbackRequestInFlight = true
   const controller = new AbortController()
   fallbackRequestController = controller
+  controller.signal.addEventListener('abort', () => releaseFallbackRequest(controller), { once: true })
   const timeout = globalThis.setTimeout(() => controller.abort(), 2000)
   try {
-    await loadPersonalizedRealtimeState(id, generation, controller.signal)
+    if (await loadPersonalizedRealtimeState(id, generation, controller.signal)) scheduleAdministrativeDetail(id, generation)
   } catch {
     // A failed fallback GET preserves the last accepted state and degraded health.
   } finally {
     globalThis.clearTimeout(timeout)
-    if (fallbackRequestController === controller) {
-      fallbackRequestController = null
-      fallbackRequestInFlight = false
-    }
+    releaseFallbackRequest(controller)
   }
+}
+
+function releaseFallbackRequest(controller: AbortController) {
+  if (fallbackRequestController !== controller) return
+  fallbackRequestController = null
+  fallbackRequestInFlight = false
 }
 
 function stopFallback() {
@@ -896,7 +951,8 @@ function applyMontagemState(montagem: DraftMontagem) {
   )
 }
 
-async function disconnectRealtime() {
+async function disconnectRealtime(abortRequests = true) {
+  if (abortRequests) abortGenerationRequests()
   stopFallback()
   const connection = realtimeConnection.value
   realtimeConnection.value = null
@@ -1397,7 +1453,12 @@ async function captureMutationError(error: unknown, context: DraftUpdateContext)
   if (!isActiveDraft(context.draftId, context.generation)) return
   if (error instanceof DraftMontagemServiceError && error.status === 409) {
     try {
-      await loadPersonalizedRealtimeState(context.draftId, context.generation)
+      const reconciled = await loadPersonalizedRealtimeState(
+        context.draftId,
+        context.generation,
+        conflictRequestController?.signal,
+      )
+      if (reconciled) scheduleAdministrativeDetail(context.draftId, context.generation)
     } catch {
       // The mutation remains failed; the original conflict is still surfaced after reconciliation fails.
     }
