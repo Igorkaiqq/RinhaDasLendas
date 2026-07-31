@@ -47,13 +47,23 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         return GetByIdIncludingArchivedAsync(id, cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagemRealtimeCandidate>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
-        return await IncludeMontagem(dbContext.DraftMontagens)
+        return await BuildExpiredRealtimeCandidatesQuery(dbContext.DraftMontagens, now, limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    internal static IQueryable<DraftMontagemRealtimeCandidate> BuildExpiredRealtimeCandidatesQuery(
+        IQueryable<DraftMontagem> source,
+        DateTimeOffset now,
+        int limit)
+    {
+        return source
+            .AsNoTracking()
             .Where(montagem => montagem.ArquivadoEm == null && montagem.Status == DraftMontagemStatus.Aberta && montagem.Modo == DraftMontagemModo.TempoReal && montagem.TurnoExpiraEm != null && montagem.TurnoExpiraEm <= now)
             .OrderBy(montagem => montagem.TurnoExpiraEm)
-            .Take(Math.Clamp(limit, 1, 100))
-            .ToListAsync(cancellationToken);
+            .Select(montagem => new DraftMontagemRealtimeCandidate(montagem.Id))
+            .Take(Math.Clamp(limit, 1, 100));
     }
 
     public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)

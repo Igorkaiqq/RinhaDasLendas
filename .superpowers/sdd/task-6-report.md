@@ -1,67 +1,45 @@
-# Relatório da Task 6
+# Relatório da Unidade 6
 
 ## Status
 
-Implementada a escolha de modo e o board manual da feature 028 no frontend.
+Implementados candidatos mínimos e processamento isolado do timer de turno da feature 029, preservando o intervalo de 1 segundo e as regras de timeout da feature 028.
 
 ## Entregas
 
-- Contratos frontend atualizados para `modo` anulável, `cicloVersao`, `capitaesElegiveisIds` e `novoCapitaoId` opcional na substituição.
-- Serviço `chooseDraftMontagemMode` usando `PATCH /api/v1/draft-montagens/{id}/modo`.
-- Capacidade do novo ciclo restrita explicitamente às roles `Admin` e `SuperAdmin`, além da permissão existente.
-- Escolha Manual/TempoReal exibida somente para `PresencaEncerrada`, modo nulo e ciclo `ModoPosPresenca`.
-- Fluxo legado preservado sem retornar à escolha de modo.
-- Seleção realtime limitada aos capitães elegíveis projetados pelo backend.
-- Criação direta sem configuração de capitães, mantendo `sortearCapitaes: false` e `capitaesIds: []` para compatibilidade do contrato.
-- Board manual v2 sem capitães, sorteio, ordem, início realtime ou histórico de picks; layouts salvam `capitaoId: null`.
-- Finalização manual habilitada somente após a projeção apresentar todos os times completos e nenhum titular livre; o backend continua responsável pela validação definitiva.
-- Início realtime disponível explicitamente em `OrdemDefinida`.
-- Rail e header adaptados ao modo e à versão do ciclo.
-- O novo diálogo de substituição não foi implementado; somente o tipo exigido pelo contrato atual foi incorporado.
-
-## Correções da revisão
-
-- Separados `isManualV2` e `isManualV2Open`: drafts manuais v2 finalizados ou cancelados permanecem sem capitães, ordem e histórico, com o board somente leitura.
-- Operações de ciclo legadas e v2 agora exigem `canManageDraftCycle` com role `Admin` ou `SuperAdmin`; `Moderador` não recebe nem consegue disparar capitães, ordem, início, layout, substituição ou finalização.
-- Rail realtime em `PresencaEncerrada` agora apresenta modo concluído e capitães como etapa atual.
-- Seleção de capitães reconciliada a cada mudança de projeção, elegibilidade, status, modo, versão de ciclo ou capacidade Admin+, removendo IDs obsoletos sem bloquear novas escolhas válidas.
-- `DraftVisualSetup` migrado para `Dialog`, `DialogContent`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `Input`, `Textarea` e `Button` já instalados; foco, Escape e restauração ficam sob responsabilidade do Reka, e opções de jogadores expõem `aria-pressed`.
-- Guarda de layout manual v2 completo repetida em `DraftsView` para rejeitar eventos sintéticos de finalização; o backend permanece autoritativo.
+- `DraftMontagemRealtimeCandidate` contém somente `Id`.
+- O scan usa projeção EF sem tracking e sem `Include`, selecionando somente o identificador dos candidatos.
+- O scope do scan termina após materializar os IDs; cada candidato é enviado em um scope de comando independente.
+- `ProcessarTurnoDraftMontagemExpiradoCommandHandler` recarrega o agregado e revalida status, modo e expiração antes de agir.
+- Timeout continua registrado somente no histórico de escolhas, sem ação administrativa adicional.
+- Duração máxima cancela com exatamente uma ação administrativa atribuída a `DraftMontagemActor.System()`.
+- Persistência ocorre antes da métrica e da tentativa de publicação realtime pós-commit.
+- Exceções genéricas e cancelamentos não originados pelo host são observados por item e não interrompem os candidatos seguintes.
+- Somente o cancelamento solicitado pelo host é propagado pelo ciclo de processamento.
 
 ## TDD
 
-- RED de serviço: 1 falha esperada, `chooseDraftMontagemMode is not a function`.
-- RED de componentes: 16 falhas esperadas cobrindo panel, setup, board, view, rail, header e i18n.
-- GREEN focado: 8 arquivos e 285 testes aprovados antes da regressão adicional de início realtime na view.
-- GREEN final: 38 arquivos e 499 testes aprovados.
-- RED da revisão: 8 falhas esperadas cobrindo os seis findings, após correção de um erro isolado na fixture do teste de reconciliação.
-- GREEN focado da revisão: 4 arquivos e 209 testes aprovados, sem warnings de acessibilidade do Reka.
-- GREEN final após revisão: 38 arquivos e 507 testes aprovados.
+- RED confirmado: o focused build falhou pela ausência de `DraftMontagemRealtimeCandidate` e `ProcessarTurnoDraftMontagemExpiradoCommand`.
+- GREEN focado: 8 testes aprovados, 0 falhas e 0 ignorados.
+- Cobertura focada: formato do candidato, SQL somente ID, scopes por item, continuidade após exceção, cancelamento do host, recarga/revalidação, timeout sem auditoria e cancelamento `System` único.
 
 ## Verificação
 
-- `npm run lint:check`: aprovado.
-- `npm test`: 38 arquivos, 507 testes aprovados.
-- `npm run build`: aprovado.
+- Testes focados Release: 8 aprovados, 0 falhas, 0 ignorados.
+- Build Release da solução: aprovado com 0 warnings e 0 erros.
 - `git diff --check`: aprovado.
-- Build manteve avisos preexistentes de anotações `PURE` em dependências e chunk principal acima de 500 kB.
-
-## Screenshots
-
-O navegador não foi executado nesta task; nenhuma screenshot foi gerada.
+- `tasks.md` e planos não foram alterados.
 
 ## Auditoria de internacionalização
 
-- Sim: nenhum texto visível novo ficou hardcoded nos componentes de draft.
-- Sim: nenhum hardcode de mensagem foi introduzido no backend.
-- Sim: `pt.json` e `en.json` possuem chaves equivalentes e o teste de sincronização passou.
-- Sim: resources backend permanecem adequados; esta task não adicionou mensagem de backend.
-- Sim: acentuação em português foi revisada, incluindo “Próxima”, “capitães”, “histórico” e “não”.
-- Sim: títulos, botões, badges, mensagens de estado e textos vazios afetados foram revisados.
-- Sim: os novos estados e feedbacks frontend usam Vue I18n; não houve nova validação backend.
-- Sim: todos os arquivos alterados respeitam o padrão de internacionalização.
+- Sim: nenhum texto visível hardcoded foi adicionado ao frontend.
+- Sim: nenhuma mensagem de API hardcoded foi adicionada ao backend; o único texto novo é log técnico estruturado por ID.
+- Sim: `pt.json` e `en.json` permanecem sincronizados, pois não foram alterados.
+- Sim: resources backend permanecem atualizados, pois nenhuma mensagem de usuário foi criada.
+- Sim: a acentuação em português foi revisada neste relatório; não houve novo texto de produto.
+- Sim: placeholders, botões, títulos, badges, toasts e estados vazios não foram afetados.
+- Sim: validações frontend/backend não receberam mensagens novas e continuam usando os mecanismos existentes de i18n/resources.
+- Sim: todos os novos arquivos respeitam o padrão de internacionalização.
 
 ## Preocupações
 
-- O build continua reportando o bundle principal com aproximadamente 735 kB antes de gzip; não foi introduzida dependência nova nesta task.
-- A validação visual em navegador ficou para uma etapa posterior, conforme a ausência de execução de browser nesta task.
+- A validação executada foi o gate solicitado de testes focados mais build; a suíte backend completa não foi executada nesta unidade.

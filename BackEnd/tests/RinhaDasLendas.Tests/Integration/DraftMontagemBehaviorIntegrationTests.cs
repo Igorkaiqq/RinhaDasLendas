@@ -1745,7 +1745,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdAsync(id, cancellationToken);
         public Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.GetByIdIncludingArchivedAsync(id, cancellationToken);
         public Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdIncludingArchivedAsync(id, cancellationToken);
-        public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredRealtimeAsync(now, limit, cancellationToken);
+        public Task<IReadOnlyCollection<DraftMontagemRealtimeCandidate>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredRealtimeAsync(now, limit, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredPresenceAsync(now, limit, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => inner.ListActiveForDiscordAsync(cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, includeArchived, page, pageSize, cancellationToken);

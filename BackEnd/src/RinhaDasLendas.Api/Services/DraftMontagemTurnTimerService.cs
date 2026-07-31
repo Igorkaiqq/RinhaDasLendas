@@ -1,8 +1,6 @@
 using MediatR;
-using RinhaDasLendas.Api.Observability;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
-using RinhaDasLendas.Application.Dtos;
-using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Api.Services;
@@ -18,7 +16,7 @@ public sealed class DraftMontagemTurnTimerService(IServiceScopeFactory scopeFact
         {
             try
             {
-                await ProcessExpiredTurnsAsync(stoppingToken);
+                await RunCycleAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -31,32 +29,38 @@ public sealed class DraftMontagemTurnTimerService(IServiceScopeFactory scopeFact
         }
     }
 
-    private async Task ProcessExpiredTurnsAsync(CancellationToken cancellationToken)
+    internal async Task<int> RunCycleAsync(CancellationToken cancellationToken)
     {
-        using var scope = scopeFactory.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
-        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
-        var metrics = scope.ServiceProvider.GetRequiredService<ApiMetrics>();
-        var now = DateTimeOffset.UtcNow;
-        var expired = await repository.ListExpiredRealtimeAsync(now, 25, cancellationToken);
-        foreach (var montagem in expired)
+        IReadOnlyCollection<DraftMontagemRealtimeCandidate> candidates;
+        using (var scanScope = scopeFactory.CreateScope())
         {
-            if (RealtimeDurationExpired(montagem, now))
-            {
-                metrics.RecordStuckDraft(montagem.Id);
-                await sender.Send(new CancelarDraftMontagemCommand(montagem.Id, new CancelarDraftMontagemRequestDto(null)), cancellationToken);
-                continue;
-            }
-
-            await sender.Send(new AvancarTurnoDraftMontagemTimeoutCommand(montagem.Id), cancellationToken);
+            var repository = scanScope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
+            candidates = await repository.ListExpiredRealtimeAsync(DateTimeOffset.UtcNow, 25, cancellationToken);
         }
-    }
 
-    private bool RealtimeDurationExpired(DraftMontagem montagem, DateTimeOffset now)
-    {
-        var startedAt = montagem.Escolhas.OrderBy(escolha => escolha.RegistradoEm).FirstOrDefault()?.RegistradoEm
-            ?? montagem.TurnoIniciadoEm;
+        var processed = 0;
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                using var commandScope = scopeFactory.CreateScope();
+                var sender = commandScope.ServiceProvider.GetRequiredService<ISender>();
+                await sender.Send(
+                    new ProcessarTurnoDraftMontagemExpiradoCommand(candidate.Id, maxRealtimeDuration),
+                    cancellationToken);
+                processed++;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to process expired draft montagem turn {DraftMontagemId}.", candidate.Id);
+            }
+        }
 
-        return startedAt is not null && now - startedAt.Value >= maxRealtimeDuration;
+        return processed;
     }
 }
