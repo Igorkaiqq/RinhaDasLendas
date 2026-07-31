@@ -575,6 +575,11 @@
       "clearFilters": "Clear filters",
       "retry": "Try again"
     },
+    "audit": {
+      "actor": {
+        "system": "System"
+      }
+    },
     "archive": {
       "filter": "Include archived",
       "badge": "Archived",

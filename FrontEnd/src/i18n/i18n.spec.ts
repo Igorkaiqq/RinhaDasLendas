@@ -656,6 +656,11 @@ describe('i18n', () => {
     }
   })
 
+  it('provides localized system authorship without a user identifier', () => {
+    expect(pt.drafts.audit.actor.system).toBe('Sistema')
+    expect(en.drafts.audit.actor.system).toBe('System')
+  })
+
   it('uses the ellipsis character for reviewed loading and saving copy', () => {
     const reviewed = [
       pt.common.saving,

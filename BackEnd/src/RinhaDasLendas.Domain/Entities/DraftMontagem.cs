@@ -955,10 +955,17 @@ public sealed class DraftMontagem
 
     public void Cancelar(string? motivo)
     {
-        Cancelar(motivo, null);
+        Cancelar(motivo, (DraftMontagemActor?)null);
     }
 
     public void Cancelar(string? motivo, Guid? responsavelUsuarioId)
+    {
+        Cancelar(
+            motivo,
+            responsavelUsuarioId is Guid usuarioId ? DraftMontagemActor.User(usuarioId) : null);
+    }
+
+    public void Cancelar(string? motivo, DraftMontagemActor? responsavel)
     {
         if (Status is DraftMontagemStatus.Finalizada or DraftMontagemStatus.Cancelada)
         {
@@ -968,7 +975,7 @@ public sealed class DraftMontagem
         Status = DraftMontagemStatus.Cancelada;
         LimparTurno();
         MotivoCancelamento = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
-        if (responsavelUsuarioId is Guid responsavel)
+        if (responsavel is not null)
         {
             _acoesAdministrativas.Add(new DraftMontagemAcaoAdministrativa("Cancelamento", responsavel, MotivoCancelamento));
         }

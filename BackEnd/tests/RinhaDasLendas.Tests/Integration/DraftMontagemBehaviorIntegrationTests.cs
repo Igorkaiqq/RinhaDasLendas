@@ -1192,7 +1192,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
             return await dbContext.DraftMontagemAcoesAdministrativas
                 .AsNoTracking()
                 .Where(item => item.DraftMontagemId == draftId)
-                .Select(item => new ValueTuple<string, Guid, Guid, string?>(item.Tipo, item.ResponsavelUsuarioId, item.JogadorAlvoId!.Value, item.Motivo))
+                .Select(item => new ValueTuple<string, Guid, Guid, string?>(item.Tipo, item.ResponsavelUsuarioId!.Value, item.JogadorAlvoId!.Value, item.Motivo))
                 .SingleAsync();
         }
 

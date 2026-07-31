@@ -277,6 +277,7 @@ function adminProjection(status: DraftMontagemStatus = montagem.status, auditRea
       {
         id: `acao-${auditReason}`,
         tipo: 'RepublicacaoDiscord:Presenca',
+        responsavelTipo: 'User',
         responsavelUsuarioId: 'organizador-1',
         motivo: auditReason,
         registradoEm: '2026-07-19T12:00:00Z',
@@ -305,6 +306,7 @@ function adminProjectionB(auditReason = 'auditoria B'): DraftMontagemAdmin {
       {
         id: 'acao-b',
         tipo: 'RepublicacaoDiscord:Presenca',
+        responsavelTipo: 'User',
         responsavelUsuarioId: 'organizador-1',
         motivo: auditReason,
         registradoEm: '2026-07-20T12:00:00Z',
@@ -3376,6 +3378,7 @@ describe('DraftsView reason actions', () => {
       acoes: [{
         id: 'acao-1',
         tipo: 'Arquivamento',
+        responsavelTipo: 'User',
         responsavelUsuarioId: 'admin-action',
         motivo: 'Solicitação administrativa',
         registradoEm: '2026-07-26T12:00:00Z',
@@ -3403,6 +3406,36 @@ describe('DraftsView reason actions', () => {
 
     expect(serviceMocks.restoreDraftMontagem).toHaveBeenCalledWith(montagem.id, 8)
     expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagem.id)
+    wrapper.unmount()
+  })
+
+  it('renders a localized system actor without a blank or fake user id', async () => {
+    const archived = { ...montagem, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    const archivedSummary = { ...resumo, status: 'Cancelada' as const, arquivado: true, versaoEstado: 8 }
+    serviceMocks.listDraftMontagens.mockResolvedValue([archivedSummary])
+    serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({
+      draft: archived,
+      arquivadoEm: null,
+      arquivadoPorUsuarioId: null,
+      motivoArquivamento: null,
+      acoes: [{
+        id: 'acao-system',
+        tipo: 'CancelamentoPorArquivamento',
+        responsavelTipo: 'System',
+        responsavelUsuarioId: null,
+        motivo: null,
+        registradoEm: '2026-07-26T12:00:00Z',
+      }],
+    })
+
+    const wrapper = await mountView()
+    wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('update:includeArchived', true)
+    await flushPromises()
+
+    const text = wrapper.get('[data-archived-workspace]').text()
+    expect(text).toContain('Sistema')
+    expect(text).not.toContain('Responsável:')
+    expect(text).not.toContain('00000000-0000-0000-0000-000000000000')
     wrapper.unmount()
   })
 

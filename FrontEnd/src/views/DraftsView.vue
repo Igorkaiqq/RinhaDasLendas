@@ -51,7 +51,7 @@ import {
 import { DraftMontagemRealtimeConnection } from '@/services/draftMontagemRealtime'
 import { resolveInitialDraftId } from '@/services/draftRoute'
 import { DraftMontagemEstadoValues, DraftMontagemOrdemEscolhaModoValues, DraftMontagemPresencaStatusValues, DraftMontagemStatusValues } from '@/constants/draftMontagem'
-import type { DraftConnectionStatus, DraftMontagem, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemModo, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
+import type { DraftConnectionStatus, DraftMontagem, DraftMontagemAcaoAdministrativa, DraftMontagemAdmin, DraftMontagemArquivamento, DraftMontagemLayoutPayload, DraftMontagemModo, DraftMontagemPayload, DraftMontagemPublicacaoDiscordStatus, DraftMontagemPublicacaoDiscordTipo, DraftMontagemRealtimeState, DraftMontagemResumo, DraftMontagemStatus, DraftMontagemSubstituicaoPayload } from '@/types/draftMontagem'
 
 const players = ref<Player[]>([])
 const { locale, t, te } = useI18n()
@@ -1402,6 +1402,12 @@ function archiveActionLabel(type: string) {
   return t(te(key) ? key : 'drafts.archive.actionTypes.unknown')
 }
 
+function administrativeActorLabel(action: DraftMontagemAcaoAdministrativa) {
+  return action.responsavelTipo === 'System'
+    ? t('drafts.audit.actor.system')
+    : t('drafts.archive.responsible', { id: action.responsavelUsuarioId })
+}
+
 function formatArchiveDate(value: string) {
   return new Date(value).toLocaleString(locale.value)
 }
@@ -1630,7 +1636,9 @@ function captureError(error: unknown) {
             <li v-for="action in selectedArchiving.acoes" :key="action.id">
               <strong>{{ archiveActionLabel(action.tipo) }}</strong>
               <span>{{ t('drafts.archive.eventAt', { date: formatArchiveDate(action.registradoEm) }) }}</span>
-              <span class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.responsible', { id: action.responsavelUsuarioId }) }}</span>
+              <span class="draft-archive-audit__value" data-archive-value>
+                {{ administrativeActorLabel(action) }}
+              </span>
               <span v-if="action.motivo" class="draft-archive-audit__value" data-archive-value>{{ t('drafts.archive.eventReason', { reason: action.motivo }) }}</span>
             </li>
           </ol>

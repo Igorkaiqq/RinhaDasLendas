@@ -377,12 +377,17 @@ public sealed class RinhaDasLendasDbContext(DbContextOptions<RinhaDasLendasDbCon
 
         modelBuilder.Entity<DraftMontagemAcaoAdministrativa>(entity =>
         {
-            entity.ToTable("draft_montagem_acoes_administrativas");
+            entity.ToTable(
+                "draft_montagem_acoes_administrativas",
+                table => table.HasCheckConstraint(
+                    "CK_draft_montagem_acoes_administrativas_responsavel",
+                    "(responsavel_tipo = 'User' AND responsavel_usuario_id IS NOT NULL) OR (responsavel_tipo = 'System' AND responsavel_usuario_id IS NULL)"));
             entity.HasKey(acao => acao.Id);
             entity.Property(acao => acao.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(acao => acao.DraftMontagemId).HasColumnName("draft_montagem_id").IsRequired();
             entity.Property(acao => acao.Tipo).HasColumnName("tipo").HasMaxLength(60).IsRequired();
-            entity.Property(acao => acao.ResponsavelUsuarioId).HasColumnName("responsavel_usuario_id").IsRequired();
+            entity.Property(acao => acao.ResponsavelTipo).HasColumnName("responsavel_tipo").HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(acao => acao.ResponsavelUsuarioId).HasColumnName("responsavel_usuario_id");
             entity.Property(acao => acao.JogadorAlvoId).HasColumnName("jogador_alvo_id");
             entity.Property(acao => acao.Motivo).HasColumnName("motivo").HasMaxLength(500);
             entity.Property(acao => acao.RegistradoEm).HasColumnName("registrado_em").IsRequired();

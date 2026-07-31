@@ -89,11 +89,25 @@ public sealed record DraftMontagemAdminResponseDto(
     }
 }
 
-public sealed record DraftMontagemAcaoAdministrativaResponseDto(Guid Id, string Tipo, Guid ResponsavelUsuarioId, Guid? JogadorAlvoId, string? Motivo, DateTimeOffset RegistradoEm)
+public sealed record DraftMontagemAcaoAdministrativaResponseDto(
+    Guid Id,
+    string Tipo,
+    DraftMontagemActorType ResponsavelTipo,
+    Guid? ResponsavelUsuarioId,
+    Guid? JogadorAlvoId,
+    string? Motivo,
+    DateTimeOffset RegistradoEm)
 {
     public static DraftMontagemAcaoAdministrativaResponseDto FromEntity(DraftMontagemAcaoAdministrativa acao)
     {
-        return new DraftMontagemAcaoAdministrativaResponseDto(acao.Id, acao.Tipo, acao.ResponsavelUsuarioId, acao.JogadorAlvoId, acao.Motivo, acao.RegistradoEm);
+        return new DraftMontagemAcaoAdministrativaResponseDto(
+            acao.Id,
+            acao.Tipo,
+            acao.ResponsavelTipo,
+            acao.ResponsavelUsuarioId,
+            acao.JogadorAlvoId,
+            acao.Motivo,
+            acao.RegistradoEm);
     }
 }
 
