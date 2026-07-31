@@ -225,8 +225,8 @@ Expected: PASS, zero old-helper/notifier-surface refs, exact availability events
 - Modify: `BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagem.cs`
 - Modify: `BackEnd/src/RinhaDasLendas.Application/Dtos/DraftMontagemAdminResponseDto.cs`
 - Modify: `BackEnd/src/RinhaDasLendas.Infrastructure/Persistence/RinhaDasLendasDbContext.cs`
-- Create: `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260730180000_AddDraftMontagemSystemActor.cs`
-- Create: `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260730180000_AddDraftMontagemSystemActor.Designer.cs`
+- Create: `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260731012844_AddDraftMontagemSystemActor.cs`
+- Create: `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260731012844_AddDraftMontagemSystemActor.Designer.cs`
 - Modify: `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/RinhaDasLendasDbContextModelSnapshot.cs`
 - Modify: `FrontEnd/src/types/draftMontagem.ts`
 - Modify: `FrontEnd/src/views/DraftsView.vue`

@@ -85,7 +85,7 @@ docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet ef database update --pr
 docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/RinhaDasLendas.sln --configuration Release --filter FullyQualifiedName~Migration
 ```
 
-Expected: existing audit rows are `User`, system rows allow null user FK, consistency constraint rejects invalid combinations, and rollback script is reviewed before deployment.
+Expected: existing audit rows are `User`, system rows allow null user FK and the consistency constraint rejects invalid combinations. Schema downgrade succeeds only before the first `System` action; afterward an explicit `P0001` guard preserves the additive schema and requires roll-forward. Application rollback MUST keep this compatible schema.
 
 ## 4. Frontend Verification
 

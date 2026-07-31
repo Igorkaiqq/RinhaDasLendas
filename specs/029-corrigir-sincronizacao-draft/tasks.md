@@ -134,14 +134,14 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 5: Actor Migration and Administrative Audit
 
-- [ ] T042 [P] [US3] Write failing actor factory/entity/DTO tests for `User` and `System` nullability in `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemSystemActorMigrationTests.cs`
-- [ ] T043 [P] [US3] Write failing localized system-actor rendering and synchronized locale-key tests in `FrontEnd/src/views/DraftsView.spec.ts` and `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T044 [US3] Run the Unit 5 RED backend/frontend suites and confirm current contracts require a human user ID in `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemSystemActorMigrationTests.cs` and `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T045 [US3] Implement actor enum/value object, factories and administrative entity invariants in `BackEnd/src/RinhaDasLendas.Domain/Enums/DraftMontagemActorType.cs`, `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemActor.cs`, `BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagemAcaoAdministrativa.cs` and `BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagem.cs`
-- [ ] T046 [US3] Update nullable actor DTO mapping and EF configuration in `BackEnd/src/RinhaDasLendas.Application/Dtos/DraftMontagemAdminResponseDto.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Persistence/RinhaDasLendasDbContext.cs`
-- [ ] T047 [US3] Add the additive backfill/nullability/check-constraint migration and snapshot in `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260730180000_AddDraftMontagemSystemActor.cs`, `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260730180000_AddDraftMontagemSystemActor.Designer.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/RinhaDasLendasDbContextModelSnapshot.cs`
-- [ ] T048 [US3] Expose and render `responsavelTipo` with localized `Sistema`/`System` instead of a fake/blank user ID in `FrontEnd/src/types/draftMontagem.ts`, `FrontEnd/src/views/DraftsView.vue`, `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
-- [ ] T049 [US3] Run the Unit 5 migration/backend build and frontend tests/build to prove valid system audit rendering in `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
+- [x] T042 [P] [US3] Write failing actor factory/entity/DTO tests for `User` and `System` nullability in `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemSystemActorMigrationTests.cs`
+- [x] T043 [P] [US3] Write failing localized system-actor rendering and synchronized locale-key tests in `FrontEnd/src/views/DraftsView.spec.ts` and `FrontEnd/src/i18n/i18n.spec.ts`
+- [x] T044 [US3] Run the Unit 5 RED backend/frontend suites and confirm current contracts require a human user ID in `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemSystemActorMigrationTests.cs` and `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T045 [US3] Implement actor enum/value object, factories and administrative entity invariants in `BackEnd/src/RinhaDasLendas.Domain/Enums/DraftMontagemActorType.cs`, `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemActor.cs`, `BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagemAcaoAdministrativa.cs` and `BackEnd/src/RinhaDasLendas.Domain/Entities/DraftMontagem.cs`
+- [x] T046 [US3] Update nullable actor DTO mapping and EF configuration in `BackEnd/src/RinhaDasLendas.Application/Dtos/DraftMontagemAdminResponseDto.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Persistence/RinhaDasLendasDbContext.cs`
+- [x] T047 [US3] Add the additive backfill/nullability/check-constraint migration and snapshot in `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260731012844_AddDraftMontagemSystemActor.cs`, `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/20260731012844_AddDraftMontagemSystemActor.Designer.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Migrations/RinhaDasLendasDbContextModelSnapshot.cs`
+- [x] T048 [US3] Expose and render `responsavelTipo` with localized `Sistema`/`System` instead of a fake/blank user ID in `FrontEnd/src/types/draftMontagem.ts`, `FrontEnd/src/views/DraftsView.vue`, `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
+- [x] T049 [US3] Run the Unit 5 migration/backend build and frontend tests/build to prove valid system audit rendering in `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
 
 ### Implementation Unit 6: Turn Candidates and Timer
 
