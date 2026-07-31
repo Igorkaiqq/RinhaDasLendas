@@ -115,12 +115,12 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 9: Version Lanes, Personalized Sequence and Conflict
 
-- [ ] T036 [P] [US1] Write failing flat-response and mutation API conflict tests in `FrontEnd/src/services/draftMontagens.spec.ts`
-- [ ] T037 [P] [US1] Write failing tests for strict greater shared versions, draft/generation rejection, passive/mutation request lanes, passive administrative detail, global personalized sequence, official-clock offset, exact initial/recovery start -> Join -> canonical GET health gate, failed GET degradation, fixed 3000 ms fallback cadence, 2000 ms request timeout/no overlap and GET-before-unlock on 409 in `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T038 [US1] Run the Unit 9 RED suites and confirm equal-version shared merge and one global request gate fail in `FrontEnd/src/services/draftMontagens.spec.ts` and `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T039 [US1] Preserve flat HTTP parsing and expose structured conflict handling in `FrontEnd/src/services/draftMontagens.ts`
-- [ ] T040 [US1] Implement draft/generation/version acceptance, passive/mutation lanes including canonical administrative detail, global personalized sequencing, start + Join + canonical GET health gating, failed-GET degradation, fixed 3000 ms fallback with 2000 ms timeout/no overlap, accepted `serverNow` offset and mutation locking through immediate canonical GET in `FrontEnd/src/views/DraftsView.vue`
-- [ ] T041 [US1] Run the Unit 9 focused frontend suites and production build to prove lower/equal shared snapshots never regress canonical state in `FrontEnd/src/services/draftMontagens.spec.ts`, `FrontEnd/src/views/DraftsView.spec.ts` and `FrontEnd/package.json`
+- [x] T036 [P] [US1] Write failing flat-response and mutation API conflict tests in `FrontEnd/src/services/draftMontagens.spec.ts`
+- [x] T037 [P] [US1] Write failing tests for strict greater shared versions, draft/generation rejection, passive/mutation request lanes, passive administrative detail, global personalized sequence, official-clock offset, exact initial/recovery start -> Join -> canonical GET health gate, failed GET degradation, fixed 3000 ms fallback cadence, 2000 ms request timeout/no overlap and GET-before-unlock on 409 in `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T038 [US1] Run the Unit 9 RED suites and confirm equal-version shared merge and one global request gate fail in `FrontEnd/src/services/draftMontagens.spec.ts` and `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T039 [US1] Preserve flat HTTP parsing and expose structured conflict handling in `FrontEnd/src/services/draftMontagens.ts`
+- [x] T040 [US1] Implement draft/generation/version acceptance, passive/mutation lanes including canonical administrative detail, global personalized sequencing, start + Join + canonical GET health gating, failed-GET degradation, fixed 3000 ms fallback with 2000 ms timeout/no overlap, accepted `serverNow` offset and mutation locking through immediate canonical GET in `FrontEnd/src/views/DraftsView.vue`
+- [x] T041 [US1] Run the Unit 9 focused frontend suites and production build to prove lower/equal shared snapshots never regress canonical state in `FrontEnd/src/services/draftMontagens.spec.ts`, `FrontEnd/src/views/DraftsView.spec.ts` and `FrontEnd/package.json`
 
 **Checkpoint**: User Story 1 is independently functional across backend and frontend; every visible commit attempts identity-safe publication, versions are monotonic, and conflicts reconcile before retry.
 
