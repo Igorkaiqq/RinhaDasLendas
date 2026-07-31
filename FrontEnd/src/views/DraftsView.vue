@@ -102,6 +102,7 @@ let fallbackRequestInFlight = false
 let canonicalRequestController: AbortController | null = null
 let adminRequestController: AbortController | null = null
 let conflictRequestController: AbortController | null = null
+let canonicalAcceptanceId = 0
 
 type DraftUpdateLane = 'passive' | 'mutation'
 
@@ -111,6 +112,7 @@ interface DraftUpdateContext {
   lane: DraftUpdateLane
   requestId: number
   personalizedSequence?: number
+  holdSaving?: boolean
 }
 
 const captainSelection = ref<string[]>([])
@@ -331,6 +333,7 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   mutationRequestId = 0
   personalizedSequence = 0
   lastPersonalizedSequence = 0
+  canonicalAcceptanceId = 0
   highestSharedVersion = 0
   connectionStatus.value = 'disconnected'
   stopFallback()
@@ -416,18 +419,19 @@ async function applyMutationRealtimeState(context: DraftUpdateContext, state: Dr
 
 function applyPersonalizedRealtimeMetadata(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
   const sequence = context.personalizedSequence
-  if (sequence === undefined || sequence <= lastPersonalizedSequence || state.montagem.versaoEstado < highestSharedVersion) return
+  if (sequence === undefined || sequence <= lastPersonalizedSequence || state.montagem.versaoEstado < highestSharedVersion) return false
   lastPersonalizedSequence = sequence
   canCurrentUserPick.value = state.canCurrentUserPick
   const serverNow = Date.parse(state.serverNow)
   if (Number.isFinite(serverNow)) serverClockOffsetMs.value = serverNow - Date.now()
+  return true
 }
 
 function applyPersonalizedRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
   if (!isCurrentUpdate(context) || state.montagem.id !== context.draftId) return false
-  applySharedProjection(context, state.montagem)
-  applyPersonalizedRealtimeMetadata(context, state)
-  return true
+  const sharedApplied = applySharedProjection(context, state.montagem)
+  const metadataApplied = applyPersonalizedRealtimeMetadata(context, state)
+  return sharedApplied || metadataApplied
 }
 
 async function loadPersonalizedRealtimeState(id: string, generation: number, signal = canonicalRequestController?.signal) {
@@ -437,6 +441,7 @@ async function loadPersonalizedRealtimeState(id: string, generation: number, sig
   const state = await getDraftMontagemRealtimeState(id, signal)
   if (!isCurrentUpdate(context)) return false
   if (!applyPersonalizedRealtimeState(context, state)) return false
+  canonicalAcceptanceId++
   return isActiveDraft(id, generation)
 }
 
@@ -658,7 +663,7 @@ async function confirmPresence() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -676,7 +681,7 @@ async function cancelPresence() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -725,7 +730,7 @@ async function closePresence(continueWithLess = false) {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -749,7 +754,7 @@ async function chooseMode(modo: DraftMontagemModo) {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -794,7 +799,7 @@ async function defineCaptains() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -822,7 +827,7 @@ async function drawPickOrder() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -997,7 +1002,7 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -1021,7 +1026,7 @@ async function startRealtime() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -1057,7 +1062,7 @@ async function pickRealtime(jogadorId: string) {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -1110,7 +1115,7 @@ async function substituteReserve(payload: DraftMontagemSubstituicaoPayload, comp
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
     complete?.(completed)
   }
 }
@@ -1126,7 +1131,7 @@ async function drawMontagemCaptains() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -1156,7 +1161,7 @@ async function finalizeMontagem() {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) {
+    if (canReleaseMutation(context)) {
       saving.value = false
       if (completed) await restoreStageFocus()
     }
@@ -1261,7 +1266,7 @@ async function republishArchivedCancellation(publicationStatus: DraftMontagemPub
       else captureError(error)
     }
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -1363,7 +1368,7 @@ async function confirmReasonAction(reason: string | null) {
       }
     }
   } finally {
-    if (isActiveDraft(context.draftId, context.generation)) saving.value = false
+    if (canReleaseMutation(context)) saving.value = false
   }
 }
 
@@ -1452,18 +1457,36 @@ async function restoreStageFocus() {
 async function captureMutationError(error: unknown, context: DraftUpdateContext) {
   if (!isActiveDraft(context.draftId, context.generation)) return
   if (error instanceof DraftMontagemServiceError && error.status === 409) {
+    context.holdSaving = true
     try {
-      const reconciled = await loadPersonalizedRealtimeState(
-        context.draftId,
-        context.generation,
-        conflictRequestController?.signal,
-      )
-      if (reconciled) scheduleAdministrativeDetail(context.draftId, context.generation)
+      if (await reconcileMutationConflict(context)) {
+        context.holdSaving = false
+        scheduleAdministrativeDetail(context.draftId, context.generation)
+      }
     } catch {
       // The mutation remains failed; the original conflict is still surfaced after reconciliation fails.
     }
   }
   if (isActiveDraft(context.draftId, context.generation)) captureError(error)
+}
+
+async function reconcileMutationConflict(mutationContext: DraftUpdateContext) {
+  const signal = conflictRequestController?.signal
+  if (!signal || signal.aborted) return false
+  const acceptanceAtStart = canonicalAcceptanceId
+  const context = beginDraftUpdate(mutationContext.draftId, mutationContext.generation, 'mutation', true)
+  if (!context) return false
+  const state = await getDraftMontagemRealtimeState(context.draftId, signal)
+  if (!isCurrentUpdate(context) || state.montagem.id !== context.draftId) return false
+  if (applyPersonalizedRealtimeState(context, state)) {
+    canonicalAcceptanceId++
+    return true
+  }
+  return canonicalAcceptanceId > acceptanceAtStart
+}
+
+function canReleaseMutation(context: DraftUpdateContext) {
+  return isActiveDraft(context.draftId, context.generation) && !context.holdSaving
 }
 
 function captureError(error: unknown) {

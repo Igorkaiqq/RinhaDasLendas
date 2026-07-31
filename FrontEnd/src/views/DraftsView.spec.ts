@@ -803,6 +803,86 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('accepts conflict canonical state while a broadcast passive GET is pending', async () => {
+    const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    serviceMocks.saveDraftMontagemLayout.mockRejectedValueOnce(new ServiceError([], 409))
+    const wrapper = await mountView()
+    const conflict = deferred<DraftMontagemRealtimeState>()
+    const passive = deferred<DraftMontagemRealtimeState>()
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockReturnValueOnce(conflict.promise)
+      .mockReturnValueOnce(passive.promise)
+    const payload = { times: [], livres: [], reservas: [], versaoEstado: montagem.versaoEstado }
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('save', payload)
+    await vi.waitFor(() => expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2))
+    const broadcast = realtimeMock.handlers.get(montagem.id)?.({
+      montagem: { ...montagem, nome: 'broadcast', status: 'Aberta', versaoEstado: 8 },
+      serverNow: montagem.dataAtualizacao,
+    })
+    await vi.waitFor(() => expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(3))
+
+    conflict.resolve({
+      montagem: { ...montagem, nome: 'conflict canonical', status: 'Aberta', versaoEstado: 9 },
+      canCurrentUserPick: false,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.nome).toBe('conflict canonical')
+    expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(false)
+    expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledTimes(1)
+    passive.resolve({
+      montagem: { ...montagem, nome: 'passive stale', status: 'Aberta', versaoEstado: 8 },
+      canCurrentUserPick: true,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await broadcast
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.nome).toBe('conflict canonical')
+    wrapper.unmount()
+  })
+
+  it('keeps conflict barrier locked until its stale response follows a newer passive canonical acceptance', async () => {
+    const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    serviceMocks.saveDraftMontagemLayout.mockRejectedValueOnce(new ServiceError([], 409))
+    const wrapper = await mountView()
+    const conflict = deferred<DraftMontagemRealtimeState>()
+    const passive = deferred<DraftMontagemRealtimeState>()
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockReturnValueOnce(conflict.promise)
+      .mockReturnValueOnce(passive.promise)
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('save', { times: [], livres: [], reservas: [], versaoEstado: montagem.versaoEstado })
+    await vi.waitFor(() => expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2))
+    const broadcast = realtimeMock.handlers.get(montagem.id)?.({
+      montagem: { ...montagem, nome: 'broadcast', status: 'Aberta', versaoEstado: 8 },
+      serverNow: montagem.dataAtualizacao,
+    })
+    await vi.waitFor(() => expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(3))
+    passive.resolve({
+      montagem: { ...montagem, nome: 'passive canonical', status: 'Aberta', versaoEstado: 10 },
+      canCurrentUserPick: true,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await broadcast
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.nome).toBe('passive canonical')
+    expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(true)
+    conflict.resolve({
+      montagem: { ...montagem, nome: 'conflict stale', status: 'Aberta', versaoEstado: 9 },
+      canCurrentUserPick: false,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.nome).toBe('passive canonical')
+    expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(false)
+    expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
   it('loads only the public endpoint for a regular player', async () => {
     authMock.canManageDrafts = false
     const wrapper = await mountView()
