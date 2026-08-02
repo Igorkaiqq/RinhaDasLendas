@@ -252,6 +252,7 @@ export interface DraftMontagemLayoutTimePayload {
 }
 
 export interface DraftMontagemLayoutPayload {
+  versaoEstado: number
   times: DraftMontagemLayoutTimePayload[]
   livres: DraftMontagemLayoutParticipantePayload[]
   reservas: DraftMontagemLayoutParticipantePayload[]

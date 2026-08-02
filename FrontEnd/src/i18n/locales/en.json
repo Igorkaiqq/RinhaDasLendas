@@ -580,6 +580,20 @@
         "system": "System"
       }
     },
+    "unsavedLayout": {
+      "title": "Unsaved layout changes",
+      "descriptions": {
+        "remote-update": "A newer draft version is available. Keep editing to preserve your local layout, or discard changes to apply the latest state.",
+        "switch-draft": "Switching drafts will discard this layout's local changes.",
+        "route-leave": "Leaving this page will discard this layout's local changes.",
+        "draft-removed": "This action will remove the current draft from view and discard the layout's local changes.",
+        "archive": "Archiving this draft will discard the layout's local changes before archive confirmation."
+      },
+      "keepEditing": "Keep editing",
+      "discard": "Discard changes",
+      "reconciliationRequired": "A newer version is awaiting your decision. The local layout remains protected and cannot be saved over the updated state.",
+      "reviewUpdate": "Review update"
+    },
     "archive": {
       "filter": "Include archived",
       "badge": "Archived",

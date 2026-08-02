@@ -6,6 +6,19 @@ import { i18n, setLocale } from './index'
 import { MessageCode } from '../constants/messageCode'
 import { getMessage } from '../services/messageService'
 
+const unsavedLayoutKeys = [
+  'drafts.unsavedLayout.title',
+  'drafts.unsavedLayout.descriptions.remote-update',
+  'drafts.unsavedLayout.descriptions.switch-draft',
+  'drafts.unsavedLayout.descriptions.route-leave',
+  'drafts.unsavedLayout.descriptions.draft-removed',
+  'drafts.unsavedLayout.descriptions.archive',
+  'drafts.unsavedLayout.keepEditing',
+  'drafts.unsavedLayout.discard',
+  'drafts.unsavedLayout.reconciliationRequired',
+  'drafts.unsavedLayout.reviewUpdate',
+] as const
+
 const settingsComponents = import.meta.glob('../components/settings/*.vue', {
   eager: true,
   import: 'default',
@@ -27,6 +40,16 @@ function leafPaths(source: object, prefix = ''): string[] {
     return value && typeof value === 'object' ? leafPaths(value, path) : [path]
   })
 }
+
+it('keeps every unsaved-layout decision key synchronized in Portuguese and English', () => {
+  const ptKeys = new Set(leafPaths(pt))
+  const enKeys = new Set(leafPaths(en))
+
+  for (const key of unsavedLayoutKeys) {
+    expect(ptKeys.has(key), `missing pt key ${key}`).toBe(true)
+    expect(enKeys.has(key), `missing en key ${key}`).toBe(true)
+  }
+})
 
 function findTagEnd(source: string, start: number): number {
   let quote: '"' | "'" | null = null

@@ -53,6 +53,7 @@ const authMock = vi.hoisted(() => ({
   rolesRef: null as unknown as { value: string[] },
 }))
 const routeMock = vi.hoisted(() => ({ query: {} as Record<string, string> }))
+const routeGuardMock = vi.hoisted(() => ({ guard: null as null | (() => boolean | Promise<boolean>) }))
 const realtimeMock = vi.hoisted(() => ({
   handlers: new Map<string, (state: DraftMontagemRealtimeSnapshot) => void | Promise<void>>(),
   archivedHandlers: new Map<string, (draftMontagemId: string) => void | Promise<void>>(),
@@ -71,7 +72,10 @@ serviceMocks.getDraftMontagemAdminById.mockResolvedValue = ((value: DraftMontage
   return setAdminResolvedValue(value)
 }) as typeof serviceMocks.getDraftMontagemAdminById.mockResolvedValue
 
-vi.mock('vue-router', () => ({ useRoute: () => routeMock }))
+vi.mock('vue-router', () => ({
+  useRoute: () => routeMock,
+  onBeforeRouteLeave: (guard: () => boolean | Promise<boolean>) => { routeGuardMock.guard = guard },
+}))
 
 vi.mock('@/services/authState', () => ({
   useAuthState: () => {
@@ -417,6 +421,7 @@ describe('DraftsView reason actions', () => {
     authMock.roles = ['Admin']
     if (authMock.rolesRef) authMock.rolesRef.value = ['Admin']
     routeMock.query = {}
+    routeGuardMock.guard = null
     realtimeMock.handlers.clear()
     realtimeMock.archivedHandlers.clear()
     realtimeMock.reconnectHandlers.clear()
@@ -2548,6 +2553,7 @@ describe('DraftsView reason actions', () => {
     const wrapper = await mountView()
     const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
     const payload = {
+      versaoEstado: montagem.versaoEstado,
       times: [
         { timeId: 'time-2', nome: 'Segundo', capitaoId: 'capitao-2', jogadores: [{ jogadorId: 'jogador-2', ordem: 1, rotaContextual: 'Top' as const }] },
         { timeId: 'time-1', nome: 'Primeiro', capitaoId: 'capitao-1', jogadores: [{ jogadorId: 'jogador-1', ordem: 1, rotaContextual: 'Mid' as const }] },
@@ -2559,7 +2565,7 @@ describe('DraftsView reason actions', () => {
     board.vm.$emit('save', payload)
     await flushPromises()
 
-    expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith('montagem-1', { ...payload, versaoEstado: montagem.versaoEstado })
+    expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith('montagem-1', payload)
     wrapper.unmount()
   })
 
@@ -3640,5 +3646,182 @@ describe('DraftsView reason actions', () => {
     expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens.map(({ id }) => id)).toEqual([montagemB.id])
     expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagemB.id)
     wrapper.unmount()
+  })
+
+  it('queues the greatest remote canonical version while preserving a dirty board', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+    await emitRealtime(montagem.id, { ...montagem, status: 'Aberta', nome: 'Remote 8', versaoEstado: 8 })
+    await emitRealtime(montagem.id, { ...montagem, status: 'Aberta', nome: 'Remote 10', versaoEstado: 10 })
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { boardDirty: boolean; boardBaseVersion: number; pendingCanonicalSnapshot: DraftMontagem }
+    expect(vm.boardDirty).toBe(true)
+    expect(vm.boardBaseVersion).toBe(7)
+    expect(vm.pendingCanonicalSnapshot).toMatchObject({ nome: 'Remote 10', versaoEstado: expect.any(Number) })
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update')
+
+    await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.getComponent({ name: 'DraftVisualBoard' }).props('canonicalResetToken')).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('preserves dirty state and requires reconciliation after a layout 409', async () => {
+    const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
+    const open = adminProjection('Aberta')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(open)
+    serviceMocks.saveDraftMontagemLayout.mockRejectedValueOnce(new ServiceError([], 409))
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: { ...open, versaoEstado: 8 }, canCurrentUserPick: false })
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+    board.vm.$emit('save', { versaoEstado: 7, times: [], livres: [], reservas: [] })
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { boardDirty: boolean; requiresLayoutReconciliation: boolean; acceptedSaveVersion: number | null }
+    expect(vm.boardDirty).toBe(true)
+    expect(vm.requiresLayoutReconciliation).toBe(true)
+    expect(vm.acceptedSaveVersion).toBeNull()
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update')
+    wrapper.unmount()
+  })
+
+  it('blocks saving after keeping a newer remote version and reopens the same decision dialog', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+    await emitRealtime(montagem.id, { ...montagem, status: 'Aberta', versaoEstado: 8 })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await nextTick()
+    expect(wrapper.get('[data-layout-reconciliation]').text()).toContain('Há uma versão mais recente aguardando sua decisão')
+
+    board.vm.$emit('save', { versaoEstado: 7, times: [], livres: [], reservas: [] })
+    await flushPromises()
+    expect(serviceMocks.saveDraftMontagemLayout).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="review-layout-update"]').trigger('click')
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update')
+    wrapper.unmount()
+  })
+
+  it('accepts only a matching successful layout save version', async () => {
+    const open = adminProjection('Aberta')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(open)
+    serviceMocks.saveDraftMontagemLayout.mockResolvedValueOnce({ ...open, versaoEstado: 8 })
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+    board.vm.$emit('save', { versaoEstado: 7, times: [], livres: [], reservas: [] })
+    await flushPromises()
+
+    expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith(open.id, expect.objectContaining({ versaoEstado: 7 }))
+    expect(wrapper.getComponent({ name: 'DraftVisualBoard' }).props('acceptedSaveVersion')).toBe(8)
+    wrapper.unmount()
+  })
+
+  it('guards draft switching and ignores a second archive intent', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection('Aberta'))
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+
+    wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('select', montagemB.id)
+    await wrapper.get('[data-testid="archive-draft"]').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagem.id)
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('switch-draft')
+
+    await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagemB.id)
+    expect(wrapper.findComponent({ name: 'DraftReasonDialog' }).props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('guards a filter that would remove the current draft and restores trigger focus on keep', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+    const search = wrapper.get('input[name="draft-search"]')
+    ;(search.element as HTMLInputElement).focus()
+
+    await search.setValue('segunda')
+    await flushPromises()
+    expect((wrapper.vm as unknown as { searchTerm: string }).searchTerm).toBe('')
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('draft-removed')
+
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await nextTick()
+    expect(document.activeElement).toBe(search.element)
+    wrapper.unmount()
+  })
+
+  it('guards route leave and resolves it only after the explicit decision', async () => {
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('dirty-change', true, 7)
+
+    const leaving = routeGuardMock.guard!()
+    await nextTick()
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('route-leave')
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await expect(leaving).resolves.toBe(false)
+
+    const discarding = routeGuardMock.guard!()
+    await nextTick()
+    await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+    await expect(discarding).resolves.toBe(true)
+    wrapper.unmount()
+  })
+
+  it('guards remote removal and archive before either intent can discard the board', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
+    board.vm.$emit('dirty-change', true, 7)
+
+    await realtimeMock.archivedHandlers.get(montagem.id)?.(montagem.id)
+    await flushPromises()
+    expect((wrapper.vm as unknown as { selectedDraftId: string }).selectedDraftId).toBe(montagem.id)
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('draft-removed')
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+
+    await wrapper.get('[data-testid="archive-draft"]').trigger('click')
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('archive')
+    expect(wrapper.findComponent({ name: 'DraftReasonDialog' }).props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('uses native beforeunload only while dirty and removes its listener on unmount', async () => {
+    const add = vi.spyOn(window, 'addEventListener')
+    const remove = vi.spyOn(window, 'removeEventListener')
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    const listener = add.mock.calls.find(([type]) => type === 'beforeunload')?.[1] as EventListener
+    expect(listener).toBeTypeOf('function')
+
+    const clean = new Event('beforeunload', { cancelable: true })
+    listener(clean)
+    expect(clean.defaultPrevented).toBe(false)
+
+    wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('dirty-change', true, 7)
+    const dirty = new Event('beforeunload', { cancelable: true })
+    listener(dirty)
+    expect(dirty.defaultPrevented).toBe(true)
+
+    wrapper.unmount()
+    expect(remove).toHaveBeenCalledWith('beforeunload', listener)
+    add.mockRestore()
+    remove.mockRestore()
   })
 })

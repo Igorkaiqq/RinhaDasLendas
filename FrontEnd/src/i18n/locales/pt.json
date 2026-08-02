@@ -580,6 +580,20 @@
         "system": "Sistema"
       }
     },
+    "unsavedLayout": {
+      "title": "Alterações de layout não salvas",
+      "descriptions": {
+        "remote-update": "Uma versão mais recente do draft está disponível. Continue editando para preservar seu layout local ou descarte as alterações para aplicar o estado mais recente.",
+        "switch-draft": "Trocar de draft descartará as alterações locais deste layout.",
+        "route-leave": "Sair desta página descartará as alterações locais deste layout.",
+        "draft-removed": "Esta ação removerá o draft atual da visualização e descartará as alterações locais do layout.",
+        "archive": "Arquivar este draft descartará as alterações locais do layout antes da confirmação de arquivamento."
+      },
+      "keepEditing": "Continuar editando",
+      "discard": "Descartar alterações",
+      "reconciliationRequired": "Há uma versão mais recente aguardando sua decisão. O layout local permanece protegido e não pode ser salvo sobre o estado atualizado.",
+      "reviewUpdate": "Revisar atualização"
+    },
     "archive": {
       "filter": "Incluir arquivados",
       "badge": "Arquivado",

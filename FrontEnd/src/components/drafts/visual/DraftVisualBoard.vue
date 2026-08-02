@@ -23,8 +23,10 @@ import PlayerDetailsDrawer from './PlayerDetailsDrawer.vue'
 
 type BoardEvent = InstanceType<typeof globalThis.Event>
 
-const props = withDefaults(defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[] }>(), {
+const props = withDefaults(defineProps<{ montagem: DraftMontagem; saving: boolean; canManage: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[]; canonicalResetToken?: number; acceptedSaveVersion?: number | null }>(), {
   eligibleCaptainIds: () => [],
+  canonicalResetToken: 0,
+  acceptedSaveVersion: null,
 })
 const { t } = useI18n()
 const emit = defineEmits<{
@@ -35,12 +37,14 @@ const emit = defineEmits<{
   drawCaptains: []
   finalize: []
   cancel: []
+  'dirty-change': [dirty: boolean, baseVersion: number]
 }>()
 
 const localMontagem = ref<DraftMontagem>(cloneMontagem(props.montagem))
 const dragged = ref<{ jogadorId: string } | null>(null)
 const detailsPlayer = ref<DraftMontagemParticipante | null>(null)
 const dirty = ref(false)
+const baseVersion = ref(props.montagem.versaoEstado)
 const playerSearch = ref('')
 const selectedRoute = ref<DraftRouteFilterValue>(DraftRouteFilterValues.All)
 const now = ref(Date.now())
@@ -60,6 +64,7 @@ const boardShell = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
 let audioContext: AudioContext | null = null
 let lastTickSecond: number | null = null
+let outstandingSaveBaseVersion: number | null = null
 const routeFilters = DRAFT_ROUTE_FILTER_OPTIONS
 const routeByFilter = DRAFT_MONTAGEM_ROUTE_BY_FILTER
 const routeFilterI18nKeys: Record<DraftRouteFilterValue, string> = {
@@ -188,11 +193,34 @@ const substitutionContextValid = computed(() => Boolean(
 watch(
   () => props.montagem,
   (montagem) => {
-    localMontagem.value = cloneMontagem(montagem)
-    dirty.value = false
+    if (dirty.value) {
+      emit('dirty-change', true, baseVersion.value)
+      return
+    }
+    resetLocalMontagem(montagem)
     pickLocked.value = false
     substituteLocked.value = false
     if (substitutionContext.value && !substitutionContextValid.value) closeSubstitution()
+  },
+)
+
+watch(
+  () => props.canonicalResetToken,
+  () => resetLocalMontagem(props.montagem, true),
+)
+
+watch(
+  [() => props.acceptedSaveVersion, () => props.montagem.versaoEstado],
+  ([acceptedSaveVersion, canonicalVersion]) => {
+    if (
+      acceptedSaveVersion === null
+      || outstandingSaveBaseVersion === null
+      || acceptedSaveVersion <= outstandingSaveBaseVersion
+      || acceptedSaveVersion !== canonicalVersion
+    ) return
+
+    outstandingSaveBaseVersion = null
+    resetLocalMontagem(props.montagem)
   },
 )
 
@@ -237,6 +265,23 @@ onUnmounted(() => {
 
 function cloneMontagem(montagem: DraftMontagem): DraftMontagem {
   return JSON.parse(JSON.stringify(montagem)) as DraftMontagem
+}
+
+function setDirty(value: boolean) {
+  dirty.value = value
+  emit('dirty-change', value, baseVersion.value)
+}
+
+function resetLocalMontagem(montagem: DraftMontagem, closeLocalDialogs = false) {
+  localMontagem.value = cloneMontagem(montagem)
+  baseVersion.value = montagem.versaoEstado
+  dirty.value = false
+  outstandingSaveBaseVersion = null
+  if (closeLocalDialogs) {
+    detailsPlayer.value = null
+    substitutionContext.value = null
+  }
+  emit('dirty-change', false, baseVersion.value)
 }
 
 function allPlayers() {
@@ -297,7 +342,7 @@ function movePlayerById(jogadorId: string, target: 'livres' | 'reservas' | strin
     moved.capitao = time.capitaoId === moved.jogadorId
     time.jogadores.push(moved)
   }
-  dirty.value = true
+  setDirty(true)
   return true
 }
 
@@ -534,7 +579,9 @@ function toParticipantPayload(player: DraftMontagemParticipante, index: number) 
 }
 
 function save() {
+  outstandingSaveBaseVersion = baseVersion.value
   emit('save', {
+    versaoEstado: baseVersion.value,
     times: localMontagem.value.times.map((time) => ({
       timeId: time.id,
       nome: time.nome,
@@ -626,7 +673,7 @@ async function exportImage() {
               autocomplete="off"
               :aria-label="t('drafts.visualBoard.teamNameLabel', { name: time.nome })"
               :disabled="isReadOnly"
-              @input="dirty = true"
+              @input="setDirty(true)"
             />
             <strong v-else>{{ time.nome }}</strong>
             <span v-if="!isManualV2" data-team-order>{{ t('drafts.visualBoard.teamOrder', { order: time.ordem }) }}</span>
@@ -733,7 +780,7 @@ async function exportImage() {
               autocomplete="off"
               :aria-label="t('drafts.visualBoard.teamNameLabel', { name: time.nome })"
               :disabled="isReadOnly"
-              @input="dirty = true"
+              @input="setDirty(true)"
             />
             <strong v-else>{{ time.nome }}</strong>
             <span v-if="!isManualV2" data-team-order>{{ t('drafts.visualBoard.teamOrder', { order: time.ordem }) }}</span>

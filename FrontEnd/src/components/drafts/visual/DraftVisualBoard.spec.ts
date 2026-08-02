@@ -127,7 +127,7 @@ function largeMontagem(): DraftMontagem {
   }
 }
 
-function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[]; attachTo?: Element } = {}) {
+function mountBoard(draft = montagem(), overrides: { canManage?: boolean; currentPlayerId?: string | null; canCurrentUserPick?: boolean | null; serverClockOffsetMs?: number; eligibleCaptainIds?: string[]; canonicalResetToken?: number; acceptedSaveVersion?: number | null; attachTo?: Element } = {}) {
   return mount(DraftVisualBoard, {
     attachTo: overrides.attachTo,
     props: {
@@ -138,6 +138,8 @@ function mountBoard(draft = montagem(), overrides: { canManage?: boolean; curren
       canCurrentUserPick: overrides.canCurrentUserPick,
       serverClockOffsetMs: overrides.serverClockOffsetMs,
       eligibleCaptainIds: overrides.eligibleCaptainIds ?? [],
+      canonicalResetToken: overrides.canonicalResetToken ?? 0,
+      acceptedSaveVersion: overrides.acceptedSaveVersion ?? null,
     },
     global: { plugins: [i18n], stubs: { teleport: { template: '<div data-teleport-stub><slot /></div>' } } },
   })
@@ -163,6 +165,64 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it('preserves a dirty clone and its base when a higher canonical version arrives', async () => {
+    const draft = montagem()
+    const wrapper = mountBoard(draft)
+    await wrapper.get('[data-team-id="team-a"] input').setValue('Local A')
+
+    await wrapper.setProps({ montagem: { ...draft, versaoEstado: 4, times: draft.times.map((team) => ({ ...team, nome: `Remote ${team.nome}` })) } })
+
+    expect((wrapper.get('[data-team-id="team-a"] input').element as HTMLInputElement).value).toBe('Local A')
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([true, 1])
+    await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
+    expect(wrapper.emitted('save')?.slice(-1)[0]?.[0]).toMatchObject({ versaoEstado: 1 })
+    wrapper.unmount()
+  })
+
+  it('applies the current canonical clone only when the explicit reset token changes', async () => {
+    const draft = montagem()
+    const wrapper = mountBoard(draft)
+    await wrapper.get('[data-team-id="team-a"] input').setValue('Local A')
+    const remote = { ...draft, versaoEstado: 5, times: draft.times.map((team) => ({ ...team, nome: `Remote ${team.nome}` })) }
+    await wrapper.setProps({ montagem: remote })
+
+    await wrapper.setProps({ canonicalResetToken: 1 })
+
+    expect((wrapper.get('[data-team-id="team-a"] input').element as HTMLInputElement).value).toBe('Remote Team A')
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([false, 5])
+    wrapper.unmount()
+  })
+
+  it('clears dirty only for the matching accepted save projection from its outstanding base', async () => {
+    const draft = montagem()
+    const wrapper = mountBoard(draft)
+    await wrapper.get('[data-team-id="team-a"] input').setValue('Saved A')
+    await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
+
+    await wrapper.setProps({ montagem: { ...draft, versaoEstado: 2 }, acceptedSaveVersion: 3 })
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([true, 1])
+
+    await wrapper.setProps({ acceptedSaveVersion: 2 })
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([false, 2])
+    wrapper.unmount()
+  })
+
+  it('does not let a stale accepted version clear a later dirty edit', async () => {
+    const draft = montagem()
+    const wrapper = mountBoard(draft)
+    await wrapper.get('[data-team-id="team-a"] input').setValue('First edit')
+    await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
+    await wrapper.setProps({ montagem: { ...draft, versaoEstado: 2 }, acceptedSaveVersion: 2 })
+    await wrapper.get('[data-team-id="team-a"] input').setValue('Second edit')
+
+    await wrapper.setProps({ acceptedSaveVersion: 1 })
+    await wrapper.setProps({ montagem: { ...draft, versaoEstado: 2 } })
+
+    expect((wrapper.get('[data-team-id="team-a"] input').element as HTMLInputElement).value).toBe('Second edit')
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([true, 2])
+    wrapper.unmount()
+  })
+
   it('renders teams by order without changing save payload order', async () => {
     const draft = montagem()
     const wrapper = mountBoard(draft)
@@ -175,6 +235,7 @@ describe('DraftVisualBoard', () => {
     await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
 
     expect(wrapper.emitted('save')?.[0]?.[0]).toEqual({
+      versaoEstado: 1,
       times: [
         { timeId: 'team-b', nome: 'Team B renamed', capitaoId: 'captain-b', jogadores: [{ jogadorId: 'captain-b', ordem: 1, rotaContextual: 'Mid' }] },
         { timeId: 'team-a', nome: 'Team A', capitaoId: 'captain-a', jogadores: [{ jogadorId: 'captain-a', ordem: 1, rotaContextual: 'Mid' }] },

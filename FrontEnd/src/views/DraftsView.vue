@@ -1,18 +1,21 @@
 <script setup lang="ts">
+/* global document, window, HTMLElement, BeforeUnloadEvent */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
 
 import DraftNavigator from '@/components/drafts/DraftNavigator.vue'
 import DraftReasonDialog, { type DraftReasonDialogAction } from '@/components/drafts/DraftReasonDialog.vue'
 import DraftPreparationPanel from '@/components/drafts/DraftPreparationPanel.vue'
 import DraftDiscordPublicationPanel from '@/components/drafts/DraftDiscordPublicationPanel.vue'
 import DraftWorkspaceHeader from '@/components/drafts/DraftWorkspaceHeader.vue'
+import DraftUnsavedLayoutDialog, { type DraftUnsavedLayoutIntent } from '@/components/drafts/DraftUnsavedLayoutDialog.vue'
 import DraftVisualBoard from '@/components/drafts/visual/DraftVisualBoard.vue'
 import DraftVisualSetup from '@/components/drafts/visual/DraftVisualSetup.vue'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PendingPlayerProfileNotice from '@/components/users/PendingPlayerProfileNotice.vue'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AuthRoles } from '@/constants/authRoles'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
@@ -81,6 +84,13 @@ const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
+const boardDirty = ref(false)
+const boardBaseVersion = ref(0)
+const pendingCanonicalSnapshot = ref<DraftMontagem | null>(null)
+const requiresLayoutReconciliation = ref(false)
+const canonicalResetToken = ref(0)
+const acceptedSaveVersion = ref<number | null>(null)
+const pendingLayoutIntent = ref<DraftUnsavedLayoutIntent | null>(null)
 const workspaceHeader = useTemplateRef<InstanceType<typeof DraftWorkspaceHeader>>('workspaceHeader')
 const emptyWorkspace = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('emptyWorkspace')
 const adminAccessDenied = ref(false)
@@ -103,6 +113,10 @@ let canonicalRequestController: AbortController | null = null
 let adminRequestController: AbortController | null = null
 let conflictRequestController: AbortController | null = null
 let canonicalAcceptanceId = 0
+let acceptedLayoutSaveInProgress: number | null = null
+let pendingLayoutIntentAction: (() => void | Promise<void>) | null = null
+let pendingRouteResolution: ((allow: boolean) => void) | null = null
+let layoutIntentFocusTarget: HTMLElement | null = null
 
 type DraftUpdateLane = 'passive' | 'mutation'
 
@@ -251,10 +265,15 @@ const filteredDrafts = computed(() => {
 })
 
 onMounted(async () => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
   await Promise.all([loadPlayers(), loadVisualMontagens()])
 })
 
 onUnmounted(async () => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  pendingRouteResolution?.(false)
+  pendingRouteResolution = null
+  pendingLayoutIntentAction = null
   activeDraftId = null
   selectedDraftId.value = null
   activeDraftGeneration++
@@ -264,6 +283,88 @@ onUnmounted(async () => {
   manualPresenceAbortController?.abort()
   await disconnectRealtime()
 })
+
+onBeforeRouteLeave(() => {
+  if (!boardDirty.value) return true
+  if (pendingLayoutIntent.value) return false
+
+  return new Promise<boolean>((resolve) => {
+    requestLayoutIntent('route-leave', null, resolve)
+  })
+})
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (!boardDirty.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+function handleBoardDirtyChange(dirty: boolean, baseVersion: number) {
+  boardDirty.value = dirty
+  boardBaseVersion.value = baseVersion
+  if (!dirty) {
+    pendingCanonicalSnapshot.value = null
+    requiresLayoutReconciliation.value = false
+  }
+}
+
+function requestLayoutIntent(
+  intent: DraftUnsavedLayoutIntent,
+  action: (() => void | Promise<void>) | null = null,
+  routeResolution: ((allow: boolean) => void) | null = null,
+) {
+  if (!boardDirty.value) {
+    routeResolution?.(true)
+    if (action) void action()
+    return true
+  }
+  if (pendingLayoutIntent.value) {
+    routeResolution?.(false)
+    return false
+  }
+
+  pendingLayoutIntent.value = intent
+  pendingLayoutIntentAction = action
+  pendingRouteResolution = routeResolution
+  layoutIntentFocusTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  return false
+}
+
+function keepEditingLayout() {
+  const routeResolution = pendingRouteResolution
+  pendingLayoutIntent.value = null
+  pendingLayoutIntentAction = null
+  pendingRouteResolution = null
+  routeResolution?.(false)
+  void nextTick(() => layoutIntentFocusTarget?.isConnected && layoutIntentFocusTarget.focus())
+}
+
+function discardLayout() {
+  const action = pendingLayoutIntentAction
+  const routeResolution = pendingRouteResolution
+  const canonical = pendingCanonicalSnapshot.value
+  if (canonical && canonical.id === selectedMontagem.value?.id && canonical.versaoEstado >= selectedMontagem.value.versaoEstado) {
+    applyPublicMontagemState(canonical)
+  }
+  canonicalResetToken.value++
+  boardDirty.value = false
+  boardBaseVersion.value = selectedMontagem.value?.versaoEstado ?? 0
+  pendingCanonicalSnapshot.value = null
+  requiresLayoutReconciliation.value = false
+  pendingLayoutIntent.value = null
+  pendingLayoutIntentAction = null
+  pendingRouteResolution = null
+  routeResolution?.(true)
+  if (action) void action()
+}
+
+function queueCanonicalSnapshot(montagem: DraftMontagem) {
+  if (!pendingCanonicalSnapshot.value || montagem.versaoEstado > pendingCanonicalSnapshot.value.versaoEstado) {
+    pendingCanonicalSnapshot.value = montagem
+  }
+  requiresLayoutReconciliation.value = true
+  requestLayoutIntent('remote-update')
+}
 
 async function loadPlayers() {
   try {
@@ -529,6 +630,11 @@ function applySharedProjection(context: DraftUpdateContext, montagem: DraftMonta
 
   highestSharedVersion = montagem.versaoEstado
   applyPublicMontagemState(montagem)
+  if (
+    boardDirty.value
+    && montagem.versaoEstado > boardBaseVersion.value
+    && montagem.versaoEstado !== acceptedLayoutSaveInProgress
+  ) queueCanonicalSnapshot(montagem)
   return true
 }
 
@@ -985,23 +1091,23 @@ async function saveMontagem(payload: DraftMontagemPayload) {
 }
 
 async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
-  if (saving.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
+  if (saving.value || requiresLayoutReconciliation.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
+  acceptedSaveVersion.value = null
   errors.value = []
   try {
-    const requestPayload = {
-      ...payload,
-      versaoEstado: (payload as DraftMontagemLayoutPayload & { versaoEstado?: number }).versaoEstado ?? selectedMontagem.value.versaoEstado,
-    }
-    const montagem = await saveDraftMontagemLayout(context.draftId, requestPayload)
+    const montagem = await saveDraftMontagemLayout(context.draftId, payload)
+    acceptedLayoutSaveInProgress = montagem.versaoEstado
     if (!(await applyMutationProjection(context, montagem))) return
+    acceptedSaveVersion.value = montagem.versaoEstado
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
+    acceptedLayoutSaveInProgress = null
     if (canReleaseMutation(context)) saving.value = false
   }
 }
@@ -1188,8 +1294,24 @@ async function resetFilters() {
 }
 
 function updateStatusFilter(value: DraftMontagemStatus | '') {
+  if (selectedMontagem.value && value && selectedMontagem.value.status !== value) {
+    requestLayoutIntent('draft-removed', () => {
+      selectedStatus.value = value
+      return loadVisualMontagens()
+    })
+    return
+  }
   selectedStatus.value = value
   void loadVisualMontagens()
+}
+
+function updateSearchFilter(value: string) {
+  const currentName = visualMontagens.value.find((draft) => draft.id === selectedDraftId.value)?.nome ?? selectedMontagem.value?.nome
+  if (currentName && value.trim() && !currentName.toLowerCase().includes(value.trim().toLowerCase())) {
+    requestLayoutIntent('draft-removed', () => { searchTerm.value = value })
+    return
+  }
+  searchTerm.value = value
 }
 
 async function updateArchivedFilter(value: boolean) {
@@ -1205,11 +1327,13 @@ async function updateArchivedFilter(value: boolean) {
 function requestDraftArchive() {
   const draft = selectedMontagem.value
   if (saving.value || !draft || draft.arquivado || !canArchiveDrafts.value) return
-  pendingReasonAction.value = {
-    type: 'archiveDraft',
-    draftName: draft.nome,
-    cancelsActiveDraft: draft.status !== DraftMontagemStatusValues.Finalizada && draft.status !== DraftMontagemStatusValues.Cancelada,
-  }
+  requestLayoutIntent('archive', () => {
+    pendingReasonAction.value = {
+      type: 'archiveDraft',
+      draftName: draft.nome,
+      cancelsActiveDraft: draft.status !== DraftMontagemStatusValues.Finalizada && draft.status !== DraftMontagemStatusValues.Cancelada,
+    }
+  })
 }
 
 function requestDraftRestore() {
@@ -1373,6 +1497,10 @@ async function confirmReasonAction(reason: string | null) {
 }
 
 async function removeArchivedAndReconcile(draftId: string, previousIndex: number, restoreFocus = false, reload = true) {
+  if (selectedDraftId.value === draftId && boardDirty.value) {
+    requestLayoutIntent('draft-removed', () => removeArchivedAndReconcile(draftId, previousIndex, restoreFocus, reload))
+    return
+  }
   visualMontagens.value = visualMontagens.value.filter((draft) => draft.id !== draftId)
   if (selectedDraftId.value !== draftId) {
     await loadVisualMontagens()
@@ -1472,6 +1600,9 @@ async function captureMutationError(error: unknown, context: DraftUpdateContext)
     } catch {
       // The mutation remains failed; the original conflict is still surfaced after reconciliation fails.
     }
+    if (boardDirty.value && selectedMontagem.value?.id === context.draftId) {
+      queueCanonicalSnapshot(selectedMontagem.value)
+    }
   }
   if (isActiveDraft(context.draftId, context.generation)) captureError(error)
 }
@@ -1497,6 +1628,11 @@ function canReleaseMutation(context: DraftUpdateContext) {
 
 function captureError(error: unknown) {
   errors.value = error instanceof DraftMontagemServiceError ? error.errors : [t('drafts.errors.action')]
+}
+
+function requestOpenMontagem(id: string) {
+  if (id === selectedDraftId.value) return
+  requestLayoutIntent('switch-draft', () => openMontagem(id))
 }
 </script>
 
@@ -1534,10 +1670,10 @@ function captureError(error: unknown) {
         :can-create="canManageDraftCycle"
         :can-include-archived="canArchiveDrafts"
         :include-archived="includeArchived"
-        @update:search-term="searchTerm = $event"
+        @update:search-term="updateSearchFilter"
         @update:selected-status="updateStatusFilter"
         @update:include-archived="updateArchivedFilter"
-        @select="openMontagem"
+        @select="requestOpenMontagem"
         @reset="resetFilters"
         @retry="loadVisualMontagens"
         @create="openVisualSetup"
@@ -1609,6 +1745,12 @@ function captureError(error: unknown) {
           :saving="saving"
           @republish="requestDiscordRepublish"
         />
+        <Alert v-if="boardDirty && requiresLayoutReconciliation" data-layout-reconciliation role="status">
+          <AlertDescription>{{ t('drafts.unsavedLayout.reconciliationRequired') }}</AlertDescription>
+          <Button data-testid="review-layout-update" type="button" variant="outline" @click="requestLayoutIntent('remote-update')">
+            {{ t('drafts.unsavedLayout.reviewUpdate') }}
+          </Button>
+        </Alert>
         <DraftVisualBoard
           v-if="selectedMontagem && !selectedMontagem.arquivado && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada"
           :montagem="selectedMontagem"
@@ -1618,6 +1760,9 @@ function captureError(error: unknown) {
           :can-current-user-pick="canCurrentUserPick"
           :server-clock-offset-ms="serverClockOffsetMs"
           :eligible-captain-ids="substitutionEligibleCaptainIds"
+          :canonical-reset-token="canonicalResetToken"
+          :accepted-save-version="acceptedSaveVersion"
+          @dirty-change="handleBoardDirtyChange"
           @save="saveMontagemLayout"
           @start-realtime="startRealtime"
           @pick="pickRealtime"
@@ -1665,6 +1810,12 @@ function captureError(error: unknown) {
       @cancel="pendingReasonAction = null"
       @confirm="confirmReasonAction"
       @restore-focus="restoreStageFocus"
+    />
+    <DraftUnsavedLayoutDialog
+      :open="pendingLayoutIntent !== null"
+      :intent="pendingLayoutIntent"
+      @keep-editing="keepEditingLayout"
+      @discard="discardLayout"
     />
   </PageFrame>
 </template>
