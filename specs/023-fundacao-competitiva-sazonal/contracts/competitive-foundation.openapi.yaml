@@ -21,6 +21,11 @@ paths:
       responses:
         '200':
           description: Página de Seasons e contexto do calendário
+          headers:
+            ETag:
+              description: ETag observada do CalendarioCompetitivo para transições de Season
+              schema:
+                type: string
           content:
             application/json:
               schema:

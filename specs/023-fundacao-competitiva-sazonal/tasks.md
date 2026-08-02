@@ -62,11 +62,11 @@ description: "Lista de tarefas para implementar a Fundação Competitiva Sazonal
 
 ### Tests
 
-- [ ] T020 [P] [US1] Criar testes de período `[início, fim)`, limites inicial/final, não sobreposição, ordem anual, estados e preservação histórica da Season em `BackEnd/tests/RinhaDasLendas.Tests/Domain/SeasonTests.cs`
-- [ ] T021 [P] [US1] Criar testes de competição, circuito diário único, rodadas ordenadas, publicação imutável MD3/MD5 e regra geral versus regra de competição em `BackEnd/tests/RinhaDasLendas.Tests/Domain/CompeticaoTests.cs`
-- [ ] T022 [P] [US1] Criar testes de handlers para ativação atômica concorrente, alteração de período, encerramento, seleção padrão/múltipla/todas e catálogo administrativo sem filtro implícito em `BackEnd/tests/RinhaDasLendas.Tests/Application/SeasonSelectionContractTests.cs`
-- [ ] T023 [P] [US1] Criar testes HTTP dos endpoints de Seasons, competições, rodadas e regras, incluindo paginação, DTOs, ETags, idempotência e respostas localizadas em `BackEnd/tests/RinhaDasLendas.Tests/Integration/CompetitiveSeasonApiTests.cs`
-- [ ] T024 [P] [US1] Criar testes Vue do seletor sazonal, formulários, conflito 409 e fluxo Season → competição → rodada em `FrontEnd/src/components/competitive/SeasonManagement.spec.ts`
+- [x] T020 [P] [US1] Criar testes de período `[início, fim)`, limites inicial/final, não sobreposição, ordem anual, estados e preservação histórica da Season em `BackEnd/tests/RinhaDasLendas.Tests/Domain/SeasonTests.cs`
+- [x] T021 [P] [US1] Criar testes de competição, circuito diário único, rodadas ordenadas, publicação imutável MD3/MD5 e regra geral versus regra de competição em `BackEnd/tests/RinhaDasLendas.Tests/Domain/CompeticaoTests.cs`
+- [x] T022 [P] [US1] Criar testes de handlers para ativação atômica concorrente, alteração de período, encerramento, seleção padrão/múltipla/todas e catálogo administrativo sem filtro implícito em `BackEnd/tests/RinhaDasLendas.Tests/Application/SeasonSelectionContractTests.cs`
+- [x] T023 [P] [US1] Criar testes HTTP dos endpoints de Seasons, competições, rodadas e regras, incluindo paginação, DTOs, ETags, idempotência e respostas localizadas em `BackEnd/tests/RinhaDasLendas.Tests/Integration/CompetitiveSeasonApiTests.cs`
+- [x] T024 [P] [US1] Criar testes Vue do seletor sazonal, formulários, conflito 409 e fluxo Season → competição → rodada em `FrontEnd/src/components/competitive/SeasonManagement.spec.ts`
 
 ### Implementation
 
