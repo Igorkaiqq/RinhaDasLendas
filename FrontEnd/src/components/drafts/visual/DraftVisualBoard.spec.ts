@@ -223,6 +223,27 @@ describe('DraftVisualBoard', () => {
     wrapper.unmount()
   })
 
+  it('keeps a second edit dirty when the first outstanding save is accepted', async () => {
+    const draft = montagem()
+    const wrapper = mountBoard(draft)
+    const teamName = wrapper.get('[data-team-id="team-a"] input')
+    await teamName.setValue('First saved edit')
+    await wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.trigger('click')
+    await teamName.setValue('Second pending edit')
+
+    const accepted = {
+      ...draft,
+      versaoEstado: 2,
+      times: draft.times.map((team) => team.id === 'team-a' ? { ...team, nome: 'First saved edit' } : team),
+    }
+    await wrapper.setProps({ montagem: accepted, acceptedSaveVersion: 2 })
+
+    expect((wrapper.get('[data-team-id="team-a"] input').element as HTMLInputElement).value).toBe('Second pending edit')
+    expect(wrapper.emitted('dirty-change')?.slice(-1)[0]).toEqual([true, 2])
+    expect(wrapper.findAll('button').find((button) => button.text() === 'Salvar layout')!.attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('renders teams by order without changing save payload order', async () => {
     const draft = montagem()
     const wrapper = mountBoard(draft)

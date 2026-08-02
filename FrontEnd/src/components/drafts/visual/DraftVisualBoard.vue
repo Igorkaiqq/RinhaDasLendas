@@ -45,6 +45,7 @@ const dragged = ref<{ jogadorId: string } | null>(null)
 const detailsPlayer = ref<DraftMontagemParticipante | null>(null)
 const dirty = ref(false)
 const baseVersion = ref(props.montagem.versaoEstado)
+const editRevision = ref(0)
 const playerSearch = ref('')
 const selectedRoute = ref<DraftRouteFilterValue>(DraftRouteFilterValues.All)
 const now = ref(Date.now())
@@ -64,7 +65,7 @@ const boardShell = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('
 let timerInterval: ReturnType<typeof globalThis.setInterval> | null = null
 let audioContext: AudioContext | null = null
 let lastTickSecond: number | null = null
-let outstandingSaveBaseVersion: number | null = null
+let outstandingSave: { baseVersion: number; editRevision: number } | null = null
 const routeFilters = DRAFT_ROUTE_FILTER_OPTIONS
 const routeByFilter = DRAFT_MONTAGEM_ROUTE_BY_FILTER
 const routeFilterI18nKeys: Record<DraftRouteFilterValue, string> = {
@@ -212,15 +213,24 @@ watch(
 watch(
   [() => props.acceptedSaveVersion, () => props.montagem.versaoEstado],
   ([acceptedSaveVersion, canonicalVersion]) => {
+    const save = outstandingSave
     if (
       acceptedSaveVersion === null
-      || outstandingSaveBaseVersion === null
-      || acceptedSaveVersion <= outstandingSaveBaseVersion
+      || save === null
+      || save.baseVersion !== baseVersion.value
+      || acceptedSaveVersion <= save.baseVersion
       || acceptedSaveVersion !== canonicalVersion
     ) return
 
-    outstandingSaveBaseVersion = null
-    resetLocalMontagem(props.montagem)
+    outstandingSave = null
+    if (editRevision.value === save.editRevision) {
+      resetLocalMontagem(props.montagem)
+      return
+    }
+
+    baseVersion.value = acceptedSaveVersion
+    localMontagem.value.versaoEstado = acceptedSaveVersion
+    emit('dirty-change', true, baseVersion.value)
   },
 )
 
@@ -268,6 +278,7 @@ function cloneMontagem(montagem: DraftMontagem): DraftMontagem {
 }
 
 function setDirty(value: boolean) {
+  if (value) editRevision.value++
   dirty.value = value
   emit('dirty-change', value, baseVersion.value)
 }
@@ -275,8 +286,9 @@ function setDirty(value: boolean) {
 function resetLocalMontagem(montagem: DraftMontagem, closeLocalDialogs = false) {
   localMontagem.value = cloneMontagem(montagem)
   baseVersion.value = montagem.versaoEstado
+  editRevision.value = 0
   dirty.value = false
-  outstandingSaveBaseVersion = null
+  outstandingSave = null
   if (closeLocalDialogs) {
     detailsPlayer.value = null
     substitutionContext.value = null
@@ -579,7 +591,7 @@ function toParticipantPayload(player: DraftMontagemParticipante, index: number) 
 }
 
 function save() {
-  outstandingSaveBaseVersion = baseVersion.value
+  outstandingSave = { baseVersion: baseVersion.value, editRevision: editRevision.value }
   emit('save', {
     versaoEstado: baseVersion.value,
     times: localMontagem.value.times.map((time) => ({

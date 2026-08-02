@@ -114,6 +114,7 @@ let adminRequestController: AbortController | null = null
 let conflictRequestController: AbortController | null = null
 let canonicalAcceptanceId = 0
 let acceptedLayoutSaveInProgress: number | null = null
+let outstandingLayoutSaveBaseVersion: number | null = null
 let pendingLayoutIntentAction: (() => void | Promise<void>) | null = null
 let pendingRouteResolution: ((allow: boolean) => void) | null = null
 let layoutIntentFocusTarget: HTMLElement | null = null
@@ -305,7 +306,14 @@ function handleBoardDirtyChange(dirty: boolean, baseVersion: number) {
   if (!dirty) {
     pendingCanonicalSnapshot.value = null
     requiresLayoutReconciliation.value = false
+    cancelPendingRemoteUpdate()
   }
+}
+
+function cancelPendingRemoteUpdate() {
+  if (pendingLayoutIntent.value !== 'remote-update' || pendingLayoutIntentAction !== null) return
+  pendingLayoutIntent.value = null
+  pendingRouteResolution = null
 }
 
 function requestLayoutIntent(
@@ -319,6 +327,9 @@ function requestLayoutIntent(
     return true
   }
   if (pendingLayoutIntent.value) {
+    if (pendingLayoutIntent.value === 'remote-update' && intent === 'remote-update' && pendingLayoutIntentAction === null && action) {
+      pendingLayoutIntentAction = action
+    }
     routeResolution?.(false)
     return false
   }
@@ -339,7 +350,7 @@ function keepEditingLayout() {
   void nextTick(() => layoutIntentFocusTarget?.isConnected && layoutIntentFocusTarget.focus())
 }
 
-function discardLayout() {
+async function discardLayout() {
   const action = pendingLayoutIntentAction
   const routeResolution = pendingRouteResolution
   const canonical = pendingCanonicalSnapshot.value
@@ -354,14 +365,16 @@ function discardLayout() {
   pendingLayoutIntent.value = null
   pendingLayoutIntentAction = null
   pendingRouteResolution = null
+  await nextTick()
   routeResolution?.(true)
-  if (action) void action()
+  if (action) await action()
 }
 
 function queueCanonicalSnapshot(montagem: DraftMontagem) {
   if (!pendingCanonicalSnapshot.value || montagem.versaoEstado > pendingCanonicalSnapshot.value.versaoEstado) {
     pendingCanonicalSnapshot.value = montagem
   }
+  if (outstandingLayoutSaveBaseVersion !== null) return
   requiresLayoutReconciliation.value = true
   requestLayoutIntent('remote-update')
 }
@@ -1095,19 +1108,37 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   const context = beginSelectedDraftUpdate()
   if (!context) return
   saving.value = true
+  outstandingLayoutSaveBaseVersion = payload.versaoEstado
   acceptedSaveVersion.value = null
   errors.value = []
   try {
     const montagem = await saveDraftMontagemLayout(context.draftId, payload)
     acceptedLayoutSaveInProgress = montagem.versaoEstado
-    if (!(await applyMutationProjection(context, montagem))) return
+    const projectionApplied = await applyMutationProjection(context, montagem)
+    if (!projectionApplied && (
+      !isCurrentUpdate(context)
+      || selectedMontagem.value?.id !== montagem.id
+      || selectedMontagem.value.versaoEstado !== montagem.versaoEstado
+    )) return
+    if (!projectionApplied) scheduleAdministrativeDetail(context.draftId, context.generation)
+    if (pendingCanonicalSnapshot.value && pendingCanonicalSnapshot.value.versaoEstado <= montagem.versaoEstado) {
+      pendingCanonicalSnapshot.value = null
+      requiresLayoutReconciliation.value = false
+    }
     acceptedSaveVersion.value = montagem.versaoEstado
+    await nextTick()
     await loadVisualMontagens()
     notification.value = t('drafts.messages.layoutSaved')
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
     acceptedLayoutSaveInProgress = null
+    outstandingLayoutSaveBaseVersion = null
+    await nextTick()
+    if (boardDirty.value && pendingCanonicalSnapshot.value) {
+      requiresLayoutReconciliation.value = true
+      requestLayoutIntent('remote-update')
+    }
     if (canReleaseMutation(context)) saving.value = false
   }
 }
@@ -1544,8 +1575,20 @@ async function handleDraftArchived(draftId: string) {
   const index = visualMontagens.value.findIndex((draft) => draft.id === draftId)
   if (index < 0 && selectedDraftId.value !== draftId) return
   if (includeArchived.value && canArchiveDrafts.value) {
-    await loadVisualMontagens()
-    if (selectedDraftId.value === draftId) await openMontagem(draftId)
+    const reopenArchived = async () => {
+      await loadVisualMontagens()
+      if (selectedDraftId.value === draftId) await openMontagem(draftId)
+    }
+    if (selectedDraftId.value === draftId && boardDirty.value) {
+      const current = selectedMontagem.value
+      if (current && (!pendingCanonicalSnapshot.value || current.versaoEstado > pendingCanonicalSnapshot.value.versaoEstado)) {
+        pendingCanonicalSnapshot.value = current
+      }
+      requiresLayoutReconciliation.value = true
+      requestLayoutIntent('remote-update', reopenArchived)
+      return
+    }
+    await reopenArchived()
     return
   }
   await removeArchivedAndReconcile(draftId, index)
