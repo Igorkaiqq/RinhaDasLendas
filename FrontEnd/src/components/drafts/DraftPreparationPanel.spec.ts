@@ -52,8 +52,9 @@ function presences(count: number): DraftMontagemPresenca[] {
   }))
 }
 
-function mountPanel(overrides: Record<string, unknown> = {}) {
+function mountPanel(overrides: Record<string, unknown> = {}, attachTo?: HTMLElement) {
   return mount(DraftPreparationPanel, {
+    ...(attachTo ? { attachTo } : {}),
     props: {
       draft,
       confirmedPresences: presences(1),
@@ -212,6 +213,24 @@ describe('DraftPreparationPanel', () => {
 
     expect(wrapper.find('[data-testid="toggle-captain-player-0"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="toggle-captain-player-1"]').exists()).toBe(false)
+  })
+
+  it('exposes a stable programmatic focus target for the captain section', async () => {
+    const wrapper = mountPanel({
+      draft: { ...draft, status: 'PresencaEncerrada', modo: 'TempoReal', cicloVersao: 'ModoPosPresenca' },
+      canClosePresence: false,
+      canContinueManualPresence: false,
+      canManageManualPresence: false,
+      canSelectCaptains: true,
+      confirmedPresences: [],
+    }, document.body)
+    const target = wrapper.get('[data-captain-focus-target]')
+
+    expect(target.element.tagName).toBe('H3')
+    expect(target.attributes('tabindex')).toBe('-1')
+    await (wrapper.vm as unknown as { focusCaptainControl: () => Promise<boolean> }).focusCaptainControl()
+    expect(document.activeElement).toBe(target.element)
+    wrapper.unmount()
   })
 
   it('emits captain and order intents only from their matching states', async () => {

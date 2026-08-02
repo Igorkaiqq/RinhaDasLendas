@@ -61,6 +61,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const manualPresenceSelector = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('manualPresenceSelector')
 const captainControls = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('captainControls')
+const captainFocusTarget = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('captainFocusTarget')
 
 function emitUnlessSaving(event: 'confirm-presence' | 'cancel-presence' | 'search-manual-presence' | 'add-manual-presence' | 'define-captains' | 'draw-order') {
   if (props.saving) return
@@ -91,8 +92,9 @@ async function focusManualPresenceSelector() {
 async function focusCaptainControl() {
   await nextTick()
   const control = captainControls.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-testid^="toggle-captain-"]:not(:disabled)')
-  control?.focus()
-  return Boolean(control)
+  const target = control ?? captainFocusTarget.value
+  target?.focus()
+  return Boolean(target)
 }
 
 defineExpose({ focusManualPresenceSelector, focusCaptainControl })
@@ -205,6 +207,7 @@ defineExpose({ focusManualPresenceSelector, focusCaptainControl })
       </div>
     </section>
 
+    <h3 v-if="canSelectCaptains" ref="captainFocusTarget" data-captain-focus-target tabindex="-1">{{ t('drafts.rail.captains') }}</h3>
     <ul ref="captainControls" data-presence-roster class="draft-preparation__roster" :aria-label="t('drafts.presence.rosterLabel')">
       <li
         v-for="presence in confirmedPresences"
@@ -304,7 +307,8 @@ defineExpose({ focusManualPresenceSelector, focusCaptainControl })
 }
 
 .draft-preparation__header h2,
-.draft-preparation__header p {
+.draft-preparation__header p,
+.draft-preparation > h3 {
   margin: 0;
 }
 

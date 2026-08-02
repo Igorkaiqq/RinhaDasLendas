@@ -1018,6 +1018,49 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('aborts and restarts same-key auxiliary requests for a higher canonical version and keeps stale completions inert', async () => {
+    const wrapper = await mountView()
+    const stalePresence = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    const freshPresence = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    const staleCaptains = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    const freshCaptains = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    playerMocks.listEligibleCaptains.mockClear()
+    serviceMocks.listEligibleManualPresencePlayers
+      .mockReturnValueOnce(stalePresence.promise)
+      .mockReturnValueOnce(freshPresence.promise)
+    playerMocks.listEligibleCaptains
+      .mockReturnValueOnce(staleCaptains.promise)
+      .mockReturnValueOnce(freshCaptains.promise)
+    const vm = wrapper.vm as unknown as {
+      loadEligibleManualPresencePlayers: () => Promise<boolean>
+      loadEligibleCaptains: () => Promise<boolean>
+      manualPresencePlayers: Array<{ id: string }>
+      eligibleCaptainIds: string[]
+    }
+
+    void vm.loadEligibleManualPresencePlayers()
+    void vm.loadEligibleCaptains()
+    await vi.waitFor(() => expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1))
+    const stalePresenceSignal = serviceMocks.listEligibleManualPresencePlayers.mock.calls[0]?.[4] as AbortSignal
+    const staleCaptainSignal = playerMocks.listEligibleCaptains.mock.calls[0]?.[0] as AbortSignal
+
+    await emitRealtime(montagem.id, { ...montagem, versaoEstado: 8 })
+    await vi.waitFor(() => expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(2))
+
+    expect(stalePresenceSignal.aborted).toBe(true)
+    expect(staleCaptainSignal.aborted).toBe(true)
+    freshPresence.resolve([{ id: 'fresh-presence', nomeExibicao: 'Fresh Presence' }])
+    freshCaptains.resolve([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
+    stalePresence.resolve([{ id: 'stale-presence', nomeExibicao: 'Stale Presence' }])
+    staleCaptains.resolve([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
+    await flushPromises()
+
+    expect(vm.manualPresencePlayers.map((item) => item.id)).toEqual(['fresh-presence'])
+    expect(vm.eligibleCaptainIds).toEqual(['jogador-1'])
+    wrapper.unmount()
+  })
+
   it('aborts captain enrichment on generation change and leaves its stale completion inert', async () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
     serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id
@@ -1109,6 +1152,27 @@ describe('DraftsView reason actions', () => {
     expect(wrapper.find('[data-auxiliary-captain-error]').exists()).toBe(false)
     expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('eligibleCaptainIds')).toEqual(['jogador-1'])
     expect(document.activeElement).toBe(wrapper.get('[data-testid="toggle-captain-jogador-1"]').element)
+    wrapper.unmount()
+  })
+
+  it('focuses the stable captain section target when a successful retry returns no eligible controls', async () => {
+    const closed = {
+      ...adminProjection('PresencaEncerrada'),
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+    } as DraftMontagemAdmin
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: sharedFromAdmin(closed), canCurrentUserPick: false })
+    playerMocks.listEligibleCaptains
+      .mockRejectedValueOnce(new Error('captains unavailable'))
+      .mockResolvedValueOnce([])
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-auxiliary-captain-error] button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-auxiliary-captain-error]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-captain-focus-target]').element)
     wrapper.unmount()
   })
 

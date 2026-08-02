@@ -65,14 +65,20 @@ public sealed class JogadorRepository(RinhaDasLendasDbContext dbContext) : IJoga
             .Select(role => role.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return await dbContext.Jogadores
-            .AsNoTracking()
-            .Include(jogador => jogador.Preferencias)
-            .Where(jogador => jogador.Status == JogadorStatus.Ativo && jogador.UsuarioId != null)
-            .Where(jogador => dbContext.UserRoles.Any(userRole => userRole.UserId == jogador.UsuarioId && userRole.RoleId == capitaoRoleId))
-            .OrderBy(jogador => jogador.NomeExibicao)
+        return await BuildCapitaesElegiveisQuery(dbContext, capitaoRoleId)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+    }
+
+    internal static IQueryable<Jogador> BuildCapitaesElegiveisQuery(RinhaDasLendasDbContext context, Guid capitaoRoleId)
+    {
+        return context.Jogadores
+            .AsNoTracking()
+            .Include(jogador => jogador.Preferencias)
+            .Where(jogador => jogador.Status == JogadorStatus.Ativo && jogador.UsuarioId != null)
+            .Where(jogador => context.UserRoles.Any(userRole => userRole.UserId == jogador.UsuarioId && userRole.RoleId == capitaoRoleId))
+            .OrderBy(jogador => jogador.NomeExibicao)
+            .ThenBy(jogador => jogador.Id);
     }
 }

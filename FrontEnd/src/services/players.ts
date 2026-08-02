@@ -116,11 +116,16 @@ export async function listPlayers(somenteAtivos = false): Promise<Player[]> {
 
 export async function listEligibleCaptains(signal?: AbortSignal): Promise<Player[]> {
   try {
-    const response = await api.get<PaginatedPlayers>('/api/v1/jogadores/capitaes-elegiveis', {
-      params: { page: 1, pageSize: 100 },
-      ...(signal ? { signal } : {}),
-    })
-    return response.data.items
+    const pageSize = 100
+    const captains: Player[] = []
+    for (let page = 1; ; page++) {
+      const response = await api.get<PaginatedPlayers>('/api/v1/jogadores/capitaes-elegiveis', {
+        params: { page, pageSize },
+        ...(signal ? { signal } : {}),
+      })
+      captains.push(...response.data.items)
+      if (response.data.items.length < pageSize) return captains
+    }
   } catch (error) {
     throw toPlayerServiceError(error)
   }

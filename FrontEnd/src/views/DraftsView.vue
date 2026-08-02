@@ -144,6 +144,7 @@ interface DraftUpdateContext {
 interface AuxiliaryRequestContext {
   draftId: string
   generation: number
+  canonicalVersion: number
   requestId: number
 }
 
@@ -783,22 +784,26 @@ function applyPublicMontagemState(montagem: DraftMontagem) {
 }
 
 function loadEligibleManualPresencePlayers(): Promise<boolean> {
-  const draftId = selectedMontagem.value?.id
+  const draft = selectedMontagem.value
   const generation = activeDraftGeneration
   const search = manualPresenceSearch.value
-  if (!draftId || !canManageDrafts.value) {
+  if (!draft || !canManageDrafts.value) {
     manualPresencePlayers.value = []
     manualPresenceAuxiliaryFailed.value = false
     return Promise.resolve(false)
   }
+  const draftId = draft.id
+  const canonicalVersion = draft.versaoEstado
   if (connectionStatus.value !== 'connected') return Promise.resolve(false)
-  if (manualPresenceInFlight?.draftId === draftId
-    && manualPresenceInFlight.generation === generation
-    && manualPresenceInFlight.search === search) return manualPresenceInFlight.promise
+  const inFlight = manualPresenceInFlight
+  if (inFlight?.draftId === draftId
+    && inFlight.generation === generation
+    && inFlight.canonicalVersion === canonicalVersion
+    && inFlight.search === search) return inFlight.promise
 
   manualPresenceInFlight?.controller.abort()
 
-  const context = beginAuxiliaryRequest(draftId, generation, 'presence')
+  const context = beginAuxiliaryRequest(draftId, generation, canonicalVersion, 'presence')
   const controller = new AbortController()
   const request = { ...context, search, controller, promise: Promise.resolve(false) }
   manualPresenceAuxiliaryLoading.value = true
@@ -828,17 +833,24 @@ function loadEligibleManualPresencePlayers(): Promise<boolean> {
 }
 
 function loadEligibleCaptains(): Promise<boolean> {
-  const draftId = selectedMontagem.value?.id
+  const draft = selectedMontagem.value
   const generation = activeDraftGeneration
-  if (!draftId || !canManageDraftCycle.value) {
+  if (!draft || !canManageDraftCycle.value) {
     activeEligibleCaptainIds.value = null
     captainAuxiliaryFailed.value = false
     return Promise.resolve(false)
   }
+  const draftId = draft.id
+  const canonicalVersion = draft.versaoEstado
   if (connectionStatus.value !== 'connected') return Promise.resolve(false)
-  if (captainInFlight?.draftId === draftId && captainInFlight.generation === generation) return captainInFlight.promise
+  const inFlight = captainInFlight
+  if (inFlight?.draftId === draftId
+    && inFlight.generation === generation
+    && inFlight.canonicalVersion === canonicalVersion) return inFlight.promise
 
-  const context = beginAuxiliaryRequest(draftId, generation, 'captain')
+  captainInFlight?.controller.abort()
+
+  const context = beginAuxiliaryRequest(draftId, generation, canonicalVersion, 'captain')
   const controller = new AbortController()
   const request = { ...context, controller, promise: Promise.resolve(false) }
   captainAuxiliaryLoading.value = true
@@ -867,16 +879,18 @@ function loadEligibleCaptains(): Promise<boolean> {
   return request.promise
 }
 
-function beginAuxiliaryRequest(draftId: string, generation: number, type: 'presence' | 'captain'): AuxiliaryRequestContext {
+function beginAuxiliaryRequest(draftId: string, generation: number, canonicalVersion: number, type: 'presence' | 'captain'): AuxiliaryRequestContext {
   const requestId = ++auxiliaryRequestId
   if (type === 'presence') manualPresenceAuxiliaryRequestId = requestId
   else captainAuxiliaryRequestId = requestId
-  return { draftId, generation, requestId }
+  return { draftId, generation, canonicalVersion, requestId }
 }
 
 function isCurrentAuxiliaryRequest(context: AuxiliaryRequestContext, type: 'presence' | 'captain') {
   const currentRequestId = type === 'presence' ? manualPresenceAuxiliaryRequestId : captainAuxiliaryRequestId
-  return isActiveDraft(context.draftId, context.generation) && currentRequestId === context.requestId
+  return isActiveDraft(context.draftId, context.generation)
+    && selectedMontagem.value?.versaoEstado === context.canonicalVersion
+    && currentRequestId === context.requestId
 }
 
 function abortAuxiliaryRequests() {
