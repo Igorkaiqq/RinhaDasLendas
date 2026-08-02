@@ -1,119 +1,46 @@
-# Relatório da Task 7
+# Relatório da Unidade 7
 
 ## Status
 
-Implementação concluída no worktree `feature-024` para a feature 028.
+Implementado o worker isolado de encerramento automático de presença da feature 029, mantendo a regra de encerrar com ao menos dez confirmações e cancelar abaixo desse limite.
 
-## RED / GREEN
+## Entregas
 
-### Frontend
+- `DraftMontagemPresenceClosureCandidate` contém somente `Id`.
+- O scan EF usa projeção sem tracking e sem `Include`, selecionando somente identificadores.
+- O scope do scan termina antes do primeiro comando; cada draft usa um scope de comando novo e descartado antes do item seguinte.
+- `EncerrarPresencaDraftMontagemAutomaticamenteCommandHandler` recarrega o agregado e revalida status e prazo antes de agir.
+- Drafts com dez ou mais presenças são encerrados; drafts com menos de dez são cancelados com uma ação administrativa atribuída a `DraftMontagemActor.System()`.
+- A ordem dos efeitos é persistência, tentativa de publicação realtime pós-commit e métrica de sucesso.
+- Conflitos de persistência propagam pelo handler sem publicação nem métrica de sucesso; o worker observa o erro por ID e continua nos itens seguintes.
+- Exceções genéricas e cancelamentos não originados pelo host são observados por item e não interrompem o lote; somente cancelamento solicitado pelo host propaga.
+- Logs do worker são limitados ao ID do draft e ao nome do tipo da exceção, sem mensagem, payload ou objeto de exceção.
+- `Microsoft.EntityFrameworkCore.Database.Command` usa `Warning` na configuração de produção e permanece `Information` em desenvolvimento.
 
-- RED: `DraftSubstitutionDialog.spec.ts` falhou primeiro por componente ausente e, após o shell compilável, com 5 falhas comportamentais para seleção explícita, capitão, acessibilidade e foco.
-- GREEN: 5 testes do diálogo passaram após a implementação com componentes shadcn-vue existentes.
-- RED: `DraftVisualBoard.spec.ts` confirmou que o board ainda emitia automaticamente a primeira reserva e não permitia substituir o capitão.
-- GREEN: 40 testes do board passaram com abertura do diálogo, payload `novoCapitaoId`, compatibilidade v1 e restauração de foco.
-- RED: `DraftsView.spec.ts` confirmou que elegibilidade não era projetada ao board e que o payload v2 sem novo capitão não era rejeitado defensivamente.
-- GREEN: 142 testes da view passaram com elegibilidade projetada e validação do time resultante.
-- Regressão combinada: 220 testes focados passaram.
-- Suíte completa: 39 arquivos e 514 testes passaram.
+## TDD
 
-### Backend
+- RED confirmado: o filtro falhou na compilação pela ausência de `DraftMontagemPresenceClosureCandidate` e `EncerrarPresencaDraftMontagemAutomaticamenteCommand`.
+- GREEN focado: 11 testes aprovados, 0 falhas e 0 ignorados.
+- Cobertura focada: contrato e SQL ID-only, scopes e descarte, falha genérica segura, conflito, cancelamentos, continuação, recarga/revalidação, autoria sistêmica, ordem dos efeitos e ausência de publicação após conflito.
 
-- RED: as novas jornadas integradas reproduziram HTTP 500 em escolhas de modo concorrentes.
-- Investigação: transições estruturais concorrentes podiam colidir nos índices únicos de participantes/times antes da atualização do token do agregado.
-- RED focado inicial: 2 casos de `DraftMontagemSaveConflictClassifierTests` falharam para as constraints estruturais.
-- GREEN inicial: as colisões concorrentes passaram a resultar em `MV103`/HTTP 409 em vez de HTTP 500.
-- Jornadas integradas: Manual v2, TempoReal v2 com timeout/picks/substituição/finalização, autorização Admin+/negações, concorrência e compatibilidade v1 passaram.
-- Suíte completa inicial: 673 testes passaram.
-- Build Release: concluído com 0 warnings e 0 erros.
+## Verificação
 
-## Arquivos
-
-### Criados
-
-- `FrontEnd/src/components/drafts/visual/DraftSubstitutionDialog.vue`
-- `FrontEnd/src/components/drafts/visual/DraftSubstitutionDialog.spec.ts`
-- `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemCycleIntegrationTests.cs`
-- `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemCycleAuthorizationIntegrationTests.cs`
-- `BackEnd/tests/RinhaDasLendas.Tests/Integration/DraftMontagemLegacyCompatibilityIntegrationTests.cs`
-- `.superpowers/sdd/task-7-report.md`
-
-### Alterados
-
-- `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
-- `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
-- `FrontEnd/src/views/DraftsView.vue`
-- `FrontEnd/src/views/DraftsView.spec.ts`
-- `FrontEnd/src/constants/messageCode.ts`
-- `FrontEnd/src/services/messageService.ts`
-- `FrontEnd/src/i18n/locales/pt.json`
-- `FrontEnd/src/i18n/locales/en.json`
-- `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemSaveConflictClassifier.cs`
-- `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemRepository.cs`
-- `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemSaveConflictClassifierTests.cs`
-
-## Comportamento entregue
-
-- Reserva escolhida explicitamente; removida a seleção automática da primeira reserva.
-- Saída de capitão diário v2 exige novo capitão elegível no time resultante.
-- Reserva elegível não recebe capitania automaticamente.
-- Payload `novoCapitaoId` preservado do diálogo ao serviço.
-- Draft v1 preserva contrato legado sem exigir `novoCapitaoId`.
-- Dialog com título/descrição acessíveis, validação `aria-invalid`, Escape, foco inicial desktop/mobile e restauração de foco.
-- Layout vertical e conteúdo limitado à viewport móvel, sem novos tokens ou dependências.
-- Conflitos estruturais concorrentes retornam conflito de estado somente quando a versão original rastreada está defasada; violações estruturais sem versão stale continuam erros reais de persistência.
-- Nenhum arquivo de publicação Discord ou SignalR foi alterado.
+- Testes focados Release: 11 aprovados, 0 falhas, 0 ignorados.
+- Build Release da solução: aprovado com 0 warnings e 0 erros.
+- `git diff --check`: aprovado.
+- `tasks.md` e planos não foram alterados.
 
 ## Auditoria de internacionalização
 
-- Textos visíveis hardcoded no frontend: **Não encontrados**.
-- Mensagens hardcoded no backend: **Não encontradas**.
-- `pt.json` e `en.json` sincronizados: **Sim**, comprovado por `i18n.spec.ts` na suíte completa.
-- Resources backend equivalentes: **Sim**, `MV107` a `MV110` existem em default, `pt-BR` e `en-US`.
-- Códigos frontend equivalentes: **Sim**, `messageCode.ts` e `messageService.ts` atualizados em PT/EN.
-- Acentuação em português revisada: **Sim**.
-- Placeholders, botões, títulos, erros e mensagens revisados: **Sim**.
-- Validações frontend/backend usam i18n/resources: **Sim**.
-- Novos arquivos respeitam o padrão: **Sim**.
-
-## Correções da revisão
-
-### Classificação de concorrência
-
-- RED: constraints estruturais ainda eram classificadas globalmente pelo nome, e uma escrita única inconsistente retornava `MV103` em vez de `DbUpdateException`.
-- GREEN: o classifier apenas identifica a natureza estrutural; o repository consulta `VersaoEstado` no banco após o rollback e compara com o valor original rastreado antes de converter para conflito.
-- Cobertura: concorrência estrutural stale e violação estrutural sem versão stale.
-
-### Contexto e ciclo do diálogo
-
-- RED: o board mantinha objetos stale, não invalidava mudanças de projeção e destruía o diálogo antes do resultado do serviço.
-- GREEN: o contexto contém apenas IDs, versão e snapshots de IDs de membros/reservas; time e jogador são sempre derivados da projeção atual.
-- O diálogo fecha com restauração de foco quando versão, status, membership ou reservas mudam. Quando o gatilho deixa de existir, o foco retorna ao shell do board.
-- Durante o request, diálogo, reserva, capitão e motivo permanecem montados e desabilitados. Falhas reabilitam os controles para retry; sucesso fecha somente após projeção com versão avançada.
-
-### Validação do capitão
-
-- RED: a seleção continuava aparentemente válida depois de perder elegibilidade.
-- GREEN: `selectedCaptainValid` é a fonte única para submissão, reconciliação, `FieldError`, `data-invalid` e `aria-invalid`.
-
-### Integração e compatibilidade
-
-- Concorrência integrada cobre início, pick contra timeout, substituição e finalizações, sempre com um vencedor e sem HTTP 500.
-- V1 cobre transferência automática da capitania para a reserva quando o capitão sai sem `NovoCapitaoId` e preservação dos estados `PresencaAberta`, `PresencaEncerrada`, `Aberta`, `Finalizada` e `Cancelada`.
-- Bot autenticado válido recebe exatamente HTTP 403 em todas as operações Admin+ do ciclo.
-
-## Verificações
-
-- Backend focado de revisão: 27 aprovados.
-- `docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test ... --configuration Release`: 685 aprovados.
-- `docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet build ... --configuration Release`: sucesso, 0 warnings, 0 erros.
-- `npm run lint:check`: sucesso.
-- Frontend focado de revisão: 194 aprovados.
-- `npm test`: 521 aprovados.
-- `npm run build`: sucesso.
-- `git diff --check`: sucesso.
+- Sim: nenhum texto visível hardcoded foi adicionado ao frontend.
+- Sim: nenhuma mensagem de API hardcoded foi adicionada ao backend; os novos textos são exclusivamente logs técnicos estruturados.
+- Sim: `pt.json` e `en.json` permanecem sincronizados, pois não foram alterados.
+- Sim: resources backend permanecem atualizados, pois nenhuma mensagem de usuário foi criada.
+- Sim: a acentuação em português foi revisada neste relatório; não houve novo texto de produto.
+- Sim: placeholders, botões, títulos, badges, toasts e estados vazios não foram afetados.
+- Sim: validações frontend/backend não receberam mensagens novas e continuam usando i18n/resources.
+- Sim: todos os novos arquivos respeitam o padrão de internacionalização.
 
 ## Preocupações
 
-- O build Vite mantém avisos não bloqueantes já emitidos por anotações `PURE` de dependências e pelo chunk principal acima de 500 kB; nenhum deles foi introduzido ou ampliado no escopo desta task.
-- A responsividade e o foco mobile foram cobertos por testes automatizados de componente; não houve alteração de tokens ou CSS global.
+- A validação executada foi o gate solicitado de testes focados mais build; a suíte backend completa não foi executada nesta unidade.

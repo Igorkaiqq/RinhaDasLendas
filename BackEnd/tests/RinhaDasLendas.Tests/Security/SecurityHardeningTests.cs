@@ -1148,7 +1148,7 @@ public sealed class SecurityHardeningTests
 
         public Task<IReadOnlyCollection<DraftMontagemRealtimeCandidate>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagemRealtimeCandidate>>([]);
 
-        public Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
+        public Task<IReadOnlyCollection<DraftMontagemPresenceClosureCandidate>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagemPresenceClosureCandidate>>([]);
 
         public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<DraftMontagem>>([]);
 

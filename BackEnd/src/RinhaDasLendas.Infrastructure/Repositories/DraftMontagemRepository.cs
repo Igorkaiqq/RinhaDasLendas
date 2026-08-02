@@ -66,13 +66,23 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
             .Take(Math.Clamp(limit, 1, 100));
     }
 
-    public async Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<DraftMontagemPresenceClosureCandidate>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
-        return await IncludeMontagem(dbContext.DraftMontagens)
+        return await BuildExpiredPresenceCandidatesQuery(dbContext.DraftMontagens, now, limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    internal static IQueryable<DraftMontagemPresenceClosureCandidate> BuildExpiredPresenceCandidatesQuery(
+        IQueryable<DraftMontagem> source,
+        DateTimeOffset now,
+        int limit)
+    {
+        return source
+            .AsNoTracking()
             .Where(montagem => montagem.ArquivadoEm == null && montagem.Status == DraftMontagemStatus.PresencaAberta && montagem.HorarioEncerramentoPresenca != null && montagem.HorarioEncerramentoPresenca <= now)
             .OrderBy(montagem => montagem.HorarioEncerramentoPresenca)
-            .Take(Math.Clamp(limit, 1, 100))
-            .ToListAsync(cancellationToken);
+            .Select(montagem => new DraftMontagemPresenceClosureCandidate(montagem.Id))
+            .Take(Math.Clamp(limit, 1, 100));
     }
 
     public async Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken)

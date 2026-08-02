@@ -1,55 +1,76 @@
-using RinhaDasLendas.Domain.Exceptions;
+using MediatR;
+using RinhaDasLendas.Application.Commands.DraftMontagens;
+using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Api.Services;
 
-public sealed class DraftMontagemPresenceClosureService(IServiceProvider serviceProvider, ILogger<DraftMontagemPresenceClosureService> logger) : BackgroundService
+public sealed class DraftMontagemPresenceClosureService(
+    IServiceScopeFactory scopeFactory,
+    ILogger<DraftMontagemPresenceClosureService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await RunCycleAsync(stoppingToken);
+            try
+            {
+                if (!await timer.WaitForNextTickAsync(stoppingToken))
+                {
+                    return;
+                }
+
+                await RunCycleAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    "Failed to run automatic presence closure cycle. Error type: {ErrorType}.",
+                    exception.GetType().Name);
+            }
         }
     }
 
-    internal async Task RunCycleAsync(CancellationToken cancellationToken)
+    internal async Task<int> RunCycleAsync(CancellationToken cancellationToken)
     {
-        try
+        IReadOnlyCollection<DraftMontagemPresenceClosureCandidate> candidates;
+        using (var scanScope = scopeFactory.CreateScope())
         {
-            using var scope = serviceProvider.CreateScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
-            var expired = await repository.ListExpiredPresenceAsync(DateTimeOffset.UtcNow, 20, cancellationToken);
-            foreach (var montagem in expired)
-            {
-                try
-                {
-                    if (montagem.Presencas.Count(presenca => presenca.Confirmada) < 10)
-                    {
-                        montagem.CancelarPresencaExpirada();
-                        continue;
-                    }
+            var repository = scanScope.ServiceProvider.GetRequiredService<IDraftMontagemRepository>();
+            candidates = await repository.ListExpiredPresenceAsync(DateTimeOffset.UtcNow, 20, cancellationToken);
+        }
 
-                    montagem.EncerrarPresenca(false, montagem.TamanhoEquipe);
-                }
-                catch (DomainException ex)
-                {
-                    logger.LogInformation(ex, "Automatic presence closure skipped for draft {DraftId}", montagem.Id);
-                }
-            }
-
-            if (expired.Count > 0)
+        var processed = 0;
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
             {
-                await repository.SaveChangesAsync(cancellationToken);
+                using var commandScope = scopeFactory.CreateScope();
+                var sender = commandScope.ServiceProvider.GetRequiredService<ISender>();
+                await sender.Send(
+                    new EncerrarPresencaDraftMontagemAutomaticamenteCommand(candidate.Id),
+                    cancellationToken);
+                processed++;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    "Failed to process automatic presence closure for draft {DraftMontagemId}. Error type: {ErrorType}.",
+                    candidate.Id,
+                    exception.GetType().Name);
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to close expired draft presences");
-        }
+
+        return processed;
     }
 }

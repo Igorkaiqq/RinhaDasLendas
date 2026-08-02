@@ -13,7 +13,7 @@ public interface IDraftMontagemRepository
     Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken);
     Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagemRealtimeCandidate>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<DraftMontagem>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<DraftMontagemPresenceClosureCandidate>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken);
     Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken);
