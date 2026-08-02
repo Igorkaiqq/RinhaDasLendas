@@ -196,12 +196,12 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 10: Optional Auxiliary Enrichment
 
-- [ ] T072 [P] [US5] Extend projection assertions to reject participant, presence, pick, substitution, publication and audit collection loading in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs`
-- [ ] T073 [P] [US5] Write failing auxiliary request-ID, draft/generation, abort, stale-response and localized dependent-control retry tests in `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T074 [US5] Run the Unit 10 RED suites and confirm optional enrichment still shares canonical request lifecycle in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs` and `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T075 [US5] Implement independent `auxiliaryRequestId`/`AbortController` handling that never advances canonical lanes or personalized sequence in `FrontEnd/src/views/DraftsView.vue`
-- [ ] T076 [US5] Add localized auxiliary failure/retry copy without blocking detail or unrelated actions in `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
-- [ ] T077 [US5] Run the Unit 10 focused backend projection and frontend view/i18n suites plus both builds to prove optional enrichment and routine scans cannot degrade the cycle in `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
+- [x] T072 [P] [US5] Extend projection assertions to reject participant, presence, pick, substitution, publication and audit collection loading in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs`
+- [x] T073 [P] [US5] Write failing auxiliary request-ID, draft/generation, abort, stale-response and localized dependent-control retry tests in `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T074 [US5] Run the Unit 10 RED suites and confirm optional enrichment still shares canonical request lifecycle in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs` and `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T075 [US5] Implement independent `auxiliaryRequestId`/`AbortController` handling that never advances canonical lanes or personalized sequence in `FrontEnd/src/views/DraftsView.vue`
+- [x] T076 [US5] Add localized auxiliary failure/retry copy without blocking detail or unrelated actions in `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
+- [x] T077 [US5] Run the Unit 10 focused backend projection and frontend view/i18n suites plus both builds to prove optional enrichment and routine scans cannot degrade the cycle in `BackEnd/RinhaDasLendas.sln` and `FrontEnd/package.json`
 
 **Checkpoint**: User Story 5 is independently functional; candidate scans stay minimal, auxiliary failure is contained, and operational failures remain visible without routine EF query noise.
 
