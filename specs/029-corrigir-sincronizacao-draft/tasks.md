@@ -174,15 +174,15 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 11: Dirty Signals, Dialog and Guards
 
-- [ ] T063 [P] [US4] Write failing clone/base, remote-higher preservation, explicit reset token, matching accepted save and stale/equal no-clean tests in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
-- [ ] T064 [P] [US4] Write failing focus trap, Escape, continue-editing and discard tests for the single dialog in `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.spec.ts`
-- [ ] T065 [US4] Write failing pending-intent, greatest canonical snapshot, 409 preservation, switch/route/removal/archive and `beforeunload` guard tests in `FrontEnd/src/views/DraftsView.spec.ts` and synchronized-copy tests in `FrontEnd/src/i18n/i18n.spec.ts`
-- [ ] T066 [US4] Run the Unit 11 RED suites and confirm the current prop watcher overwrites dirty local state in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`, `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.spec.ts` and `FrontEnd/src/views/DraftsView.spec.ts`
-- [ ] T067 [US4] Implement editable clone, `dirty-change`, base-version save payload, `canonicalResetToken` and `acceptedSaveVersion` matching in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
-- [ ] T068 [US4] Implement the accessible single-intent discard/continue dialog with existing design tokens in `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.vue`
-- [ ] T069 [US4] Coordinate pending canonical state, reconciliation-required state and every internal/native guard in `FrontEnd/src/views/DraftsView.vue`
-- [ ] T070 [US4] Add synchronized localized status, conflict, dialog and guard guidance with reviewed Portuguese accents in `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
-- [ ] T071 [US4] Run the full frontend test/lint/build gate to prove dirty clears only on explicit reset or matching save in `FrontEnd/package.json`
+- [x] T063 [P] [US4] Write failing clone/base, remote-higher preservation, explicit reset token, matching accepted save and stale/equal no-clean tests in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`
+- [x] T064 [P] [US4] Write failing focus trap, Escape, continue-editing and discard tests for the single dialog in `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.spec.ts`
+- [x] T065 [US4] Write failing pending-intent, greatest canonical snapshot, 409 preservation, switch/route/removal/archive and `beforeunload` guard tests in `FrontEnd/src/views/DraftsView.spec.ts` and synchronized-copy tests in `FrontEnd/src/i18n/i18n.spec.ts`
+- [x] T066 [US4] Run the Unit 11 RED suites and confirm the current prop watcher overwrites dirty local state in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.spec.ts`, `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.spec.ts` and `FrontEnd/src/views/DraftsView.spec.ts`
+- [x] T067 [US4] Implement editable clone, `dirty-change`, base-version save payload, `canonicalResetToken` and `acceptedSaveVersion` matching in `FrontEnd/src/components/drafts/visual/DraftVisualBoard.vue`
+- [x] T068 [US4] Implement the accessible single-intent discard/continue dialog with existing design tokens in `FrontEnd/src/components/drafts/DraftUnsavedLayoutDialog.vue`
+- [x] T069 [US4] Coordinate pending canonical state, reconciliation-required state and every internal/native guard in `FrontEnd/src/views/DraftsView.vue`
+- [x] T070 [US4] Add synchronized localized status, conflict, dialog and guard guidance with reviewed Portuguese accents in `FrontEnd/src/i18n/locales/pt.json` and `FrontEnd/src/i18n/locales/en.json`
+- [x] T071 [US4] Run the full frontend test/lint/build gate to prove dirty clears only on explicit reset or matching save in `FrontEnd/package.json`
 
 **Checkpoint**: User Story 4 is independently functional; remote updates, conflicts and all exit intents preserve unsaved work until the Admin+ explicitly chooses.
 
