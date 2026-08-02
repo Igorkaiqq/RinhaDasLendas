@@ -16,15 +16,26 @@ Implementados candidatos mínimos e processamento isolado do timer de turno da f
 - Exceções genéricas e cancelamentos não originados pelo host são observados por item e não interrompem os candidatos seguintes.
 - Somente o cancelamento solicitado pelo host é propagado pelo ciclo de processamento.
 
+## Correções dos findings de testes
+
+- Adicionada sequência explícita que prova `save`, depois `publish`, depois métrica de sucesso.
+- Adicionado conflito de concorrência em `SaveChangesAsync`: a mesma exceção propaga pelo handler, sem publisher e sem métrica de sucesso.
+- Adicionada cobertura do worker observando o conflito com o ID do item e processando o candidato seguinte.
+- Adicionado probe scoped descartável que prova o descarte do scope de scan antes do primeiro envio.
+- O mesmo probe prova dois scopes de comando distintos, descarte entre itens e ausência de dependência scoped viva após o lote.
+- Nenhum código de produção foi alterado na correção; os findings eram lacunas de evidência sobre comportamento já correto.
+
 ## TDD
 
 - RED confirmado: o focused build falhou pela ausência de `DraftMontagemRealtimeCandidate` e `ProcessarTurnoDraftMontagemExpiradoCommand`.
-- GREEN focado: 8 testes aprovados, 0 falhas e 0 ignorados.
-- Cobertura focada: formato do candidato, SQL somente ID, scopes por item, continuidade após exceção, cancelamento do host, recarga/revalidação, timeout sem auditoria e cancelamento `System` único.
+- GREEN focado original: 8 testes aprovados, 0 falhas e 0 ignorados.
+- Os testes suplementares dos findings iniciaram verdes porque exercitam comportamento já implementado; nenhuma alteração de produção foi necessária.
+- GREEN focado após findings: 11 testes aprovados, 0 falhas e 0 ignorados.
+- Cobertura focada: formato do candidato, SQL somente ID, ordem save/publish, conflito sem efeitos pós-commit, observação por item, ciclo de scopes, cancelamento do host, recarga/revalidação, timeout sem auditoria e cancelamento `System` único.
 
 ## Verificação
 
-- Testes focados Release: 8 aprovados, 0 falhas, 0 ignorados.
+- Testes focados Release: 11 aprovados, 0 falhas, 0 ignorados.
 - Build Release da solução: aprovado com 0 warnings e 0 erros.
 - `git diff --check`: aprovado.
 - `tasks.md` e planos não foram alterados.
