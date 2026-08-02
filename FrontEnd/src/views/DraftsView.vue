@@ -317,7 +317,7 @@ function cancelPendingRemoteUpdate() {
   if (pendingLayoutIntent.value !== 'remote-update' || pendingLayoutIntentAction !== null) return
   pendingLayoutIntent.value = null
   pendingRouteResolution = null
-  void processDeferredArchivedDraft()
+  void reconcileDeferredArchivedDraft()
 }
 
 function requestLayoutIntent(
@@ -349,7 +349,6 @@ function keepEditingLayout() {
   pendingRouteResolution = null
   routeResolution?.(false)
   void nextTick(() => layoutIntentFocusTarget?.isConnected && layoutIntentFocusTarget.focus())
-  void processDeferredArchivedDraft()
 }
 
 async function discardLayout() {
@@ -370,15 +369,25 @@ async function discardLayout() {
   await nextTick()
   routeResolution?.(true)
   if (action) await action()
-  await processDeferredArchivedDraft()
+  await reconcileDeferredArchivedDraft()
 }
 
-async function processDeferredArchivedDraft() {
-  const draftId = deferredArchivedDraftId
+async function reconcileDeferredArchivedDraft(expectedDraftId = deferredArchivedDraftId) {
+  const draftId = expectedDraftId
   if (!draftId) return
-  deferredArchivedDraftId = null
-  await nextTick()
-  await handleDraftArchived(draftId)
+  await loadVisualMontagens()
+  const archived = visualMontagens.value.find((draft) => draft.id === draftId)?.arquivado === true
+  if (!archived) return
+  if (selectedDraftId.value === draftId) {
+    await openMontagem(draftId)
+    if (selectedMontagem.value?.id !== draftId || !selectedMontagem.value.arquivado) return
+  }
+  if (deferredArchivedDraftId === draftId) deferredArchivedDraftId = null
+}
+
+function reviewLayoutUpdate() {
+  const draftId = deferredArchivedDraftId
+  requestLayoutIntent('remote-update', draftId ? () => reconcileDeferredArchivedDraft(draftId) : null)
 }
 
 function queueCanonicalSnapshot(montagem: DraftMontagem) {
@@ -1597,13 +1606,9 @@ async function handleDraftArchived(draftId: string) {
   const index = visualMontagens.value.findIndex((draft) => draft.id === draftId)
   if (index < 0 && selectedDraftId.value !== draftId) return
   if (includeArchived.value && canArchiveDrafts.value) {
-    const reopenArchived = async () => {
-      await loadVisualMontagens()
-      if (selectedDraftId.value === draftId) await openMontagem(draftId)
-    }
     if (selectedDraftId.value === draftId && boardDirty.value) {
+      deferredArchivedDraftId = draftId
       if (pendingLayoutIntent.value) {
-        deferredArchivedDraftId = draftId
         return
       }
       const current = selectedMontagem.value
@@ -1611,10 +1616,11 @@ async function handleDraftArchived(draftId: string) {
         pendingCanonicalSnapshot.value = current
       }
       requiresLayoutReconciliation.value = true
-      requestLayoutIntent('remote-update', reopenArchived)
+      requestLayoutIntent('remote-update', () => reconcileDeferredArchivedDraft(draftId))
       return
     }
-    await reopenArchived()
+    deferredArchivedDraftId = draftId
+    await reconcileDeferredArchivedDraft(draftId)
     return
   }
   await removeArchivedAndReconcile(draftId, index)
@@ -1816,7 +1822,7 @@ function requestOpenMontagem(id: string) {
         />
         <Alert v-if="boardDirty && requiresLayoutReconciliation" data-layout-reconciliation role="status">
           <AlertDescription>{{ t('drafts.unsavedLayout.reconciliationRequired') }}</AlertDescription>
-          <Button data-testid="review-layout-update" type="button" variant="outline" @click="requestLayoutIntent('remote-update')">
+          <Button data-testid="review-layout-update" type="button" variant="outline" @click="reviewLayoutUpdate">
             {{ t('drafts.unsavedLayout.reviewUpdate') }}
           </Button>
         </Alert>

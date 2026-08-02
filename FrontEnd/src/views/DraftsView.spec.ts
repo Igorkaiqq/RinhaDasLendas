@@ -4011,7 +4011,7 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('defers an included archive without replacing an already open remote action', async () => {
+  it('preserves a deferred archive through two keeps and applies it only after review and discard', async () => {
     const openSummary = { ...resumo, status: 'Aberta' as const, modo: 'Manual' as const }
     const remote = { ...montagem, status: 'Aberta' as const, nome: 'Remote pending', versaoEstado: 8 }
     const archived = { ...remote, status: 'Cancelada' as const, arquivado: true, versaoEstado: 9 }
@@ -4039,11 +4039,23 @@ describe('DraftsView reason actions', () => {
     await realtimeMock.archivedHandlers.get(montagem.id)?.(montagem.id)
     expect(vm.pendingLayoutIntentAction).toBeNull()
     await wrapper.get('[data-testid="keep-editing"]').trigger('click')
-    await vi.waitFor(() => expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update'))
+    await flushPromises()
+    expect(wrapper.find('[data-testid="keep-editing"]').exists()).toBe(false)
+    expect((wrapper.vm as unknown as { deferredArchivedDraftId: string | null }).deferredArchivedDraftId).toBe(montagem.id)
     expect(serviceMocks.getDraftMontagemArchivingById).not.toHaveBeenCalled()
 
+    await wrapper.get('[data-testid="review-layout-update"]').trigger('click')
+    expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update')
+    expect(vm.pendingLayoutIntentAction).toBeTypeOf('function')
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="keep-editing"]').exists()).toBe(false)
+    expect((wrapper.vm as unknown as { deferredArchivedDraftId: string | null }).deferredArchivedDraftId).toBe(montagem.id)
+
+    await wrapper.get('[data-testid="review-layout-update"]').trigger('click')
     await wrapper.get('[data-testid="discard-layout"]').trigger('click')
     await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem).toMatchObject({ arquivado: true, versaoEstado: 9 }))
+    expect((wrapper.vm as unknown as { deferredArchivedDraftId: string | null }).deferredArchivedDraftId).toBeNull()
     wrapper.unmount()
   })
 })
