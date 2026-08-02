@@ -707,6 +707,11 @@
       "action": "Não foi possível concluir a ação.",
       "linkNotFound": "Não encontrei o draft indicado pelo link. Confira se ele ainda existe ou escolha outro na lista."
     },
+    "auxiliary": {
+      "presenceFailure": "Não foi possível carregar os jogadores elegíveis.",
+      "captainFailure": "Não foi possível carregar os capitães elegíveis.",
+      "retry": "Tentar novamente"
+    },
     "presence": {
       "eyebrow": "Lista de presença",
       "title": "Presença do draft",

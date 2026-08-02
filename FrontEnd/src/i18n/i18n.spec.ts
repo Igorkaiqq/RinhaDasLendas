@@ -19,6 +19,12 @@ const unsavedLayoutKeys = [
   'drafts.unsavedLayout.reviewUpdate',
 ] as const
 
+const auxiliaryDraftKeys = [
+  'drafts.auxiliary.presenceFailure',
+  'drafts.auxiliary.captainFailure',
+  'drafts.auxiliary.retry',
+] as const
+
 const settingsComponents = import.meta.glob('../components/settings/*.vue', {
   eager: true,
   import: 'default',
@@ -46,6 +52,16 @@ it('keeps every unsaved-layout decision key synchronized in Portuguese and Engli
   const enKeys = new Set(leafPaths(en))
 
   for (const key of unsavedLayoutKeys) {
+    expect(ptKeys.has(key), `missing pt key ${key}`).toBe(true)
+    expect(enKeys.has(key), `missing en key ${key}`).toBe(true)
+  }
+})
+
+it('keeps every optional draft enrichment failure key synchronized in Portuguese and English', () => {
+  const ptKeys = new Set(leafPaths(pt))
+  const enKeys = new Set(leafPaths(en))
+
+  for (const key of auxiliaryDraftKeys) {
     expect(ptKeys.has(key), `missing pt key ${key}`).toBe(true)
     expect(enKeys.has(key), `missing en key ${key}`).toBe(true)
   }

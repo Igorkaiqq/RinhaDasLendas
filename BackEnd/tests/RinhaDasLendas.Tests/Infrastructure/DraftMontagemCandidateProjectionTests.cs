@@ -33,7 +33,10 @@ public sealed class DraftMontagemCandidateProjectionTests
         normalizedSql.Should().NotContain("JOIN");
         normalizedSql.Should().NotContain("DRAFT_MONTAGEM_TIMES");
         normalizedSql.Should().NotContain("DRAFT_MONTAGEM_PARTICIPANTES");
+        normalizedSql.Should().NotContain("DRAFT_MONTAGEM_PRESENCAS");
         normalizedSql.Should().NotContain("DRAFT_MONTAGEM_ESCOLHAS");
+        normalizedSql.Should().NotContain("DRAFT_MONTAGEM_SUBSTITUICOES");
+        normalizedSql.Should().NotContain("DRAFT_MONTAGEM_PUBLICACOES_DISCORD");
         normalizedSql.Should().NotContain("DRAFT_MONTAGEM_ACOES_ADMINISTRATIVAS");
     }
 }

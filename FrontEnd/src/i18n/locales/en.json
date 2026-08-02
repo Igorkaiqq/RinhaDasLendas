@@ -707,6 +707,11 @@
       "action": "Could not complete the action.",
       "linkNotFound": "I could not find the draft from this link. Check if it still exists or choose another one from the list."
     },
+    "auxiliary": {
+      "presenceFailure": "Eligible players could not be loaded.",
+      "captainFailure": "Eligible captains could not be loaded.",
+      "retry": "Try again"
+    },
     "presence": {
       "eyebrow": "Presence list",
       "title": "Draft presence",

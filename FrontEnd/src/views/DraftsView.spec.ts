@@ -45,6 +45,10 @@ const serviceMocks = vi.hoisted(() => ({
   startDraftMontagemRealtime: vi.fn(),
   substituteDraftMontagemReserve: vi.fn(),
 }))
+const playerMocks = vi.hoisted(() => ({
+  listPlayers: vi.fn(),
+  listEligibleCaptains: vi.fn(),
+}))
 const authMock = vi.hoisted(() => ({
   canManageDrafts: true,
   canArchiveDrafts: true,
@@ -90,8 +94,7 @@ vi.mock('@/services/authState', () => ({
 }))
 
 vi.mock('@/services/players', () => ({
-  listPlayers: vi.fn().mockResolvedValue([]),
-  listEligibleCaptains: vi.fn().mockResolvedValue([]),
+  ...playerMocks,
 }))
 
 vi.mock('@/services/draftMontagens', () => ({
@@ -463,6 +466,8 @@ describe('DraftsView reason actions', () => {
       }
     })
     serviceMocks.listEligibleManualPresencePlayers.mockResolvedValue([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
+    playerMocks.listPlayers.mockResolvedValue([])
+    playerMocks.listEligibleCaptains.mockResolvedValue([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
     serviceMocks.addManualDraftMontagemPresence.mockResolvedValue(montagem)
     serviceMocks.cancelDraftMontagem.mockResolvedValue(montagem)
     serviceMocks.archiveDraftMontagem.mockResolvedValue({ id: montagem.id, status: 'Cancelada', arquivado: true, versaoEstado: 8 })
@@ -555,6 +560,8 @@ describe('DraftsView reason actions', () => {
     await flushPromises()
 
     expect((wrapper.vm as unknown as { connectionStatus: string }).connectionStatus).toBe('fallback')
+    expect(serviceMocks.listEligibleManualPresencePlayers).not.toHaveBeenCalled()
+    expect(playerMocks.listEligibleCaptains).not.toHaveBeenCalled()
     serviceMocks.getDraftMontagemRealtimeState.mockClear()
     serviceMocks.getDraftMontagemRealtimeState.mockImplementation((_id, signal: AbortSignal) => new Promise((_, reject) => {
       signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
@@ -571,6 +578,31 @@ describe('DraftsView reason actions', () => {
 
     wrapper.unmount()
     vi.useRealTimers()
+  })
+
+  it('does not start auxiliary enrichment from a broadcast when canonical health is still degraded', async () => {
+    const initial = deferred<DraftMontagemRealtimeState>()
+    const broadcastRefresh = deferred<DraftMontagemRealtimeState>()
+    serviceMocks.getDraftMontagemRealtimeState
+      .mockReturnValueOnce(initial.promise)
+      .mockReturnValueOnce(broadcastRefresh.promise)
+    const mounting = mountView()
+    await vi.waitFor(() => expect(realtimeMock.handlers.has(montagem.id)).toBe(true))
+
+    const broadcast = realtimeMock.handlers.get(montagem.id)?.({
+      montagem: { ...montagem, versaoEstado: montagem.versaoEstado + 1 },
+      serverNow: montagem.dataAtualizacao,
+    })
+    initial.reject(new Error('initial canonical failed'))
+    broadcastRefresh.reject(new Error('broadcast canonical failed'))
+    const wrapper = await mounting
+    await broadcast
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { connectionStatus: string }).connectionStatus).toBe('fallback')
+    expect(serviceMocks.listEligibleManualPresencePlayers).not.toHaveBeenCalled()
+    expect(playerMocks.listEligibleCaptains).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('does not let pending administrative enrichment hold fallback canonical in-flight', async () => {
@@ -799,6 +831,136 @@ describe('DraftsView reason actions', () => {
     const vm = wrapper.vm as unknown as { passiveRequestId: number; mutationRequestId: number }
     expect(vm.passiveRequestId).toBeGreaterThan(passiveBefore)
     expect(vm.mutationRequestId).toBeGreaterThan(0)
+    wrapper.unmount()
+  })
+
+  it('starts optional presence and captain enrichment only after canonical health without blocking connected state or actions', async () => {
+    const canonical = deferred<DraftMontagemRealtimeState>()
+    const presence = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    const captains = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    serviceMocks.getDraftMontagemRealtimeState.mockReturnValueOnce(canonical.promise)
+    serviceMocks.listEligibleManualPresencePlayers.mockReturnValueOnce(presence.promise)
+    playerMocks.listEligibleCaptains.mockReturnValueOnce(captains.promise)
+
+    const mounting = mountView()
+    await vi.waitFor(() => expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(1))
+    expect(serviceMocks.listEligibleManualPresencePlayers).not.toHaveBeenCalled()
+    expect(playerMocks.listEligibleCaptains).not.toHaveBeenCalled()
+
+    canonical.resolve({ montagem, canCurrentUserPick: false, serverNow: montagem.dataAtualizacao })
+    const wrapper = await mounting
+    await vi.waitFor(() => expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1))
+
+    expect((wrapper.vm as unknown as { connectionStatus: string; saving: boolean }).connectionStatus).toBe('connected')
+    expect((wrapper.vm as unknown as { saving: boolean }).saving).toBe(false)
+    expect(findButton(wrapper, 'Cancelar').attributes('disabled')).toBeUndefined()
+    presence.resolve([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
+    captains.resolve([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
+    wrapper.unmount()
+  })
+
+  it('orders auxiliary requests without advancing canonical lane IDs or the personalized sequence', async () => {
+    const wrapper = await mountView()
+    const before = wrapper.vm as unknown as {
+      auxiliaryRequestId: number
+      passiveRequestId: number
+      mutationRequestId: number
+      personalizedSequence: number
+      loadEligibleManualPresencePlayers: () => Promise<void>
+      loadEligibleCaptains: () => Promise<void>
+    }
+    const canonicalIds = {
+      passive: before.passiveRequestId,
+      mutation: before.mutationRequestId,
+      personalized: before.personalizedSequence,
+    }
+    const auxiliaryBefore = before.auxiliaryRequestId
+
+    await before.loadEligibleManualPresencePlayers()
+    await before.loadEligibleCaptains()
+
+    expect(before.auxiliaryRequestId).toBeGreaterThan(auxiliaryBefore)
+    expect(before.passiveRequestId).toBe(canonicalIds.passive)
+    expect(before.mutationRequestId).toBe(canonicalIds.mutation)
+    expect(before.personalizedSequence).toBe(canonicalIds.personalized)
+    wrapper.unmount()
+  })
+
+  it('aborts captain enrichment on generation change and leaves its stale completion inert', async () => {
+    serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection())
+    serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
+    const staleCaptains = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    playerMocks.listEligibleCaptains
+      .mockReturnValueOnce(staleCaptains.promise)
+      .mockResolvedValueOnce([{ id: 'capitao-b', nomeExibicao: 'Capitão B' }])
+    const wrapper = await mountView()
+    await vi.waitFor(() => expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1))
+    const staleSignal = playerMocks.listEligibleCaptains.mock.calls[0]?.[0] as AbortSignal | undefined
+
+    await findButton(wrapper, 'Rinha de segunda').trigger('click')
+    await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.id).toBe(montagemB.id))
+    staleCaptains.resolve([{ id: 'capitao-antigo', nomeExibicao: 'Capitão antigo' }])
+    await flushPromises()
+
+    expect(staleSignal?.aborted).toBe(true)
+    expect((wrapper.vm as unknown as { eligibleCaptainIds: string[] }).eligibleCaptainIds).toEqual(['capitao-b'])
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', 'Não foi possível carregar os jogadores elegíveis.', 'Tentar novamente'],
+    ['en', 'Eligible players could not be loaded.', 'Try again'],
+  ] as const)('contains auxiliary presence failure in its dependent control with exact localized retry in %s', async (locale, failure, retry) => {
+    setLocale(locale)
+    serviceMocks.listEligibleManualPresencePlayers.mockRejectedValueOnce(new Error('presence unavailable'))
+    const wrapper = await mountView()
+
+    const feedback = wrapper.get('[data-auxiliary-presence-error]')
+    expect(feedback.text()).toContain(failure)
+    expect(feedback.get('button').text()).toBe(retry)
+    expect(wrapper.get('select[name="manual-presence-player"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-draft-workspace]').exists()).toBe(true)
+    expect((wrapper.vm as unknown as { connectionStatus: string; errors: string[] }).connectionStatus).toBe('connected')
+    expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual([])
+
+    serviceMocks.listEligibleManualPresencePlayers.mockResolvedValueOnce([{ id: 'retry-player', nomeExibicao: 'Retry Player' }])
+    await feedback.get('button').trigger('click')
+    await flushPromises()
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenLastCalledWith(montagem.id, '', 1, 20, expect.any(AbortSignal))
+    expect(wrapper.find('[data-auxiliary-presence-error]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Retry Player')
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['pt', 'Não foi possível carregar os capitães elegíveis.', 'Tentar novamente'],
+    ['en', 'Eligible captains could not be loaded.', 'Try again'],
+  ] as const)('contains auxiliary captain failure in captain controls with exact localized retry in %s', async (locale, failure, retry) => {
+    setLocale(locale)
+    const closed = {
+      ...adminProjection('PresencaEncerrada'),
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+    } as DraftMontagemAdmin
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(closed)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: sharedFromAdmin(closed), canCurrentUserPick: false })
+    playerMocks.listEligibleCaptains.mockRejectedValueOnce(new Error('captains unavailable'))
+    const wrapper = await mountView()
+
+    const feedback = wrapper.get('[data-auxiliary-captain-error]')
+    expect(feedback.text()).toContain(failure)
+    expect(feedback.get('button').text()).toBe(retry)
+    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('canDefineCaptains')).toBe(false)
+    expect((wrapper.vm as unknown as { connectionStatus: string; errors: string[] }).connectionStatus).toBe('connected')
+    expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual([])
+
+    playerMocks.listEligibleCaptains.mockResolvedValueOnce([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
+    await feedback.get('button').trigger('click')
+    await flushPromises()
+    expect(playerMocks.listEligibleCaptains).toHaveBeenLastCalledWith(expect.any(AbortSignal))
+    expect(wrapper.find('[data-auxiliary-captain-error]').exists()).toBe(false)
+    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('eligibleCaptainIds')).toEqual(['jogador-1'])
     wrapper.unmount()
   })
 
@@ -1959,7 +2121,7 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('uses substitution eligibility on the board without leaking reserves into initial eligibility', async () => {
+  it('uses auxiliary substitution eligibility on the board', async () => {
     const outgoingCaptain = { ...realtimeCaptain, jogadorId: 'outgoing-captain', nomeExibicao: 'Capitão atual' }
     const teammate = { ...realtimeCaptain, jogadorId: 'teammate-1', nomeExibicao: 'Novo capitão', capitao: false, ordem: 2 }
     const reserve = { ...realtimeCaptain, jogadorId: 'reserve-1', nomeExibicao: 'Reserva elegível', estado: 'Reserva' as const, capitao: false }
@@ -1979,6 +2141,10 @@ describe('DraftsView reason actions', () => {
     })
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
     serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: activeDraft, canCurrentUserPick: false, serverNow: activeDraft.dataAtualizacao })
+    playerMocks.listEligibleCaptains.mockResolvedValue([
+      { id: 'teammate-1', nomeExibicao: 'Novo capitão' },
+      { id: 'reserve-1', nomeExibicao: 'Reserva elegível' },
+    ])
     const wrapper = await mountView()
     const board = wrapper.getComponent({ name: 'DraftVisualBoard' })
     const vm = wrapper.vm as unknown as { substituteReserve: (payload: DraftMontagemSubstituicaoPayload) => Promise<void> }
@@ -2023,6 +2189,7 @@ describe('DraftsView reason actions', () => {
     })
     serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: preStartDraft, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
     serviceMocks.substituteDraftMontagemReserve.mockResolvedValue({ montagem: { ...preStartDraft, versaoEstado: preStartDraft.versaoEstado + 1 }, canCurrentUserPick: false, serverNow: preStartDraft.dataAtualizacao })
+    playerMocks.listEligibleCaptains.mockResolvedValue([{ id: 'reserve-1', nomeExibicao: 'Reserva elegível' }])
     const wrapper = await mountView()
 
     expect(wrapper.findComponent({ name: 'DraftVisualBoard' }).exists()).toBe(true)
@@ -2394,7 +2561,7 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
-  it('uses only backend-projected eligible starters for realtime captain selection', async () => {
+  it('uses only auxiliary eligible starters for realtime captain selection', async () => {
     const secondPresence = {
       ...montagem.presencas[0]!,
       id: 'presenca-2',
@@ -2410,6 +2577,7 @@ describe('DraftsView reason actions', () => {
       presencas: [...montagem.presencas, secondPresence],
       capitaesElegiveisIds: ['jogador-2'],
     } as DraftMontagemAdmin
+    playerMocks.listEligibleCaptains.mockResolvedValue([{ id: 'jogador-2', nomeExibicao: 'Lux' }])
     const wrapper = await mountView()
     const vm = wrapper.vm as unknown as {
       activeDraftGeneration: number
@@ -2450,15 +2618,21 @@ describe('DraftsView reason actions', () => {
       capitaesElegiveisIds: ['jogador-1', 'jogador-2'],
     }
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(initial)
+    playerMocks.listEligibleCaptains.mockResolvedValue([
+      { id: 'jogador-1', nomeExibicao: 'Jogador 1' },
+      { id: 'jogador-2', nomeExibicao: 'Jogador 2' },
+    ])
     const wrapper = await mountView()
     let panel = wrapper.getComponent({ name: 'DraftPreparationPanel' })
     panel.vm.$emit('toggle-captain', 'jogador-1')
     panel.vm.$emit('toggle-captain', 'jogador-2')
     expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-1', 'jogador-2'])
 
-    const changed = { ...initial, capitaesElegiveisIds: ['jogador-2', 'jogador-3'] }
-    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(changed)
-    await emitRealtime('montagem-1', changed)
+    playerMocks.listEligibleCaptains.mockResolvedValue([
+      { id: 'jogador-2', nomeExibicao: 'Jogador 2' },
+      { id: 'jogador-3', nomeExibicao: 'Jogador 3' },
+    ])
+    await (wrapper.vm as unknown as { loadEligibleCaptains: () => Promise<void> }).loadEligibleCaptains()
     await flushPromises()
     expect((wrapper.vm as unknown as { captainSelection: string[] }).captainSelection).toEqual(['jogador-2'])
 

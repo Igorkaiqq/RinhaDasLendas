@@ -9,7 +9,7 @@ interface EligiblePresencePlayer {
   nomeExibicao: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   draft: DraftMontagem
   confirmedPresences: readonly DraftMontagemPresenca[]
   saving: boolean
@@ -28,7 +28,12 @@ const props = defineProps<{
   manualPresenceSearch: string
   selectedManualPresencePlayerId: string
   availableManualPresencePlayers: readonly EligiblePresencePlayer[]
-}>()
+  manualPresenceAuxiliaryFailed?: boolean
+  captainAuxiliaryFailed?: boolean
+}>(), {
+  manualPresenceAuxiliaryFailed: false,
+  captainAuxiliaryFailed: false,
+})
 
 const emit = defineEmits<{
   'confirm-presence': []
@@ -36,6 +41,8 @@ const emit = defineEmits<{
   'close-presence': [continueWithLess: boolean]
   'update:manualPresenceSearch': [value: string]
   'search-manual-presence': []
+  'retry-manual-presence': []
+  'retry-captains': []
   'update:selectedManualPresencePlayerId': [value: string]
   'add-manual-presence': []
   'remove-manual-presence': [jogadorId: string, jogadorNome: string]
@@ -141,7 +148,7 @@ function updateManualSelection(event: ControlEvent) {
       </label>
       <label>
         {{ t('drafts.presence.selectPlayer') }}
-        <select name="manual-presence-player" autocomplete="off" :value="selectedManualPresencePlayerId" :disabled="saving" @change="updateManualSelection">
+        <select name="manual-presence-player" autocomplete="off" :value="selectedManualPresencePlayerId" :disabled="saving || manualPresenceAuxiliaryFailed" @change="updateManualSelection">
           <option value="">{{ t('drafts.presence.selectPlayer') }}</option>
           <option v-for="player in availableManualPresencePlayers" :key="player.id" :value="player.id">{{ player.nomeExibicao }}</option>
         </select>
@@ -150,11 +157,15 @@ function updateManualSelection(event: ControlEvent) {
         data-testid="add-manual-presence"
         type="button"
         class="button-secondary"
-        :disabled="saving || !selectedManualPresencePlayerId"
+        :disabled="saving || manualPresenceAuxiliaryFailed || !selectedManualPresencePlayerId"
         @click="emitUnlessSaving('add-manual-presence')"
       >
         {{ t('drafts.presence.addManual') }}
       </button>
+      <div v-if="manualPresenceAuxiliaryFailed" data-auxiliary-presence-error class="profile-inline-message draft-preparation__auxiliary" role="status">
+        <span>{{ t('drafts.auxiliary.presenceFailure') }}</span>
+        <button type="button" class="button-secondary" :disabled="saving" @click="emit('retry-manual-presence')">{{ t('drafts.auxiliary.retry') }}</button>
+      </div>
     </div>
 
     <section v-if="canChooseMode" data-mode-choice class="draft-preparation__mode" :aria-labelledby="`draft-mode-title-${draft.id}`">
@@ -242,6 +253,10 @@ function updateManualSelection(event: ControlEvent) {
         </button>
       </div>
     </div>
+    <div v-if="canSelectCaptains && captainAuxiliaryFailed" data-auxiliary-captain-error class="profile-inline-message draft-preparation__auxiliary" role="status">
+      <span>{{ t('drafts.auxiliary.captainFailure') }}</span>
+      <button type="button" class="button-secondary" :disabled="saving" @click="emit('retry-captains')">{{ t('drafts.auxiliary.retry') }}</button>
+    </div>
     <div v-else-if="canDrawOrder" class="draft-preparation__footer">
       <button data-testid="draw-order" data-stage-primary-action type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">
         {{ t('drafts.presence.drawOrder') }}
@@ -281,6 +296,15 @@ function updateManualSelection(event: ControlEvent) {
   border: 1px solid var(--color-hairline-soft);
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
+}
+
+.draft-preparation__auxiliary {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
 }
 
 .draft-preparation__mode {

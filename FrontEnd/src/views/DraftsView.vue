@@ -21,7 +21,7 @@ import { AuthRoles } from '@/constants/authRoles'
 import { DRAFT_MONTAGEM_STATUS_OPTIONS } from '@/constants/draftMontagemStatus'
 import { Permissions } from '@/constants/permissions'
 import { useAuthState } from '@/services/authState'
-import { listPlayers, type Player } from '@/services/players'
+import { listEligibleCaptains, listPlayers, type Player } from '@/services/players'
 import {
   addManualDraftMontagemPresence,
   archiveDraftMontagem,
@@ -83,6 +83,10 @@ const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
+const eligibleCaptainIds = ref<string[]>([])
+const substitutionEligibleCaptainIds = ref<string[]>([])
+const manualPresenceAuxiliaryFailed = ref(false)
+const captainAuxiliaryFailed = ref(false)
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const boardDirty = ref(false)
 const boardBaseVersion = ref(0)
@@ -101,8 +105,12 @@ let mutationRequestId = 0
 let personalizedSequence = 0
 let lastPersonalizedSequence = 0
 let highestSharedVersion = 0
-let manualPresenceRequestVersion = 0
+let auxiliaryRequestId = 0
+let manualPresenceAuxiliaryRequestId = 0
+let captainAuxiliaryRequestId = 0
+let auxiliaryEnrichmentGeneration: number | null = null
 let manualPresenceAbortController: AbortController | null = null
+let captainAbortController: AbortController | null = null
 let activeDraftId: string | null = null
 let activeDraftGeneration = 0
 let listRequestVersion = 0
@@ -131,6 +139,12 @@ interface DraftUpdateContext {
   holdSaving?: boolean
 }
 
+interface AuxiliaryRequestContext {
+  draftId: string
+  generation: number
+  requestId: number
+}
+
 const captainSelection = ref<string[]>([])
 const statusOptions = DRAFT_MONTAGEM_STATUS_OPTIONS
 const preparationStatuses: readonly DraftMontagemStatus[] = [
@@ -156,8 +170,6 @@ const myPresence = computed(
 const currentPlayerId = computed(() => currentAuthPlayerId.value ?? myPresence.value?.jogadorId ?? null)
 const hasPlayerProfile = computed(() => Boolean(currentPlayerId.value))
 const confirmedPresences = computed(() => selectedMontagem.value?.presencas.filter((presence) => presence.status === DraftMontagemPresencaStatusValues.Confirmada) ?? [])
-const eligibleCaptainIds = computed(() => (selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisIds ?? [])
-const substitutionEligibleCaptainIds = computed(() => (selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisSubstituicaoIds ?? [])
 const selectableCaptainIds = computed(() => selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
   ? eligibleCaptainIds.value
   : confirmedPresences.value.map((presence) => presence.jogadorId))
@@ -284,7 +296,7 @@ onUnmounted(async () => {
   detailRequestVersion = 0
   abortGenerationRequests()
   stopFallback()
-  manualPresenceAbortController?.abort()
+  abortAuxiliaryRequests()
   await disconnectRealtime()
 })
 
@@ -468,13 +480,15 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   mutationRequestId = 0
   personalizedSequence = 0
   lastPersonalizedSequence = 0
+  auxiliaryRequestId = 0
+  manualPresenceAuxiliaryRequestId = 0
+  captainAuxiliaryRequestId = 0
+  auxiliaryEnrichmentGeneration = null
   canonicalAcceptanceId = 0
   highestSharedVersion = 0
   connectionStatus.value = 'disconnected'
   stopFallback()
-  manualPresenceAbortController?.abort()
-  manualPresenceAbortController = null
-  manualPresenceRequestVersion++
+  abortAuxiliaryRequests()
   selectedMontagem.value = null
   selectedArchiving.value = null
   canCurrentUserPick.value = null
@@ -482,6 +496,10 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   pendingReasonAction.value = null
   captainSelection.value = []
   manualPresencePlayers.value = []
+  eligibleCaptainIds.value = []
+  substitutionEligibleCaptainIds.value = []
+  manualPresenceAuxiliaryFailed.value = false
+  captainAuxiliaryFailed.value = false
   selectedManualPresencePlayerId.value = ''
   const disconnecting = disconnectRealtime(false)
   saving.value = true
@@ -496,10 +514,7 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
     } else {
       await connectRealtime(id, generation)
     }
-    if (selectedMontagem.value) {
-      captainSelection.value = []
-      await loadEligibleManualPresencePlayers()
-    }
+    if (selectedMontagem.value) captainSelection.value = []
   } catch (error) {
     if (isActiveDraft(id, generation)) captureError(error)
   } finally {
@@ -705,8 +720,6 @@ function applyAdministrativeMetadata(context: DraftUpdateContext, detail: DraftM
       ...publication,
     })) ?? [],
     acoesAdministrativas: detail.acoesAdministrativas,
-    capitaesElegiveisIds: detail.capitaesElegiveisIds,
-    capitaesElegiveisSubstituicaoIds: detail.capitaesElegiveisSubstituicaoIds,
     motivoCancelamento: detail.motivoCancelamento,
   } as DraftMontagemAdmin
   return true
@@ -764,28 +777,98 @@ async function loadEligibleManualPresencePlayers() {
   const draftId = selectedMontagem.value?.id
   const generation = activeDraftGeneration
   const search = manualPresenceSearch.value
-  const requestVersion = ++manualPresenceRequestVersion
   manualPresenceAbortController?.abort()
   if (!draftId || !canManageDrafts.value) {
     manualPresenceAbortController = null
     manualPresencePlayers.value = []
+    manualPresenceAuxiliaryFailed.value = false
     return
   }
 
+  const context = beginAuxiliaryRequest(draftId, generation, 'presence')
   const controller = new AbortController()
   manualPresenceAbortController = controller
+  manualPresenceAuxiliaryFailed.value = false
   try {
     const players = await listEligibleManualPresencePlayers(draftId, search, 1, 20, controller.signal)
-    if (isActiveDraft(draftId, generation)
-      && manualPresenceRequestVersion === requestVersion
-      && manualPresenceSearch.value === search) {
+    if (isCurrentAuxiliaryRequest(context, 'presence') && manualPresenceSearch.value === search) {
       manualPresencePlayers.value = players
     }
-  } catch (error) {
-    if (!controller.signal.aborted) throw error
+  } catch {
+    if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'presence')) {
+      manualPresencePlayers.value = []
+      selectedManualPresencePlayerId.value = ''
+      manualPresenceAuxiliaryFailed.value = true
+    }
   } finally {
     if (manualPresenceAbortController === controller) manualPresenceAbortController = null
   }
+}
+
+async function loadEligibleCaptains() {
+  const draftId = selectedMontagem.value?.id
+  const generation = activeDraftGeneration
+  captainAbortController?.abort()
+  if (!draftId || !canManageDraftCycle.value) {
+    captainAbortController = null
+    eligibleCaptainIds.value = []
+    substitutionEligibleCaptainIds.value = []
+    captainAuxiliaryFailed.value = false
+    return
+  }
+
+  const context = beginAuxiliaryRequest(draftId, generation, 'captain')
+  const controller = new AbortController()
+  captainAbortController = controller
+  captainAuxiliaryFailed.value = false
+  try {
+    const captains = await listEligibleCaptains(controller.signal)
+    if (!isCurrentAuxiliaryRequest(context, 'captain')) return
+    const ids = captains.map((captain) => captain.id)
+    eligibleCaptainIds.value = ids
+    substitutionEligibleCaptainIds.value = ids
+  } catch {
+    if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'captain')) {
+      eligibleCaptainIds.value = []
+      substitutionEligibleCaptainIds.value = []
+      captainSelection.value = []
+      captainAuxiliaryFailed.value = true
+    }
+  } finally {
+    if (captainAbortController === controller) captainAbortController = null
+  }
+}
+
+function beginAuxiliaryRequest(draftId: string, generation: number, type: 'presence' | 'captain'): AuxiliaryRequestContext {
+  const requestId = ++auxiliaryRequestId
+  if (type === 'presence') manualPresenceAuxiliaryRequestId = requestId
+  else captainAuxiliaryRequestId = requestId
+  return { draftId, generation, requestId }
+}
+
+function isCurrentAuxiliaryRequest(context: AuxiliaryRequestContext, type: 'presence' | 'captain') {
+  const currentRequestId = type === 'presence' ? manualPresenceAuxiliaryRequestId : captainAuxiliaryRequestId
+  return isActiveDraft(context.draftId, context.generation) && currentRequestId === context.requestId
+}
+
+function abortAuxiliaryRequests() {
+  manualPresenceAbortController?.abort()
+  captainAbortController?.abort()
+  manualPresenceAbortController = null
+  captainAbortController = null
+}
+
+function startAuxiliaryEnrichment(id: string, generation: number) {
+  if (
+    auxiliaryEnrichmentGeneration === generation
+    || !isActiveDraft(id, generation)
+    || !selectedMontagem.value
+    || selectedMontagem.value.arquivado
+  ) return
+
+  auxiliaryEnrichmentGeneration = generation
+  void loadEligibleManualPresencePlayers()
+  void loadEligibleCaptains()
 }
 
 async function confirmPresence() {
@@ -999,7 +1082,10 @@ async function connectRealtime(id: string, generation: number) {
       const eventContext = beginDraftUpdate(id, generation, 'passive')
       if (eventContext) applySharedProjection(eventContext, snapshot.montagem)
       try {
-        if (await loadPersonalizedRealtimeState(id, generation)) scheduleAdministrativeDetail(id, generation)
+        if (await loadPersonalizedRealtimeState(id, generation)) {
+          scheduleAdministrativeDetail(id, generation)
+          startAuxiliaryEnrichment(id, generation)
+        }
       } catch {
         // Keep the last personalized projection if its refresh fails.
       }
@@ -1015,6 +1101,7 @@ async function connectRealtime(id: string, generation: number) {
         connectionStatus.value = 'connected'
         stopFallback()
         scheduleAdministrativeDetail(id, generation)
+        startAuxiliaryEnrichment(id, generation)
       } catch {
         if (isActiveDraft(id, generation)) startFallback(id, generation)
       }
@@ -1052,7 +1139,10 @@ async function runFallbackRequest(id: string, generation: number) {
   controller.signal.addEventListener('abort', () => releaseFallbackRequest(controller), { once: true })
   const timeout = globalThis.setTimeout(() => controller.abort(), 2000)
   try {
-    if (await loadPersonalizedRealtimeState(id, generation, controller.signal)) scheduleAdministrativeDetail(id, generation)
+    if (await loadPersonalizedRealtimeState(id, generation, controller.signal)) {
+      scheduleAdministrativeDetail(id, generation)
+      startAuxiliaryEnrichment(id, generation)
+    }
   } catch {
     // A failed fallback GET preserves the last accepted state and degraded health.
   } finally {
@@ -1798,11 +1888,15 @@ function requestOpenMontagem(id: string) {
           :manual-presence-search="manualPresenceSearch"
           :selected-manual-presence-player-id="selectedManualPresencePlayerId"
           :available-manual-presence-players="availableManualPresencePlayers"
+          :manual-presence-auxiliary-failed="manualPresenceAuxiliaryFailed"
+          :captain-auxiliary-failed="captainAuxiliaryFailed"
           @confirm-presence="confirmPresence"
           @cancel-presence="cancelPresence"
           @close-presence="closePresence"
           @update:manual-presence-search="manualPresenceSearch = $event"
           @search-manual-presence="loadEligibleManualPresencePlayers"
+          @retry-manual-presence="loadEligibleManualPresencePlayers"
+          @retry-captains="loadEligibleCaptains"
           @update:selected-manual-presence-player-id="selectedManualPresencePlayerId = $event"
           @add-manual-presence="addManualPresence"
           @remove-manual-presence="requestManualPresenceRemoval"
@@ -1846,6 +1940,10 @@ function requestOpenMontagem(id: string) {
           @finalize="finalizeMontagem"
           @cancel="requestDraftCancellation"
         />
+        <Alert v-if="captainAuxiliaryFailed && selectedMontagem && !preparationStatuses.includes(selectedMontagem.status)" data-auxiliary-captain-error role="status">
+          <AlertDescription>{{ t('drafts.auxiliary.captainFailure') }}</AlertDescription>
+          <Button type="button" variant="outline" @click="loadEligibleCaptains">{{ t('drafts.auxiliary.retry') }}</Button>
+        </Alert>
         <section v-if="selectedMontagem?.arquivado" class="draft-empty-card draft-archive-audit" data-archived-workspace>
           <h2>{{ t('drafts.archive.historyTitle') }}</h2>
           <p>{{ t('drafts.archive.readOnly') }}</p>
