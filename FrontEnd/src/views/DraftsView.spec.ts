@@ -1176,6 +1176,34 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('focuses the stable workspace target when an empty captain retry removes the realtime-board retry control', async () => {
+    const finished = {
+      ...adminProjection('Finalizada'),
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+      times: [],
+      livres: [],
+      reservas: [],
+    } as DraftMontagemAdmin
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(finished)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: sharedFromAdmin(finished), canCurrentUserPick: false })
+    playerMocks.listEligibleCaptains
+      .mockRejectedValueOnce(new Error('captains unavailable'))
+      .mockResolvedValueOnce([])
+    const wrapper = await mountView({ realBoard: true })
+    const retry = wrapper.get('[data-auxiliary-captain-error] button')
+
+    expect(wrapper.findComponent({ name: 'DraftPreparationPanel' }).exists()).toBe(false)
+    expect(wrapper.find('.draft-substitute-action').exists()).toBe(false)
+    ;(retry.element as HTMLButtonElement).focus()
+    await retry.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-auxiliary-captain-error]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="draft-workspace-header"]').element)
+    wrapper.unmount()
+  })
+
   it('reconciles a layout 409 with canonical GET before unlocking mutation', async () => {
     const ServiceError = (await import('@/services/draftMontagens')).DraftMontagemServiceError
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))

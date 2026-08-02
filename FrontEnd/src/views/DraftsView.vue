@@ -929,7 +929,12 @@ async function retryCaptainEnrichment() {
   if (!(await loadEligibleCaptains())) return
   if (await preparationPanel.value?.focusCaptainControl()) return
   await nextTick()
-  draftWorkspace.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('.draft-substitute-action:not(:disabled)')?.focus()
+  const substituteAction = draftWorkspace.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('.draft-substitute-action:not(:disabled)')
+  if (substituteAction) {
+    substituteAction.focus()
+    return
+  }
+  await workspaceHeader.value?.focusStage()
 }
 
 async function confirmPresence() {
