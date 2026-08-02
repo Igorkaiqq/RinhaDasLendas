@@ -18,7 +18,7 @@ namespace RinhaDasLendas.Tests.Api;
 public sealed class IdempotencyMiddlewareTests
 {
     [Fact]
-    public async Task InvokeAsync_ShouldCanonicalizeJsonAndUseRouteTemplateWithoutQueryValues()
+    public async Task InvokeAsync_ShouldCanonicalizeJsonAndUseConcreteNormalizedPathWithoutQueryValues()
     {
         var requests = new List<IdempotencyRequest>();
         var service = ExecutingService(requests);
@@ -35,9 +35,10 @@ public sealed class IdempotencyMiddlewareTests
 
         requests.Should().HaveCount(2);
         requests.Select(request => request.RequestHash).Distinct().Should().ContainSingle();
-        requests.Should().OnlyContain(request =>
-            request.Route == "/api/v1/temporadas/{seasonId}/aberturas"
-            && request.Method == "POST");
+        requests.Select(request => request.Route).Should().Equal(
+            "/api/v1/temporadas/11111111-1111-1111-1111-111111111111/aberturas",
+            "/api/v1/temporadas/22222222-2222-2222-2222-222222222222/aberturas");
+        requests.Should().OnlyContain(request => request.Method == "POST");
     }
 
     [Fact]

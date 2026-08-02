@@ -14,7 +14,7 @@ internal sealed class RegistroAuditoriaCompetitivaConfiguration : IEntityTypeCon
     {
         entity.ToTable("registros_auditoria_competitiva", table =>
         {
-            table.HasCheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
+            table.HasCheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasGeraisSeasonPublicadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
             table.HasCheckConstraint("ck_registros_auditoria_competitiva_recurso_tipo_valido", "recurso_tipo IN ('CalendarioCompetitivo', 'Season', 'Competicao', 'Rodada', 'VersaoRegras', 'EventoCompetitivo', 'Serie', 'Partida')");
         });
         entity.ConfigureUuidPrimaryKey();
@@ -63,6 +63,8 @@ internal sealed class RegistroAuditoriaCompetitivaConfiguration : IEntityTypeCon
 
         return field switch
         {
+            CampoSnapshotAuditoria.Nome or CampoSnapshotAuditoria.Codigo => value.GetString(),
+            CampoSnapshotAuditoria.Ano => value.GetInt32(),
             CampoSnapshotAuditoria.Id or CampoSnapshotAuditoria.SeasonId or CampoSnapshotAuditoria.CompeticaoId
                 or CampoSnapshotAuditoria.RodadaId or CampoSnapshotAuditoria.VersaoRegrasId
                 or CampoSnapshotAuditoria.EventoId or CampoSnapshotAuditoria.SerieId
@@ -79,13 +81,16 @@ internal sealed class RegistroAuditoriaCompetitivaConfiguration : IEntityTypeCon
             CampoSnapshotAuditoria.DecisaoPicksRemake => Enum.Parse<DecisaoPicksRemake>(value.GetString()!),
             CampoSnapshotAuditoria.MotivoTerminoPartida => Enum.Parse<MotivoTerminoPartida>(value.GetString()!),
             CampoSnapshotAuditoria.Versao => value.GetInt64(),
-            CampoSnapshotAuditoria.Ordem => value.GetInt32(),
+            CampoSnapshotAuditoria.Ordem or CampoSnapshotAuditoria.Numero => value.GetInt32(),
             CampoSnapshotAuditoria.Resultado or CampoSnapshotAuditoria.Picks =>
                 Array.AsReadOnly(value.EnumerateArray().Select(item => item.GetInt32()).ToArray()),
+            CampoSnapshotAuditoria.RodadaIds =>
+                Array.AsReadOnly(value.EnumerateArray().Select(item => item.GetGuid()).ToArray()),
             CampoSnapshotAuditoria.DataInicio or CampoSnapshotAuditoria.DataFimExclusiva
                 or CampoSnapshotAuditoria.DataLocal => DateOnly.Parse(value.GetString()!),
             CampoSnapshotAuditoria.AgendadaPara => value.GetDateTimeOffset(),
-            CampoSnapshotAuditoria.FearlessHabilitado or CampoSnapshotAuditoria.RevisaoNecessaria => value.GetBoolean(),
+            CampoSnapshotAuditoria.FearlessHabilitado or CampoSnapshotAuditoria.RevisaoNecessaria
+                or CampoSnapshotAuditoria.CircuitoDiario => value.GetBoolean(),
             _ => throw new InvalidOperationException(),
         };
     }

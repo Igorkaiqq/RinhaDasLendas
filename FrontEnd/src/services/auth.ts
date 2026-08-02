@@ -15,6 +15,7 @@ import { i18n } from '@/i18n'
 
 import { api } from './api'
 import { clearSession, getAccessToken, setPermissions, setSession } from './authState'
+import { applyRequestLocale } from './requestLocale'
 
 export interface UpdateOwnProfilePayload {
   nome: string
@@ -22,6 +23,7 @@ export interface UpdateOwnProfilePayload {
 
 const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 const rawApi = axios.create({ baseURL, withCredentials: true })
+rawApi.interceptors.request.use(applyRequestLocale)
 
 export class AuthServiceError extends Error {
   constructor(public readonly errors: string[]) {

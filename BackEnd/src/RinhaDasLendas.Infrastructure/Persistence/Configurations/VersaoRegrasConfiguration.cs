@@ -38,7 +38,7 @@ internal sealed class VersaoRegrasConfiguration : IEntityTypeConfiguration<Versa
         entity.Property(rules => rules.PublicadaPorUsuarioId).HasColumnName("publicada_por_usuario_id").IsRequired();
         entity.HasOne<Season>().WithMany().HasForeignKey(rules => rules.SeasonId)
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_versoes_regras_season_id");
-        entity.HasOne<Competicao>().WithMany()
+        entity.HasOne<Competicao>().WithMany(competition => competition.VersoesRegras)
             .HasForeignKey(rules => new { rules.CompeticaoId, rules.SeasonId })
             .HasPrincipalKey(competition => new { competition.Id, competition.SeasonId })
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_versoes_regras_competicao_id");

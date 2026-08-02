@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using RinhaDasLendas.Api.Filters;
+using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Enums;
@@ -245,6 +247,8 @@ public sealed class EndpointCoverageIntegrationTests
     {
         await using var factory = new PostgreSqlApiFactory();
         using var moderator = factory.CreatePresenceScheduleModeratorClient(factory.GetExistingUserId());
+        factory.Services.GetServices<IHostedService>()
+            .Should().NotContain(service => service is AgendamentoPresencaExecutionService);
         var expectedIds = await factory.SeedPresenceSchedulesForStrictOrderingAsync();
         const string route = "/api/v1/discord/agendamentos-presenca";
 
@@ -1026,17 +1030,22 @@ public sealed class EndpointCoverageIntegrationTests
                 .UseSetting("Authentication:BootstrapSuperAdmin:Enabled", "true")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Email", "integration-admin@example.com")
                 .UseSetting("Authentication:BootstrapSuperAdmin:Senha", "IntegrationAdmin123!");
-            if (_presenceScheduleSaveBarrier is not null)
+            builder.ConfigureServices(services =>
             {
-                builder.ConfigureServices(services =>
+                var executionService = services.Single(descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService)
+                    && descriptor.ImplementationType == typeof(AgendamentoPresencaExecutionService));
+                services.Remove(executionService);
+
+                if (_presenceScheduleSaveBarrier is not null)
                 {
                     services.RemoveAll<IAgendamentoPresencaRepository>();
                     services.AddScoped<IAgendamentoPresencaRepository>(provider =>
                         new CoordinatedPresenceScheduleRepository(
                             new AgendamentoPresencaRepository(provider.GetRequiredService<RinhaDasLendasDbContext>()),
                             _presenceScheduleSaveBarrier));
-                });
-            }
+                }
+            });
         }
     }
 

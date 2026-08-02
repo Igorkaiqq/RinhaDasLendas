@@ -217,6 +217,10 @@ public static class MessageCodes
     public const string CompetitiveIdempotencyConflict = "MV126";
     public const string CorrectionJustificationRequired = "MV127";
     public const string CorrectionAnnulConfirmationRequired = "MV128";
+    public const string CompetitionCodeConflict = "MV129";
+    public const string RoundOrderConflict = "MV130";
+    public const string ActiveSeasonConflict = "MV131";
+    public const string SeasonOrderConflict = "MV132";
     public const string DiscordLinked = "MSIS023";
     public const string DiscordUnlinked = "MSIS024";
     public const string PresenceConfirmed = "MSIS025";

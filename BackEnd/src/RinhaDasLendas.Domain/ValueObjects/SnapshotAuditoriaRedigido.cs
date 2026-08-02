@@ -87,6 +87,11 @@ public sealed class SnapshotAuditoriaRedigido
 
         return campo switch
         {
+            CampoSnapshotAuditoria.Nome => NormalizarNome(valor),
+            CampoSnapshotAuditoria.Codigo => NormalizarCodigo(valor),
+            CampoSnapshotAuditoria.Ano => valor is int ano && ano is >= 2009 and <= 9999
+                ? ano
+                : throw new DomainException(MessageCodes.ValidationError),
             CampoSnapshotAuditoria.EstadoSeason => NormalizarEnum<SeasonEstado>(valor),
             CampoSnapshotAuditoria.EstadoSerie => NormalizarEnum<SerieEstado>(valor),
             CampoSnapshotAuditoria.EstadoPartida => NormalizarEnum<PartidaEstado>(valor),
@@ -102,8 +107,12 @@ public sealed class SnapshotAuditoriaRedigido
             CampoSnapshotAuditoria.Ordem => valor is int ordem && ordem > 0
                 ? ordem
                 : throw new DomainException(MessageCodes.ValidationError),
+            CampoSnapshotAuditoria.Numero => valor is int numero && numero > 0
+                ? numero
+                : throw new DomainException(MessageCodes.ValidationError),
             CampoSnapshotAuditoria.Resultado => NormalizarResultado(valor),
             CampoSnapshotAuditoria.Picks => NormalizarPicks(valor),
+            CampoSnapshotAuditoria.RodadaIds => NormalizarIds(valor),
             CampoSnapshotAuditoria.DataInicio or CampoSnapshotAuditoria.DataFimExclusiva or CampoSnapshotAuditoria.DataLocal
                 => valor is DateOnly data && data != default
                     ? data
@@ -113,11 +122,38 @@ public sealed class SnapshotAuditoriaRedigido
                     ? instante.ToUniversalTime()
                     : throw new DomainException(MessageCodes.ValidationError),
             CampoSnapshotAuditoria.FearlessHabilitado or CampoSnapshotAuditoria.RevisaoNecessaria
+                or CampoSnapshotAuditoria.CircuitoDiario
                 => valor is bool indicador
                     ? indicador
                     : throw new DomainException(MessageCodes.ValidationError),
             _ => throw new DomainException(MessageCodes.ValidationError)
         };
+    }
+
+    private static string NormalizarNome(object valor)
+    {
+        if (valor is not string nome || string.IsNullOrWhiteSpace(nome))
+        {
+            throw new DomainException(MessageCodes.ValidationError);
+        }
+
+        var normalizado = nome.Trim();
+        return normalizado.Length <= 120
+            ? normalizado
+            : throw new DomainException(MessageCodes.MaxLengthExceeded);
+    }
+
+    private static string NormalizarCodigo(object valor)
+    {
+        if (valor is not string codigo || string.IsNullOrWhiteSpace(codigo))
+        {
+            throw new DomainException(MessageCodes.ValidationError);
+        }
+
+        var normalizado = codigo.Trim();
+        return normalizado.Length <= 40
+            ? normalizado
+            : throw new DomainException(MessageCodes.MaxLengthExceeded);
     }
 
     private static TEnum NormalizarEnum<TEnum>(object valor)
@@ -150,6 +186,20 @@ public sealed class SnapshotAuditoriaRedigido
         }
 
         return Array.AsReadOnly(picks.ToArray());
+    }
+
+    private static IReadOnlyList<Guid> NormalizarIds(object valor)
+    {
+        if (valor is not IReadOnlyList<Guid> ids
+            || ids.Count == 0
+            || ids.Count > QuantidadeMaximaLista
+            || ids.Any(id => id == Guid.Empty)
+            || ids.Distinct().Count() != ids.Count)
+        {
+            throw new DomainException(MessageCodes.ValidationError);
+        }
+
+        return Array.AsReadOnly(ids.ToArray());
     }
 
     private static string Serializar(IReadOnlyDictionary<CampoSnapshotAuditoria, object?> campos)
@@ -189,6 +239,9 @@ public sealed class SnapshotAuditoriaRedigido
             case long numero:
                 writer.WriteNumberValue(numero);
                 break;
+            case string texto:
+                writer.WriteStringValue(texto);
+                break;
             case DateOnly data:
                 writer.WriteStringValue(data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 break;
@@ -203,6 +256,15 @@ public sealed class SnapshotAuditoriaRedigido
                 foreach (var item in lista)
                 {
                     writer.WriteNumberValue(item);
+                }
+
+                writer.WriteEndArray();
+                break;
+            case IReadOnlyList<Guid> lista:
+                writer.WriteStartArray();
+                foreach (var item in lista)
+                {
+                    writer.WriteStringValue(item);
                 }
 
                 writer.WriteEndArray();

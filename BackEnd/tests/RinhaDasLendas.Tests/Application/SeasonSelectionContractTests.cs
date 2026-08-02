@@ -7,6 +7,8 @@ using RinhaDasLendas.Application.Handlers.Seasons;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Application.Queries.Competicoes;
 using RinhaDasLendas.Application.Queries.Seasons;
+using RinhaDasLendas.Application.Security;
+using RinhaDasLendas.Application.Validators;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
@@ -33,14 +35,14 @@ public sealed class SeasonSelectionContractTests
         primeiroEscopo.Calendar.Should().NotBeSameAs(segundoEscopo.Calendar);
         primeiroEscopo.Seasons[anterior.Id].Should().NotBeSameAs(segundoEscopo.Seasons[anterior.Id]);
         primeiroEscopo.Seasons[primeira.Id].Should().NotBeSameAs(segundoEscopo.Seasons[primeira.Id]);
-        var primeiroHandler = new AtivarSeasonCommandHandler(primeiroEscopo, primeiroEscopo, ator);
-        var segundoHandler = new AtivarSeasonCommandHandler(segundoEscopo, segundoEscopo, ator);
+        var primeiroHandler = CreateActivationHandler(primeiroEscopo, primeiroEscopo, ator);
+        var segundoHandler = CreateActivationHandler(segundoEscopo, segundoEscopo, ator);
 
         var primeiraAtivacao = Record.ExceptionAsync(() => primeiroHandler.Handle(new AtivarSeasonCommand(primeira.Id, 7), CancellationToken.None));
         var segundaAtivacao = Record.ExceptionAsync(() => segundoHandler.Handle(new AtivarSeasonCommand(segunda.Id, 7), CancellationToken.None));
         var resultados = await Task.WhenAll(primeiraAtivacao, segundaAtivacao);
 
-        resultados.Should().ContainSingle(item => item is null);
+        resultados.Should().ContainSingle(item => item == null);
         var conflito = resultados.Should().ContainSingle(item => item is DomainException).Subject.Should().BeOfType<DomainException>().Subject;
         conflito.MessageCode.Should().Be(MessageCodes.CompetitiveCalendarVersionStale);
         persistence.SuccessfulCommits.Should().Be(1);
@@ -61,7 +63,7 @@ public sealed class SeasonSelectionContractTests
         var unitOfWork = new Mock<ICompetitiveUnitOfWork>();
         repository.Setup(item => item.GetWithSeasonsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(calendario);
         repository.Setup(item => item.GetSeasonByIdAsync(season.Id, It.IsAny<CancellationToken>())).ReturnsAsync(season);
-        var handler = new AtivarSeasonCommandHandler(repository.Object, unitOfWork.Object, ator);
+        var handler = CreateActivationHandler(repository.Object, unitOfWork.Object, ator);
 
         var act = () => handler.Handle(new AtivarSeasonCommand(season.Id, ExpectedVersion: 6), CancellationToken.None);
 
@@ -83,6 +85,8 @@ public sealed class SeasonSelectionContractTests
         var novoInicio = new DateOnly(2026, 1, 15);
         var novoFim = new DateOnly(2026, 4, 15);
         repository.Setup(item => item.GetSeasonByIdAsync(season.Id, It.IsAny<CancellationToken>())).ReturnsAsync(season);
+        repository.Setup(item => item.ListSeasonsAsync(null, null, 1, 100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([season]);
         repository
             .Setup(item => item.ExistsOverlappingSeasonAsync(novoInicio, novoFim, season.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -92,7 +96,7 @@ public sealed class SeasonSelectionContractTests
         serieRepository
             .Setup(item => item.HasConfirmedSeriesOutsidePeriodAsync(season.Id, novoInicio, novoFim, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        var handler = new UpdateSeasonCommandHandler(repository.Object, serieRepository.Object, unitOfWork.Object, ator);
+        var handler = CreateUpdateHandler(repository.Object, serieRepository.Object, unitOfWork.Object, ator);
         var request = new UpdateSeasonRequestDto("Season atualizada", 2026, 1, novoInicio, novoFim);
 
         var result = await handler.Handle(new UpdateSeasonCommand(season.Id, request, season.Versao), CancellationToken.None);
@@ -125,6 +129,8 @@ public sealed class SeasonSelectionContractTests
         var serieRepository = new Mock<ISerieRepository>();
         var unitOfWork = new Mock<ICompetitiveUnitOfWork>();
         repository.Setup(item => item.GetSeasonByIdAsync(season.Id, It.IsAny<CancellationToken>())).ReturnsAsync(season);
+        repository.Setup(item => item.ListSeasonsAsync(null, null, 1, 100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([season]);
         repository
             .Setup(item => item.ExistsOverlappingSeasonAsync(novoInicio, novoFim, season.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -134,7 +140,7 @@ public sealed class SeasonSelectionContractTests
         serieRepository
             .Setup(item => item.HasConfirmedSeriesOutsidePeriodAsync(season.Id, novoInicio, novoFim, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var handler = new UpdateSeasonCommandHandler(repository.Object, serieRepository.Object, unitOfWork.Object, ator);
+        var handler = CreateUpdateHandler(repository.Object, serieRepository.Object, unitOfWork.Object, ator);
         var request = new UpdateSeasonRequestDto("Season com confronto", 2026, 1, novoInicio, novoFim);
 
         var act = () => handler.Handle(new UpdateSeasonCommand(season.Id, request, season.Versao), CancellationToken.None);
@@ -162,7 +168,14 @@ public sealed class SeasonSelectionContractTests
         var unitOfWork = new Mock<ICompetitiveUnitOfWork>();
         repository.Setup(item => item.GetWithSeasonsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(calendario);
         repository.Setup(item => item.GetSeasonByIdAsync(season.Id, It.IsAny<CancellationToken>())).ReturnsAsync(season);
-        var handler = new EncerrarSeasonCommandHandler(repository.Object, unitOfWork.Object, ator);
+        var handler = new EncerrarSeasonCommandHandler(
+            repository.Object,
+            unitOfWork.Object,
+            ator,
+            new AllowAuthorization(),
+            new NoopAuditRepository(),
+            new FixedClock(),
+            new EncerrarSeasonCommandValidator());
 
         var result = await handler.Handle(new EncerrarSeasonCommand(season.Id, 4), CancellationToken.None);
 
@@ -182,17 +195,17 @@ public sealed class SeasonSelectionContractTests
         calendarioRepository.Setup(item => item.GetActiveSeasonAsync(It.IsAny<CancellationToken>())).ReturnsAsync(season);
         competicaoRepository
             .Setup(item => item.ListAsync(
-                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals([season.Id])),
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals(new[] { season.Id })),
                 1,
                 20,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         competicaoRepository
             .Setup(item => item.CountAsync(
-                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals([season.Id])),
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals(new[] { season.Id })),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
-        var handler = new GetCompeticoesQueryHandler(
+        var handler = CreateCompetitionQueryHandler(
             calendarioRepository.Object,
             competicaoRepository.Object,
             new PassthroughCompetitiveQuerySnapshot());
@@ -211,7 +224,7 @@ public sealed class SeasonSelectionContractTests
         var calendarioRepository = new Mock<ICalendarioCompetitivoRepository>();
         var competicaoRepository = new Mock<ICompeticaoRepository>();
         calendarioRepository.Setup(item => item.GetActiveSeasonAsync(It.IsAny<CancellationToken>())).ReturnsAsync((Season?)null);
-        var handler = new GetCompeticoesQueryHandler(
+        var handler = CreateCompetitionQueryHandler(
             calendarioRepository.Object,
             competicaoRepository.Object,
             new PassthroughCompetitiveQuerySnapshot());
@@ -235,7 +248,7 @@ public sealed class SeasonSelectionContractTests
         var competicaoRepository = new Mock<ICompeticaoRepository>();
         calendarioRepository
             .Setup(item => item.ListSeasonsAsync(
-                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals([primeira.Id, segunda.Id])),
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals(new[] { primeira.Id, segunda.Id })),
                 null,
                 1,
                 100,
@@ -243,17 +256,17 @@ public sealed class SeasonSelectionContractTests
             .ReturnsAsync([primeira, segunda]);
         competicaoRepository
             .Setup(item => item.ListAsync(
-                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals([primeira.Id, segunda.Id])),
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals(new[] { primeira.Id, segunda.Id })),
                 1,
                 20,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         competicaoRepository
             .Setup(item => item.CountAsync(
-                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals([primeira.Id, segunda.Id])),
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.ToHashSet().SetEquals(new[] { primeira.Id, segunda.Id })),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
-        var handler = new GetCompeticoesQueryHandler(
+        var handler = CreateCompetitionQueryHandler(
             calendarioRepository.Object,
             competicaoRepository.Object,
             new PassthroughCompetitiveQuerySnapshot());
@@ -272,7 +285,7 @@ public sealed class SeasonSelectionContractTests
         var act = () => SelecaoSazonal.Especifica([]);
 
         var exception = act.Should().Throw<DomainException>().Which;
-        exception.MessageCode.Should().Be(MessageCodes.SeasonalFilterConflict);
+        exception.MessageCode.Should().Be(MessageCodes.ValidationError);
     }
 
     [Fact]
@@ -335,7 +348,7 @@ public sealed class SeasonSelectionContractTests
         calendarioRepository
             .Setup(item => item.CountSeasonsAsync(null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(101);
-        var handler = new GetCompeticoesQueryHandler(
+        var handler = CreateCompetitionQueryHandler(
             calendarioRepository.Object,
             competicaoRepository.Object,
             querySnapshot);
@@ -361,7 +374,10 @@ public sealed class SeasonSelectionContractTests
             .ToArray();
         var atual = seasons[17];
         SetProperty(atual, nameof(Season.Estado), SeasonEstado.Ativa);
+        var calendar = new CalendarioCompetitivo(Guid.NewGuid(), Guid.NewGuid(), Agora);
+        SetProperty(calendar, nameof(CalendarioCompetitivo.Versao), 9L);
         var repository = new Mock<ICalendarioCompetitivoRepository>();
+        repository.Setup(item => item.GetCalendarAsync(It.IsAny<CancellationToken>())).ReturnsAsync(calendar);
         repository.Setup(item => item.GetActiveSeasonAsync(It.IsAny<CancellationToken>())).ReturnsAsync(atual);
         repository
             .Setup(item => item.ListSeasonsAsync(
@@ -385,7 +401,10 @@ public sealed class SeasonSelectionContractTests
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(125);
-        var handler = new GetSeasonsQueryHandler(repository.Object);
+        var handler = new GetSeasonsQueryHandler(
+            repository.Object,
+            new PassthroughCompetitiveQuerySnapshot(),
+            new GetSeasonsQueryValidator());
 
         var primeiraPagina = await handler.Handle(new GetSeasonsQuery(null, 1, 100), CancellationToken.None);
         var segundaPagina = await handler.Handle(new GetSeasonsQuery(null, 2, 100), CancellationToken.None);
@@ -396,6 +415,9 @@ public sealed class SeasonSelectionContractTests
         primeiraPagina.TotalItems.Should().Be(125);
         segundaPagina.TotalItems.Should().Be(125);
         primeiraPagina.TemporadaAtual!.Id.Should().Be(atual.Id);
+        primeiraPagina.VersaoCalendario.Should().Be(9);
+        repository.Verify(item => item.GetCalendarAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        repository.Verify(item => item.GetWithSeasonsAsync(It.IsAny<CancellationToken>()), Times.Never);
         repository.Verify(item => item.ListSeasonsAsync(
             It.Is<IReadOnlyCollection<Guid>>(seasonIds => seasonIds.Count == 0),
             null,
@@ -440,9 +462,91 @@ public sealed class SeasonSelectionContractTests
     private static void SetProperty<T>(object target, string propertyName, T value) =>
         target.GetType().GetProperty(propertyName)!.SetValue(target, value);
 
+    private static AtivarSeasonCommandHandler CreateActivationHandler(
+        ICalendarioCompetitivoRepository repository,
+        ICompetitiveUnitOfWork unitOfWork,
+        ICurrentActor actor) =>
+        new(
+            repository,
+            unitOfWork,
+            actor,
+            new AllowAuthorization(),
+            new NoopAuditRepository(),
+            new FixedClock(),
+            new AtivarSeasonCommandValidator());
+
+    private static UpdateSeasonCommandHandler CreateUpdateHandler(
+        ICalendarioCompetitivoRepository repository,
+        ISerieRepository serieRepository,
+        ICompetitiveUnitOfWork unitOfWork,
+        ICurrentActor actor) =>
+        new(
+            repository,
+            serieRepository,
+            unitOfWork,
+            actor,
+            new AllowAuthorization(),
+            new NoopAuditRepository(),
+            new FixedClock(),
+            new UpdateSeasonCommandValidator(new UpdateSeasonRequestDtoValidator()));
+
+    private static GetCompeticoesQueryHandler CreateCompetitionQueryHandler(
+        ICalendarioCompetitivoRepository calendarRepository,
+        ICompeticaoRepository competitionRepository,
+        ICompetitiveQuerySnapshot querySnapshot)
+    {
+        var seriesRepository = new Mock<ISerieRepository>();
+        seriesRepository.Setup(item => item.ListCompetitionIdsWithStartedSeriesAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        return new(
+            calendarRepository,
+            competitionRepository,
+            seriesRepository.Object,
+            new AllowAuthorization(),
+            querySnapshot,
+            new GetCompeticoesQueryValidator(),
+            new GetSeasonCompeticoesQueryValidator(),
+            new GetCompeticaoByIdQueryValidator());
+    }
+
     private sealed record CurrentActor(Guid? UserId) : ICurrentActor
     {
         public IReadOnlyCollection<string> Roles => [];
+    }
+
+    private sealed class AllowAuthorization : ICompetitiveAuthorizationService
+    {
+        public Task<bool> AuthorizeAsync(
+            CompetitiveAuthorizationContext context,
+            CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task<IReadOnlyCollection<string>> GetAllowedActionsAsync(
+            IReadOnlyCollection<CompetitiveAuthorizationContext> actions,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<string>>([]);
+    }
+
+    private sealed class NoopAuditRepository : ICompetitiveAuditRepository
+    {
+        public Task AddAsync(RegistroAuditoriaCompetitiva registro, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyCollection<RegistroAuditoriaCompetitiva>> ListByResourceAsync(
+            RecursoCompetitivoTipo recursoTipo,
+            Guid recursoId,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<int> CountByResourceAsync(
+            RecursoCompetitivoTipo recursoTipo,
+            Guid recursoId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class FixedClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow => Agora;
     }
 
     private sealed class PassthroughCompetitiveQuerySnapshot : ICompetitiveQuerySnapshot
@@ -580,7 +684,12 @@ public sealed class SeasonSelectionContractTests
             public CalendarioCompetitivo Calendar { get; }
             public Dictionary<Guid, Season> Seasons { get; }
 
+            public Task AcquireBootstrapLockAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
             public Task<CalendarioCompetitivo?> GetWithSeasonsAsync(CancellationToken cancellationToken) =>
+                Task.FromResult<CalendarioCompetitivo?>(Calendar);
+
+            public Task<CalendarioCompetitivo?> GetCalendarAsync(CancellationToken cancellationToken) =>
                 Task.FromResult<CalendarioCompetitivo?>(Calendar);
 
             public Task<Season?> GetSeasonByIdAsync(Guid seasonId, CancellationToken cancellationToken) =>

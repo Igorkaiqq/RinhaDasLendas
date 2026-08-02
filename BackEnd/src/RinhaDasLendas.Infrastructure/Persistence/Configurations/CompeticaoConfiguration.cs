@@ -35,8 +35,9 @@ internal sealed class CompeticaoConfiguration : IEntityTypeConfiguration<Competi
             .HasDatabaseName("ix_competicoes_criada_por_usuario_id");
         entity.HasIndex(competition => competition.AtualizadaPorUsuarioId)
             .HasDatabaseName("ix_competicoes_atualizada_por_usuario_id");
-        entity.HasIndex(competition => new { competition.SeasonId, competition.Codigo }).IsUnique()
-            .HasDatabaseName("ux_competicoes_season_id_codigo");
+        entity.HasAnnotation(
+            "RinhaDasLendas:ExpressionIndex:ux_competicoes_season_id_codigo",
+            "(season_id, lower(codigo))");
         entity.HasIndex(competition => competition.SeasonId).IsUnique().HasFilter("circuito_diario")
             .HasDatabaseName("ux_competicoes_circuito_diario");
     }

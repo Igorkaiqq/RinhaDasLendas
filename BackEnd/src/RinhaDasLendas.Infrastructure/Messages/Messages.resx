@@ -239,6 +239,10 @@
   <data name="MV126" xml:space="preserve"><value>A chave de idempotência já foi usada com conteúdo diferente</value></data>
   <data name="MV127" xml:space="preserve"><value>A justificativa da correção é obrigatória</value></data>
   <data name="MV128" xml:space="preserve"><value>Confirme a anulação da série para concluir a correção</value></data>
+  <data name="MV129" xml:space="preserve"><value>Já existe uma competição com este código na temporada</value></data>
+  <data name="MV130" xml:space="preserve"><value>Já existe uma rodada nesta ordem na competição</value></data>
+  <data name="MV131" xml:space="preserve"><value>Já existe uma temporada ativa</value></data>
+  <data name="MV132" xml:space="preserve"><value>Já existe uma temporada nesta ordem para o ano informado</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presença confirmada</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presença cancelada</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Lista de presença encerrada</value></data>

@@ -16,18 +16,42 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         }
         catch (ValidationException exception)
         {
+            var fieldErrors = exception.Errors
+                .Select(error => new ApiFieldError(
+                    error.PropertyName,
+                    error.ErrorMessage,
+                    messages.GetMessage(error.ErrorMessage)))
+                .ToArray();
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(new ApiErrorResponse(
                 messages.GetMessage(MessageCodes.ValidationError),
-                exception.Errors.Select(error => messages.GetMessage(error.ErrorMessage)).Distinct().ToArray(),
-                MessageCodes.ValidationError));
+                fieldErrors.Select(error => error.Message).Distinct().ToArray(),
+                MessageCodes.ValidationError)
+            {
+                FieldErrors = fieldErrors
+            });
         }
         catch (DomainException exception)
         {
             context.Response.StatusCode = exception.MessageCode is MessageCodes.PresenceScheduleOccurrenceConflict
                 or MessageCodes.DraftStateConflict
                 or MessageCodes.CompetitiveIdempotencyConflict
+                or MessageCodes.CompetitiveCalendarVersionStale
+                or MessageCodes.CompetitiveResourceVersionStale
+                or MessageCodes.CompetitionCodeConflict
+                or MessageCodes.RoundOrderConflict
+                or MessageCodes.ActiveSeasonConflict
+                or MessageCodes.SeasonOrderConflict
+                or MessageCodes.SeasonPeriodOverlap
+                or MessageCodes.DailyCircuitCompetitionInvalid
                 ? (int)HttpStatusCode.Conflict
+                : exception.MessageCode == MessageCodes.CompetitiveAccessDenied
+                    ? (int)HttpStatusCode.Forbidden
+                : exception.MessageCode is MessageCodes.SeasonNotFound
+                    or MessageCodes.CompetitionNotFound
+                    or MessageCodes.RoundNotFound
+                    or MessageCodes.RulesVersionNotFound
+                    ? (int)HttpStatusCode.NotFound
                 : (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(ApiErrorResponse.FromCode(messages, exception.MessageCode));
         }

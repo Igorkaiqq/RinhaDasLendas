@@ -23,6 +23,8 @@ using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Api.Middleware;
+using RinhaDasLendas.Api.OpenApi;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -247,6 +249,16 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "API para cadastro de jogadores e preferencias de rotas."
     });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+    });
+    options.OperationFilter<AuthorizedOperationSecurityFilter>();
+    options.OperationFilter<CompetitiveHeadersOperationFilter>();
+    options.SchemaFilter<CompetitiveRequestSchemaFilter>();
+    options.DocumentFilter<BearerSecurityReferenceDocumentFilter>();
 });
 
 builder.Services.AddCors(options =>
@@ -291,10 +303,15 @@ if (!app.Environment.IsEnvironment("Testing"))
     await RinhaDasLendas.Infrastructure.DependencyInjection.SeedIdentityAsync(app.Services);
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()
+    || app.Environment.IsEnvironment("Testing")
+    || app.Environment.IsEnvironment("IntegrationTesting"))
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwaggerUI();
+    }
 }
 else if (!app.Environment.IsEnvironment("Testing"))
 {

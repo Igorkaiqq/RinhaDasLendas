@@ -30,6 +30,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeasonPage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
@@ -49,6 +51,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
@@ -76,6 +80,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeasonDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -130,6 +136,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeasonDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -158,6 +166,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeasonDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -181,6 +191,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompetitionPage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       summary: Cria competição na Season
       x-capability: CanManageCompetitions
@@ -199,6 +215,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
@@ -209,6 +227,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /temporadas/{seasonId}/regras-publicadas:
@@ -229,6 +249,11 @@ paths:
       responses:
         '201':
           description: Versão geral publicada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
@@ -239,6 +264,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /competicoes:
@@ -258,6 +285,8 @@ paths:
                 $ref: '#/components/schemas/CompetitionPage'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /competicoes/{competitionId}:
     parameters:
       - $ref: '#/components/parameters/CompetitionId'
@@ -273,6 +302,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompetitionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -298,10 +329,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompetitionDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /competicoes/{competitionId}/rodadas:
@@ -318,11 +353,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Round'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       summary: Cria rodada
       x-capability: CanManageCompetitions
       x-resource-condition: Presidente; ou Admin antes de existir Série iniciada no escopo
       parameters:
+        - $ref: '#/components/parameters/IfMatch'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -333,14 +373,23 @@ paths:
       responses:
         '201':
           description: Rodada criada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Round'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /competicoes/{competitionId}/ordenacoes-rodadas:
@@ -380,10 +429,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Round'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /competicoes/{competitionId}/regras-publicadas:
@@ -404,6 +457,11 @@ paths:
       responses:
         '201':
           description: Versão publicada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
@@ -414,6 +472,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /eventos:
@@ -919,6 +979,10 @@ components:
       description: Versão fraca do recurso, por exemplo W/"7"
       schema:
         type: string
+    Location:
+      description: URI canônica do recurso criado
+      schema:
+        type: string
   parameters:
     Page:
       in: query
@@ -969,7 +1033,7 @@ components:
         type: string
     IfMatchCalendar:
       in: header
-      name: If-Match
+      name: If-Match-Calendar
       required: true
       description: ETag do CalendarioCompetitivo, não da Season alvo
       schema:
@@ -1032,6 +1096,10 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Não autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Capacidade ausente
       content:
@@ -1063,6 +1131,20 @@ components:
           type: array
           items:
             type: string
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      required: [field, messageCode, message]
+      properties:
+        field:
+          type: string
+        messageCode:
+          type: string
+        message:
+          type: string
     SeasonEstado:
       type: string
       enum: [Planejada, Ativa, Encerrada]
@@ -1150,7 +1232,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/SeasonSummary'
         - type: object
-          required: [quantidadeCompeticoes]
+          required: [quantidadeCompeticoes, acoesPermitidas]
           properties:
             quantidadeCompeticoes:
               type: integer
@@ -1389,7 +1471,7 @@ components:
           description: Deve ser true para correção de Série concluída que remova a condição de vitória
     CompetitionDetail:
       type: object
-      required: [id, seasonId, nome, codigo, circuitoDiario, rodadas, regrasPublicadas, versao]
+      required: [id, seasonId, nome, codigo, circuitoDiario, rodadas, regrasPublicadas, versao, acoesPermitidas]
       properties:
         id:
           type: string
@@ -1421,7 +1503,7 @@ components:
             type: string
     CompetitionPage:
       type: object
-      required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, seasonsIncluidas]
+      required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, temporadaAtual, seasonsIncluidas]
       properties:
         page:
           type: integer

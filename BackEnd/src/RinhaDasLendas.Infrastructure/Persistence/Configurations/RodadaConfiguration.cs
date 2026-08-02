@@ -19,9 +19,13 @@ internal sealed class RodadaConfiguration : IEntityTypeConfiguration<Rodada>
         entity.Property(round => round.Versao).HasColumnName("versao").IsConcurrencyToken().IsRequired();
         entity.Property(round => round.CriadaEm).HasUtcInstant("criada_em").IsRequired();
         entity.Property(round => round.AtualizadaEm).HasUtcInstant("atualizada_em").IsRequired();
-        entity.HasOne<Competicao>().WithMany().HasForeignKey(round => round.CompeticaoId)
+        entity.HasOne<Competicao>().WithMany(competition => competition.Rodadas)
+            .HasForeignKey(round => round.CompeticaoId)
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_rodadas_competicao_id");
-        entity.HasIndex(round => new { round.CompeticaoId, round.Ordem }).IsUnique()
-            .HasDatabaseName("ux_rodadas_competicao_id_ordem");
+        entity.HasIndex(round => round.CompeticaoId)
+            .HasDatabaseName("ix_rodadas_competicao_id");
+        entity.HasAnnotation(
+            "RinhaDasLendas:DeferrableUniqueConstraint:ux_rodadas_competicao_id_ordem",
+            "UNIQUE (competicao_id, ordem) DEFERRABLE INITIALLY DEFERRED");
     }
 }

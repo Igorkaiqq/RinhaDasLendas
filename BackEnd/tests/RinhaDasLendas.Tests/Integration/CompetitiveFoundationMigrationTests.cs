@@ -460,13 +460,13 @@ public sealed partial class CompetitiveFoundationMigrationTests
     }
 
     [Fact]
-    public async Task Competicao_DeveRecusarCodigoDuplicadoNaSeasonEAceitarEmOutraSeason()
+    public async Task Competicao_DeveRecusarCodigoDuplicadoSemDiferenciarMaiusculasNaSeasonEAceitarEmOutraSeason()
     {
         await using var database = await CreateTargetDatabaseAsync();
         var foundation = await SeedCompetitionAsync(database, false);
 
         Func<Task> duplicate = () => InsertCompetitionAsync(
-            database, foundation.ActorId, foundation.SeasonId, Guid.NewGuid(), "Código repetido", "base", false);
+            database, foundation.ActorId, foundation.SeasonId, Guid.NewGuid(), "Código repetido", "BASE", false);
         await AssertPostgresFailureAsync(duplicate, PostgresErrorCodes.UniqueViolation);
 
         var secondSeasonId = Guid.NewGuid();
@@ -476,6 +476,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
             database, foundation.ActorId, secondSeasonId, Guid.NewGuid(), "Código isolado", "base", false);
         (await ScalarAsync<long>(database, "SELECT COUNT(*) FROM competicoes WHERE codigo = 'base'")).Should().Be(2);
     }
+
 
     [Fact]
     public async Task VersaoRegras_DeveIsolarNumeroPorEscopoGeralECompeticao()
@@ -950,6 +951,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
         "ix_picks_partidas_lado_serie_id_serie_id:CREATE INDEX ix_picks_partidas_lado_serie_id_serie_id ON public.picks_partidas USING btree (lado_serie_id, serie_id)",
         "ix_picks_partidas_partida_id_serie_id:CREATE INDEX ix_picks_partidas_partida_id_serie_id ON public.picks_partidas USING btree (partida_id, serie_id)",
         "ix_registros_auditoria_competitiva_ator_usuario_id:CREATE INDEX ix_registros_auditoria_competitiva_ator_usuario_id ON public.registros_auditoria_competitiva USING btree (ator_usuario_id)",
+        "ix_rodadas_competicao_id:CREATE INDEX ix_rodadas_competicao_id ON public.rodadas USING btree (competicao_id)",
         "ix_seasons_atualizada_por_usuario_id:CREATE INDEX ix_seasons_atualizada_por_usuario_id ON public.seasons USING btree (atualizada_por_usuario_id)",
         "ix_seasons_criada_por_usuario_id:CREATE INDEX ix_seasons_criada_por_usuario_id ON public.seasons USING btree (criada_por_usuario_id)",
         "ix_series_atualizada_por_usuario_id:CREATE INDEX ix_series_atualizada_por_usuario_id ON public.series USING btree (atualizada_por_usuario_id)",
@@ -967,7 +969,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
         "ix_versoes_regras_season_id:CREATE INDEX ix_versoes_regras_season_id ON public.versoes_regras USING btree (season_id)",
         "ux_calendarios_competitivos_singleton:CREATE UNIQUE INDEX ux_calendarios_competitivos_singleton ON public.calendarios_competitivos USING btree ((true))",
         "ux_competicoes_circuito_diario:CREATE UNIQUE INDEX ux_competicoes_circuito_diario ON public.competicoes USING btree (season_id) WHERE circuito_diario",
-        "ux_competicoes_season_id_codigo:CREATE UNIQUE INDEX ux_competicoes_season_id_codigo ON public.competicoes USING btree (season_id, codigo)",
+        "ux_competicoes_season_id_codigo:CREATE UNIQUE INDEX ux_competicoes_season_id_codigo ON public.competicoes USING btree (season_id, lower((codigo)::text))",
         "ux_evento_times_evento_id_ordem:CREATE UNIQUE INDEX ux_evento_times_evento_id_ordem ON public.evento_times USING btree (evento_id, ordem)",
         "ux_evento_times_evento_id_time_id:CREATE UNIQUE INDEX ux_evento_times_evento_id_time_id ON public.evento_times USING btree (evento_id, time_id)",
         "ux_lados_series_serie_id_ordem:CREATE UNIQUE INDEX ux_lados_series_serie_id_ordem ON public.lados_series USING btree (serie_id, ordem)",
@@ -994,6 +996,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
             "ak_lados_series_id_serie_id:u:UNIQUE (id, serie_id)",
             "ak_partidas_id_serie_id:u:UNIQUE (id, serie_id)",
             "ak_rodadas_id_competicao_id:u:UNIQUE (id, competicao_id)",
+            "ux_rodadas_competicao_id_ordem:u:UNIQUE (competicao_id, ordem) DEFERRABLE INITIALLY DEFERRED",
             "ak_versoes_regras_id_competicao_escopo_id:u:UNIQUE (id, competicao_escopo_id)",
             "ak_versoes_regras_id_season_id:u:UNIQUE (id, season_id)",
             "ck_competicoes_id_nao_reservado:c:CHECK (id <> '00000000-0000-0000-0000-000000000000'::uuid)",
@@ -1010,7 +1013,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
             "ck_picks_partidas_champion_id_positivo:c:CHECK (champion_id > 0)",
             "ck_picks_partidas_ordem_valida:c:CHECK (ordem >= 1 AND ordem <= 5)",
             "ck_picks_partidas_versao_fato_positiva:c:CHECK (versao_fato > 0)",
-            "ck_registros_auditoria_competitiva_acao_valida:c:CHECK (acao::text = ANY (ARRAY['CalendarioCompetitivoAtualizado'::character varying, 'TemporadaCriada'::character varying, 'TemporadaAtualizada'::character varying, 'TemporadaAtivada'::character varying, 'TemporadaEncerrada'::character varying, 'CompeticaoCriada'::character varying, 'CompeticaoAtualizada'::character varying, 'RodadaCriada'::character varying, 'RodadasReordenadas'::character varying, 'RegrasCompeticaoPublicadas'::character varying, 'EventoCriado'::character varying, 'EventoAtualizado'::character varying, 'SerieAssociadaAoEvento'::character varying, 'SerieCriada'::character varying, 'SerieIniciada'::character varying, 'PartidaAdicionada'::character varying, 'PicksPartidaRegistrados'::character varying, 'PartidaConfirmada'::character varying, 'PartidaMarcadaComoRemake'::character varying, 'PartidaCorrigida'::character varying, 'PartidaAnulada'::character varying, 'ResultadoSerieConfirmado'::character varying, 'SerieCancelada'::character varying, 'SerieAnulada'::character varying, 'FatoCompetitivoCorrigido'::character varying]::text[]))",
+            "ck_registros_auditoria_competitiva_acao_valida:c:CHECK (acao::text = ANY (ARRAY['CalendarioCompetitivoAtualizado'::character varying, 'TemporadaCriada'::character varying, 'TemporadaAtualizada'::character varying, 'TemporadaAtivada'::character varying, 'TemporadaEncerrada'::character varying, 'CompeticaoCriada'::character varying, 'CompeticaoAtualizada'::character varying, 'RodadaCriada'::character varying, 'RodadasReordenadas'::character varying, 'RegrasGeraisSeasonPublicadas'::character varying, 'RegrasCompeticaoPublicadas'::character varying, 'EventoCriado'::character varying, 'EventoAtualizado'::character varying, 'SerieAssociadaAoEvento'::character varying, 'SerieCriada'::character varying, 'SerieIniciada'::character varying, 'PartidaAdicionada'::character varying, 'PicksPartidaRegistrados'::character varying, 'PartidaConfirmada'::character varying, 'PartidaMarcadaComoRemake'::character varying, 'PartidaCorrigida'::character varying, 'PartidaAnulada'::character varying, 'ResultadoSerieConfirmado'::character varying, 'SerieCancelada'::character varying, 'SerieAnulada'::character varying, 'FatoCompetitivoCorrigido'::character varying]::text[]))",
             "ck_registros_auditoria_competitiva_recurso_tipo_valido:c:CHECK (recurso_tipo::text = ANY (ARRAY['CalendarioCompetitivo'::character varying, 'Season'::character varying, 'Competicao'::character varying, 'Rodada'::character varying, 'VersaoRegras'::character varying, 'EventoCompetitivo'::character varying, 'Serie'::character varying, 'Partida'::character varying]::text[]))",
             "ck_rodadas_ordem_positiva:c:CHECK (ordem > 0)",
             "ck_seasons_ano_valido:c:CHECK (ano >= 2009 AND ano <= 9999)",
@@ -1368,6 +1371,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
             new NpgsqlParameter("code", code),
             new NpgsqlParameter("daily_circuit", dailyCircuit),
             new NpgsqlParameter("actor_id", actorId));
+
 
     private static Task InsertRoundAsync(
         CompetitivePostgresFixture database,

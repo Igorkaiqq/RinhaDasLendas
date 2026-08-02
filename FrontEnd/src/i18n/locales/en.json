@@ -1295,6 +1295,163 @@
       }
     }
   },
+  "seasons": {
+    "eyebrow": "Competitive calendar",
+    "title": "Seasons",
+    "description": "Organize competitive periods, competitions, rounds, and published rules.",
+    "create": "Create season",
+    "edit": "Edit season",
+    "activate": "Activate season",
+    "close": "Close season",
+    "open": "Open season",
+    "select": "Select season {name}",
+    "loading": "Loading seasons",
+    "retry": "Try again",
+    "emptyTitle": "No seasons created",
+    "emptyDescription": "Create the first season to start the competitive calendar.",
+    "emptyFilterTitle": "No seasons in this filter",
+    "emptyFilterDescription": "Choose another status to browse history.",
+    "scope": {
+      "label": "Season scope",
+      "current": "Current season",
+      "selected": "Selected seasons",
+      "all": "All seasons",
+      "apply": "Apply selection",
+      "loading": "Loading competitions in this scope.",
+      "empty": "No competitions in this scope.",
+      "countOne": "{count} competition in this scope.",
+      "countMany": "{count} competitions in this scope.",
+      "resultsTitle": "Competitive scope results",
+      "includedSeasons": "Included seasons",
+      "competitionList": "Competitions found",
+      "inSeason": "Season: {name}"
+    },
+    "states": {
+      "Planejada": "Planned",
+      "Ativa": "Active",
+      "Encerrada": "Closed",
+      "calendarUnconfigured": "No active season is configured."
+    },
+    "catalog": {
+      "eyebrow": "Timeline",
+      "title": "Season calendar"
+    },
+    "pagination": {
+      "label": "Season pagination",
+      "previous": "Previous page",
+      "next": "Next page",
+      "status": "Page {page} of {totalPages}"
+    },
+    "workspace": {
+      "eyebrow": "Selected structure"
+    },
+    "form": {
+      "eyebrow": "Season governance",
+      "createTitle": "Create season",
+      "editTitle": "Edit season",
+      "name": "Season name",
+      "year": "Year",
+      "order": "Order within year",
+      "startDate": "Start date",
+      "exclusiveEndDate": "Exclusive end date",
+      "exclusiveEndHelp": "The end date is not part of the season.",
+      "save": "Save season",
+      "validation": {
+        "name": "Enter the season name.",
+        "year": "Enter a year between 2009 and 9999.",
+        "order": "Order must be greater than zero.",
+        "startDate": "Enter the start date.",
+        "exclusiveEndDate": "Enter the exclusive end date.",
+        "period": "The end date must be after the start date."
+      }
+    },
+    "transition": {
+      "eyebrow": "Calendar change",
+      "calendarVersion": "Observed version {version}",
+      "progress": "Applying the Season change.",
+      "activate": {
+        "title": "Activate {name}?",
+        "consequence": "This season will become the current season.",
+        "replacesCurrent": "The current season {name} will be closed before activation.",
+        "action": "Activate season",
+        "confirm": "Confirm activation"
+      },
+      "close": {
+        "title": "Close {name}?",
+        "consequence": "After closing, new official series can no longer be confirmed.",
+        "action": "Close season",
+        "confirm": "Confirm closing"
+      }
+    },
+    "competitions": {
+      "eyebrow": "Next step",
+      "title": "Competitions and rounds",
+      "forSeason": "Structure for {name}",
+      "create": "Create competition",
+      "createTitle": "New competition",
+      "editTitle": "Edit competition",
+      "name": "Competition name",
+      "code": "Competition code",
+      "dailyCircuit": "Daily circuit",
+      "emptyTitle": "No competitions in this season",
+      "emptyDescription": "Create a competition to organize rounds and publish rules.",
+      "validation": {
+        "name": "Enter the competition name.",
+        "code": "Enter the competition code."
+      }
+    },
+    "rounds": {
+      "create": "Create round",
+      "createTitle": "New round in {name}",
+      "name": "Round name",
+      "order": "Order",
+      "empty": "No rounds created.",
+      "reorderLabel": "Reorder {name}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "validation": {
+        "name": "Enter the round name.",
+        "order": "Order must be greater than zero."
+      }
+    },
+    "rules": {
+      "publish": "Publish rules",
+      "publishSeason": "Publish default rules",
+      "publishTitle": "Publish rules for {name}",
+      "format": "Series format",
+      "mode": "Draft mode",
+      "version": "Version {version} · {format} · {mode}",
+      "formats": { "Md3": "BO3", "Md5": "BO5" },
+      "modes": { "Padrao": "Standard", "Fearless": "Fearless" }
+    },
+    "messages": {
+      "created": "Season created.",
+      "updated": "Season updated.",
+      "activated": "Season activated.",
+      "closed": "Season closed."
+    },
+    "errors": {
+      "loadTitle": "Could not load seasons",
+      "load": "Could not load seasons. Try again.",
+      "save": "Could not save the season.",
+      "activate": "Could not activate the season.",
+      "close": "Could not close the season.",
+      "action": "Could not complete the action.",
+      "competition": "Could not update the competition.",
+      "validation": "Review the indicated fields and try again.",
+      "notFound": "The season is no longer available.",
+      "competitionNotFound": "The competition is no longer available.",
+      "missingVersion": "The resource version was not observed. Reload the data before continuing.",
+      "unauthorized": "Your session expired. Sign in again to continue.",
+      "forbidden": "You do not have permission for this action.",
+      "calendarConflict": "The calendar changed. Review the data and confirm again.",
+      "resourceConflict": "The data changed. Review the information and confirm again.",
+      "refreshAfterSave": "The change was saved, but the data could not be refreshed. Reload the page to see the current state.",
+      "codes": {
+        "MC103": "The calendar changed. Review the data and confirm again."
+      }
+    }
+  },
   "messages": {
     "MI001": "Loading information",
     "MSIS001": "Operation completed successfully",

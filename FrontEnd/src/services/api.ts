@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { clearSession, getAccessToken, setSession } from './authState'
+import { applyRequestLocale, getAcceptLanguage } from './requestLocale'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:5000',
@@ -11,6 +12,8 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  applyRequestLocale(config)
+
   const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -33,7 +36,10 @@ api.interceptors.response.use(
 
     originalRequest._retry = true
     refreshing ??= axios
-      .post(`${api.defaults.baseURL}/api/v1/auth/refresh`, undefined, { withCredentials: true })
+      .post(`${api.defaults.baseURL}/api/v1/auth/refresh`, undefined, {
+        withCredentials: true,
+        headers: { 'Accept-Language': getAcceptLanguage() },
+      })
       .then((refreshResponse) => {
         setSession(refreshResponse.data.accessToken, refreshResponse.data.usuario)
         return refreshResponse.data.accessToken as string

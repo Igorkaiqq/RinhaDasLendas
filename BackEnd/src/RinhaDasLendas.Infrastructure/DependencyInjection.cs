@@ -71,6 +71,11 @@ public static class DependencyInjection
         services.AddScoped<CompetitiveUnitOfWork>();
         services.AddScoped<ICompetitiveUnitOfWork>(provider =>
             provider.GetRequiredService<CompetitiveUnitOfWork>());
+        services.AddScoped<ICalendarioCompetitivoRepository, CalendarioCompetitivoRepository>();
+        services.AddScoped<ICompeticaoRepository, CompeticaoRepository>();
+        services.AddScoped<ISerieRepository, SerieRepository>();
+        services.AddScoped<ICompetitiveQuerySnapshot, CompetitiveQuerySnapshot>();
+        services.AddScoped<ICompetitiveAuditRepository, CompetitiveAuditRepository>();
         services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddSingleton(TimeProvider.System);

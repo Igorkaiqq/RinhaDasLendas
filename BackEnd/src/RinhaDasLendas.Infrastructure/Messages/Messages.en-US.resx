@@ -239,6 +239,10 @@
   <data name="MV126" xml:space="preserve"><value>Idempotency key was already used with different content</value></data>
   <data name="MV127" xml:space="preserve"><value>Correction justification is required</value></data>
   <data name="MV128" xml:space="preserve"><value>Confirm Series annulment to complete the correction</value></data>
+  <data name="MV129" xml:space="preserve"><value>A competition with this code already exists in the Season</value></data>
+  <data name="MV130" xml:space="preserve"><value>A round with this order already exists in the competition</value></data>
+  <data name="MV131" xml:space="preserve"><value>An active Season already exists</value></data>
+  <data name="MV132" xml:space="preserve"><value>A Season with this order already exists for the selected year</value></data>
   <data name="MSIS025" xml:space="preserve"><value>Presence confirmed</value></data>
   <data name="MSIS026" xml:space="preserve"><value>Presence cancelled</value></data>
   <data name="MSIS027" xml:space="preserve"><value>Presence list closed</value></data>

@@ -9,10 +9,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
+using RinhaDasLendas.Infrastructure.Repositories;
 using RinhaDasLendas.Tests.Fixtures;
+using RinhaDasLendas.Tests.Handlers.Times;
 using RinhaDasLendas.Tests.Infrastructure;
 
 namespace RinhaDasLendas.Tests.Integration;
@@ -98,6 +103,22 @@ public sealed class CompetitiveFoundationConcurrencyTests
             .Should().OnlyHaveUniqueItems("route forms part of the namespace even when the HTTP method is the same");
         firstActorRecords.Select(record => ReadProperty(record, "Metodo")?.ToString())
             .Should().OnlyContain(method => string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ConcurrentFirstSeasonCreation_ShouldPersistBothSeasonsWithOneCalendar()
+    {
+        await using var factory = new CompetitiveConcurrencyApiFactory();
+        using var client = factory.CreatePresidentClient(factory.GetPrimaryActorId());
+        var responses = await Task.WhenAll(
+            SendRawJsonAsync(client, HttpMethod.Post, SeasonsRoute, SeasonJson("Primeira concorrente", 2026), NewKey()),
+            SendRawJsonAsync(client, HttpMethod.Post, SeasonsRoute, SeasonJson("Segunda concorrente", 2027), NewKey()));
+        using var first = responses[0];
+        using var second = responses[1];
+
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.Created);
+        factory.CountEntities("CalendarioCompetitivo").Should().Be(1);
+        factory.CountEntities("Season").Should().Be(2);
     }
 
     [Fact]
@@ -220,7 +241,9 @@ public sealed class CompetitiveFoundationConcurrencyTests
         var replacement = factory.GetIdempotencyRecords(actorId, key, "POST", SeasonsRoute)
             .Should().ContainSingle().Subject;
         ReadGuid(replacement, "Id").Should().NotBe(ReadGuid(originalRecord, "Id"));
-        ReadInstant(replacement, "CriadaEm").Should().Be(factory.Clock.GetUtcNow());
+        ReadInstant(replacement, "CriadaEm").Should().BeCloseTo(
+            factory.Clock.GetUtcNow(),
+            TimeSpan.FromMicroseconds(1));
     }
 
     [Fact]
@@ -496,7 +519,12 @@ public sealed class CompetitiveFoundationConcurrencyTests
         request.Headers.Add("Idempotency-Key", idempotencyKey);
         if (etag is not null)
         {
-            request.Headers.TryAddWithoutValidation("If-Match", etag);
+            request.Headers.TryAddWithoutValidation(
+                route.EndsWith("/aberturas", StringComparison.Ordinal)
+                    || route.EndsWith("/encerramentos", StringComparison.Ordinal)
+                    ? "If-Match-Calendar"
+                    : "If-Match",
+                etag);
         }
 
         if (culture is not null)
@@ -558,6 +586,7 @@ public sealed class CompetitiveFoundationConcurrencyTests
             "Server",
             "Transfer-Encoding",
             "Idempotency-Replayed",
+            "X-Correlation-ID",
         };
         return response.Headers
             .Where(header => !ignoredResponseHeaders.Contains(header.Key))
@@ -630,6 +659,7 @@ public sealed class CompetitiveFoundationConcurrencyTests
         private const string HookTypeName =
             "RinhaDasLendas.Application.Interfaces.ICompetitiveConcurrencyTestHook";
         private readonly ConcurrentReadCoordinator _coordinator = new();
+        private readonly CalendarReadBarrier _calendarReadBarrier = new();
         private string? _hookContractError;
 
         public CompetitiveConcurrencyApiFactory() : base(useIsolatedPostgreSql: true)
@@ -675,11 +705,25 @@ public sealed class CompetitiveFoundationConcurrencyTests
         {
             using var scope = Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var players = new[]
+            {
+                TimeHandlerTestData.CreateJogador("Capitão Azul Concorrente"),
+                TimeHandlerTestData.CreateJogador("Capitão Vermelho Concorrente"),
+            };
             var teams = new[]
             {
-                CompetitiveFoundationFixtures.CreateTime("Azul Concorrente", "AZC"),
-                CompetitiveFoundationFixtures.CreateTime("Vermelho Concorrente", "VMC"),
+                CompetitiveFoundationFixtures.CreateTime(
+                    "Azul Concorrente",
+                    "AZC",
+                    [players[0].Id],
+                    players[0].Id),
+                CompetitiveFoundationFixtures.CreateTime(
+                    "Vermelho Concorrente",
+                    "VMC",
+                    [players[1].Id],
+                    players[1].Id),
             };
+            context.Jogadores.AddRange(players);
             context.Times.AddRange(teams);
             await context.SaveChangesAsync();
             return teams.Select(team => team.Id).ToArray();
@@ -715,6 +759,8 @@ public sealed class CompetitiveFoundationConcurrencyTests
             _coordinator.Arm(seriesId, observedVersion);
         }
 
+        public void ArmCalendarReadBarrier() => _calendarReadBarrier.Arm();
+
         public void AssertBothOperationsCrossedReadBoundary() =>
             _coordinator.AssertReleasedPair();
 
@@ -729,6 +775,12 @@ public sealed class CompetitiveFoundationConcurrencyTests
                 {
                     services.RemoveAll<TimeProvider>();
                     services.AddSingleton<TimeProvider>(Clock);
+                    services.RemoveAll<ICalendarioCompetitivoRepository>();
+                    services.AddScoped<CalendarioCompetitivoRepository>();
+                    services.AddScoped<ICalendarioCompetitivoRepository>(provider =>
+                        new BarrierCalendarRepository(
+                            provider.GetRequiredService<CalendarioCompetitivoRepository>(),
+                            _calendarReadBarrier));
                     ConfigureConcurrencyHook(services);
                 });
         }
@@ -771,6 +823,84 @@ public sealed class CompetitiveFoundationConcurrencyTests
                 .MakeGenericMethod(entityType!);
             return ((IEnumerable)setMethod.Invoke(context, null)!).Cast<object>().ToArray();
         }
+    }
+
+    private sealed class CalendarReadBarrier
+    {
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivals;
+        private bool _armed;
+
+        public void Arm() => _armed = true;
+
+        public async Task WaitAsync(CancellationToken cancellationToken)
+        {
+            if (!_armed)
+            {
+                return;
+            }
+
+            if (Interlocked.Increment(ref _arrivals) == 2)
+            {
+                _released.TrySetResult();
+            }
+
+            await _released.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+    }
+
+    private sealed class BarrierCalendarRepository(
+        CalendarioCompetitivoRepository inner,
+        CalendarReadBarrier barrier) : ICalendarioCompetitivoRepository
+    {
+        public Task AcquireBootstrapLockAsync(CancellationToken cancellationToken) =>
+            inner.AcquireBootstrapLockAsync(cancellationToken);
+
+        public async Task<CalendarioCompetitivo?> GetCalendarAsync(CancellationToken cancellationToken)
+        {
+            var calendar = await inner.GetCalendarAsync(cancellationToken);
+            if (calendar is null)
+            {
+                await barrier.WaitAsync(cancellationToken);
+            }
+
+            return calendar;
+        }
+
+        public Task<CalendarioCompetitivo?> GetWithSeasonsAsync(CancellationToken cancellationToken) =>
+            inner.GetWithSeasonsAsync(cancellationToken);
+        public Task<Season?> GetSeasonByIdAsync(Guid seasonId, CancellationToken cancellationToken) =>
+            inner.GetSeasonByIdAsync(seasonId, cancellationToken);
+        public Task<Season?> GetActiveSeasonAsync(CancellationToken cancellationToken) =>
+            inner.GetActiveSeasonAsync(cancellationToken);
+        public Task<IReadOnlyCollection<Season>> ListSeasonsAsync(
+            IReadOnlyCollection<Guid>? seasonIds,
+            SeasonEstado? estado,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken) =>
+            inner.ListSeasonsAsync(seasonIds, estado, page, pageSize, cancellationToken);
+        public Task<int> CountSeasonsAsync(
+            IReadOnlyCollection<Guid>? seasonIds,
+            SeasonEstado? estado,
+            CancellationToken cancellationToken) =>
+            inner.CountSeasonsAsync(seasonIds, estado, cancellationToken);
+        public Task<bool> ExistsOverlappingSeasonAsync(
+            DateOnly dataInicio,
+            DateOnly dataFimExclusiva,
+            Guid? excludedSeasonId,
+            CancellationToken cancellationToken) =>
+            inner.ExistsOverlappingSeasonAsync(dataInicio, dataFimExclusiva, excludedSeasonId, cancellationToken);
+        public Task<bool> ExistsSeasonOrderAsync(
+            int ano,
+            int ordemNoAno,
+            Guid? excludedSeasonId,
+            CancellationToken cancellationToken) =>
+            inner.ExistsSeasonOrderAsync(ano, ordemNoAno, excludedSeasonId, cancellationToken);
+        public Task AddAsync(CalendarioCompetitivo calendario, CancellationToken cancellationToken) =>
+            inner.AddAsync(calendario, cancellationToken);
+        public Task AddSeasonAsync(Season season, CancellationToken cancellationToken) =>
+            inner.AddSeasonAsync(season, cancellationToken);
     }
 
     public class ConcurrencyHookProxy : DispatchProxy

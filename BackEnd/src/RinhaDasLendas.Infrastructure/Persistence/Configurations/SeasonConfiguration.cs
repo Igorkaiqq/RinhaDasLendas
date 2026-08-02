@@ -17,6 +17,7 @@ internal sealed class SeasonConfiguration : IEntityTypeConfiguration<Season>
             table.HasCheckConstraint("ck_seasons_ordem_no_ano_positiva", "ordem_no_ano > 0");
         });
         entity.ConfigureUuidPrimaryKey();
+        entity.Ignore(season => season.VersoesRegrasGerais);
         entity.Property(season => season.Nome).HasColumnName("nome").HasMaxLength(120).IsRequired();
         entity.Property(season => season.Ano).HasColumnName("ano").IsRequired();
         entity.Property(season => season.OrdemNoAno).HasColumnName("ordem_no_ano").IsRequired();

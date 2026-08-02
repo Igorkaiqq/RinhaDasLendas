@@ -4,6 +4,7 @@ using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Rules;
+using System.Reflection;
 
 namespace RinhaDasLendas.Tests.Domain;
 
@@ -172,8 +173,9 @@ public sealed class SeasonTests
         var season = CriarSeason();
         var usuarioId = Guid.NewGuid();
         var ativadaEm = DateTimeOffset.Parse("2026-01-01T03:00:00Z");
+        var calendario = CriarCalendario(usuarioId);
 
-        season.Ativar(usuarioId, ativadaEm);
+        calendario.AtivarSeason(season, null, calendario.Versao, usuarioId, ativadaEm);
 
         season.Estado.Should().Be(SeasonEstado.Ativa);
         season.AtivadaEm.Should().Be(ativadaEm);
@@ -189,10 +191,14 @@ public sealed class SeasonTests
         var season = CriarSeason();
         var ativadaEm = DateTimeOffset.Parse("2026-01-01T03:00:00Z");
         var encerradaEm = DateTimeOffset.Parse("2026-05-01T03:00:00Z");
-        season.Ativar(Guid.NewGuid(), ativadaEm);
+        var calendario = AtivarEmNovoCalendario(season, Guid.NewGuid(), ativadaEm);
         var usuarioEncerramentoId = Guid.NewGuid();
 
-        season.Encerrar(usuarioEncerramentoId, encerradaEm);
+        calendario.EncerrarSeason(
+            season,
+            calendario.Versao,
+            usuarioEncerramentoId,
+            encerradaEm);
 
         season.Estado.Should().Be(SeasonEstado.Encerrada);
         season.AtivadaEm.Should().Be(ativadaEm);
@@ -208,9 +214,10 @@ public sealed class SeasonTests
         var season = CriarSeason();
         var ativadaEm = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.FromHours(-3));
         var encerradaEm = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.FromHours(-3));
+        var usuarioId = Guid.NewGuid();
+        var calendario = AtivarEmNovoCalendario(season, usuarioId, ativadaEm);
 
-        season.Ativar(Guid.NewGuid(), ativadaEm);
-        season.Encerrar(Guid.NewGuid(), encerradaEm);
+        calendario.EncerrarSeason(season, calendario.Versao, usuarioId, encerradaEm);
 
         season.AtivadaEm.Should().Be(ativadaEm.ToUniversalTime()).And.HaveOffset(TimeSpan.Zero);
         season.EncerradaEm.Should().Be(encerradaEm.ToUniversalTime()).And.HaveOffset(TimeSpan.Zero);
@@ -221,8 +228,13 @@ public sealed class SeasonTests
     public void Deve_rejeitar_encerramento_de_season_planejada()
     {
         var season = CriarSeason();
+        var calendario = CriarCalendario(Guid.NewGuid());
 
-        var act = () => season.Encerrar(Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var act = () => calendario.EncerrarSeason(
+            season,
+            calendario.Versao,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
         season.Estado.Should().Be(SeasonEstado.Planejada);
@@ -233,9 +245,18 @@ public sealed class SeasonTests
     public void Deve_rejeitar_nova_ativacao_de_season_ativa()
     {
         var season = CriarSeason();
-        season.Ativar(Guid.NewGuid(), DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+        var usuarioId = Guid.NewGuid();
+        var calendario = AtivarEmNovoCalendario(
+            season,
+            usuarioId,
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
 
-        var act = () => season.Ativar(Guid.NewGuid(), DateTimeOffset.Parse("2026-01-02T03:00:00Z"));
+        var act = () => calendario.AtivarSeason(
+            season,
+            season,
+            calendario.Versao,
+            usuarioId,
+            DateTimeOffset.Parse("2026-01-02T03:00:00Z"));
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
         season.Estado.Should().Be(SeasonEstado.Ativa);
@@ -245,9 +266,14 @@ public sealed class SeasonTests
     [Fact]
     public void Deve_rejeitar_reativacao_de_season_encerrada()
     {
-        var season = CriarSeasonEncerrada();
+        var (season, calendario) = CriarSeasonEncerrada();
 
-        var act = () => season.Ativar(Guid.NewGuid(), DateTimeOffset.Parse("2026-05-02T03:00:00Z"));
+        var act = () => calendario.AtivarSeason(
+            season,
+            null,
+            calendario.Versao,
+            Guid.NewGuid(),
+            DateTimeOffset.Parse("2026-05-02T03:00:00Z"));
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
         season.Estado.Should().Be(SeasonEstado.Encerrada);
@@ -257,9 +283,13 @@ public sealed class SeasonTests
     [Fact]
     public void Deve_rejeitar_novo_encerramento_de_season_encerrada()
     {
-        var season = CriarSeasonEncerrada();
+        var (season, calendario) = CriarSeasonEncerrada();
 
-        var act = () => season.Encerrar(Guid.NewGuid(), DateTimeOffset.Parse("2026-05-02T03:00:00Z"));
+        var act = () => calendario.EncerrarSeason(
+            season,
+            calendario.Versao,
+            Guid.NewGuid(),
+            DateTimeOffset.Parse("2026-05-02T03:00:00Z"));
 
         act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
         season.Estado.Should().Be(SeasonEstado.Encerrada);
@@ -271,10 +301,23 @@ public sealed class SeasonTests
     {
         var planejada = CriarSeason();
         var ativa = CriarSeason();
-        ativa.Ativar(Guid.NewGuid(), DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+        var calendarioPlanejada = CriarCalendario(Guid.NewGuid());
+        var calendarioAtiva = AtivarEmNovoCalendario(
+            ativa,
+            Guid.NewGuid(),
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
 
-        var ativar = () => planejada.Ativar(Guid.Empty, DateTimeOffset.UtcNow);
-        var encerrar = () => ativa.Encerrar(Guid.Empty, DateTimeOffset.UtcNow);
+        var ativar = () => calendarioPlanejada.AtivarSeason(
+            planejada,
+            null,
+            calendarioPlanejada.Versao,
+            Guid.Empty,
+            DateTimeOffset.UtcNow);
+        var encerrar = () => calendarioAtiva.EncerrarSeason(
+            ativa,
+            calendarioAtiva.Versao,
+            Guid.Empty,
+            DateTimeOffset.UtcNow);
 
         ativar.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
         encerrar.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
@@ -318,6 +361,298 @@ public sealed class SeasonTests
         seguinte.AtivadaEm.Should().Be(ativacaoSeguinte);
     }
 
+    [Fact]
+    public void Deve_rejeitar_versao_obsoleta_do_calendario_sem_alterar_seasons()
+    {
+        var usuarioId = Guid.NewGuid();
+        var calendario = new CalendarioCompetitivo(Guid.NewGuid(), usuarioId, CriadaEm);
+        var candidata = CriarSeason();
+
+        var act = () => calendario.AtivarSeason(
+            candidata,
+            null,
+            expectedVersion: 1,
+            usuarioId,
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.CompetitiveCalendarVersionStale);
+        calendario.SeasonAtivaId.Should().BeNull();
+        calendario.Versao.Should().Be(0);
+        candidata.Estado.Should().Be(SeasonEstado.Planejada);
+        candidata.Versao.Should().Be(0);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_candidata_invalida_sem_encerrar_season_anterior()
+    {
+        var usuarioId = Guid.NewGuid();
+        var calendario = new CalendarioCompetitivo(Guid.NewGuid(), usuarioId, CriadaEm);
+        var anterior = CriarSeason();
+        var candidata = CriarSeason(
+            nome: "Season encerrada",
+            ordemNoAno: 2,
+            dataInicio: FimExclusivo,
+            dataFimExclusiva: FimExclusivo.AddMonths(4));
+        var ativacaoAnterior = DateTimeOffset.Parse("2026-01-01T03:00:00Z");
+        calendario.AtivarSeason(anterior, null, calendario.Versao, usuarioId, ativacaoAnterior);
+        var calendarioCandidata = AtivarEmNovoCalendario(
+            candidata,
+            usuarioId,
+            DateTimeOffset.Parse("2026-05-01T03:00:00Z"));
+        calendarioCandidata.EncerrarSeason(
+            candidata,
+            calendarioCandidata.Versao,
+            usuarioId,
+            DateTimeOffset.Parse("2026-05-02T03:00:00Z"));
+
+        var act = () => calendario.AtivarSeason(
+            candidata,
+            anterior,
+            calendario.Versao,
+            usuarioId,
+            DateTimeOffset.Parse("2026-05-03T03:00:00Z"));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        calendario.SeasonAtivaId.Should().Be(anterior.Id);
+        calendario.Versao.Should().Be(1);
+        anterior.Estado.Should().Be(SeasonEstado.Ativa);
+        anterior.EncerradaEm.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deve_prevalidar_encerramento_anterior_antes_de_ativar_candidata()
+    {
+        var usuarioId = Guid.NewGuid();
+        var anterior = CriarSeason();
+        var candidata = CriarSeason(
+            nome: "Segunda Season 2026",
+            ordemNoAno: 2,
+            dataInicio: FimExclusivo,
+            dataFimExclusiva: FimExclusivo.AddMonths(4));
+        var ativadaEm = DateTimeOffset.Parse("2026-05-01T03:00:00Z");
+        var calendario = AtivarEmNovoCalendario(anterior, usuarioId, ativadaEm);
+
+        var act = () => calendario.AtivarSeason(
+            candidata,
+            anterior,
+            calendario.Versao,
+            usuarioId,
+            ativadaEm.AddTicks(-1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        calendario.SeasonAtivaId.Should().Be(anterior.Id);
+        calendario.Versao.Should().Be(1);
+        anterior.Estado.Should().Be(SeasonEstado.Ativa);
+        anterior.EncerradaEm.Should().BeNull();
+        candidata.Estado.Should().Be(SeasonEstado.Planejada);
+        candidata.AtivadaEm.Should().BeNull();
+        candidata.Versao.Should().Be(0);
+    }
+
+    [Fact]
+    public void Deve_expor_transicoes_somente_pelo_calendario()
+    {
+        var metodosPublicos = typeof(Season).GetMethods(BindingFlags.Instance | BindingFlags.Public);
+
+        metodosPublicos.Select(method => method.Name).Should().NotContain(["Ativar", "Encerrar"]);
+    }
+
+    [Fact]
+    public void Deve_encerrar_season_ativa_e_limpar_calendario_atomicamente()
+    {
+        var usuarioId = Guid.NewGuid();
+        var calendario = new CalendarioCompetitivo(Guid.NewGuid(), usuarioId, CriadaEm);
+        var season = CriarSeason();
+        calendario.AtivarSeason(
+            season,
+            null,
+            calendario.Versao,
+            usuarioId,
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+        var encerradaEm = DateTimeOffset.Parse("2026-05-01T03:00:00Z");
+
+        calendario.EncerrarSeason(season, calendario.Versao, usuarioId, encerradaEm);
+
+        calendario.SeasonAtivaId.Should().BeNull();
+        calendario.Versao.Should().Be(2);
+        calendario.AtualizadoEm.Should().Be(encerradaEm);
+        calendario.AtualizadoPorUsuarioId.Should().Be(usuarioId);
+        season.Estado.Should().Be(SeasonEstado.Encerrada);
+        season.EncerradaEm.Should().Be(encerradaEm);
+    }
+
+    [Fact]
+    public void Deve_criar_selecao_sazonal_especifica_com_ids_distintos()
+    {
+        var primeiraId = Guid.NewGuid();
+        var segundaId = Guid.NewGuid();
+
+        var selecao = SelecaoSazonal.Especifica([segundaId, primeiraId, segundaId]);
+
+        selecao.SeasonIds.Should().BeEquivalentTo([primeiraId, segundaId]);
+        selecao.SeasonIds.Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Deve_rejeitar_opcoes_sazonais_mutuamente_exclusivas()
+    {
+        var act = () => SelecaoSazonal.Criar([Guid.NewGuid()], todas: true);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.SeasonalFilterConflict);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_selecao_sazonal_especifica_sem_ids()
+    {
+        var act = () => SelecaoSazonal.Especifica([]);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+    }
+
+    [Fact]
+    public void Deve_comparar_selecao_sazonal_por_tipo_e_conjunto_de_ids()
+    {
+        var primeiraId = Guid.NewGuid();
+        var segundaId = Guid.NewGuid();
+
+        var primeira = SelecaoSazonal.Especifica([primeiraId, segundaId]);
+        var equivalente = SelecaoSazonal.Especifica([segundaId, primeiraId, primeiraId]);
+
+        primeira.Should().Be(equivalente);
+        primeira.GetHashCode().Should().Be(equivalente.GetHashCode());
+        primeira.Should().NotBe(SelecaoSazonal.Todas());
+    }
+
+    [Fact]
+    public void Deve_atualizar_season_planejada_com_versao_e_auditoria()
+    {
+        var season = CriarSeason();
+        var usuarioId = Guid.NewGuid();
+        var atualizadaEm = DateTimeOffset.Parse("2025-12-02T12:00:00-03:00");
+        var novoInicio = Inicio.AddDays(1);
+        var novoFimExclusivo = FimExclusivo.AddDays(1);
+
+        season.Atualizar(
+            "  Season atualizada  ",
+            2027,
+            2,
+            novoInicio,
+            novoFimExclusivo,
+            usuarioId,
+            atualizadaEm);
+
+        season.Nome.Should().Be("Season atualizada");
+        season.Ano.Should().Be(2027);
+        season.OrdemNoAno.Should().Be(2);
+        season.DataInicio.Should().Be(novoInicio);
+        season.DataFimExclusiva.Should().Be(novoFimExclusivo);
+        season.AtualizadaEm.Should().Be(atualizadaEm.ToUniversalTime());
+        season.AtualizadaPorUsuarioId.Should().Be(usuarioId);
+        season.Versao.Should().Be(1);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_atualizacao_de_season_ativa_sem_alterar_dados()
+    {
+        var season = CriarSeason();
+        _ = AtivarEmNovoCalendario(
+            season,
+            Guid.NewGuid(),
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+
+        var act = () => season.Atualizar(
+            "Outro nome",
+            2027,
+            2,
+            Inicio.AddDays(1),
+            FimExclusivo.AddDays(1),
+            Guid.NewGuid(),
+            DateTimeOffset.Parse("2026-01-02T03:00:00Z"));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        season.Nome.Should().Be("Primeira Season 2026");
+        season.Ano.Should().Be(2026);
+        season.OrdemNoAno.Should().Be(1);
+        season.DataInicio.Should().Be(Inicio);
+        season.DataFimExclusiva.Should().Be(FimExclusivo);
+        season.Versao.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(2008, 1)]
+    [InlineData(10000, 1)]
+    [InlineData(2026, 0)]
+    [InlineData(2026, -1)]
+    public void Deve_rejeitar_ano_ou_ordem_intrinsecamente_invalidos_na_atualizacao(
+        int ano,
+        int ordemNoAno)
+    {
+        var season = CriarSeason();
+
+        var act = () => season.Atualizar(
+            "Season inválida",
+            ano,
+            ordemNoAno,
+            Inicio,
+            FimExclusivo,
+            Guid.NewGuid(),
+            CriadaEm.AddDays(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        season.Ano.Should().Be(2026);
+        season.OrdemNoAno.Should().Be(1);
+        season.Versao.Should().Be(0);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_periodo_intrinsecamente_invalido_na_atualizacao()
+    {
+        var season = CriarSeason();
+
+        var act = () => season.Atualizar(
+            "Season inválida",
+            2026,
+            1,
+            Inicio,
+            Inicio,
+            Guid.NewGuid(),
+            CriadaEm.AddDays(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.SeasonPeriodInvalid);
+        season.DataInicio.Should().Be(Inicio);
+        season.DataFimExclusiva.Should().Be(FimExclusivo);
+        season.Versao.Should().Be(0);
+    }
+
+    [Theory]
+    [MemberData(nameof(SelecoesEspecificasInvalidas))]
+    public void Deve_rejeitar_formato_invalido_de_selecao_especifica_com_erro_de_validacao(
+        IReadOnlyCollection<Guid>? seasonIds)
+    {
+        var act = () => SelecaoSazonal.Especifica(seasonIds!);
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+    }
+
+    [Fact]
+    public void Deve_rejeitar_entradas_nulas_com_codigo_localizavel()
+    {
+        var calendario = new CalendarioCompetitivo(Guid.NewGuid(), Guid.NewGuid(), CriadaEm);
+
+        var inclusao = () => SeasonRules.ValidarInclusao(null!, []);
+        var selecao = () => SelecaoSazonal.Especifica(null!);
+        var ativacao = () => calendario.AtivarSeason(
+            null!,
+            null,
+            calendario.Versao,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+
+        inclusao.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        selecao.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        ativacao.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+    }
+
     private static Season CriarSeason(
         string nome = "Primeira Season 2026",
         int ano = 2026,
@@ -336,12 +671,42 @@ public sealed class SeasonTests
             CriadaEm);
     }
 
-    private static Season CriarSeasonEncerrada()
+    public static TheoryData<IReadOnlyCollection<Guid>?> SelecoesEspecificasInvalidas =>
+        new()
+        {
+            null,
+            Array.Empty<Guid>(),
+            new[] { Guid.Empty },
+            new[] { Guid.NewGuid(), Guid.Empty }
+        };
+
+    private static CalendarioCompetitivo CriarCalendario(Guid usuarioId) =>
+        new(Guid.NewGuid(), usuarioId, CriadaEm);
+
+    private static CalendarioCompetitivo AtivarEmNovoCalendario(
+        Season season,
+        Guid usuarioId,
+        DateTimeOffset ativadaEm)
+    {
+        var calendario = CriarCalendario(usuarioId);
+        calendario.AtivarSeason(season, null, calendario.Versao, usuarioId, ativadaEm);
+        return calendario;
+    }
+
+    private static (Season Season, CalendarioCompetitivo Calendario) CriarSeasonEncerrada()
     {
         var season = CriarSeason();
-        season.Ativar(Guid.NewGuid(), DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
-        season.Encerrar(Guid.NewGuid(), DateTimeOffset.Parse("2026-05-01T03:00:00Z"));
-        return season;
+        var usuarioId = Guid.NewGuid();
+        var calendario = AtivarEmNovoCalendario(
+            season,
+            usuarioId,
+            DateTimeOffset.Parse("2026-01-01T03:00:00Z"));
+        calendario.EncerrarSeason(
+            season,
+            calendario.Versao,
+            usuarioId,
+            DateTimeOffset.Parse("2026-05-01T03:00:00Z"));
+        return (season, calendario);
     }
 
 }

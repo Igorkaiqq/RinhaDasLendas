@@ -55,4 +55,22 @@ public sealed class VersaoRegras
     public ModoDraft ModoDraft { get; private set; }
     public DateTimeOffset PublicadaEm { get; private set; }
     public Guid PublicadaPorUsuarioId { get; private set; }
+
+    public void ValidarEscopoParaSerie(
+        SerieTipo tipo,
+        Guid seasonId,
+        Guid? competicaoId)
+    {
+        if (SeasonId != seasonId)
+        {
+            throw new DomainException(MessageCodes.RulesVersionSeasonMismatch);
+        }
+
+        var exigeCompeticao = tipo is SerieTipo.DiariaTemporaria or SerieTipo.ConfrontoOficial;
+        if (exigeCompeticao && (competicaoId is null || CompeticaoId != competicaoId)
+            || tipo == SerieTipo.Amistoso && CompeticaoId != competicaoId)
+        {
+            throw new DomainException(MessageCodes.ValidationError);
+        }
+    }
 }

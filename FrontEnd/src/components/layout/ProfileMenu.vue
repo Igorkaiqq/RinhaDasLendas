@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { setLocale } from '@/i18n'
 import { SUPPORTED_LOCALES, type LocaleCode } from '@/types/i18n'
 import type { ProfileMenuItem } from '@/types/layout'
 
@@ -24,7 +25,7 @@ const localeOptions = computed(() =>
 )
 
 function selectLocale(value: LocaleCode) {
-  locale.value = value
+  setLocale(value)
 }
 </script>
 

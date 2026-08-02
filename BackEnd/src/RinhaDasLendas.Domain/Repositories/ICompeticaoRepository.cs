@@ -10,6 +10,7 @@ public interface ICompeticaoRepository
     Task<int> CountAsync(IReadOnlyCollection<Guid> seasonIds, CancellationToken cancellationToken);
     Task<bool> ExistsCodeAsync(Guid seasonId, string codigo, Guid? excludedCompetitionId, CancellationToken cancellationToken);
     Task<bool> ExistsDailyCircuitAsync(Guid seasonId, Guid? excludedCompetitionId, CancellationToken cancellationToken);
+    Task<int> GetNextGeneralRulesNumberAsync(Guid seasonId, CancellationToken cancellationToken);
     Task AddAsync(Competicao competicao, CancellationToken cancellationToken);
     Task AddRoundAsync(Rodada rodada, CancellationToken cancellationToken);
     Task AddRulesVersionAsync(VersaoRegras versaoRegras, CancellationToken cancellationToken);

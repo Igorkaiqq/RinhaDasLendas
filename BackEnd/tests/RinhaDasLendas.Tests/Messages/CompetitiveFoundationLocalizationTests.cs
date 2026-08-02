@@ -8,6 +8,7 @@ using FluentAssertions.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Tests.Infrastructure;
 
@@ -55,6 +56,10 @@ public sealed class CompetitiveFoundationLocalizationTests
         new("CompetitiveIdempotencyConflict", "MV126", "A chave de idempotência já foi usada com conteúdo diferente", "Idempotency key was already used with different content"),
         new("CorrectionJustificationRequired", "MV127", "A justificativa da correção é obrigatória", "Correction justification is required"),
         new("CorrectionAnnulConfirmationRequired", "MV128", "Confirme a anulação da série para concluir a correção", "Confirm Series annulment to complete the correction"),
+        new("CompetitionCodeConflict", "MV129", "Já existe uma competição com este código na temporada", "A competition with this code already exists in the Season"),
+        new("RoundOrderConflict", "MV130", "Já existe uma rodada nesta ordem na competição", "A round with this order already exists in the competition"),
+        new("ActiveSeasonConflict", "MV131", "Já existe uma temporada ativa", "An active Season already exists"),
+        new("SeasonOrderConflict", "MV132", "Já existe uma temporada nesta ordem para o ano informado", "A Season with this order already exists for the selected year"),
     ];
 
     [Fact]
@@ -65,7 +70,7 @@ public sealed class CompetitiveFoundationLocalizationTests
             .Should().Equal(Enumerable.Range(45, 9).Select(number => $"ME{number:000}"));
         CompetitiveCatalog.Where(contract => contract.Code.StartsWith("MV", StringComparison.Ordinal))
             .Select(contract => contract.Code)
-            .Should().Equal(Enumerable.Range(106, 23).Select(number => $"MV{number:000}"));
+            .Should().Equal(Enumerable.Range(106, 27).Select(number => $"MV{number:000}"));
 
         using var scope = new AssertionScope();
         foreach (var contract in CompetitiveCatalog)
@@ -253,14 +258,32 @@ public sealed class CompetitiveFoundationLocalizationTests
 
     private sealed class CompetitiveLocalizationApiFactory() : SecurityApiFactory(useIsolatedPostgreSql: true)
     {
-        internal HttpClient CreatePresidentClient() => CreateJwtClient(Guid.NewGuid(), "Presidente");
+        private readonly Guid _actorId = Guid.NewGuid();
 
-        internal HttpClient CreateVicePresidentClient() => CreateJwtClient(Guid.NewGuid(), "VicePresidente");
+        internal HttpClient CreatePresidentClient() => CreateJwtClient(_actorId, "Presidente");
+
+        internal HttpClient CreateVicePresidentClient() => CreateJwtClient(_actorId, "VicePresidente");
 
         internal async Task InitializeDatabaseAsync()
         {
             using var scope = Services.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>().Database.EnsureCreatedAsync();
+            var context = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            await context.Database.EnsureCreatedAsync();
+            context.Users.Add(new ApplicationUser
+            {
+                Id = _actorId,
+                Nome = "Ator de localização",
+                UserName = "competitive-localization@example.com",
+                NormalizedUserName = "COMPETITIVE-LOCALIZATION@EXAMPLE.COM",
+                Email = "competitive-localization@example.com",
+                NormalizedEmail = "COMPETITIVE-LOCALIZATION@EXAMPLE.COM",
+                EmailConfirmed = true,
+                SecurityStamp = Guid.NewGuid().ToString("N"),
+                ConcurrencyStamp = Guid.NewGuid().ToString("N"),
+                DataCadastro = DateTimeOffset.UtcNow,
+                DataAtualizacao = DateTimeOffset.UtcNow,
+            });
+            await context.SaveChangesAsync();
         }
     }
 }

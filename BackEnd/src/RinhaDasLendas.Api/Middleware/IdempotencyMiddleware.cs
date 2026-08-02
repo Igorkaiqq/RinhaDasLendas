@@ -41,8 +41,8 @@ public sealed class IdempotencyMiddleware(
             throw new DomainException(MessageCodes.ValidationError);
         }
 
-        if (context.GetEndpoint() is not RouteEndpoint routeEndpoint
-            || string.IsNullOrWhiteSpace(routeEndpoint.RoutePattern.RawText))
+        if (context.GetEndpoint() is not RouteEndpoint
+            || !context.Request.Path.HasValue)
         {
             throw new DomainException(MessageCodes.ValidationError);
         }
@@ -51,7 +51,7 @@ public sealed class IdempotencyMiddleware(
         var request = new IdempotencyRequest(
             actorId,
             context.Request.Method.ToUpperInvariant(),
-            routeEndpoint.RoutePattern.RawText,
+            NormalizeResourcePath(context.Request.PathBase.Add(context.Request.Path).Value!),
             key,
             ComputeCanonicalHash(body, context.Request.ContentType));
         var initialResponse = ResponseSnapshot.Capture(context.Response);
@@ -85,6 +85,9 @@ public sealed class IdempotencyMiddleware(
 
         await realBody.WriteAsync(execution.Result.Content, context.RequestAborted);
     }
+
+    private static string NormalizeResourcePath(string path) =>
+        (path.Length > 1 ? path.TrimEnd('/') : path).ToLowerInvariant();
 
     private async Task<IdempotencyResult> CaptureAsync(
         HttpContext context,

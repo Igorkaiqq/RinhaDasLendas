@@ -40,6 +40,7 @@ public sealed class CompetitiveFoundationRecordEntityTests
         AcaoAuditoriaCompetitiva.CompeticaoAtualizada,
         AcaoAuditoriaCompetitiva.RodadaCriada,
         AcaoAuditoriaCompetitiva.RodadasReordenadas,
+        AcaoAuditoriaCompetitiva.RegrasGeraisSeasonPublicadas,
         AcaoAuditoriaCompetitiva.RegrasCompeticaoPublicadas,
         AcaoAuditoriaCompetitiva.EventoCriado,
         AcaoAuditoriaCompetitiva.EventoAtualizado,
@@ -350,7 +351,13 @@ public sealed class CompetitiveFoundationRecordEntityTests
             CampoSnapshotAuditoria.FearlessHabilitado,
             CampoSnapshotAuditoria.RevisaoNecessaria,
             CampoSnapshotAuditoria.DecisaoPicksRemake,
-            CampoSnapshotAuditoria.MotivoTerminoPartida);
+            CampoSnapshotAuditoria.MotivoTerminoPartida,
+            CampoSnapshotAuditoria.Nome,
+            CampoSnapshotAuditoria.Ano,
+            CampoSnapshotAuditoria.Codigo,
+            CampoSnapshotAuditoria.CircuitoDiario,
+            CampoSnapshotAuditoria.Numero,
+            CampoSnapshotAuditoria.RodadaIds);
         ((int)CampoSnapshotAuditoria.Id).Should().Be(0);
     }
 

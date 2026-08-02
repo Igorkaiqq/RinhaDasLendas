@@ -143,6 +143,77 @@ public sealed partial class CompetitiveFoundationOpenApiContractTests
                 .Should().Contain(response => HasExplicitContentSchema(response.Value),
                     $"{operation.DisplayName} declares x-capability and needs an explicit 2xx content schema");
         }
+
+        var t030Statuses = new Dictionary<(string Path, string Method), string[]>
+        {
+            [("/temporadas", "get")] = ["200", "400", "401"],
+            [("/temporadas", "post")] = ["201", "400", "401", "403", "409"],
+            [("/temporadas/{seasonId}", "get")] = ["200", "401", "404"],
+            [("/temporadas/{seasonId}", "patch")] = ["200", "400", "401", "403", "404", "409"],
+            [("/temporadas/{seasonId}/aberturas", "post")] = ["200", "400", "401", "403", "404", "409"],
+            [("/temporadas/{seasonId}/encerramentos", "post")] = ["200", "400", "401", "403", "404", "409"],
+            [("/temporadas/{seasonId}/competicoes", "get")] = ["200", "400", "401", "404"],
+            [("/temporadas/{seasonId}/competicoes", "post")] = ["201", "400", "401", "403", "404", "409"],
+            [("/temporadas/{seasonId}/regras-publicadas", "post")] = ["201", "400", "401", "403", "404", "409"],
+            [("/competicoes", "get")] = ["200", "400", "401"],
+            [("/competicoes/{competitionId}", "get")] = ["200", "401", "404"],
+            [("/competicoes/{competitionId}", "patch")] = ["200", "400", "401", "403", "404", "409"],
+            [("/competicoes/{competitionId}/rodadas", "get")] = ["200", "401", "404"],
+            [("/competicoes/{competitionId}/rodadas", "post")] = ["201", "400", "401", "403", "404", "409"],
+            [("/competicoes/{competitionId}/ordenacoes-rodadas", "post")] = ["200", "400", "401", "403", "404", "409"],
+            [("/competicoes/{competitionId}/regras-publicadas", "post")] = ["201", "400", "401", "403", "404", "409"],
+        };
+        foreach (var expected in t030Statuses)
+        {
+            var operation = operations.Should().ContainSingle(item =>
+                item.Path == expected.Key.Path && item.Method == expected.Key.Method).Subject;
+            var responses = ReadResponses(operation);
+            responses.Keys.Should().BeEquivalentTo(expected.Value, options => options.WithStrictOrdering(),
+                $"{operation.DisplayName} must match runtime response statuses");
+            foreach (var status in expected.Value.Where(status => status is "400" or "401" or "404"))
+            {
+                responses[status].Should().Contain(line => line.Text.StartsWith("$ref: '#/components/responses/"),
+                    $"{operation.DisplayName} {status} must use the localized error envelope");
+            }
+
+            if (expected.Value.Contains("201"))
+            {
+                responses["201"].Should().Contain(line => line.Indent == 12 && line.Text == "Location:",
+                    $"{operation.DisplayName} creates a canonical resource URI");
+            }
+        }
+
+        var publishSeasonRules = operations.Should().ContainSingle(operation =>
+            operation.Path == "/temporadas/{seasonId}/regras-publicadas" && operation.Method == "post").Subject;
+        var publishResponse = ReadResponses(publishSeasonRules)["201"];
+        publishResponse.Should().Contain(line => line.Indent == 10 && line.Text == "headers:");
+        publishResponse.Should().Contain(line => line.Indent == 12 && line.Text == "ETag:");
+
+        var createRound = operations.Should().ContainSingle(operation =>
+            operation.Path == "/competicoes/{competitionId}/rodadas" && operation.Method == "post").Subject;
+        createRound.Lines.Should().Contain(line => line.Text == "- $ref: '#/components/parameters/IfMatch'");
+        var createRoundResponse = ReadResponses(createRound)["201"];
+        createRoundResponse.Should().Contain(line => line.Indent == 10 && line.Text == "headers:");
+        createRoundResponse.Should().Contain(line => line.Indent == 12 && line.Text == "ETag:");
+
+        var publishCompetitionRules = operations.Should().ContainSingle(operation =>
+            operation.Path == "/competicoes/{competitionId}/regras-publicadas" && operation.Method == "post").Subject;
+        var publishCompetitionRulesResponse = ReadResponses(publishCompetitionRules)["201"];
+        publishCompetitionRulesResponse.Should().Contain(line => line.Indent == 10 && line.Text == "headers:");
+        publishCompetitionRulesResponse.Should().Contain(line => line.Indent == 12 && line.Text == "ETag:");
+
+        pointers.Should().Contain("#/components/schemas/ErrorResponse/properties/fieldErrors");
+        pointers.Should().Contain("#/components/schemas/FieldError");
+        pointers.Should().Contain("#/components/schemas/FieldError/properties/field");
+        pointers.Should().Contain("#/components/schemas/FieldError/properties/messageCode");
+        pointers.Should().Contain("#/components/schemas/FieldError/properties/message");
+
+        lines.Should().Contain(line => line.Text ==
+            "required: [quantidadeCompeticoes, acoesPermitidas]");
+        lines.Should().Contain(line => line.Text ==
+            "required: [id, seasonId, nome, codigo, circuitoDiario, rodadas, regrasPublicadas, versao, acoesPermitidas]");
+        lines.Should().Contain(line => line.Text ==
+            "required: [page, pageSize, items, totalItems, totalPages, calendarioConfigurado, temporadaAtual, seasonsIncluidas]");
     }
 
     private static string FindContractPath()

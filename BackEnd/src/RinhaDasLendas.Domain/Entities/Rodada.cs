@@ -43,4 +43,16 @@ public sealed class Rodada
     public long Versao { get; private set; }
     public DateTimeOffset CriadaEm { get; private set; }
     public DateTimeOffset AtualizadaEm { get; private set; }
+
+    internal void Reordenar(int ordem, DateTimeOffset atualizadaEm)
+    {
+        if (ordem <= 0)
+        {
+            throw new DomainException(MessageCodes.ValidationError);
+        }
+
+        Ordem = ordem;
+        AtualizadaEm = atualizadaEm.ToUniversalTime();
+        Versao++;
+    }
 }

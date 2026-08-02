@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Domain.Repositories;
 
 namespace RinhaDasLendas.Infrastructure.Persistence;
@@ -11,16 +15,16 @@ public sealed class CompetitiveUnitOfWork(RinhaDasLendasDbContext dbContext) : I
 
     internal bool DeferredSaveRequested => _deferredSaveRequested;
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         if (!_deferredSaveActive)
         {
-            return dbContext.SaveChangesAsync(cancellationToken);
+            await SaveWithStableConcurrencyErrorAsync(cancellationToken);
+            return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         _deferredSaveRequested = true;
-        return Task.CompletedTask;
     }
 
     internal IDisposable BeginDeferredSaveScope()
@@ -37,7 +41,7 @@ public sealed class CompetitiveUnitOfWork(RinhaDasLendasDbContext dbContext) : I
         return new DeferredSaveScope(this, version);
     }
 
-    internal Task FlushDeferredChangesAsync(CancellationToken cancellationToken)
+    internal async Task FlushDeferredChangesAsync(CancellationToken cancellationToken)
     {
         if (!_deferredSaveActive || _physicalFlushPerformed)
         {
@@ -45,7 +49,27 @@ public sealed class CompetitiveUnitOfWork(RinhaDasLendasDbContext dbContext) : I
         }
 
         _physicalFlushPerformed = true;
-        return dbContext.SaveChangesAsync(cancellationToken);
+        await SaveWithStableConcurrencyErrorAsync(cancellationToken);
+    }
+
+    private async Task SaveWithStableConcurrencyErrorAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            var messageCode = exception.Entries.Any(entry => entry.Entity is CalendarioCompetitivo)
+                ? MessageCodes.CompetitiveCalendarVersionStale
+                : MessageCodes.CompetitiveResourceVersionStale;
+            throw new DomainException(messageCode);
+        }
+        catch (DbUpdateException exception)
+            when (CompetitiveSaveConflictClassifier.Classify(exception) is { } messageCode)
+        {
+            throw new DomainException(messageCode);
+        }
     }
 
     private void EndDeferredSaveScope(int version)

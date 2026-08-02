@@ -157,9 +157,9 @@ internal sealed class CompetitivePostgresFixture : IAsyncDisposable
             Port = int.Parse(
                 Environment.GetEnvironmentVariable("TEST_POSTGRES_PORT") ?? "5432",
                 CultureInfo.InvariantCulture),
-            Database = "postgres",
-            Username = Environment.GetEnvironmentVariable("POSTGRES_USER"),
-            Password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD"),
+            Database = Environment.GetEnvironmentVariable("TEST_POSTGRES_DB") ?? "postgres",
+            Username = Environment.GetEnvironmentVariable("TEST_POSTGRES_USER") ?? "postgres",
+            Password = Environment.GetEnvironmentVariable("TEST_POSTGRES_PASSWORD") ?? "postgres",
         };
 
         return builder.ConnectionString;

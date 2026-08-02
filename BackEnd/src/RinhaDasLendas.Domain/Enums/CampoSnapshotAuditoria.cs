@@ -32,5 +32,11 @@ public enum CampoSnapshotAuditoria
     FearlessHabilitado,
     RevisaoNecessaria,
     DecisaoPicksRemake,
-    MotivoTerminoPartida
+    MotivoTerminoPartida,
+    Nome,
+    Ano,
+    Codigo,
+    CircuitoDiario,
+    Numero,
+    RodadaIds
 }

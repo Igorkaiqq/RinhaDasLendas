@@ -341,9 +341,7 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         .HasDatabaseName("ux_competicoes_circuito_diario")
                         .HasFilter("circuito_diario");
 
-                    b.HasIndex("SeasonId", "Codigo")
-                        .IsUnique()
-                        .HasDatabaseName("ux_competicoes_season_id_codigo");
+                    b.HasAnnotation("RinhaDasLendas:ExpressionIndex:ux_competicoes_season_id_codigo", "(season_id, lower(codigo))");
 
                     b.ToTable("competicoes", null, t =>
                         {
@@ -1872,7 +1870,7 @@ namespace RinhaDasLendas.Infrastructure.Migrations
 
                     b.ToTable("registros_auditoria_competitiva", null, t =>
                         {
-                            t.HasCheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
+                            t.HasCheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasGeraisSeasonPublicadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
 
                             t.HasCheckConstraint("ck_registros_auditoria_competitiva_recurso_tipo_valido", "recurso_tipo IN ('CalendarioCompetitivo', 'Season', 'Competicao', 'Rodada', 'VersaoRegras', 'EventoCompetitivo', 'Serie', 'Partida')");
                         });
@@ -1916,9 +1914,10 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                     b.HasAlternateKey("Id", "CompeticaoId")
                         .HasName("ak_rodadas_id_competicao_id");
 
-                    b.HasIndex("CompeticaoId", "Ordem")
-                        .IsUnique()
-                        .HasDatabaseName("ux_rodadas_competicao_id_ordem");
+                    b.HasIndex("CompeticaoId")
+                        .HasDatabaseName("ix_rodadas_competicao_id");
+
+                    b.HasAnnotation("RinhaDasLendas:DeferrableUniqueConstraint:ux_rodadas_competicao_id_ordem", "UNIQUE (competicao_id, ordem) DEFERRABLE INITIALLY DEFERRED");
 
                     b.ToTable("rodadas", null, t =>
                         {

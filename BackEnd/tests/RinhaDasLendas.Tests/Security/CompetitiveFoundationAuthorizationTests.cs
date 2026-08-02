@@ -276,23 +276,46 @@ public sealed class CompetitiveFoundationAuthorizationTests
         var services = scope.ServiceProvider;
         var dbContext = services.GetRequiredService<RinhaDasLendasDbContext>();
         var concreteUnitOfWork = services.GetRequiredService<CompetitiveUnitOfWork>();
+        var calendarRepository = services.GetRequiredService<ICalendarioCompetitivoRepository>();
+        var competitionRepository = services.GetRequiredService<ICompeticaoRepository>();
+        var seriesRepository = services.GetRequiredService<ISerieRepository>();
+        var auditRepository = services.GetRequiredService<ICompetitiveAuditRepository>();
         var idempotencyRepository = services.GetRequiredService<IIdempotencyRepository>();
         var idempotencyService = services.GetRequiredService<IIdempotencyService>();
 
         services.GetRequiredService<ICompetitiveUnitOfWork>().Should().BeSameAs(concreteUnitOfWork);
+        services.GetRequiredService<ICalendarioCompetitivoRepository>().Should().BeSameAs(calendarRepository);
+        services.GetRequiredService<ICompeticaoRepository>().Should().BeSameAs(competitionRepository);
+        services.GetRequiredService<ISerieRepository>().Should().BeSameAs(seriesRepository);
+        services.GetRequiredService<ICompetitiveAuditRepository>().Should().BeSameAs(auditRepository);
+        services.GetRequiredService<IIdempotencyRepository>().Should().BeSameAs(idempotencyRepository);
         idempotencyService.Should().BeOfType<IdempotencyService>();
+        calendarRepository.Should().BeOfType<CalendarioCompetitivoRepository>();
+        competitionRepository.Should().BeOfType<CompeticaoRepository>();
+        seriesRepository.Should().BeOfType<SerieRepository>();
+        auditRepository.Should().BeOfType<CompetitiveAuditRepository>();
         idempotencyRepository.Should().BeOfType<IdempotencyRepository>();
         services.GetRequiredService<ICurrentActor>().Should().BeOfType<CurrentActor>();
 
         ResolveDbContext(concreteUnitOfWork).Should().BeSameAs(dbContext);
+        ResolveDbContext(calendarRepository).Should().BeSameAs(dbContext);
+        ResolveDbContext(competitionRepository).Should().BeSameAs(dbContext);
+        ResolveDbContext(seriesRepository).Should().BeSameAs(dbContext);
+        ResolveDbContext(auditRepository).Should().BeSameAs(dbContext);
         ResolveDbContext(idempotencyRepository).Should().BeSameAs(dbContext);
         ResolveDbContext(idempotencyService).Should().BeSameAs(dbContext);
         ResolveDependency<CompetitiveUnitOfWork>(idempotencyService).Should().BeSameAs(concreteUnitOfWork);
         ResolveDependency<IIdempotencyRepository>(idempotencyService).Should().BeSameAs(idempotencyRepository);
 
         using var secondScope = ApiFactory.Services.CreateScope();
-        secondScope.ServiceProvider.GetRequiredService<CompetitiveUnitOfWork>()
-            .Should().NotBeSameAs(concreteUnitOfWork);
+        var secondServices = secondScope.ServiceProvider;
+        secondServices.GetRequiredService<RinhaDasLendasDbContext>().Should().NotBeSameAs(dbContext);
+        secondServices.GetRequiredService<CompetitiveUnitOfWork>().Should().NotBeSameAs(concreteUnitOfWork);
+        secondServices.GetRequiredService<ICalendarioCompetitivoRepository>().Should().NotBeSameAs(calendarRepository);
+        secondServices.GetRequiredService<ICompeticaoRepository>().Should().NotBeSameAs(competitionRepository);
+        secondServices.GetRequiredService<ISerieRepository>().Should().NotBeSameAs(seriesRepository);
+        secondServices.GetRequiredService<ICompetitiveAuditRepository>().Should().NotBeSameAs(auditRepository);
+        secondServices.GetRequiredService<IIdempotencyRepository>().Should().NotBeSameAs(idempotencyRepository);
     }
 
     [Theory]

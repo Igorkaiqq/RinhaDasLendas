@@ -31,7 +31,7 @@ public sealed class CompeticaoTests
 
         var act = () => candidata.ValidarInclusao([existente]);
 
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.CompetitionCodeConflict);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class CompeticaoTests
 
         var act = () => competicao.AdicionarRodada("Outra primeira rodada", 1, CriadaEm);
 
-        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.RoundOrderConflict);
     }
 
     [Fact]

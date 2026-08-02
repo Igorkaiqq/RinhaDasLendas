@@ -6,6 +6,9 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using RinhaDasLendas.Domain.Entities;
+using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Messages;
@@ -66,6 +69,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         ConditionalMutationKind.CloseSeason,
         ConditionalMutationKind.PublishSeasonRules,
         ConditionalMutationKind.UpdateCompetition,
+        ConditionalMutationKind.CreateRound,
         ConditionalMutationKind.ReorderRounds,
         ConditionalMutationKind.PublishCompetitionRules,
     };
@@ -73,7 +77,12 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
     public static TheoryData<ConditionalMutationKind> ConditionalHeaderValidationOperations => new()
     {
         ConditionalMutationKind.UpdateSeason,
+        ConditionalMutationKind.ActivateSeason,
+        ConditionalMutationKind.CloseSeason,
         ConditionalMutationKind.PublishSeasonRules,
+        ConditionalMutationKind.UpdateCompetition,
+        ConditionalMutationKind.CreateRound,
+        ConditionalMutationKind.ReorderRounds,
         ConditionalMutationKind.PublishCompetitionRules,
     };
 
@@ -340,6 +349,191 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         otherRoute.Headers.Contains("Idempotency-Replayed").Should().BeFalse();
     }
 
+    [Fact]
+    public async Task IdempotencyNamespace_ShouldBeIsolatedByConcreteResourcePath()
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var first = await CreateSeasonAsync(client, "Temporada concreta um", 2047, 1);
+        var second = await CreateSeasonAsync(client, "Temporada concreta dois", 2048, 1);
+        var key = NewKey();
+
+        using var firstUpdate = await SendAsync(
+            client, HttpMethod.Patch, $"{SeasonsRoute}/{first.Id}", new { nome = "Mesmo nome" }, key, first.ETag);
+        using var secondUpdate = await SendAsync(
+            client, HttpMethod.Patch, $"{SeasonsRoute}/{second.Id}", new { nome = "Mesmo nome" }, key, second.ETag);
+
+        firstUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
+        secondUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
+        secondUpdate.Headers.Contains("Idempotency-Replayed").Should().BeFalse();
+        (await ReadJsonAsync(secondUpdate)).GetProperty("id").GetGuid().Should().Be(second.Id);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"nome\":null}")]
+    [InlineData("{\"ano\":null}")]
+    [InlineData("{\"ordemNoAno\":null}")]
+    [InlineData("{\"dataInicio\":null}")]
+    [InlineData("{\"dataFimExclusiva\":null}")]
+    public async Task UpdateSeason_ShouldDistinguishOmittedPropertiesFromExplicitNull(string body)
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Temporada optional", 2049, 1);
+
+        using var response = await SendRawAsync(
+            client, HttpMethod.Patch, $"{SeasonsRoute}/{season.Id}", body, NewKey(), season.ETag);
+
+        await AssertLocalizedErrorAsync(response, HttpStatusCode.BadRequest, Portuguese);
+    }
+
+    [Theory]
+    [InlineData("{\"nome\":\"Sem booleano\",\"codigo\":\"SB\"}")]
+    [InlineData("{\"nome\":\"Booleano nulo\",\"codigo\":\"BN\",\"circuitoDiario\":null}")]
+    public async Task CreateCompetition_ShouldRejectOmittedOrNullRequiredBoolean(string body)
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Temporada booleano", 2050, 1);
+
+        using var response = await SendRawAsync(
+            client, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/competicoes", body, NewKey());
+
+        await AssertLocalizedErrorAsync(response, HttpStatusCode.BadRequest, Portuguese);
+    }
+
+    [Theory]
+    [InlineData("{\"modoDraft\":\"Padrao\"}")]
+    [InlineData("{\"formato\":null,\"modoDraft\":\"Padrao\"}")]
+    [InlineData("{\"formato\":\"Md3\"}")]
+    [InlineData("{\"formato\":\"Md3\",\"modoDraft\":null}")]
+    [InlineData("{\"formato\":0,\"modoDraft\":0}")]
+    public async Task PublishRules_ShouldRejectOmittedNullOrNumericEnums(string body)
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Temporada enum", 2051, 1);
+
+        using var response = await SendRawAsync(
+            client, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/regras-publicadas", body, NewKey(), season.ETag);
+
+        await AssertLocalizedErrorAsync(response, HttpStatusCode.BadRequest, Portuguese);
+    }
+
+    [Fact]
+    public async Task SeasonalFilters_ShouldRejectNumericEstadoAndDuplicateSeasonIds()
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Temporada filtros", 2052, 1);
+
+        using var numericState = await SendAsync(client, HttpMethod.Get, $"{SeasonsRoute}?estado=0");
+        using var duplicateIds = await SendAsync(
+            client, HttpMethod.Get, $"{CompetitionsRoute}?temporadaIds={season.Id}&temporadaIds={season.Id}");
+
+        await AssertLocalizedErrorAsync(numericState, HttpStatusCode.BadRequest, Portuguese);
+        await AssertLocalizedErrorAsync(duplicateIds, HttpStatusCode.BadRequest, Portuguese);
+    }
+
+    [Fact]
+    public async Task ChildCreates_ShouldReturnCanonicalLocationsAndSeasonMutationsShouldReturnRealCompetitionCount()
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Temporada filhos", 2053, 1);
+        _ = await CreateCompetitionAsync(client, season.Id, "Competicao filha", "FILHA", false);
+
+        using var update = await SendAsync(
+            client, HttpMethod.Patch, $"{SeasonsRoute}/{season.Id}", new { nome = "Temporada filhos atualizada" },
+            NewKey(), season.ETag);
+        update.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ReadJsonAsync(update)).GetProperty("quantidadeCompeticoes").GetInt32().Should().Be(1);
+
+        using var seasonRulesResponse = await SendAsync(
+            client, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/regras-publicadas",
+            RulesBody("Md3", "Padrao"), NewKey(), RequireETag(update));
+        var seasonRulesId = (await ReadJsonAsync(seasonRulesResponse)).GetProperty("id").GetGuid();
+        RequireLocationPath(seasonRulesResponse).Should().Be(
+            $"{SeasonsRoute}/{season.Id}/regras-publicadas/{seasonRulesId}");
+
+        var competition = await CreateCompetitionAsync(client, season.Id, "Competicao localizacao", "LOC", false);
+        var competitionEtag = await GetCompetitionETagAsync(client, competition.Id);
+        using var roundResponse = await SendAsync(
+            client, HttpMethod.Post, $"{CompetitionsRoute}/{competition.Id}/rodadas",
+            RoundBody("Rodada localizada", 1), NewKey(), competitionEtag);
+        var roundId = (await ReadJsonAsync(roundResponse)).GetProperty("id").GetGuid();
+        RequireLocationPath(roundResponse).Should().Be(
+            $"{CompetitionsRoute}/{competition.Id}/rodadas/{roundId}");
+
+        using var rulesResponse = await SendAsync(
+            client, HttpMethod.Post, $"{CompetitionsRoute}/{competition.Id}/regras-publicadas",
+            RulesBody("Md3", "Padrao"), NewKey(), RequireETag(roundResponse));
+        var rulesId = (await ReadJsonAsync(rulesResponse)).GetProperty("id").GetGuid();
+        RequireLocationPath(rulesResponse).Should().Be(
+            $"{CompetitionsRoute}/{competition.Id}/regras-publicadas/{rulesId}");
+    }
+
+    [Fact]
+    public async Task GeneratedSwagger_ShouldDescribeT030BearerAndRequestResponseHeaders()
+    {
+        using var client = _factory.CreateAnonymousClient();
+        using var response = await client.GetAsync("/swagger/v1/swagger.json");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var document = await ReadJsonAsync(response);
+
+        document.GetProperty("components").GetProperty("securitySchemes")
+            .GetProperty("Bearer").GetProperty("scheme").GetString().Should().Be("bearer");
+        document.TryGetProperty("security", out _).Should().BeFalse();
+
+        var paths = document.GetProperty("paths");
+        AssertSwaggerSecurity(paths, "/api/v1/auth/login", "post", bearer: false);
+        AssertSwaggerSecurity(paths, "/api/v1/auth/logout", "post", bearer: true);
+        AssertSwaggerSecurity(paths, "/api/v1/discord/configuracoes", "get", bearer: true);
+        AssertSwaggerSecurity(paths, "/api/v1/draft-montagens/{id}/discord/publicacao", "post", bearer: false);
+        AssertSwaggerSecurity(paths, "/api/v1/temporadas", "get", bearer: true);
+
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+        AssertRequestSchema(schemas, "CreateSeasonRequestDto",
+            new Dictionary<string, string> { ["nome"] = "string", ["ano"] = "integer", ["ordemNoAno"] = "integer", ["dataInicio"] = "string", ["dataFimExclusiva"] = "string" },
+            ["nome", "ano", "ordemNoAno", "dataInicio", "dataFimExclusiva"]);
+        AssertRequestSchema(schemas, "UpdateSeasonRequestDto",
+            new Dictionary<string, string> { ["nome"] = "string", ["ano"] = "integer", ["ordemNoAno"] = "integer", ["dataInicio"] = "string", ["dataFimExclusiva"] = "string" }, []);
+        AssertRequestSchema(schemas, "CreateCompetitionRequestDto",
+            new Dictionary<string, string> { ["nome"] = "string", ["codigo"] = "string", ["circuitoDiario"] = "boolean" },
+            ["nome", "codigo", "circuitoDiario"]);
+        AssertRequestSchema(schemas, "UpdateCompetitionRequestDto",
+            new Dictionary<string, string> { ["nome"] = "string", ["codigo"] = "string", ["circuitoDiario"] = "boolean" }, []);
+        AssertRequestSchema(schemas, "CreateRoundRequestDto",
+            new Dictionary<string, string> { ["nome"] = "string", ["ordem"] = "integer" }, ["nome", "ordem"]);
+        AssertRequestSchema(schemas, "ReorderRoundsRequestDto",
+            new Dictionary<string, string> { ["rodadaIds"] = "array" }, ["rodadaIds"]);
+        AssertRequestSchema(schemas, "PublishRulesRequestDto",
+            new Dictionary<string, string> { ["formato"] = "string", ["modoDraft"] = "string" }, ["formato", "modoDraft"]);
+        AssertSchemaEnum(schemas, "PublishRulesRequestDto", "formato", ["Md3", "Md5"]);
+        AssertSchemaEnum(schemas, "PublishRulesRequestDto", "modoDraft", ["Padrao", "Fearless"]);
+        var roundIds = schemas.GetProperty("ReorderRoundsRequestDto")
+            .GetProperty("properties").GetProperty("rodadaIds");
+        roundIds.GetProperty("items").GetProperty("format").GetString().Should().Be("uuid");
+        var expected = new Dictionary<(string Path, string Method), SwaggerExpectation>
+        {
+            [("/api/v1/temporadas", "get")] = new([], ["ETag"], ["200", "400", "401"]),
+            [("/api/v1/temporadas", "post")] = new(["Idempotency-Key"], ["ETag", "Location"], ["201", "400", "401", "403", "409"]),
+            [("/api/v1/temporadas/{seasonId}", "get")] = new([], ["ETag"], ["200", "401", "404"]),
+            [("/api/v1/temporadas/{seasonId}", "patch")] = new(["Idempotency-Key", "If-Match"], ["ETag"], ["200", "400", "401", "403", "404", "409"]),
+            [("/api/v1/temporadas/{seasonId}/aberturas", "post")] = new(["Idempotency-Key", "If-Match-Calendar"], ["ETag"], ["200", "400", "401", "403", "404", "409"]),
+            [("/api/v1/temporadas/{seasonId}/encerramentos", "post")] = new(["Idempotency-Key", "If-Match-Calendar"], ["ETag"], ["200", "400", "401", "403", "404", "409"]),
+            [("/api/v1/temporadas/{seasonId}/competicoes", "get")] = new([], [], ["200", "400", "401", "404"]),
+            [("/api/v1/temporadas/{seasonId}/competicoes", "post")] = new(["Idempotency-Key"], ["ETag", "Location"], ["201", "400", "401", "403", "404", "409"]),
+            [("/api/v1/temporadas/{seasonId}/regras-publicadas", "post")] = new(["Idempotency-Key", "If-Match"], ["ETag", "Location"], ["201", "400", "401", "403", "404", "409"]),
+            [("/api/v1/competicoes", "get")] = new([], [], ["200", "400", "401"]),
+            [("/api/v1/competicoes/{competitionId}", "get")] = new([], ["ETag"], ["200", "401", "404"]),
+            [("/api/v1/competicoes/{competitionId}", "patch")] = new(["Idempotency-Key", "If-Match"], ["ETag"], ["200", "400", "401", "403", "404", "409"]),
+            [("/api/v1/competicoes/{competitionId}/rodadas", "get")] = new([], [], ["200", "401", "404"]),
+            [("/api/v1/competicoes/{competitionId}/rodadas", "post")] = new(["Idempotency-Key", "If-Match"], ["ETag", "Location"], ["201", "400", "401", "403", "404", "409"]),
+            [("/api/v1/competicoes/{competitionId}/ordenacoes-rodadas", "post")] = new(["Idempotency-Key", "If-Match"], ["ETag"], ["200", "400", "401", "403", "404", "409"]),
+            [("/api/v1/competicoes/{competitionId}/regras-publicadas", "post")] = new(["Idempotency-Key", "If-Match"], ["ETag", "Location"], ["201", "400", "401", "403", "404", "409"]),
+        };
+        foreach (var operation in expected)
+        {
+            AssertSwaggerOperation(paths, operation.Key.Path, operation.Key.Method, operation.Value);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(ProtectedMutationOperations))]
     public async Task ProtectedOperation_ShouldApplyEndpointCapabilityAndResourceCondition(
@@ -372,6 +566,39 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
             Portuguese);
         allowed.StatusCode.Should().Be(mutation.SuccessStatus,
             $"{allowedRole} must be allowed for the {kind} endpoint resource condition");
+    }
+
+    [Fact]
+    public async Task CompetitionConfiguration_ShouldEnforceResourceConditionAfterSeriesStarts()
+    {
+        using var president = _factory.CreateClientFor(AuthRoles.Presidente);
+        using var admin = _factory.CreateClientFor(AuthRoles.Admin);
+        var season = await CreateSeasonAsync(president, "Temporada com Serie", 2055, 1);
+        var competition = await CreateCompetitionAsync(president, season.Id, "Competicao iniciada", "INI", false);
+        var roundId = await CreateRoundAsync(president, competition.Id, "Rodada iniciada", 1);
+        var competitionEtag = await GetCompetitionETagAsync(president, competition.Id);
+        using var rulesResponse = await SendAsync(
+            president, HttpMethod.Post, $"{CompetitionsRoute}/{competition.Id}/regras-publicadas",
+            RulesBody("Md3", "Padrao"), NewKey(), competitionEtag);
+        rulesResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var rulesId = (await ReadJsonAsync(rulesResponse)).GetProperty("id").GetGuid();
+        await _factory.SeedStartedSeriesAsync(season.Id, competition.Id, roundId, rulesId);
+        var currentEtag = RequireETag(rulesResponse);
+
+        using var deniedUpdate = await SendAsync(
+            admin, HttpMethod.Patch, $"{CompetitionsRoute}/{competition.Id}",
+            new { nome = "Admin nao pode" }, NewKey(), currentEtag, English);
+        await AssertLocalizedErrorAsync(deniedUpdate, HttpStatusCode.Forbidden, English);
+
+        using var deniedCreate = await SendAsync(
+            admin, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/competicoes",
+            CompetitionBody("Outra competicao", "OUT", false), NewKey(), culture: Portuguese);
+        await AssertLocalizedErrorAsync(deniedCreate, HttpStatusCode.Forbidden, Portuguese);
+
+        using var presidentUpdate = await SendAsync(
+            president, HttpMethod.Patch, $"{CompetitionsRoute}/{competition.Id}",
+            new { nome = "Presidente pode" }, NewKey(), currentEtag);
+        presidentUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Theory]
@@ -442,6 +669,28 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
             "not-an-etag",
             English);
         await AssertLocalizedErrorAsync(malformed, HttpStatusCode.BadRequest, English);
+    }
+
+    [Fact]
+    public async Task ConditionalMutations_ShouldNotInterchangeResourceAndCalendarEtags()
+    {
+        using var client = _factory.CreateClientFor(AuthRoles.Presidente);
+        var season = await CreateSeasonAsync(client, "Season escopos ETag", 2054, 1);
+        using var update = await SendAsync(
+            client, HttpMethod.Patch, $"{SeasonsRoute}/{season.Id}", new { nome = "Season versao um" },
+            NewKey(), season.ETag);
+        update.StatusCode.Should().Be(HttpStatusCode.OK);
+        var resourceEtag = RequireETag(update);
+
+        using var activationWithResource = await SendWithPreconditionHeaderAsync(
+            client, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/aberturas", null,
+            NewKey(), "If-Match-Calendar", resourceEtag);
+        await AssertLocalizedErrorAsync(activationWithResource, HttpStatusCode.Conflict, Portuguese);
+
+        using var rulesWithCalendar = await SendWithPreconditionHeaderAsync(
+            client, HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/regras-publicadas",
+            RulesBody("Md3", "Padrao"), NewKey(), "If-Match", "W/\"0\"");
+        await AssertLocalizedErrorAsync(rulesWithCalendar, HttpStatusCode.Conflict, Portuguese);
     }
 
     [Fact]
@@ -616,7 +865,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
                 var season = await CreateSeasonAsync(client, "Temporada da regra", year, 1);
                 return new(HttpMethod.Post, $"{SeasonsRoute}/{season.Id}/regras-publicadas",
                     RulesBody("Md3", "Padrao"), RulesBody("Md5", "Fearless"), season.ETag,
-                    HttpStatusCode.Created, false);
+                    HttpStatusCode.Created, true);
             }
             case MutationKind.UpdateCompetition:
             {
@@ -630,7 +879,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
                 var (_, competition) = await CreateSeasonAndCompetitionAsync(client, year);
                 return new(HttpMethod.Post, $"{CompetitionsRoute}/{competition.Id}/rodadas",
                     RoundBody("Rodada Idempotente", 1), RoundBody("Rodada Divergente", 2),
-                    null, HttpStatusCode.Created, false);
+                    competition.ETag, HttpStatusCode.Created, true);
             }
             case MutationKind.ReorderRounds:
             {
@@ -647,7 +896,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
                 var (_, competition) = await CreateSeasonAndCompetitionAsync(client, year);
                 return new(HttpMethod.Post, $"{CompetitionsRoute}/{competition.Id}/regras-publicadas",
                     RulesBody("Md3", "Padrao"), RulesBody("Md5", "Fearless"),
-                    competition.ETag, HttpStatusCode.Created, false);
+                    competition.ETag, HttpStatusCode.Created, true);
             }
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
@@ -725,6 +974,20 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
                     new { nome = "Competicao condicional" },
                     competition.ETag,
                     HttpStatusCode.OK);
+            }
+            case ConditionalMutationKind.CreateRound:
+            {
+                var (_, competition) = await CreateSeasonAndCompetitionAsync(client, year);
+                return Conditional(
+                    HttpMethod.Post,
+                    $"{CompetitionsRoute}/{competition.Id}/rodadas",
+                    RoundBody("Rodada condicional", 1),
+                    competition.ETag,
+                    HttpStatusCode.Created,
+                    () => Task.FromResult(Mutation(
+                        HttpMethod.Post,
+                        $"{CompetitionsRoute}/{competition.Id}/rodadas",
+                        RoundBody("Rodada stale", 2))));
             }
             case ConditionalMutationKind.ReorderRounds:
             {
@@ -856,6 +1119,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.Created, "the scenario requires a created Season");
         var body = await ReadJsonAsync(response);
         var resource = new CreatedResource(body.GetProperty("id").GetGuid(), RequireETag(response), body);
+        RequireLocationPath(response).Should().Be($"{SeasonsRoute}/{resource.Id}");
         AssertSeasonDetail(body, resource.Id, name, year, "Planejada");
         return resource;
     }
@@ -877,6 +1141,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.Created, "the scenario requires a created competition");
         var body = await ReadJsonAsync(response);
         var resource = new CreatedResource(body.GetProperty("id").GetGuid(), RequireETag(response), body);
+        RequireLocationPath(response).Should().Be($"{CompetitionsRoute}/{resource.Id}");
         AssertCompetitionDetail(body, resource.Id, seasonId, name, code, dailyCircuit);
         return resource;
     }
@@ -892,14 +1157,17 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
 
     private static async Task<Guid> CreateRoundAsync(HttpClient client, Guid competitionId, string name, int order)
     {
+        var etag = await GetCompetitionETagAsync(client, competitionId);
         using var response = await SendAsync(
             client,
             HttpMethod.Post,
             $"{CompetitionsRoute}/{competitionId}/rodadas",
             RoundBody(name, order),
             NewKey(),
+            etag,
             culture: Portuguese);
         response.StatusCode.Should().Be(HttpStatusCode.Created, "the scenario requires a created round");
+        RequireETag(response).Should().NotBe(etag);
         var body = await ReadJsonAsync(response);
         var id = body.GetProperty("id").GetGuid();
         AssertRound(body, id, competitionId, name, order);
@@ -955,7 +1223,9 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
 
         if (etag is not null)
         {
-            request.Headers.TryAddWithoutValidation("If-Match", etag);
+            request.Headers.TryAddWithoutValidation(
+                IsCalendarMutation(route) ? "If-Match-Calendar" : "If-Match",
+                etag);
         }
 
         if (body is not null && method != HttpMethod.Get)
@@ -997,10 +1267,26 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
 
         if (etag is not null)
         {
-            request.Headers.TryAddWithoutValidation("If-Match", etag);
+            request.Headers.TryAddWithoutValidation(
+                IsCalendarMutation(route) ? "If-Match-Calendar" : "If-Match",
+                etag);
         }
 
         request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> SendWithPreconditionHeaderAsync(
+        HttpClient client,
+        HttpMethod method,
+        string route,
+        object? body,
+        string idempotencyKey,
+        string header,
+        string etag)
+    {
+        using var request = Request(method, route, body, idempotencyKey, etag: null, Portuguese);
+        request.Headers.TryAddWithoutValidation(header, etag);
         return await client.SendAsync(request);
     }
 
@@ -1040,6 +1326,103 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         etag.Should().NotBeNullOrWhiteSpace("versioned resources declare ETag in OpenAPI");
         etag.Should().MatchRegex("^W/\\\"[0-9]+\\\"$");
         return etag!;
+    }
+
+    private static string RequireLocationPath(HttpResponseMessage response)
+    {
+        var location = response.Headers.Location;
+        location.Should().NotBeNull("created resources must expose their canonical URI");
+        return location!.IsAbsoluteUri ? location.AbsolutePath : location.OriginalString;
+    }
+
+    private static void AssertSwaggerOperation(
+        JsonElement paths,
+        string path,
+        string method,
+        SwaggerExpectation expected)
+    {
+        var operation = paths.GetProperty(path).GetProperty(method);
+        var documentedRequestHeaders = operation.GetProperty("parameters").EnumerateArray()
+            .Where(parameter => parameter.GetProperty("in").GetString() == "header")
+            .Select(parameter => parameter.GetProperty("name").GetString())
+            .ToArray();
+        if (expected.RequestHeaders.Count > 0)
+        {
+            documentedRequestHeaders.Should().Contain(expected.RequestHeaders);
+        }
+
+        var responses = operation.GetProperty("responses");
+        responses.EnumerateObject().Select(response => response.Name).Should()
+            .BeEquivalentTo(expected.Statuses);
+        var successResponse = responses.EnumerateObject()
+            .Single(response => response.Name.StartsWith('2')).Value;
+        var documentedResponseHeaders = successResponse.TryGetProperty("headers", out var headers)
+            ? headers.EnumerateObject().Select(header => header.Name).ToArray()
+            : [];
+        if (expected.ResponseHeaders.Count > 0)
+        {
+            documentedResponseHeaders.Should().Contain(expected.ResponseHeaders);
+        }
+    }
+
+    private static void AssertSwaggerSecurity(
+        JsonElement paths,
+        string path,
+        string method,
+        bool bearer)
+    {
+        var operation = paths.GetProperty(path).GetProperty(method);
+        var hasBearer = operation.TryGetProperty("security", out var security)
+            && security.EnumerateArray().Any(requirement => requirement.TryGetProperty("Bearer", out _));
+        hasBearer.Should().Be(bearer, operation.GetRawText());
+    }
+
+    private static void AssertRequestSchema(
+        JsonElement schemas,
+        string name,
+        IReadOnlyDictionary<string, string> properties,
+        IReadOnlyCollection<string> required)
+    {
+        var schema = schemas.GetProperty(name);
+        schema.GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
+        var requiredProperties = schema.TryGetProperty("required", out var requiredNode)
+            ? requiredNode.EnumerateArray().Select(item => item.GetString()).ToArray()
+            : [];
+        requiredProperties.Should().BeEquivalentTo(required);
+        foreach (var property in properties)
+        {
+            var propertySchema = ResolveSchema(
+                schemas,
+                schema.GetProperty("properties").GetProperty(property.Key));
+            propertySchema.GetProperty("type").GetString().Should().Be(property.Value);
+            if (propertySchema.TryGetProperty("nullable", out var nullable))
+            {
+                nullable.GetBoolean().Should().BeFalse();
+            }
+        }
+    }
+
+    private static void AssertSchemaEnum(
+        JsonElement schemas,
+        string schemaName,
+        string propertyName,
+        IReadOnlyCollection<string> expected)
+    {
+        var property = ResolveSchema(
+            schemas,
+            schemas.GetProperty(schemaName).GetProperty("properties").GetProperty(propertyName));
+        property.GetProperty("enum").EnumerateArray().Select(item => item.GetString()).Should()
+            .BeEquivalentTo(expected);
+    }
+
+    private static JsonElement ResolveSchema(JsonElement schemas, JsonElement schema)
+    {
+        if (!schema.TryGetProperty("$ref", out var reference))
+        {
+            return schema;
+        }
+
+        return schemas.GetProperty(reference.GetString()!.Split('/')[^1]);
     }
 
     private static void AssertPageEnvelope(
@@ -1108,14 +1491,20 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         page.GetProperty("seasonsIncluidas").EnumerateArray()
             .Select(item => item.GetProperty("id").GetGuid())
             .Should().BeEquivalentTo(includedSeasonIds);
-        page.GetProperty("seasonsIncluidas").EnumerateArray().Should()
-            .OnlyContain(season => HasSeasonSummaryShape(season));
+        if (includedSeasonIds.Count > 0)
+        {
+            page.GetProperty("seasonsIncluidas").EnumerateArray().Should()
+                .OnlyContain(season => HasSeasonSummaryShape(season));
+        }
         page.GetProperty("items").EnumerateArray()
             .Select(item => item.GetProperty("id").GetGuid())
             .Should().BeEquivalentTo(competitionIds);
-        page.GetProperty("items").EnumerateArray().Should().OnlyContain(item =>
-            includedSeasonIds.Contains(item.GetProperty("seasonId").GetGuid())
-            && HasCompetitionDetailShape(item));
+        if (competitionIds.Count > 0)
+        {
+            page.GetProperty("items").EnumerateArray().Should().OnlyContain(item =>
+                includedSeasonIds.Contains(item.GetProperty("seasonId").GetGuid())
+                && HasCompetitionDetailShape(item));
+        }
     }
 
     private static void AssertCompetitionDetail(
@@ -1232,6 +1621,10 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
 
     private static string NewKey() => $"test-{Guid.NewGuid():N}";
 
+    private static bool IsCalendarMutation(string route) =>
+        route.EndsWith("/aberturas", StringComparison.Ordinal)
+        || route.EndsWith("/encerramentos", StringComparison.Ordinal);
+
     public enum MutationKind
     {
         CreateSeason,
@@ -1253,6 +1646,7 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         CloseSeason,
         PublishSeasonRules,
         UpdateCompetition,
+        CreateRound,
         ReorderRounds,
         PublishCompetitionRules,
     }
@@ -1301,6 +1695,41 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
             return actor.Id;
         }
 
+        internal async Task SeedStartedSeriesAsync(
+            Guid seasonId,
+            Guid competitionId,
+            Guid roundId,
+            Guid rulesId)
+        {
+            using var scope = Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            var actorId = context.Users.Select(user => user.Id).First();
+            var sides = new[]
+            {
+                new LadoSerie(Guid.NewGuid(), 1, LadoSerieTipo.TimeOficial, Guid.NewGuid(), "Azul", "AZ", null, null, []),
+                new LadoSerie(Guid.NewGuid(), 2, LadoSerieTipo.TimeOficial, Guid.NewGuid(), "Vermelho", "VM", null, null, []),
+            };
+            var series = new Serie(
+                seasonId,
+                competitionId,
+                roundId,
+                rulesId,
+                eventoId: null,
+                draftMontagemId: null,
+                SerieTipo.ConfrontoOficial,
+                SerieFormato.Md3,
+                ModoDraft.Padrao,
+                fearlessHabilitado: false,
+                new DateTimeOffset(2055, 6, 1, 21, 0, 0, TimeSpan.Zero),
+                dataLocal: null,
+                actorId,
+                DateTimeOffset.UtcNow,
+                sides);
+            context.Series.Add(series);
+            context.Entry(series).Property(item => item.Estado).CurrentValue = SerieEstado.EmAndamento;
+            await context.SaveChangesAsync();
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             base.ConfigureWebHost(builder);
@@ -1346,4 +1775,9 @@ public sealed class CompetitiveSeasonApiTests : IAsyncLifetime
         object InvalidBody,
         object AdditionalPropertyBody,
         string? ETag);
+
+    private sealed record SwaggerExpectation(
+        IReadOnlyCollection<string> RequestHeaders,
+        IReadOnlyCollection<string> ResponseHeaders,
+        IReadOnlyCollection<string> Statuses);
 }

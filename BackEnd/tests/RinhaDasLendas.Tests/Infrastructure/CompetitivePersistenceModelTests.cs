@@ -105,6 +105,7 @@ public sealed class CompetitivePersistenceModelTests
             "ix_picks_partidas_lado_serie_id_serie_id",
             "ix_picks_partidas_partida_id_serie_id",
             "ix_registros_auditoria_competitiva_ator_usuario_id",
+            "ix_rodadas_competicao_id",
             "ix_seasons_atualizada_por_usuario_id",
             "ix_seasons_criada_por_usuario_id",
             "ix_series_atualizada_por_usuario_id",
@@ -121,7 +122,6 @@ public sealed class CompetitivePersistenceModelTests
             "ix_versoes_regras_publicada_por_usuario_id",
             "ix_versoes_regras_season_id",
             "ux_competicoes_circuito_diario",
-            "ux_competicoes_season_id_codigo",
             "ux_evento_times_evento_id_ordem",
             "ux_evento_times_evento_id_time_id",
             "ux_lados_series_serie_id_ordem",
@@ -129,7 +129,6 @@ public sealed class CompetitivePersistenceModelTests
             "ux_partidas_serie_id_ordem",
             "ux_picks_partidas_champion_valido",
             "ux_picks_partidas_slot_valido",
-            "ux_rodadas_competicao_id_ordem",
             "ux_seasons_ano_ordem_no_ano",
             "ux_seasons_ativa",
             "ux_versoes_regras_competicao_numero",
@@ -155,6 +154,12 @@ public sealed class CompetitivePersistenceModelTests
         context.Model.FindEntityType(typeof(CalendarioCompetitivo))!
             .FindAnnotation("RinhaDasLendas:ExpressionIndex:ux_calendarios_competitivos_singleton")!
             .Value.Should().Be("(true)");
+        context.Model.FindEntityType(typeof(Competicao))!
+            .FindAnnotation("RinhaDasLendas:ExpressionIndex:ux_competicoes_season_id_codigo")!
+            .Value.Should().Be("(season_id, lower(codigo))");
+        context.Model.FindEntityType(typeof(Rodada))!
+            .FindAnnotation("RinhaDasLendas:DeferrableUniqueConstraint:ux_rodadas_competicao_id_ordem")!
+            .Value.Should().Be("UNIQUE (competicao_id, ordem) DEFERRABLE INITIALLY DEFERRED");
         context.Model.FindEntityType(typeof(Season))!
             .FindAnnotation("Npgsql:ExclusionConstraint:ex_seasons_periodo")!
             .Value.Should().Be("daterange(data_inicio, data_fim_exclusiva, '[)') WITH &&");
@@ -255,8 +260,10 @@ public sealed class CompetitivePersistenceModelTests
             [CampoSnapshotAuditoria.RevisaoNecessaria] = false,
             [CampoSnapshotAuditoria.DecisaoPicksRemake] = DecisaoPicksRemake.PreservarPicks,
             [CampoSnapshotAuditoria.MotivoTerminoPartida] = MotivoTerminoPartida.Surrender,
+            [CampoSnapshotAuditoria.Nome] = "Season 2026",
+            [CampoSnapshotAuditoria.Ano] = 2026,
         });
-        const string expected = "{\"Id\":\"00000000-0000-0000-0000-000000000001\",\"SeasonId\":\"00000000-0000-0000-0000-000000000002\",\"CompeticaoId\":\"00000000-0000-0000-0000-000000000003\",\"RodadaId\":\"00000000-0000-0000-0000-000000000004\",\"VersaoRegrasId\":\"00000000-0000-0000-0000-000000000005\",\"EventoId\":\"00000000-0000-0000-0000-000000000006\",\"SerieId\":\"00000000-0000-0000-0000-000000000007\",\"PartidaId\":\"00000000-0000-0000-0000-000000000008\",\"LadoSerieId\":\"00000000-0000-0000-0000-000000000009\",\"TimeId\":\"00000000-0000-0000-0000-00000000000a\",\"DraftMontagemId\":\"00000000-0000-0000-0000-00000000000b\",\"EstadoSeason\":\"Ativa\",\"EstadoSerie\":\"EmAndamento\",\"EstadoPartida\":\"Confirmada\",\"Versao\":7,\"TipoSerie\":\"Amistoso\",\"TipoLado\":\"TimeOficial\",\"FormatoSerie\":\"Md5\",\"ModoDraft\":\"Fearless\",\"Ordem\":2,\"Resultado\":[2,1],\"Picks\":[11,22],\"DataInicio\":\"2026-07-01\",\"DataFimExclusiva\":\"2026-08-01\",\"AgendadaPara\":\"2026-07-29T15:34:56+00:00\",\"DataLocal\":\"2026-07-29\",\"LadoVencedorId\":\"00000000-0000-0000-0000-00000000000c\",\"FearlessHabilitado\":true,\"RevisaoNecessaria\":false,\"DecisaoPicksRemake\":\"PreservarPicks\",\"MotivoTerminoPartida\":\"Surrender\"}";
+        const string expected = "{\"Id\":\"00000000-0000-0000-0000-000000000001\",\"SeasonId\":\"00000000-0000-0000-0000-000000000002\",\"CompeticaoId\":\"00000000-0000-0000-0000-000000000003\",\"RodadaId\":\"00000000-0000-0000-0000-000000000004\",\"VersaoRegrasId\":\"00000000-0000-0000-0000-000000000005\",\"EventoId\":\"00000000-0000-0000-0000-000000000006\",\"SerieId\":\"00000000-0000-0000-0000-000000000007\",\"PartidaId\":\"00000000-0000-0000-0000-000000000008\",\"LadoSerieId\":\"00000000-0000-0000-0000-000000000009\",\"TimeId\":\"00000000-0000-0000-0000-00000000000a\",\"DraftMontagemId\":\"00000000-0000-0000-0000-00000000000b\",\"EstadoSeason\":\"Ativa\",\"EstadoSerie\":\"EmAndamento\",\"EstadoPartida\":\"Confirmada\",\"Versao\":7,\"TipoSerie\":\"Amistoso\",\"TipoLado\":\"TimeOficial\",\"FormatoSerie\":\"Md5\",\"ModoDraft\":\"Fearless\",\"Ordem\":2,\"Resultado\":[2,1],\"Picks\":[11,22],\"DataInicio\":\"2026-07-01\",\"DataFimExclusiva\":\"2026-08-01\",\"AgendadaPara\":\"2026-07-29T15:34:56+00:00\",\"DataLocal\":\"2026-07-29\",\"LadoVencedorId\":\"00000000-0000-0000-0000-00000000000c\",\"FearlessHabilitado\":true,\"RevisaoNecessaria\":false,\"DecisaoPicksRemake\":\"PreservarPicks\",\"MotivoTerminoPartida\":\"Surrender\",\"Nome\":\"Season 2026\",\"Ano\":2026}";
 
         var providerValue = converter.ConvertToProviderExpression.Compile().DynamicInvoke([snapshot]);
         var materialized = converter.ConvertFromProviderExpression.Compile().DynamicInvoke([providerValue])

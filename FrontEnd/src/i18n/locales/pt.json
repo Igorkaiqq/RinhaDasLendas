@@ -1340,6 +1340,163 @@
       }
     }
   },
+  "seasons": {
+    "eyebrow": "Calendário competitivo",
+    "title": "Temporadas",
+    "description": "Organize períodos competitivos, competições, rodadas e regras publicadas.",
+    "create": "Criar temporada",
+    "edit": "Editar temporada",
+    "activate": "Ativar temporada",
+    "close": "Encerrar temporada",
+    "open": "Abrir temporada",
+    "select": "Selecionar temporada {name}",
+    "loading": "Carregando temporadas",
+    "retry": "Tentar novamente",
+    "emptyTitle": "Nenhuma temporada cadastrada",
+    "emptyDescription": "Crie a primeira temporada para iniciar o calendário competitivo.",
+    "emptyFilterTitle": "Nenhuma temporada neste filtro",
+    "emptyFilterDescription": "Escolha outro status para consultar o histórico.",
+    "scope": {
+      "label": "Recorte de temporadas",
+      "current": "Temporada atual",
+      "selected": "Temporadas selecionadas",
+      "all": "Todas as temporadas",
+      "apply": "Aplicar seleção",
+      "loading": "Carregando competições do recorte.",
+      "empty": "Nenhuma competição neste recorte.",
+      "countOne": "{count} competição neste recorte.",
+      "countMany": "{count} competições neste recorte.",
+      "resultsTitle": "Resultado do recorte competitivo",
+      "includedSeasons": "Temporadas incluídas",
+      "competitionList": "Competições encontradas",
+      "inSeason": "Temporada: {name}"
+    },
+    "states": {
+      "Planejada": "Planejada",
+      "Ativa": "Ativa",
+      "Encerrada": "Encerrada",
+      "calendarUnconfigured": "Nenhuma temporada ativa está configurada."
+    },
+    "catalog": {
+      "eyebrow": "Linha do tempo",
+      "title": "Calendário de temporadas"
+    },
+    "pagination": {
+      "label": "Paginação das temporadas",
+      "previous": "Página anterior",
+      "next": "Próxima página",
+      "status": "Página {page} de {totalPages}"
+    },
+    "workspace": {
+      "eyebrow": "Estrutura selecionada"
+    },
+    "form": {
+      "eyebrow": "Governança sazonal",
+      "createTitle": "Criar temporada",
+      "editTitle": "Editar temporada",
+      "name": "Nome da temporada",
+      "year": "Ano",
+      "order": "Ordem no ano",
+      "startDate": "Data de início",
+      "exclusiveEndDate": "Data final exclusiva",
+      "exclusiveEndHelp": "A data final não faz parte da temporada.",
+      "save": "Salvar temporada",
+      "validation": {
+        "name": "Informe o nome da temporada.",
+        "year": "Informe um ano entre 2009 e 9999.",
+        "order": "A ordem deve ser maior que zero.",
+        "startDate": "Informe a data de início.",
+        "exclusiveEndDate": "Informe a data final exclusiva.",
+        "period": "A data final deve ser posterior à data de início."
+      }
+    },
+    "transition": {
+      "eyebrow": "Alteração do calendário",
+      "calendarVersion": "Versão observada {version}",
+      "progress": "Aplicando alteração da temporada.",
+      "activate": {
+        "title": "Ativar {name}?",
+        "consequence": "Esta temporada se tornará a temporada atual.",
+        "replacesCurrent": "A temporada atual {name} será encerrada antes da ativação.",
+        "action": "Ativar temporada",
+        "confirm": "Confirmar ativação"
+      },
+      "close": {
+        "title": "Encerrar {name}?",
+        "consequence": "Após o encerramento, novas séries oficiais não poderão ser confirmadas.",
+        "action": "Encerrar temporada",
+        "confirm": "Confirmar encerramento"
+      }
+    },
+    "competitions": {
+      "eyebrow": "Próxima etapa",
+      "title": "Competições e rodadas",
+      "forSeason": "Estrutura de {name}",
+      "create": "Criar competição",
+      "createTitle": "Nova competição",
+      "editTitle": "Editar competição",
+      "name": "Nome da competição",
+      "code": "Código da competição",
+      "dailyCircuit": "Circuito diário",
+      "emptyTitle": "Nenhuma competição nesta temporada",
+      "emptyDescription": "Crie uma competição para organizar rodadas e publicar regras.",
+      "validation": {
+        "name": "Informe o nome da competição.",
+        "code": "Informe o código da competição."
+      }
+    },
+    "rounds": {
+      "create": "Criar rodada",
+      "createTitle": "Nova rodada em {name}",
+      "name": "Nome da rodada",
+      "order": "Ordem",
+      "empty": "Nenhuma rodada criada.",
+      "reorderLabel": "Reordenar {name}",
+      "moveUp": "Mover {name} para cima",
+      "moveDown": "Mover {name} para baixo",
+      "validation": {
+        "name": "Informe o nome da rodada.",
+        "order": "A ordem deve ser maior que zero."
+      }
+    },
+    "rules": {
+      "publish": "Publicar regras",
+      "publishSeason": "Publicar regra geral",
+      "publishTitle": "Publicar regras de {name}",
+      "format": "Formato da série",
+      "mode": "Modo de draft",
+      "version": "Versão {version} · {format} · {mode}",
+      "formats": { "Md3": "MD3", "Md5": "MD5" },
+      "modes": { "Padrao": "Padrão", "Fearless": "Fearless" }
+    },
+    "messages": {
+      "created": "Temporada criada.",
+      "updated": "Temporada atualizada.",
+      "activated": "Temporada ativada.",
+      "closed": "Temporada encerrada."
+    },
+    "errors": {
+      "loadTitle": "Não foi possível carregar as temporadas",
+      "load": "Não foi possível carregar as temporadas. Tente novamente.",
+      "save": "Não foi possível salvar a temporada.",
+      "activate": "Não foi possível ativar a temporada.",
+      "close": "Não foi possível encerrar a temporada.",
+      "action": "Não foi possível concluir a ação.",
+      "competition": "Não foi possível atualizar a competição.",
+      "validation": "Revise os campos indicados e tente novamente.",
+      "notFound": "A temporada não está mais disponível.",
+      "competitionNotFound": "A competição não está mais disponível.",
+      "missingVersion": "A versão do recurso não foi observada. Recarregue os dados antes de continuar.",
+      "unauthorized": "Sua sessão expirou. Entre novamente para continuar.",
+      "forbidden": "Você não possui permissão para esta ação.",
+      "calendarConflict": "O calendário mudou. Revise os dados e confirme novamente.",
+      "resourceConflict": "Os dados mudaram. Revise as informações e confirme novamente.",
+      "refreshAfterSave": "A alteração foi salva, mas os dados não puderam ser atualizados. Recarregue a página para consultar o estado atual.",
+      "codes": {
+        "MC103": "O calendário mudou. Revise os dados e confirme novamente."
+      }
+    }
+  },
   "messages": {
     "MI001": "Carregando informações",
     "MSIS001": "Operação realizada com sucesso",

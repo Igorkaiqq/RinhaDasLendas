@@ -5,6 +5,8 @@ namespace RinhaDasLendas.Domain.Repositories;
 
 public interface ICalendarioCompetitivoRepository
 {
+    Task AcquireBootstrapLockAsync(CancellationToken cancellationToken);
+    Task<CalendarioCompetitivo?> GetCalendarAsync(CancellationToken cancellationToken);
     Task<CalendarioCompetitivo?> GetWithSeasonsAsync(CancellationToken cancellationToken);
     Task<Season?> GetSeasonByIdAsync(Guid seasonId, CancellationToken cancellationToken);
     Task<Season?> GetActiveSeasonAsync(CancellationToken cancellationToken);

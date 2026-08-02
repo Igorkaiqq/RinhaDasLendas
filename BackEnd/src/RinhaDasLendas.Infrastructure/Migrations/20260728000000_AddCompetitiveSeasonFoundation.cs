@@ -61,7 +61,7 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_registros_auditoria_competitiva", x => x.id);
-                    table.CheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
+                    table.CheckConstraint("ck_registros_auditoria_competitiva_acao_valida", "acao IN ('CalendarioCompetitivoAtualizado', 'TemporadaCriada', 'TemporadaAtualizada', 'TemporadaAtivada', 'TemporadaEncerrada', 'CompeticaoCriada', 'CompeticaoAtualizada', 'RodadaCriada', 'RodadasReordenadas', 'RegrasGeraisSeasonPublicadas', 'RegrasCompeticaoPublicadas', 'EventoCriado', 'EventoAtualizado', 'SerieAssociadaAoEvento', 'SerieCriada', 'SerieIniciada', 'PartidaAdicionada', 'PicksPartidaRegistrados', 'PartidaConfirmada', 'PartidaMarcadaComoRemake', 'PartidaCorrigida', 'PartidaAnulada', 'ResultadoSerieConfirmado', 'SerieCancelada', 'SerieAnulada', 'FatoCompetitivoCorrigido')");
                     table.CheckConstraint("ck_registros_auditoria_competitiva_recurso_tipo_valido", "recurso_tipo IN ('CalendarioCompetitivo', 'Season', 'Competicao', 'Rodada', 'VersaoRegras', 'EventoCompetitivo', 'Serie', 'Partida')");
                     table.ForeignKey(
                         name: "fk_registros_auditoria_competitiva_ator_usuario_id",
@@ -585,11 +585,8 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                 unique: true,
                 filter: "circuito_diario");
 
-            migrationBuilder.CreateIndex(
-                name: "ux_competicoes_season_id_codigo",
-                table: "competicoes",
-                columns: new[] { "season_id", "codigo" },
-                unique: true);
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX ux_competicoes_season_id_codigo ON competicoes (season_id, lower(codigo))");
 
             migrationBuilder.CreateIndex(
                 name: "ix_evento_times_time_id",
@@ -691,10 +688,12 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                 column: "ator_usuario_id");
 
             migrationBuilder.CreateIndex(
-                name: "ux_rodadas_competicao_id_ordem",
+                name: "ix_rodadas_competicao_id",
                 table: "rodadas",
-                columns: new[] { "competicao_id", "ordem" },
-                unique: true);
+                column: "competicao_id");
+
+            migrationBuilder.Sql(
+                "ALTER TABLE rodadas ADD CONSTRAINT ux_rodadas_competicao_id_ordem UNIQUE (competicao_id, ordem) DEFERRABLE INITIALLY DEFERRED");
 
             migrationBuilder.CreateIndex(
                 name: "ix_seasons_atualizada_por_usuario_id",

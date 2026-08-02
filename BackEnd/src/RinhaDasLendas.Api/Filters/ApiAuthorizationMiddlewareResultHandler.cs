@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using RinhaDasLendas.Api.Services;
 using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
+using RinhaDasLendas.Infrastructure.Identity;
 
 namespace RinhaDasLendas.Api.Filters;
 
@@ -29,7 +30,9 @@ public sealed class ApiAuthorizationMiddlewareResultHandler(IMessageProvider mes
         }
 
         var messageCode = authorizeResult.Forbidden
-            ? MessageCodes.AccessDenied
+            ? policy.Requirements.OfType<CompetitiveCapabilityRequirement>().Any()
+                ? MessageCodes.CompetitiveAccessDenied
+                : MessageCodes.AccessDenied
             : await ResolveChallengeMessageCodeAsync(context);
         await _defaultHandler.HandleAsync(next, context, policy, authorizeResult);
         if (context.Response.HasStarted || context.RequestAborted.IsCancellationRequested)

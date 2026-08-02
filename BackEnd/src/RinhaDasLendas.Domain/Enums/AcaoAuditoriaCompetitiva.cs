@@ -11,6 +11,7 @@ public enum AcaoAuditoriaCompetitiva
     CompeticaoAtualizada,
     RodadaCriada,
     RodadasReordenadas,
+    RegrasGeraisSeasonPublicadas,
     RegrasCompeticaoPublicadas,
     EventoCriado,
     EventoAtualizado,

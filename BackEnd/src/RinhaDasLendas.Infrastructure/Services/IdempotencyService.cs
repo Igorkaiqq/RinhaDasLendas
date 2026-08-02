@@ -76,10 +76,14 @@ public sealed class IdempotencyService(
             await transaction.CommitAsync(cancellationToken);
             return new IdempotencyExecutionResult(response, false);
         }
-        catch
+        catch (Exception exception)
         {
-            await transaction.RollbackAsync(CancellationToken.None);
+            await RollbackIfUsableAsync(transaction);
             dbContext.ChangeTracker.Clear();
+            if (CompetitiveSaveConflictClassifier.Classify(exception) is { } messageCode)
+            {
+                throw new DomainException(messageCode);
+            }
             throw;
         }
     }
@@ -168,5 +172,17 @@ public sealed class IdempotencyService(
         const long ticksPerMicrosecond = 10;
         var remainder = value.UtcTicks % ticksPerMicrosecond;
         return remainder == 0 ? value : value.AddTicks(ticksPerMicrosecond - remainder);
+    }
+
+    private static async Task RollbackIfUsableAsync(IDbContextTransaction transaction)
+    {
+        try
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+        }
+        catch (InvalidOperationException)
+        {
+            // PostgreSQL completes the transaction when a deferred constraint fails during commit.
+        }
     }
 }

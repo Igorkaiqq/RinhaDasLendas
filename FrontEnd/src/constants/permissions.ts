@@ -7,6 +7,8 @@ export const Permissions = {
   CanManageDrafts: 'CanManageDrafts',
   CanArchiveDrafts: 'CanArchiveDrafts',
   CanManageMatches: 'CanManageMatches',
+  CanManageSeasons: 'CanManageSeasons',
+  CanManageCompetitions: 'CanManageCompetitions',
   CanConfirmPresence: 'CanConfirmPresence',
   CanEditOwnProfile: 'CanEditOwnProfile',
   CanViewAdminLogs: 'CanViewAdminLogs',
