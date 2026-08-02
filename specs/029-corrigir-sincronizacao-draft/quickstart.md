@@ -78,34 +78,54 @@ docker.exe exec rinhadaslendas_devcontainer-app-1 test -s /tmp/feature029-migrat
 
 Expected before deploy: both Feature 028 and Feature 029 migrations are pending when the database is at the stated baseline. Stop if an unexpected migration appears between the from/to IDs.
 
-Preflight and backup, including a query that works before or after the actor column exists:
+Prepare the standard rollback backup at exactly Feature 028. If the environment is still at the Archiving baseline, first apply only Feature 028 with the reviewed compatible migration artifact; the explicit target prevents applying Feature 029. Stop on every other source migration, stop writers before the dump, and recheck the exact maximum migration before creating the backup:
 
-```bash
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_dump -U postgres -d rinha_das_lendas --format=custom --file=/tmp/rinha-das-lendas-before-feature029.dump
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 test -s /tmp/rinha-das-lendas-before-feature029.dump
+```powershell
+$feature027 = "20260726104907_AddDraftMontagemArchiving"
+$feature028 = "20260729124041_CorrigirNucleoCicloDraft"
+$currentMigration = (docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -Atc 'SELECT max("MigrationId") FROM "__EFMigrationsHistory";').Trim()
+if ($LASTEXITCODE -ne 0) { throw "Could not read the source migration." }
+if ($currentMigration -eq $feature027) {
+  docker.exe exec -e "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=rinha_das_lendas;Username=postgres;Password=postgres" rinhadaslendas_devcontainer-app-1 dotnet ef database update $feature028 --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --no-build
+  if ($LASTEXITCODE -ne 0) { throw "Feature 028 migration failed." }
+  $currentMigration = (docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -Atc 'SELECT max("MigrationId") FROM "__EFMigrationsHistory";').Trim()
+  if ($LASTEXITCODE -ne 0) { throw "Could not validate Feature 028 after migration." }
+}
+if ($currentMigration -ne $feature028) { throw "Backup refused: expected exact maximum migration $feature028, found $currentMigration." }
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml stop app
+$currentMigration = (docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -Atc 'SELECT max("MigrationId") FROM "__EFMigrationsHistory";').Trim()
+if ($LASTEXITCODE -ne 0 -or $currentMigration -ne $feature028) { throw "Backup refused after stopping writers: expected exact maximum migration $feature028, found $currentMigration." }
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_dump -U postgres -d rinha_das_lendas --format=custom --file=/tmp/rinha-das-lendas-feature028-before-feature029.dump
+if ($LASTEXITCODE -ne 0) { throw "Feature 028 backup failed." }
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 test -s /tmp/rinha-das-lendas-feature028-before-feature029.dump
+if ($LASTEXITCODE -ne 0) { throw "Feature 028 backup is empty." }
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml start app
 ```
 
-Restore the backup into a fresh database and verify the restored baseline before relying on it:
+The devcontainer command above is the compatible reviewed migration artifact for this repository. In another environment, run the equivalent Feature 028 migration bundle or pre-Feature029 deployment artifact with the same explicit target and exact postcondition before the dump. A retained backup at `20260726104907_AddDraftMontagemArchiving` is compatible only with a pre-Feature028 binary; it is not the standard Feature 029 rollback backup and must not be used for the procedure below.
 
-```bash
+Restore the Feature 028 backup into a fresh database and fail unless its exact maximum migration is Feature 028:
+
+```powershell
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_restore_check
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_restore_check
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore_check /tmp/rinha-das-lendas-before-feature029.dump
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT max(\"MigrationId\") = '20260726104907_AddDraftMontagemArchiving' AND count(*) FILTER (WHERE \"MigrationId\" > '20260726104907_AddDraftMontagemArchiving') = 0 AS baseline_ok FROM \"__EFMigrationsHistory\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore_check /tmp/rinha-das-lendas-feature028-before-feature029.dump
+if ($LASTEXITCODE -ne 0) { throw "Feature 028 test restore failed." }
+$restoredMigration = (docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -Atc 'SELECT max("MigrationId") FROM "__EFMigrationsHistory";').Trim()
+if ($LASTEXITCODE -ne 0 -or $restoredMigration -ne $feature028) { throw "Restore refused: expected exact maximum migration $feature028, found $restoredMigration." }
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS invalid_actor_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_usuario_id IS NULL;"
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres rinha_feature029_restore_check
 ```
 
-Expected: restore exits zero, `baseline_ok = t`, `system_rows = 0`, and `invalid_actor_rows = 0`.
+Expected: restore exits zero, `restoredMigration` equals Feature 028 exactly, `system_rows = 0`, and `invalid_actor_rows = 0`.
 
-Exercise the exact downgrade in a disposable database. This first restores the baseline backup, migrates through Feature 029, confirms no `System` rows, downgrades only Feature 029 to `20260729124041_CorrigirNucleoCicloDraft`, and verifies the resulting schema/history:
+Exercise the exact downgrade in a disposable database. This first restores the Feature 028 backup, migrates through Feature 029, confirms no `System` rows, downgrades only Feature 029 to `20260729124041_CorrigirNucleoCicloDraft`, and verifies the resulting schema/history:
 
 ```bash
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_downgrade_check
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_downgrade_check
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_downgrade_check /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_downgrade_check /tmp/rinha-das-lendas-feature028-before-feature029.dump
 docker.exe exec -e "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=rinha_feature029_downgrade_check;Username=postgres;Password=postgres" rinhadaslendas_devcontainer-app-1 dotnet ef database update 20260731012844_AddDraftMontagemSystemActor --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --no-build
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_downgrade_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_tipo = 'System';"
 docker.exe exec -e "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=rinha_feature029_downgrade_check;Username=postgres;Password=postgres" rinhadaslendas_devcontainer-app-1 dotnet ef database update 20260729124041_CorrigirNucleoCicloDraft --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --no-build
@@ -127,9 +147,14 @@ docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaD
 
 Expected after deploy: both migration IDs are returned, `invalid_actor_rows = 0`, existing audit rows are `User`, and the migration suite passes. Deploy backend before frontend and retain one replica.
 
-For a pre-`System` restore cutover, restore the backup into a fresh database, run the post-restore checks above, deploy the matching pre-Feature-029 backend binary, and point the Compose `app` service at that fresh database with an override that uses the real ASP.NET Core environment key:
+For a pre-`System` restore cutover, restore the Feature 028 backup into a fresh database and deploy a pre-Feature029 backend binary that is compatible with Feature 028. The exact migration check is a fail-closed gate immediately before recreating `app`; a mismatch throws and leaves the current service untouched:
 
 ```powershell
+$feature028 = "20260729124041_CorrigirNucleoCicloDraft"
+$preFeature029Compose = $env:RINHA_PRE_FEATURE029_COMPOSE_FILE
+$preFeature029Image = $env:RINHA_PRE_FEATURE029_IMAGE
+if ([string]::IsNullOrWhiteSpace($preFeature029Compose) -or -not (Test-Path $preFeature029Compose)) { throw "Cutover refused: RINHA_PRE_FEATURE029_COMPOSE_FILE must identify the approved pre-Feature029 deployment artifact." }
+if ([string]::IsNullOrWhiteSpace($preFeature029Image)) { throw "Cutover refused: RINHA_PRE_FEATURE029_IMAGE must identify the approved pre-Feature029 image." }
 $override = Join-Path $env:TEMP "rinhadaslendas-feature029-restore.yml"
 @"
 services:
@@ -139,16 +164,20 @@ services:
 "@ | Set-Content -Encoding utf8 $override
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_restore
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_restore
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore /tmp/rinha-das-lendas-before-feature029.dump
-docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT max(\"MigrationId\") = '20260726104907_AddDraftMontagemArchiving' AND count(*) FILTER (WHERE \"MigrationId\" > '20260726104907_AddDraftMontagemArchiving') = 0 AS baseline_ok FROM \"__EFMigrationsHistory\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore /tmp/rinha-das-lendas-feature028-before-feature029.dump
+if ($LASTEXITCODE -ne 0) { throw "Feature 028 cutover restore failed." }
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT count(*) AS invalid_actor_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_usuario_id IS NULL;"
 if (-not (Test-Path .devcontainer/.env)) { Copy-Item .devcontainer/.env.example .devcontainer/.env }
-docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $override up -d --no-deps --force-recreate app
-docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $override exec -T app printenv ConnectionStrings__DefaultConnection
+$resolvedImages = @(docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $preFeature029Compose -f $override config --images)
+if ($LASTEXITCODE -ne 0 -or $resolvedImages -notcontains $preFeature029Image) { throw "Cutover refused: Compose does not resolve the approved pre-Feature029 image $preFeature029Image." }
+$cutoverMigration = (docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -Atc 'SELECT max("MigrationId") FROM "__EFMigrationsHistory";').Trim()
+if ($LASTEXITCODE -ne 0 -or $cutoverMigration -ne $feature028) { throw "Cutover refused: expected exact maximum migration $feature028, found $cutoverMigration." }
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $preFeature029Compose -f $override up -d --no-deps --force-recreate app
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $preFeature029Compose -f $override exec -T app printenv ConnectionStrings__DefaultConnection
 ```
 
-Expected cutover: the printed connection targets `Database=rinha_feature029_restore`; `baseline_ok = t`; `system_rows = 0`; `invalid_actor_rows = 0`. Keep the previous database intact until application health checks and a read-only draft query succeed. To return to the normal Compose database, remove the override from the command and recreate `app`:
+Expected cutover: Compose resolves exactly the approved pre-Feature029 image; the printed connection targets `Database=rinha_feature029_restore`; `cutoverMigration` equals Feature 028 exactly; `system_rows = 0`; `invalid_actor_rows = 0`. Keep the previous database intact until application health checks and a read-only draft query succeed. To return to the normal Compose database, remove the rollback artifact and connectivity overrides, then recreate `app`:
 
 ```powershell
 docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml up -d --no-deps --force-recreate app
@@ -157,7 +186,7 @@ Remove-Item $override
 
 Rollback policy:
 
-- Before any `System` row exists, execute the disposable downgrade and fresh-database restore/cutover procedures above; never restore over the existing database.
+- Before any `System` row exists, use the verified Feature 028 backup, execute the disposable downgrade and fresh-database restore/cutover procedures above with a pre-Feature029 binary; never restore over the existing database.
 - After the first `System` row, never downgrade `20260731012844_AddDraftMontagemSystemActor`: the tested `P0001` guard prevents data loss.
 - After the first `System` row, rollback is binary-only: deploy the previous application artifact while keeping `ConnectionStrings__DefaultConnection` pointed at the existing database with the additive Feature 029 schema. Do not run `database update` to an older migration and do not restore the pre-Feature-029 backup.
 - Correct any post-`System` incompatibility with a new additive roll-forward migration, apply it to the existing database, and then redeploy the corrected binary.
@@ -228,7 +257,7 @@ Expected: candidate SQL selects only ID; every item has independent scope/comman
 - Unit 12 frontend matrix: `298/298` tests passed for transport/reconnect, fallback, stale races, dirty clone, auxiliary isolation, accessible dialog and i18n.
 - Full gates: backend `838/838`; frontend `614/614`; backend Release build with `0` warnings and `0` errors; ESLint clean; frontend production build successful.
 - Metrics expose only bounded `event` and `outcome` labels. Draft ID, state version, operation and failure type remain structured log fields and are absent from metric tags.
-- Migration verification: `11/11` migration tests passed. EF listed exactly `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` after the stated baseline, and generated the non-empty exact from/to script at `/tmp/feature029-migration/028-029-idempotent.sql` inside the app container.
+- Migration verification: `11/11` migration tests passed. EF listed exactly `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` after the stated baseline, generated the non-empty exact from/to script, and a disposable Feature 028 backup/restore returned Feature 028 as the exact maximum migration in source and restored databases.
 
 ### Deployment and rollback policy
 
