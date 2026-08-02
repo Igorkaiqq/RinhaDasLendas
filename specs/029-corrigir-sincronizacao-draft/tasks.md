@@ -155,12 +155,12 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 7: Presence Worker and Logging
 
-- [ ] T057 [US3] Write failing presence-worker tests for ID-only scan, per-ID scopes, generic failure, non-host cancellation, host cancellation and subsequent-item continuation in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemPresenceClosureServiceTests.cs`
-- [ ] T058 [US3] Run the Unit 7 RED filter and confirm the current worker mutates tracked aggregates in one shared scope in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemPresenceClosureServiceTests.cs`
-- [ ] T059 [US3] Add the ID-only presence candidate and repository projection in `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemPresenceClosureCandidate.cs`, `BackEnd/src/RinhaDasLendas.Domain/Repositories/IDraftMontagemRepository.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemRepository.cs`
-- [ ] T060 [US3] Implement the per-draft automatic presence command with reload/revalidation, system actor and post-commit publisher in `BackEnd/src/RinhaDasLendas.Application/Commands/DraftMontagens/EncerrarPresencaDraftMontagemAutomaticamenteCommand.cs` and `BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/EncerrarPresencaDraftMontagemAutomaticamenteCommandHandler.cs`
-- [ ] T061 [US3] Refactor presence closure to isolated command scopes with bounded per-ID failure logs and reduce routine EF command logging to Warning in `BackEnd/src/RinhaDasLendas.Api/Services/DraftMontagemPresenceClosureService.cs` and `BackEnd/src/RinhaDasLendas.Api/appsettings.json`
-- [ ] T062 [US3] Run the Unit 7 focused tests and backend build to prove one failed draft never stops later candidates in `BackEnd/RinhaDasLendas.sln`
+- [x] T057 [US3] Write failing presence-worker tests for ID-only scan, per-ID scopes, generic failure, non-host cancellation, host cancellation and subsequent-item continuation in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemPresenceClosureServiceTests.cs`
+- [x] T058 [US3] Run the Unit 7 RED filter and confirm the current worker mutates tracked aggregates in one shared scope in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemPresenceClosureServiceTests.cs`
+- [x] T059 [US3] Add the ID-only presence candidate and repository projection in `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemPresenceClosureCandidate.cs`, `BackEnd/src/RinhaDasLendas.Domain/Repositories/IDraftMontagemRepository.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemRepository.cs`
+- [x] T060 [US3] Implement the per-draft automatic presence command with reload/revalidation, system actor and post-commit publisher in `BackEnd/src/RinhaDasLendas.Application/Commands/DraftMontagens/EncerrarPresencaDraftMontagemAutomaticamenteCommand.cs` and `BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/EncerrarPresencaDraftMontagemAutomaticamenteCommandHandler.cs`
+- [x] T061 [US3] Refactor presence closure to isolated command scopes with bounded per-ID failure logs and reduce routine EF command logging to Warning in `BackEnd/src/RinhaDasLendas.Api/Services/DraftMontagemPresenceClosureService.cs` and `BackEnd/src/RinhaDasLendas.Api/appsettings.json`
+- [x] T062 [US3] Run the Unit 7 focused tests and backend build to prove one failed draft never stops later candidates in `BackEnd/RinhaDasLendas.sln`
 
 **Checkpoint**: User Story 3 is independently functional; committed success survives notification failure, every automatic item is isolated, and system actions are auditable without impersonation.
 
