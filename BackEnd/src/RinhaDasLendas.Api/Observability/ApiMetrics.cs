@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace RinhaDasLendas.Api.Observability;
@@ -9,6 +10,8 @@ public sealed class ApiMetrics
     private readonly Counter<long> rateLimitedRequests;
     private readonly Counter<long> stuckDrafts;
     private readonly Counter<long> draftActions;
+    private readonly Counter<long> draftRealtimePublicationFailures;
+    private readonly Histogram<long> draftRealtimePublicationFailureDuration;
 
     public ApiMetrics(IMeterFactory meterFactory)
     {
@@ -18,6 +21,8 @@ public sealed class ApiMetrics
         rateLimitedRequests = meter.CreateCounter<long>("rinha_rate_limited_requests_total");
         stuckDrafts = meter.CreateCounter<long>("rinha_stuck_drafts_total");
         draftActions = meter.CreateCounter<long>("rinha_draft_actions_total");
+        draftRealtimePublicationFailures = meter.CreateCounter<long>("rinha_draft_realtime_publication_failures_total");
+        draftRealtimePublicationFailureDuration = meter.CreateHistogram<long>("rinha_draft_realtime_publication_failure_duration_ms", "ms");
     }
 
     public void RecordAuthFailure(string scheme) => authFailures.Add(1, new KeyValuePair<string, object?>("scheme", scheme));
@@ -37,5 +42,16 @@ public sealed class ApiMetrics
         };
         allTags.AddRange(tags);
         draftActions.Add(1, allTags.ToArray());
+    }
+
+    public void RecordDraftRealtimePublicationFailure(string eventName, string outcome, long elapsedMilliseconds)
+    {
+        var tags = new TagList
+        {
+            { "event", eventName },
+            { "outcome", outcome },
+        };
+        draftRealtimePublicationFailures.Add(1, tags);
+        draftRealtimePublicationFailureDuration.Record(elapsedMilliseconds, tags);
     }
 }

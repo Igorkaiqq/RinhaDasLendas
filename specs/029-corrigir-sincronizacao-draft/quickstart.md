@@ -144,8 +144,28 @@ Expected: one dialog protects every internal intent; native browser confirmation
 
 Expected: candidate SQL selects only ID; every item has independent scope/command; only host cancellation stops the loop; system audit renders `Sistema`/`System`; archive/restored events arrive best-effort; committed mutation remains successful; expiry reconciliation publishes returned stamps; old helper/notifier method/adapter/doubles have zero references; logs/metrics contain draft/version/outcome without token/payload.
 
+### Unit 12 automated operational evidence (2026-08-02)
+
+- Actual isolated PostgreSQL plus TestServer SignalR: two authenticated clients joined the same draft and received identity-neutral archive/restore snapshots; measured archive delivery was `762 ms` and restore delivery was `317 ms`, both within the `<= 2000 ms` limit.
+- Frontend fallback: fake-clock regression applied the first available canonical response after the exact `3000 ms` cadence, within the `3000 ms + 2000 ms <= 5000 ms` recovery budget.
+- Cross-layer backend matrix: `55/55` tests passed for actor migration, GET/Join authorization parity, publisher request-cancellation independence, PostgreSQL publication/republication/reconciliation, worker isolation, candidate projections and multiclient delivery.
+- Cross-layer frontend matrix: `300/300` tests passed for transport/reconnect, fallback, stale races, dirty clone, auxiliary isolation, accessible dialog and i18n.
+- Full gates: backend `831/831`; frontend `602/602`; backend Release build with `0` warnings and `0` errors; ESLint clean; frontend production build successful.
+- Metrics expose only bounded `event` and `outcome` labels. Draft ID, state version, operation and failure type remain structured log fields and are absent from metric tags.
+- Migration verification: `11/11` migration tests passed. EF listed `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` as pending in the reused development database, and generated a non-empty idempotent script at `/tmp/task12-feature029-idempotent.sql` inside the app container.
+
+### Deployment and rollback policy
+
+1. Back up PostgreSQL, apply the idempotent migrations and verify constraints before deploying the backend.
+2. Deploy the backend before the frontend and retain the one-replica constraint; this feature does not add Redis, backplane, outbox or another store.
+3. If rollback is needed before any `System` audit row exists, the migration guard permits the tested schema downgrade.
+4. After the first `System` audit row, do not downgrade `20260731012844_AddDraftMontagemSystemActor`: its `P0001` guard intentionally blocks data-loss rollback. Roll back application binaries only while retaining the additive compatible schema, then roll forward with a corrective migration if required.
+5. After deployment, verify bounded realtime `event`/`outcome` metrics and structured draft/version logs without tokens, claims, payloads or sensitive Hub URLs.
+
 ## 9. Accessibility and i18n
 
 Validate keyboard and screen reader at 1440, 1280, 1024, 768 and 480 px. Switch locale between Portuguese and English.
 
 Expected: only degraded connection states are announced through polite live region; dialog focus/Escape/buttons work; statuses, conflict guidance and unsaved-layout copy are localized; PT/EN key sets match; Portuguese accents are correct; no visible hardcoded text exists in new frontend or backend paths.
+
+Automated i18n evidence on 2026-08-02: `pt.json` and `en.json` each contain `1063` leaf keys with `0` key drift; `Messages.resx`, `Messages.pt-BR.resx` and `Messages.en-US.resx` each contain `232` resources with `0` drift. The i18n suite passed `36/36` tests. No user-visible text or validation message was introduced by Unit 12.

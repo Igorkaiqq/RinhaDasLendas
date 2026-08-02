@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using RinhaDasLendas.Application.Interfaces;
 
 namespace RinhaDasLendas.Api.Observability;
@@ -7,17 +5,14 @@ namespace RinhaDasLendas.Api.Observability;
 public sealed class DraftMontagemRealtimeTelemetry : IDraftMontagemRealtimeTelemetry
 {
     private readonly ILogger<DraftMontagemRealtimeTelemetry> logger;
-    private readonly Counter<long> failures;
-    private readonly Histogram<long> failureDuration;
+    private readonly ApiMetrics metrics;
 
     public DraftMontagemRealtimeTelemetry(
         ILogger<DraftMontagemRealtimeTelemetry> logger,
-        IMeterFactory meterFactory)
+        ApiMetrics metrics)
     {
         this.logger = logger;
-        var meter = meterFactory.Create("RinhaDasLendas.Api");
-        failures = meter.CreateCounter<long>("rinha_draft_realtime_publication_failures_total");
-        failureDuration = meter.CreateHistogram<long>("rinha_draft_realtime_publication_failure_duration_ms", "ms");
+        this.metrics = metrics;
     }
 
     public void RecordFailure(
@@ -27,15 +22,10 @@ public sealed class DraftMontagemRealtimeTelemetry : IDraftMontagemRealtimeTelem
         long elapsedMilliseconds,
         string failureType)
     {
-        var tags = new TagList
-        {
-            { "draft_id", draftId.ToString() },
-            { "state_version", stateVersion },
-            { "operation", operation },
-            { "failure_type", failureType }
-        };
-        failures.Add(1, tags);
-        failureDuration.Record(elapsedMilliseconds, tags);
+        metrics.RecordDraftRealtimePublicationFailure(
+            NormalizeEvent(operation),
+            failureType == nameof(OperationCanceledException) ? "timeout" : "failure",
+            elapsedMilliseconds);
         logger.LogWarning(
             "Draft realtime publication failed. Draft: {DraftId}; State version: {StateVersion}; Operation: {Operation}; Elapsed milliseconds: {ElapsedMilliseconds}; Failure type: {FailureType}",
             draftId,
@@ -44,4 +34,16 @@ public sealed class DraftMontagemRealtimeTelemetry : IDraftMontagemRealtimeTelem
             elapsedMilliseconds,
             failureType);
     }
+
+    private static string NormalizeEvent(string operation) => operation switch
+    {
+        "SharedStateUpdatedAsync" => "state_updated",
+        "ArchivedAsync" => "archived",
+        "RestoredAsync" => "restored",
+        "ReloadByIdAsync" => "reload_active",
+        "ReloadByIdIncludingArchivedAsync" => "reload_archived",
+        "CreateShared" => "snapshot",
+        "PublishAfterCommitAsync" => "publish",
+        _ => "unknown",
+    };
 }

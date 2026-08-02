@@ -580,6 +580,27 @@ describe('DraftsView reason actions', () => {
     vi.useRealTimers()
   })
 
+  it('applies the first available fallback response within the 3000 ms cadence plus 2000 ms deadline', async () => {
+    vi.useFakeTimers()
+    serviceMocks.getDraftMontagemRealtimeState.mockRejectedValueOnce(new Error('backend unavailable'))
+    const wrapper = await mountView()
+    const backendAvailableAt = Date.now()
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({
+      montagem: { ...montagem, nome: 'Recovered', versaoEstado: montagem.versaoEstado + 1 },
+      canCurrentUserPick: false,
+      serverNow: montagem.dataAtualizacao,
+    })
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    const recoveryElapsed = Date.now() - backendAvailableAt
+    expect(recoveryElapsed).toBeLessThanOrEqual(5000)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.nome).toBe('Recovered')
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('does not start auxiliary enrichment from a broadcast when canonical health is still degraded', async () => {
     const initial = deferred<DraftMontagemRealtimeState>()
     const broadcastRefresh = deferred<DraftMontagemRealtimeState>()
