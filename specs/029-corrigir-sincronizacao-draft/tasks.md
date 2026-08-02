@@ -145,13 +145,13 @@ description: "Task list for correcting draft synchronization and operation"
 
 ### Implementation Unit 6: Turn Candidates and Timer
 
-- [ ] T050 [P] [US3] Write failing ID-only candidate projection tests in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs`
-- [ ] T051 [P] [US3] Write failing timer tests for per-ID scopes, reload/revalidation, timeout history, system cancel, generic/non-host cancellation continuation and host cancellation propagation in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemTurnTimerServiceTests.cs`
-- [ ] T052 [US3] Run the Unit 6 RED filters and confirm the current scan loads aggregates and shares a processing scope in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs` and `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemTurnTimerServiceTests.cs`
-- [ ] T053 [US3] Add the ID-only realtime candidate and repository projection in `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemRealtimeCandidate.cs`, `BackEnd/src/RinhaDasLendas.Domain/Repositories/IDraftMontagemRepository.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemRepository.cs`
-- [ ] T054 [US3] Implement the per-draft expiration command that reloads and chooses timeout versus maximum-duration system cancellation in `BackEnd/src/RinhaDasLendas.Application/Commands/DraftMontagens/ProcessarTurnoDraftMontagemExpiradoCommand.cs` and `BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/ProcessarTurnoDraftMontagemExpiradoCommandHandler.cs`
-- [ ] T055 [US3] Refactor the timer to one scan scope and one observed command scope per candidate while propagating only host cancellation in `BackEnd/src/RinhaDasLendas.Api/Services/DraftMontagemTurnTimerService.cs`
-- [ ] T056 [US3] Run the Unit 6 focused tests and backend build to prove candidate minimality, isolated continuation and exactly one system cancellation audit in `BackEnd/RinhaDasLendas.sln`
+- [x] T050 [P] [US3] Write failing ID-only candidate projection tests in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs`
+- [x] T051 [P] [US3] Write failing timer tests for per-ID scopes, reload/revalidation, timeout history, system cancel, generic/non-host cancellation continuation and host cancellation propagation in `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemTurnTimerServiceTests.cs`
+- [x] T052 [US3] Run the Unit 6 RED filters and confirm the current scan loads aggregates and shares a processing scope in `BackEnd/tests/RinhaDasLendas.Tests/Infrastructure/DraftMontagemCandidateProjectionTests.cs` and `BackEnd/tests/RinhaDasLendas.Tests/Services/DraftMontagemTurnTimerServiceTests.cs`
+- [x] T053 [US3] Add the ID-only realtime candidate and repository projection in `BackEnd/src/RinhaDasLendas.Domain/Models/DraftMontagemRealtimeCandidate.cs`, `BackEnd/src/RinhaDasLendas.Domain/Repositories/IDraftMontagemRepository.cs` and `BackEnd/src/RinhaDasLendas.Infrastructure/Repositories/DraftMontagemRepository.cs`
+- [x] T054 [US3] Implement the per-draft expiration command that reloads and chooses timeout versus maximum-duration system cancellation in `BackEnd/src/RinhaDasLendas.Application/Commands/DraftMontagens/ProcessarTurnoDraftMontagemExpiradoCommand.cs` and `BackEnd/src/RinhaDasLendas.Application/Handlers/DraftMontagens/ProcessarTurnoDraftMontagemExpiradoCommandHandler.cs`
+- [x] T055 [US3] Refactor the timer to one scan scope and one observed command scope per candidate while propagating only host cancellation in `BackEnd/src/RinhaDasLendas.Api/Services/DraftMontagemTurnTimerService.cs`
+- [x] T056 [US3] Run the Unit 6 focused tests and backend build to prove candidate minimality, isolated continuation and exactly one system cancellation audit in `BackEnd/RinhaDasLendas.sln`
 
 ### Implementation Unit 7: Presence Worker and Logging
 
