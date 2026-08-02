@@ -3960,4 +3960,90 @@ describe('DraftsView reason actions', () => {
     expect(wrapper.find('[data-archived-workspace]').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('keeps draft B save ownership when draft A resolves after a discard and switch', async () => {
+    const summaryA = { ...resumo, status: 'Aberta' as const, modo: 'Manual' as const }
+    const summaryB = { ...resumoB, status: 'Aberta' as const, modo: 'Manual' as const, versaoEstado: 20 }
+    const draftA = editableAdminProjection(7)
+    const draftB = {
+      ...editableAdminProjection(20),
+      id: montagemB.id,
+      nome: montagemB.nome,
+      times: editableAdminProjection(20).times.map((team) => ({ ...team, id: 'time-b', nome: 'Original B' })),
+    }
+    const acceptedA = { ...draftA, versaoEstado: 8, times: draftA.times.map((team) => ({ ...team, nome: 'Saved A' })) }
+    const acceptedB = { ...draftB, versaoEstado: 21, times: draftB.times.map((team) => ({ ...team, nome: 'Saved B' })) }
+    const saveA = deferred<DraftMontagem>()
+    const saveB = deferred<DraftMontagem>()
+    serviceMocks.listDraftMontagens.mockReset()
+    serviceMocks.getDraftMontagemAdminById.mockReset()
+    serviceMocks.saveDraftMontagemLayout.mockReset()
+    serviceMocks.listDraftMontagens.mockResolvedValue([summaryA, summaryB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(draftA)
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? draftB : draftA)
+    serviceMocks.saveDraftMontagemLayout.mockImplementation(async (id) => id === montagemB.id ? saveB.promise : saveA.promise)
+    const wrapper = await mountView({ realBoard: true })
+
+    await wrapper.get('[data-team-id="time-1"] input').setValue('Saved A')
+    await findButton(wrapper, 'Salvar layout').trigger('click')
+    await vi.waitFor(() => expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith(montagem.id, expect.anything()))
+    wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('select', montagemB.id)
+    await nextTick()
+    await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+    await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem?.id).toBe(montagemB.id))
+
+    await wrapper.get('[data-team-id="time-b"] input').setValue('Saved B')
+    await findButton(wrapper, 'Salvar layout').trigger('click')
+    await vi.waitFor(() => expect(serviceMocks.saveDraftMontagemLayout).toHaveBeenCalledWith(montagemB.id, expect.anything()))
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({ montagem: acceptedB, canCurrentUserPick: false, serverNow: acceptedB.dataAtualizacao })
+    await realtimeMock.handlers.get(montagemB.id)?.({ montagem: acceptedB, serverNow: acceptedB.dataAtualizacao })
+    await flushPromises()
+
+    saveA.resolve(acceptedA)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="keep-editing"]').exists()).toBe(false)
+    expect((wrapper.vm as unknown as { outstandingLayoutSave: { draftId: string; generation: number; baseVersion: number } | null }).outstandingLayoutSave).toMatchObject({ draftId: montagemB.id, baseVersion: 20 })
+
+    saveB.resolve(acceptedB)
+    await flushPromises()
+    expect((wrapper.vm as unknown as { boardDirty: boolean }).boardDirty).toBe(false)
+    expect(wrapper.find('[data-testid="keep-editing"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('defers an included archive without replacing an already open remote action', async () => {
+    const openSummary = { ...resumo, status: 'Aberta' as const, modo: 'Manual' as const }
+    const remote = { ...montagem, status: 'Aberta' as const, nome: 'Remote pending', versaoEstado: 8 }
+    const archived = { ...remote, status: 'Cancelada' as const, arquivado: true, versaoEstado: 9 }
+    const archivedSummary = { ...openSummary, nome: remote.nome, status: 'Cancelada' as const, arquivado: true, versaoEstado: 9 }
+    serviceMocks.listDraftMontagens.mockReset()
+    serviceMocks.getDraftMontagemAdminById.mockReset()
+    serviceMocks.getDraftMontagemArchivingById.mockReset()
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([openSummary, resumoB])
+      .mockResolvedValueOnce([openSummary, resumoB])
+      .mockResolvedValueOnce([archivedSummary, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    serviceMocks.getDraftMontagemArchivingById.mockResolvedValue({ draft: archived, arquivadoEm: null, arquivadoPorUsuarioId: null, motivoArquivamento: null, acoes: [] })
+    const wrapper = await mountView()
+    wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('update:includeArchived', true)
+    await flushPromises()
+    const vm = wrapper.vm as unknown as {
+      handleBoardDirtyChange: (dirty: boolean, baseVersion: number) => void
+      queueCanonicalSnapshot: (draft: DraftMontagem) => void
+      pendingLayoutIntentAction: (() => void | Promise<void>) | null
+    }
+    vm.handleBoardDirtyChange(true, 7)
+    vm.queueCanonicalSnapshot(remote)
+
+    await realtimeMock.archivedHandlers.get(montagem.id)?.(montagem.id)
+    expect(vm.pendingLayoutIntentAction).toBeNull()
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await vi.waitFor(() => expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe('remote-update'))
+    expect(serviceMocks.getDraftMontagemArchivingById).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+    await vi.waitFor(() => expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem).toMatchObject({ arquivado: true, versaoEstado: 9 }))
+    wrapper.unmount()
+  })
 })

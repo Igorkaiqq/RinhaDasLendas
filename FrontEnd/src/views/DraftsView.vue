@@ -114,10 +114,11 @@ let adminRequestController: AbortController | null = null
 let conflictRequestController: AbortController | null = null
 let canonicalAcceptanceId = 0
 let acceptedLayoutSaveInProgress: number | null = null
-let outstandingLayoutSaveBaseVersion: number | null = null
+let outstandingLayoutSave: { draftId: string; generation: number; baseVersion: number } | null = null
 let pendingLayoutIntentAction: (() => void | Promise<void>) | null = null
 let pendingRouteResolution: ((allow: boolean) => void) | null = null
 let layoutIntentFocusTarget: HTMLElement | null = null
+let deferredArchivedDraftId: string | null = null
 
 type DraftUpdateLane = 'passive' | 'mutation'
 
@@ -275,8 +276,10 @@ onUnmounted(async () => {
   pendingRouteResolution?.(false)
   pendingRouteResolution = null
   pendingLayoutIntentAction = null
+  deferredArchivedDraftId = null
   activeDraftId = null
   selectedDraftId.value = null
+  invalidateOutstandingLayoutSave()
   activeDraftGeneration++
   detailRequestVersion = 0
   abortGenerationRequests()
@@ -314,6 +317,7 @@ function cancelPendingRemoteUpdate() {
   if (pendingLayoutIntent.value !== 'remote-update' || pendingLayoutIntentAction !== null) return
   pendingLayoutIntent.value = null
   pendingRouteResolution = null
+  void processDeferredArchivedDraft()
 }
 
 function requestLayoutIntent(
@@ -327,9 +331,6 @@ function requestLayoutIntent(
     return true
   }
   if (pendingLayoutIntent.value) {
-    if (pendingLayoutIntent.value === 'remote-update' && intent === 'remote-update' && pendingLayoutIntentAction === null && action) {
-      pendingLayoutIntentAction = action
-    }
     routeResolution?.(false)
     return false
   }
@@ -348,6 +349,7 @@ function keepEditingLayout() {
   pendingRouteResolution = null
   routeResolution?.(false)
   void nextTick(() => layoutIntentFocusTarget?.isConnected && layoutIntentFocusTarget.focus())
+  void processDeferredArchivedDraft()
 }
 
 async function discardLayout() {
@@ -368,13 +370,22 @@ async function discardLayout() {
   await nextTick()
   routeResolution?.(true)
   if (action) await action()
+  await processDeferredArchivedDraft()
+}
+
+async function processDeferredArchivedDraft() {
+  const draftId = deferredArchivedDraftId
+  if (!draftId) return
+  deferredArchivedDraftId = null
+  await nextTick()
+  await handleDraftArchived(draftId)
 }
 
 function queueCanonicalSnapshot(montagem: DraftMontagem) {
   if (!pendingCanonicalSnapshot.value || montagem.versaoEstado > pendingCanonicalSnapshot.value.versaoEstado) {
     pendingCanonicalSnapshot.value = montagem
   }
-  if (outstandingLayoutSaveBaseVersion !== null) return
+  if (outstandingLayoutSave?.draftId === montagem.id && outstandingLayoutSave.generation === activeDraftGeneration) return
   requiresLayoutReconciliation.value = true
   requestLayoutIntent('remote-update')
 }
@@ -437,6 +448,7 @@ async function openMontagemFromLink(id: string) {
 }
 
 async function openMontagem(id: string, publicProjection?: DraftMontagem) {
+  invalidateOutstandingLayoutSave()
   const generation = ++activeDraftGeneration
   abortGenerationRequests()
   activeDraftId = id
@@ -1107,12 +1119,14 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   if (saving.value || requiresLayoutReconciliation.value || !canManageDraftCycle.value || selectedMontagem.value?.status !== DraftMontagemStatusValues.Aberta || selectedMontagem.value.modo !== 'Manual') return
   const context = beginSelectedDraftUpdate()
   if (!context) return
+  const layoutSave = { draftId: context.draftId, generation: context.generation, baseVersion: payload.versaoEstado }
   saving.value = true
-  outstandingLayoutSaveBaseVersion = payload.versaoEstado
+  outstandingLayoutSave = layoutSave
   acceptedSaveVersion.value = null
   errors.value = []
   try {
     const montagem = await saveDraftMontagemLayout(context.draftId, payload)
+    if (outstandingLayoutSave !== layoutSave || !isCurrentUpdate(context)) return
     acceptedLayoutSaveInProgress = montagem.versaoEstado
     const projectionApplied = await applyMutationProjection(context, montagem)
     if (!projectionApplied && (
@@ -1132,15 +1146,22 @@ async function saveMontagemLayout(payload: DraftMontagemLayoutPayload) {
   } catch (error) {
     await captureMutationError(error, context)
   } finally {
-    acceptedLayoutSaveInProgress = null
-    outstandingLayoutSaveBaseVersion = null
-    await nextTick()
-    if (boardDirty.value && pendingCanonicalSnapshot.value) {
-      requiresLayoutReconciliation.value = true
-      requestLayoutIntent('remote-update')
+    if (outstandingLayoutSave === layoutSave) {
+      acceptedLayoutSaveInProgress = null
+      outstandingLayoutSave = null
+      await nextTick()
+      if (boardDirty.value && pendingCanonicalSnapshot.value) {
+        requiresLayoutReconciliation.value = true
+        requestLayoutIntent('remote-update')
+      }
     }
     if (canReleaseMutation(context)) saving.value = false
   }
+}
+
+function invalidateOutstandingLayoutSave() {
+  outstandingLayoutSave = null
+  acceptedLayoutSaveInProgress = null
 }
 
 async function startRealtime() {
@@ -1541,6 +1562,7 @@ async function removeArchivedAndReconcile(draftId: string, previousIndex: number
   selectedDraftId.value = '__reconciling__'
   selectedMontagem.value = null
   selectedArchiving.value = null
+  invalidateOutstandingLayoutSave()
   activeDraftGeneration++
   detailRequestVersion = 0
   await disconnectRealtime()
@@ -1580,6 +1602,10 @@ async function handleDraftArchived(draftId: string) {
       if (selectedDraftId.value === draftId) await openMontagem(draftId)
     }
     if (selectedDraftId.value === draftId && boardDirty.value) {
+      if (pendingLayoutIntent.value) {
+        deferredArchivedDraftId = draftId
+        return
+      }
       const current = selectedMontagem.value
       if (current && (!pendingCanonicalSnapshot.value || current.versaoEstado > pendingCanonicalSnapshot.value.versaoEstado)) {
         pendingCanonicalSnapshot.value = current
