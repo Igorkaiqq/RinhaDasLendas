@@ -22,6 +22,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Models;
+using RinhaDasLendas.Domain.Repositories;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
@@ -488,7 +489,8 @@ internal sealed class DraftMontagemCycleApiFactory(
                 services.AddScoped<IDraftMontagemRealtimePublisher>(provider =>
                     new CommitRecordingPublisher(
                         ActivatorUtilities.CreateInstance<DraftMontagemRealtimePublisher>(provider),
-                        provider.GetRequiredService<CommitRecordingDraftMontagemRealtimePublisher>()));
+                        provider.GetRequiredService<CommitRecordingDraftMontagemRealtimePublisher>(),
+                        provider.GetRequiredService<IDraftMontagemRepository>()));
             }
             else
             {
@@ -758,28 +760,44 @@ internal sealed class CandidateCommandCaptureInterceptor : DbCommandInterceptor
 
 internal sealed class CommitRecordingDraftMontagemRealtimePublisher
 {
-    private readonly ConcurrentQueue<(Guid DraftId, long Timestamp)> publications = new();
+    private readonly ConcurrentQueue<CommitPublicationObservation> publications = new();
+    private long totalCount;
 
     public int Count => publications.Count;
+    public long TotalCount => Volatile.Read(ref totalCount);
+    public bool IsEmpty => publications.IsEmpty;
 
-    public bool TryDequeue(out (Guid DraftId, long Timestamp) publication) => publications.TryDequeue(out publication);
+    public bool TryDequeue(out CommitPublicationObservation publication) => publications.TryDequeue(out publication!);
 
-    public void Record(Guid draftId) => publications.Enqueue((draftId, Stopwatch.GetTimestamp()));
+    public void Record(Guid draftId, long version)
+    {
+        var ordinal = Interlocked.Increment(ref totalCount);
+        publications.Enqueue(new(draftId, version, ordinal, Stopwatch.GetTimestamp()));
+    }
 }
 
 internal sealed class CommitRecordingPublisher(
     IDraftMontagemRealtimePublisher inner,
-    CommitRecordingDraftMontagemRealtimePublisher recorder) : IDraftMontagemRealtimePublisher
+    CommitRecordingDraftMontagemRealtimePublisher recorder,
+    IDraftMontagemRepository repository) : IDraftMontagemRealtimePublisher
 {
-    public Task PublishAfterCommitAsync(
+    public async Task PublishAfterCommitAsync(
         Guid draftId,
         DraftMontagemSnapshotScope snapshotScope = DraftMontagemSnapshotScope.Active,
         DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
     {
-        recorder.Record(draftId);
-        return inner.PublishAfterCommitAsync(draftId, snapshotScope, availability);
+        var draft = snapshotScope == DraftMontagemSnapshotScope.IncludingArchived
+            ? await repository.ReloadByIdIncludingArchivedAsync(draftId, CancellationToken.None)
+            : await repository.ReloadByIdAsync(draftId, CancellationToken.None);
+        if (draft is not null)
+        {
+            recorder.Record(draftId, draft.VersaoEstado);
+        }
+        await inner.PublishAfterCommitAsync(draftId, snapshotScope, availability);
     }
 }
+
+internal sealed record CommitPublicationObservation(Guid DraftId, long Version, long Ordinal, long Timestamp);
 
 internal sealed record CyclePlayer(Guid UserId, Guid PlayerId);
 internal sealed record CycleFixture(Guid DraftId, Guid AdminUserId, IReadOnlyList<CyclePlayer> Players);

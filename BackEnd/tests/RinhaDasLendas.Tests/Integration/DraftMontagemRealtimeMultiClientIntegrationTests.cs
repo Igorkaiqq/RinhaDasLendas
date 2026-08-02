@@ -35,8 +35,12 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
         await using var secondHub = CreateHubConnection(factory, fixture.Players[1].UserId, AuthRoles.Capitao);
         var firstEvents = new ConcurrentQueue<ReceivedSnapshot>();
         var secondEvents = new ConcurrentQueue<ReceivedSnapshot>();
-        firstHub.On<DraftMontagemRealtimeSnapshotDto>("DraftMontagemStateUpdated", state => firstEvents.Enqueue(new(state, Stopwatch.GetTimestamp())));
-        secondHub.On<DraftMontagemRealtimeSnapshotDto>("DraftMontagemStateUpdated", state => secondEvents.Enqueue(new(state, Stopwatch.GetTimestamp())));
+        long firstEventCount = 0;
+        long secondEventCount = 0;
+        firstHub.On<DraftMontagemRealtimeSnapshotDto>("DraftMontagemStateUpdated", state =>
+            firstEvents.Enqueue(new(state, Stopwatch.GetTimestamp(), Interlocked.Increment(ref firstEventCount))));
+        secondHub.On<DraftMontagemRealtimeSnapshotDto>("DraftMontagemStateUpdated", state =>
+            secondEvents.Enqueue(new(state, Stopwatch.GetTimestamp(), Interlocked.Increment(ref secondEventCount))));
         await Task.WhenAll(firstHub.StartAsync(), secondHub.StartAsync());
         await Task.WhenAll(
             firstHub.InvokeAsync("JoinDraftMontagem", fixture.DraftId),
@@ -51,16 +55,15 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
         await AssertHttpTransitionAsync(() => reserveCaptain.PostAsJsonAsync(
             $"/api/v1/draft-montagens/{fixture.DraftId}/presencas/confirmar", new { Origem = "Web" }), false, false);
 
-        var commitsBeforeNoOp = factory.CommitRecorder.Count;
-        var firstBeforeNoOp = firstEvents.Count;
-        var secondBeforeNoOp = secondEvents.Count;
+        var noOpBaseline = CaptureBaseline();
         var versionBeforeNoOp = (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado;
         (await reserveCaptain.PostAsJsonAsync(
             $"/api/v1/draft-montagens/{fixture.DraftId}/presencas/confirmar", new { Origem = "Web" })).EnsureSuccessStatusCode();
         await Task.Delay(200);
-        factory.CommitRecorder.Count.Should().Be(commitsBeforeNoOp);
-        firstEvents.Count.Should().Be(firstBeforeNoOp);
-        secondEvents.Count.Should().Be(secondBeforeNoOp);
+        CaptureBaseline().Should().Be(noOpBaseline);
+        factory.CommitRecorder.IsEmpty.Should().BeTrue();
+        firstEvents.Should().BeEmpty();
+        secondEvents.Should().BeEmpty();
         (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado.Should().Be(versionBeforeNoOp);
 
         using var bot = factory.CreateBotClient();
@@ -84,9 +87,10 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             factory.Services.GetRequiredService<IServiceScopeFactory>(),
             factory.Services.GetRequiredService<IConfiguration>(),
             NullLogger<DraftMontagemPublicationReconciliationService>.Instance);
+        var reconciliationBaseline = CaptureBaseline();
         (await reconciliation.RunCycleAsync(CancellationToken.None)).Should().Be(1);
         var reconciledVersion = (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado;
-        await AssertVersionAsync(reconciledVersion, false, false);
+        await AssertVersionAsync(reconciledVersion, false, false, reconciliationBaseline);
         reconciliationClaim.Should().NotBeEmpty();
 
         await AssertHttpTransitionAsync(() => admin.PostAsJsonAsync(
@@ -102,8 +106,9 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             $"/api/v1/draft-montagens/{fixture.DraftId}/iniciar-tempo-real", null), true, false);
 
         await factory.ExpireCurrentTurnAsync(fixture.DraftId);
+        var timeoutBaseline = CaptureBaseline();
         var timeoutState = (await factory.AdvanceCurrentTimeoutAsync(fixture.DraftId))!;
-        await AssertVersionAsync(timeoutState.Montagem.VersaoEstado, false, true);
+        await AssertVersionAsync(timeoutState.Montagem.VersaoEstado, false, true, timeoutBaseline);
         await AssertHttpTransitionAsync(() => secondCaptain.PostAsJsonAsync(
             $"/api/v1/draft-montagens/{fixture.DraftId}/picks", new { JogadorId = fixture.Players[2].PlayerId }), true, false);
 
@@ -123,17 +128,17 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             $"/api/v1/draft-montagens/{fixture.DraftId}/picks", new { JogadorId = fixture.Players[3].PlayerId }), false, false);
         (await factory.GetDraftAsync(fixture.DraftId)).Status.Should().Be(DraftMontagemStatus.Finalizada);
 
-        var rejectedBefore = (
-            factory.CommitRecorder.Count,
-            firstEvents.Count,
-            secondEvents.Count,
-            Version: (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado);
+        var rejectedBefore = CaptureBaseline();
+        var rejectedVersion = (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado;
         var rejected = await admin.PatchAsJsonAsync(
             $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.Manual) });
         ((int)rejected.StatusCode).Should().BeGreaterThanOrEqualTo(400);
         await Task.Delay(200);
-        (factory.CommitRecorder.Count, firstEvents.Count, secondEvents.Count, (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado)
-            .Should().Be(rejectedBefore);
+        CaptureBaseline().Should().Be(rejectedBefore);
+        factory.CommitRecorder.IsEmpty.Should().BeTrue();
+        firstEvents.Should().BeEmpty();
+        secondEvents.Should().BeEmpty();
+        (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado.Should().Be(rejectedVersion);
 
         var archivedVersion = await AssertHttpTransitionAsync(() => admin.PatchAsJsonAsync(
             $"/api/v1/draft-montagens/{fixture.DraftId}/arquivar",
@@ -142,12 +147,19 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             $"/api/v1/draft-montagens/{fixture.DraftId}/restaurar",
             new RestaurarDraftMontagemRequestDto(archivedVersion)), false, false);
 
+        factory.CommitRecorder.IsEmpty.Should().BeTrue();
+        firstEvents.Should().BeEmpty();
+        secondEvents.Should().BeEmpty();
+        factory.CommitRecorder.TotalCount.Should().Be(Volatile.Read(ref firstEventCount));
+        factory.CommitRecorder.TotalCount.Should().Be(Volatile.Read(ref secondEventCount));
+
         async Task<long> AssertHttpTransitionAsync(
             Func<Task<HttpResponseMessage>> send,
             bool firstCanPick,
             bool secondCanPick,
             bool personalizedStateAvailable = true)
         {
+            var baseline = CaptureBaseline();
             using var response = await send();
             response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -155,12 +167,13 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             var version = root.TryGetProperty("montagem", out var montagemElement)
                 ? montagemElement.GetProperty("versaoEstado").GetInt64()
                 : root.GetProperty("versaoEstado").GetInt64();
-            await AssertVersionAsync(version, firstCanPick, secondCanPick, personalizedStateAvailable);
+            await AssertVersionAsync(version, firstCanPick, secondCanPick, baseline, personalizedStateAvailable);
             return version;
         }
 
         async Task<Guid> ClaimPublicationAsync(DraftMontagemPublicacaoDiscordTipo type)
         {
+            var baseline = CaptureBaseline();
             using var response = await bot.PostAsJsonAsync(
                 $"/api/v1/draft-montagens/{fixture.DraftId}/discord/publicacoes/claim",
                 new AdquirirClaimPublicacaoDiscordDraftMontagemRequestDto(type.ToString()));
@@ -168,25 +181,57 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
             var result = (await response.Content.ReadFromJsonAsync<ClaimPublicacaoDiscordResponseDto>())!;
             result.Adquirido.Should().BeTrue();
             var version = (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado;
-            await AssertVersionAsync(version, false, false);
+            await AssertVersionAsync(version, false, false, baseline);
             return result.ClaimId!.Value;
         }
 
         async Task AssertPublicationHttpTransitionAsync(Func<Task<HttpResponseMessage>> send)
         {
+            var baseline = CaptureBaseline();
             using var response = await send();
             response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
             var version = (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado;
-            await AssertVersionAsync(version, false, false);
+            await AssertVersionAsync(version, false, false, baseline);
         }
 
-        async Task AssertVersionAsync(long version, bool firstCanPick, bool secondCanPick, bool personalizedStateAvailable = true)
+        TransitionBaseline CaptureBaseline() => new(
+            factory.CommitRecorder.TotalCount,
+            Volatile.Read(ref firstEventCount),
+            Volatile.Read(ref secondEventCount));
+
+        async Task AssertVersionAsync(
+            long version,
+            bool firstCanPick,
+            bool secondCanPick,
+            TransitionBaseline baseline,
+            bool personalizedStateAvailable = true)
         {
-            var commit = await WaitForCommitAsync(factory.CommitRecorder, fixture.DraftId);
-            var firstEvent = await WaitForVersionAsync(firstEvents, version);
-            var secondEvent = await WaitForVersionAsync(secondEvents, version);
+            await WaitForExactDeltasAsync(
+                () => factory.CommitRecorder.TotalCount - baseline.PublisherCount,
+                () => Volatile.Read(ref firstEventCount) - baseline.FirstClientCount,
+                () => Volatile.Read(ref secondEventCount) - baseline.SecondClientCount);
+            (factory.CommitRecorder.TotalCount - baseline.PublisherCount).Should().Be(1);
+            (Volatile.Read(ref firstEventCount) - baseline.FirstClientCount).Should().Be(1);
+            (Volatile.Read(ref secondEventCount) - baseline.SecondClientCount).Should().Be(1);
+            factory.CommitRecorder.TryDequeue(out var commit).Should().BeTrue();
+            firstEvents.TryDequeue(out var firstEvent).Should().BeTrue();
+            secondEvents.TryDequeue(out var secondEvent).Should().BeTrue();
+            commit.Should().NotBeNull();
+            firstEvent.Should().NotBeNull();
+            secondEvent.Should().NotBeNull();
+            commit!.DraftId.Should().Be(fixture.DraftId);
+            commit.Version.Should().Be(version);
+            firstEvent!.State.Montagem.VersaoEstado.Should().Be(version);
+            secondEvent!.State.Montagem.VersaoEstado.Should().Be(version);
+            firstEvent.Ordinal.Should().Be(commit.Ordinal);
+            secondEvent.Ordinal.Should().Be(commit.Ordinal);
+            firstEvent.Timestamp.Should().BeGreaterThanOrEqualTo(commit.Timestamp);
+            secondEvent.Timestamp.Should().BeGreaterThanOrEqualTo(commit.Timestamp);
             Stopwatch.GetElapsedTime(commit.Timestamp, firstEvent.Timestamp).Should().BeLessThanOrEqualTo(TimeSpan.FromSeconds(2));
             Stopwatch.GetElapsedTime(commit.Timestamp, secondEvent.Timestamp).Should().BeLessThanOrEqualTo(TimeSpan.FromSeconds(2));
+            factory.CommitRecorder.IsEmpty.Should().BeTrue();
+            firstEvents.Should().BeEmpty();
+            secondEvents.Should().BeEmpty();
             (await factory.GetDraftAsync(fixture.DraftId)).VersaoEstado.Should().Be(version);
             if (personalizedStateAvailable)
             {
@@ -438,30 +483,21 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
         state.CanCurrentUserPick.Should().Be(canPick);
     }
 
-    private static async Task<(Guid DraftId, long Timestamp)> WaitForCommitAsync(
-        CommitRecordingDraftMontagemRealtimePublisher recorder,
-        Guid draftId)
+    private static async Task WaitForExactDeltasAsync(
+        Func<long> publisherDelta,
+        Func<long> firstClientDelta,
+        Func<long> secondClientDelta)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
         while (DateTimeOffset.UtcNow < deadline)
         {
-            if (recorder.TryDequeue(out var commit) && commit.DraftId == draftId) return commit;
+            var deltas = new[] { publisherDelta(), firstClientDelta(), secondClientDelta() };
+            deltas.Should().OnlyContain(delta => delta <= 1, "duplicates must fail immediately");
+            if (deltas.All(delta => delta == 1)) return;
             await Task.Delay(10);
         }
-        throw new TimeoutException("Post-commit publication was not observed.");
-    }
-
-    private static async Task<ReceivedSnapshot> WaitForVersionAsync(
-        ConcurrentQueue<ReceivedSnapshot> events,
-        long version)
-    {
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            if (events.TryDequeue(out var received) && received.State.Montagem.VersaoEstado == version) return received;
-            await Task.Delay(10);
-        }
-        throw new TimeoutException($"Realtime version {version} was not observed.");
+        throw new TimeoutException(
+            $"Expected exact publisher/client deltas of one; observed {publisherDelta()}/{firstClientDelta()}/{secondClientDelta()}.");
     }
 
     private static Dictionary<string, object?> Capture(ReadOnlySpan<KeyValuePair<string, object?>> tags)
@@ -503,5 +539,7 @@ public sealed class DraftMontagemRealtimeMultiClientIntegrationTests
         Guid FirstViewerId,
         Guid SecondViewerId);
 
-    private sealed record ReceivedSnapshot(DraftMontagemRealtimeSnapshotDto State, long Timestamp);
+    private sealed record TransitionBaseline(long PublisherCount, long FirstClientCount, long SecondClientCount);
+
+    private sealed record ReceivedSnapshot(DraftMontagemRealtimeSnapshotDto State, long Timestamp, long Ordinal);
 }

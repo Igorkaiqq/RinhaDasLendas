@@ -84,11 +84,37 @@ Preflight and backup, including a query that works before or after the actor col
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_dump -U postgres -d rinha_das_lendas --format=custom --file=/tmp/rinha-das-lendas-before-feature029.dump
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 test -s /tmp/rinha-das-lendas-before-feature029.dump
+```
+
+Restore the backup into a fresh database and verify the restored baseline before relying on it:
+
+```bash
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_restore_check
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_restore_check
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore_check /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT max(\"MigrationId\") = '20260726104907_AddDraftMontagemArchiving' AND count(*) FILTER (WHERE \"MigrationId\" > '20260726104907_AddDraftMontagemArchiving') = 0 AS baseline_ok FROM \"__EFMigrationsHistory\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS invalid_actor_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_usuario_id IS NULL;"
 docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres rinha_feature029_restore_check
 ```
+
+Expected: restore exits zero, `baseline_ok = t`, `system_rows = 0`, and `invalid_actor_rows = 0`.
+
+Exercise the exact downgrade in a disposable database. This first restores the baseline backup, migrates through Feature 029, confirms no `System` rows, downgrades only Feature 029 to `20260729124041_CorrigirNucleoCicloDraft`, and verifies the resulting schema/history:
+
+```bash
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_downgrade_check
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_downgrade_check
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_downgrade_check /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec -e "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=rinha_feature029_downgrade_check;Username=postgres;Password=postgres" rinhadaslendas_devcontainer-app-1 dotnet ef database update 20260731012844_AddDraftMontagemSystemActor --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --no-build
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_downgrade_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_tipo = 'System';"
+docker.exe exec -e "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=rinha_feature029_downgrade_check;Username=postgres;Password=postgres" rinhadaslendas_devcontainer-app-1 dotnet ef database update 20260729124041_CorrigirNucleoCicloDraft --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --no-build
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_downgrade_check -v ON_ERROR_STOP=1 -c "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" >= '20260729124041' ORDER BY \"MigrationId\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_downgrade_check -v ON_ERROR_STOP=1 -c "SELECT count(*) AS actor_column_count FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'draft_montagem_acoes_administrativas' AND column_name = 'responsavel_tipo';"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres rinha_feature029_downgrade_check
+```
+
+Expected: pre-downgrade `system_rows = 0`; post-downgrade history contains Feature 028 but not Feature 029; `actor_column_count = 0`; the disposable database is removed.
 
 Apply the reviewed exact script and validate postconditions:
 
@@ -101,11 +127,40 @@ docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaD
 
 Expected after deploy: both migration IDs are returned, `invalid_actor_rows = 0`, existing audit rows are `User`, and the migration suite passes. Deploy backend before frontend and retain one replica.
 
+For a pre-`System` restore cutover, restore the backup into a fresh database, run the post-restore checks above, deploy the matching pre-Feature-029 backend binary, and point the Compose `app` service at that fresh database with an override that uses the real ASP.NET Core environment key:
+
+```powershell
+$override = Join-Path $env:TEMP "rinhadaslendas-feature029-restore.yml"
+@"
+services:
+  app:
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=rinha_feature029_restore;Username=postgres;Password=postgres"
+"@ | Set-Content -Encoding utf8 $override
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_restore
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_restore
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT max(\"MigrationId\") = '20260726104907_AddDraftMontagemArchiving' AND count(*) FILTER (WHERE \"MigrationId\" > '20260726104907_AddDraftMontagemArchiving') = 0 AS baseline_ok FROM \"__EFMigrationsHistory\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_feature029_restore -v ON_ERROR_STOP=1 -c "SELECT count(*) AS invalid_actor_rows FROM draft_montagem_acoes_administrativas WHERE responsavel_usuario_id IS NULL;"
+if (-not (Test-Path .devcontainer/.env)) { Copy-Item .devcontainer/.env.example .devcontainer/.env }
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $override up -d --no-deps --force-recreate app
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml -f $override exec -T app printenv ConnectionStrings__DefaultConnection
+```
+
+Expected cutover: the printed connection targets `Database=rinha_feature029_restore`; `baseline_ok = t`; `system_rows = 0`; `invalid_actor_rows = 0`. Keep the previous database intact until application health checks and a read-only draft query succeed. To return to the normal Compose database, remove the override from the command and recreate `app`:
+
+```powershell
+docker.exe compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml up -d --no-deps --force-recreate app
+Remove-Item $override
+```
+
 Rollback policy:
 
-- Before any `System` row exists, restore the validated backup or test the EF downgrade to `20260729124041_CorrigirNucleoCicloDraft` in a disposable database.
+- Before any `System` row exists, execute the disposable downgrade and fresh-database restore/cutover procedures above; never restore over the existing database.
 - After the first `System` row, never downgrade `20260731012844_AddDraftMontagemSystemActor`: the tested `P0001` guard prevents data loss.
-- A post-`System` binary rollback must keep the additive Feature 029 schema. Correct forward-compatible binaries or data with a new roll-forward migration, then redeploy.
+- After the first `System` row, rollback is binary-only: deploy the previous application artifact while keeping `ConnectionStrings__DefaultConnection` pointed at the existing database with the additive Feature 029 schema. Do not run `database update` to an older migration and do not restore the pre-Feature-029 backup.
+- Correct any post-`System` incompatibility with a new additive roll-forward migration, apply it to the existing database, and then redeploy the corrected binary.
 - A database restore is an incident operation: stop writers, preserve the failed database, restore the verified custom-format backup to a new database first, validate migration history and actor invariants, then switch connectivity.
 
 ## 4. Frontend Verification
@@ -167,7 +222,7 @@ Expected: candidate SQL selects only ID; every item has independent scope/comman
 
 ### Unit 12 automated operational evidence (2026-08-02)
 
-- Actual isolated PostgreSQL plus TestServer SignalR: two authenticated clients traverse presence, publication, mode, captains, order, start, timeout, picks, substitution, finalization, archive and restore. Every committed version is compared with both client snapshots and its post-commit publisher timestamp under the `<= 2000 ms` bound; no one-off wall-clock sample is recorded as evidence.
+- Actual isolated PostgreSQL plus TestServer SignalR: two authenticated clients traverse presence, publication, mode, captains, order, start, timeout, picks, substitution, finalization, archive and restore. Per-transition baselines require exactly one publisher observation and exactly one snapshot per client with the same version/ordinal; client timestamps must follow that version's post-commit timestamp under the `<= 2000 ms` bound; no-op/rejection deltas and all final queues must be zero.
 - Frontend fallback: three deterministic fake-clock runs start the deferred HTTP request at exactly `3000 ms`, accept success before `5000 ms`, and separately prove abort at the `2000 ms` request deadline.
 - Unit 12 backend integration matrix: `11/11` tests passed for GET/Join authorization distinctions, real publisher success/failure/timeout/request-cancellation independence, executed PostgreSQL candidate projections, publication/republication/reconciliation and multiclient delivery. Existing focused actor/worker suites remain part of the full backend gate.
 - Unit 12 frontend matrix: `298/298` tests passed for transport/reconnect, fallback, stale races, dirty clone, auxiliary isolation, accessible dialog and i18n.
