@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Button } from '@/components/ui/button'
@@ -30,9 +31,13 @@ const props = withDefaults(defineProps<{
   availableManualPresencePlayers: readonly EligiblePresencePlayer[]
   manualPresenceAuxiliaryFailed?: boolean
   captainAuxiliaryFailed?: boolean
+  manualPresenceAuxiliaryLoading?: boolean
+  captainAuxiliaryLoading?: boolean
 }>(), {
   manualPresenceAuxiliaryFailed: false,
   captainAuxiliaryFailed: false,
+  manualPresenceAuxiliaryLoading: false,
+  captainAuxiliaryLoading: false,
 })
 
 const emit = defineEmits<{
@@ -54,6 +59,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const manualPresenceSelector = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('manualPresenceSelector')
+const captainControls = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('captainControls')
 
 function emitUnlessSaving(event: 'confirm-presence' | 'cancel-presence' | 'search-manual-presence' | 'add-manual-presence' | 'define-captains' | 'draw-order') {
   if (props.saving) return
@@ -75,6 +82,20 @@ function updateManualSearch(event: ControlEvent) {
 function updateManualSelection(event: ControlEvent) {
   emit('update:selectedManualPresencePlayerId', (event.target as unknown as { value: string }).value)
 }
+
+async function focusManualPresenceSelector() {
+  await nextTick()
+  manualPresenceSelector.value?.focus()
+}
+
+async function focusCaptainControl() {
+  await nextTick()
+  const control = captainControls.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('[data-testid^="toggle-captain-"]:not(:disabled)')
+  control?.focus()
+  return Boolean(control)
+}
+
+defineExpose({ focusManualPresenceSelector, focusCaptainControl })
 </script>
 
 <template>
@@ -148,7 +169,7 @@ function updateManualSelection(event: ControlEvent) {
       </label>
       <label>
         {{ t('drafts.presence.selectPlayer') }}
-        <select name="manual-presence-player" autocomplete="off" :value="selectedManualPresencePlayerId" :disabled="saving || manualPresenceAuxiliaryFailed" @change="updateManualSelection">
+        <select ref="manualPresenceSelector" name="manual-presence-player" autocomplete="off" :value="selectedManualPresencePlayerId" :disabled="saving || manualPresenceAuxiliaryFailed || manualPresenceAuxiliaryLoading" @change="updateManualSelection">
           <option value="">{{ t('drafts.presence.selectPlayer') }}</option>
           <option v-for="player in availableManualPresencePlayers" :key="player.id" :value="player.id">{{ player.nomeExibicao }}</option>
         </select>
@@ -157,14 +178,14 @@ function updateManualSelection(event: ControlEvent) {
         data-testid="add-manual-presence"
         type="button"
         class="button-secondary"
-        :disabled="saving || manualPresenceAuxiliaryFailed || !selectedManualPresencePlayerId"
+        :disabled="saving || manualPresenceAuxiliaryFailed || manualPresenceAuxiliaryLoading || !selectedManualPresencePlayerId"
         @click="emitUnlessSaving('add-manual-presence')"
       >
         {{ t('drafts.presence.addManual') }}
       </button>
       <div v-if="manualPresenceAuxiliaryFailed" data-auxiliary-presence-error class="profile-inline-message draft-preparation__auxiliary" role="status">
         <span>{{ t('drafts.auxiliary.presenceFailure') }}</span>
-        <button type="button" class="button-secondary" :disabled="saving" @click="emit('retry-manual-presence')">{{ t('drafts.auxiliary.retry') }}</button>
+        <button type="button" class="button-secondary" :disabled="saving || manualPresenceAuxiliaryLoading" @click="emit('retry-manual-presence')">{{ t('drafts.auxiliary.retry') }}</button>
       </div>
     </div>
 
@@ -184,7 +205,7 @@ function updateManualSelection(event: ControlEvent) {
       </div>
     </section>
 
-    <ul data-presence-roster class="draft-preparation__roster" :aria-label="t('drafts.presence.rosterLabel')">
+    <ul ref="captainControls" data-presence-roster class="draft-preparation__roster" :aria-label="t('drafts.presence.rosterLabel')">
       <li
         v-for="presence in confirmedPresences"
         :key="presence.id"
@@ -206,7 +227,7 @@ function updateManualSelection(event: ControlEvent) {
             :class="{ 'draft-preparation__captain-toggle--selected': captainSelection.includes(presence.jogadorId) }"
             :aria-label="t('drafts.presence.toggleCaptain', { name: presence.nomeExibicao })"
             :aria-pressed="captainSelection.includes(presence.jogadorId)"
-            :disabled="saving"
+            :disabled="saving || captainAuxiliaryLoading"
             @click="!saving && emit('toggle-captain', presence.jogadorId)"
           >
             {{ t('drafts.roles.captainShort') }}
@@ -255,7 +276,7 @@ function updateManualSelection(event: ControlEvent) {
     </div>
     <div v-if="canSelectCaptains && captainAuxiliaryFailed" data-auxiliary-captain-error class="profile-inline-message draft-preparation__auxiliary" role="status">
       <span>{{ t('drafts.auxiliary.captainFailure') }}</span>
-      <button type="button" class="button-secondary" :disabled="saving" @click="emit('retry-captains')">{{ t('drafts.auxiliary.retry') }}</button>
+      <button type="button" class="button-secondary" :disabled="saving || captainAuxiliaryLoading" @click="emit('retry-captains')">{{ t('drafts.auxiliary.retry') }}</button>
     </div>
     <div v-else-if="canDrawOrder" class="draft-preparation__footer">
       <button data-testid="draw-order" data-stage-primary-action type="button" :disabled="saving" @click="emitUnlessSaving('draw-order')">

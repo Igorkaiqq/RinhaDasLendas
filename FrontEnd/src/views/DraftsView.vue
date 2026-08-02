@@ -83,10 +83,11 @@ const realtimeConnection = ref<DraftMontagemRealtimeConnection | null>(null)
 const selectedManualPresencePlayerId = ref('')
 const manualPresenceSearch = ref('')
 const manualPresencePlayers = ref<Pick<Player, 'id' | 'nomeExibicao'>[]>([])
-const eligibleCaptainIds = ref<string[]>([])
-const substitutionEligibleCaptainIds = ref<string[]>([])
+const activeEligibleCaptainIds = ref<string[] | null>(null)
 const manualPresenceAuxiliaryFailed = ref(false)
 const captainAuxiliaryFailed = ref(false)
+const manualPresenceAuxiliaryLoading = ref(false)
+const captainAuxiliaryLoading = ref(false)
 const pendingReasonAction = ref<DraftReasonDialogAction | null>(null)
 const boardDirty = ref(false)
 const boardBaseVersion = ref(0)
@@ -96,6 +97,8 @@ const canonicalResetToken = ref(0)
 const acceptedSaveVersion = ref<number | null>(null)
 const pendingLayoutIntent = ref<DraftUnsavedLayoutIntent | null>(null)
 const workspaceHeader = useTemplateRef<InstanceType<typeof DraftWorkspaceHeader>>('workspaceHeader')
+const preparationPanel = useTemplateRef<InstanceType<typeof DraftPreparationPanel>>('preparationPanel')
+const draftWorkspace = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('draftWorkspace')
 const emptyWorkspace = useTemplateRef<InstanceType<typeof globalThis.HTMLElement>>('emptyWorkspace')
 const adminAccessDenied = ref(false)
 const archiveAccessDenied = ref(false)
@@ -108,9 +111,8 @@ let highestSharedVersion = 0
 let auxiliaryRequestId = 0
 let manualPresenceAuxiliaryRequestId = 0
 let captainAuxiliaryRequestId = 0
-let auxiliaryEnrichmentGeneration: number | null = null
-let manualPresenceAbortController: AbortController | null = null
-let captainAbortController: AbortController | null = null
+let manualPresenceInFlight: AuxiliaryRequestContext & { search: string; controller: AbortController; promise: Promise<boolean> } | null = null
+let captainInFlight: AuxiliaryRequestContext & { controller: AbortController; promise: Promise<boolean> } | null = null
 let activeDraftId: string | null = null
 let activeDraftGeneration = 0
 let listRequestVersion = 0
@@ -170,6 +172,8 @@ const myPresence = computed(
 const currentPlayerId = computed(() => currentAuthPlayerId.value ?? myPresence.value?.jogadorId ?? null)
 const hasPlayerProfile = computed(() => Boolean(currentPlayerId.value))
 const confirmedPresences = computed(() => selectedMontagem.value?.presencas.filter((presence) => presence.status === DraftMontagemPresencaStatusValues.Confirmada) ?? [])
+const eligibleCaptainIds = computed(() => intersectActiveCaptainIds((selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisIds))
+const substitutionEligibleCaptainIds = computed(() => intersectActiveCaptainIds((selectedMontagem.value as DraftMontagemAdmin | null)?.capitaesElegiveisSubstituicaoIds))
 const selectableCaptainIds = computed(() => selectedMontagem.value?.cicloVersao === 'ModoPosPresenca'
   ? eligibleCaptainIds.value
   : confirmedPresences.value.map((presence) => presence.jogadorId))
@@ -483,7 +487,6 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   auxiliaryRequestId = 0
   manualPresenceAuxiliaryRequestId = 0
   captainAuxiliaryRequestId = 0
-  auxiliaryEnrichmentGeneration = null
   canonicalAcceptanceId = 0
   highestSharedVersion = 0
   connectionStatus.value = 'disconnected'
@@ -496,10 +499,11 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
   pendingReasonAction.value = null
   captainSelection.value = []
   manualPresencePlayers.value = []
-  eligibleCaptainIds.value = []
-  substitutionEligibleCaptainIds.value = []
+  activeEligibleCaptainIds.value = null
   manualPresenceAuxiliaryFailed.value = false
   captainAuxiliaryFailed.value = false
+  manualPresenceAuxiliaryLoading.value = false
+  captainAuxiliaryLoading.value = false
   selectedManualPresencePlayerId.value = ''
   const disconnecting = disconnectRealtime(false)
   saving.value = true
@@ -556,14 +560,17 @@ function beginSelectedDraftUpdate(personalized = false) {
 
 async function applyMutationProjection(context: DraftUpdateContext, montagem: DraftMontagem) {
   if (!isCurrentUpdate(context) || montagem.id !== context.draftId) return false
-  applySharedProjection(context, montagem)
+  const sharedApplied = applySharedProjection(context, montagem)
   scheduleAdministrativeDetail(context.draftId, context.generation)
+  if (sharedApplied) refreshAuxiliaryEnrichment(context.draftId, context.generation)
   return true
 }
 
 async function applyMutationRealtimeState(context: DraftUpdateContext, state: DraftMontagemRealtimeState) {
+  const previousSharedVersion = highestSharedVersion
   if (!applyPersonalizedRealtimeState(context, state)) return false
   scheduleAdministrativeDetail(context.draftId, context.generation)
+  if (highestSharedVersion > previousSharedVersion) refreshAuxiliaryEnrichment(context.draftId, context.generation)
   return true
 }
 
@@ -720,6 +727,8 @@ function applyAdministrativeMetadata(context: DraftUpdateContext, detail: DraftM
       ...publication,
     })) ?? [],
     acoesAdministrativas: detail.acoesAdministrativas,
+    capitaesElegiveisIds: detail.capitaesElegiveisIds,
+    capitaesElegiveisSubstituicaoIds: detail.capitaesElegiveisSubstituicaoIds,
     motivoCancelamento: detail.motivoCancelamento,
   } as DraftMontagemAdmin
   return true
@@ -773,70 +782,89 @@ function applyPublicMontagemState(montagem: DraftMontagem) {
   applyMontagemState(merged)
 }
 
-async function loadEligibleManualPresencePlayers() {
+function loadEligibleManualPresencePlayers(): Promise<boolean> {
   const draftId = selectedMontagem.value?.id
   const generation = activeDraftGeneration
   const search = manualPresenceSearch.value
-  manualPresenceAbortController?.abort()
   if (!draftId || !canManageDrafts.value) {
-    manualPresenceAbortController = null
     manualPresencePlayers.value = []
     manualPresenceAuxiliaryFailed.value = false
-    return
+    return Promise.resolve(false)
   }
+  if (connectionStatus.value !== 'connected') return Promise.resolve(false)
+  if (manualPresenceInFlight?.draftId === draftId
+    && manualPresenceInFlight.generation === generation
+    && manualPresenceInFlight.search === search) return manualPresenceInFlight.promise
+
+  manualPresenceInFlight?.controller.abort()
 
   const context = beginAuxiliaryRequest(draftId, generation, 'presence')
   const controller = new AbortController()
-  manualPresenceAbortController = controller
-  manualPresenceAuxiliaryFailed.value = false
-  try {
-    const players = await listEligibleManualPresencePlayers(draftId, search, 1, 20, controller.signal)
-    if (isCurrentAuxiliaryRequest(context, 'presence') && manualPresenceSearch.value === search) {
+  const request = { ...context, search, controller, promise: Promise.resolve(false) }
+  manualPresenceAuxiliaryLoading.value = true
+  request.promise = (async () => {
+    try {
+      const players = await listEligibleManualPresencePlayers(draftId, search, 1, 20, controller.signal)
+      if (!isCurrentAuxiliaryRequest(context, 'presence') || manualPresenceSearch.value !== search) return false
       manualPresencePlayers.value = players
+      manualPresenceAuxiliaryFailed.value = false
+      return true
+    } catch {
+      if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'presence')) {
+        manualPresencePlayers.value = []
+        selectedManualPresencePlayerId.value = ''
+        manualPresenceAuxiliaryFailed.value = true
+      }
+      return false
+    } finally {
+      if (manualPresenceInFlight === request) {
+        manualPresenceInFlight = null
+        manualPresenceAuxiliaryLoading.value = false
+      }
     }
-  } catch {
-    if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'presence')) {
-      manualPresencePlayers.value = []
-      selectedManualPresencePlayerId.value = ''
-      manualPresenceAuxiliaryFailed.value = true
-    }
-  } finally {
-    if (manualPresenceAbortController === controller) manualPresenceAbortController = null
-  }
+  })()
+  manualPresenceInFlight = request
+  return request.promise
 }
 
-async function loadEligibleCaptains() {
+function loadEligibleCaptains(): Promise<boolean> {
   const draftId = selectedMontagem.value?.id
   const generation = activeDraftGeneration
-  captainAbortController?.abort()
   if (!draftId || !canManageDraftCycle.value) {
-    captainAbortController = null
-    eligibleCaptainIds.value = []
-    substitutionEligibleCaptainIds.value = []
+    activeEligibleCaptainIds.value = null
     captainAuxiliaryFailed.value = false
-    return
+    return Promise.resolve(false)
   }
+  if (connectionStatus.value !== 'connected') return Promise.resolve(false)
+  if (captainInFlight?.draftId === draftId && captainInFlight.generation === generation) return captainInFlight.promise
 
   const context = beginAuxiliaryRequest(draftId, generation, 'captain')
   const controller = new AbortController()
-  captainAbortController = controller
-  captainAuxiliaryFailed.value = false
-  try {
-    const captains = await listEligibleCaptains(controller.signal)
-    if (!isCurrentAuxiliaryRequest(context, 'captain')) return
-    const ids = captains.map((captain) => captain.id)
-    eligibleCaptainIds.value = ids
-    substitutionEligibleCaptainIds.value = ids
-  } catch {
-    if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'captain')) {
-      eligibleCaptainIds.value = []
-      substitutionEligibleCaptainIds.value = []
-      captainSelection.value = []
-      captainAuxiliaryFailed.value = true
+  const request = { ...context, controller, promise: Promise.resolve(false) }
+  captainAuxiliaryLoading.value = true
+  request.promise = (async () => {
+    try {
+      const captains = await listEligibleCaptains(controller.signal)
+      if (!isCurrentAuxiliaryRequest(context, 'captain')) return false
+      activeEligibleCaptainIds.value = captains.map((captain) => captain.id)
+      captainAuxiliaryFailed.value = false
+      return true
+    } catch {
+      if (!controller.signal.aborted && isCurrentAuxiliaryRequest(context, 'captain')) {
+        activeEligibleCaptainIds.value = null
+        captainSelection.value = []
+        captainAuxiliaryFailed.value = true
+      }
+      return false
+    } finally {
+      if (captainInFlight === request) {
+        captainInFlight = null
+        captainAuxiliaryLoading.value = false
+      }
     }
-  } finally {
-    if (captainAbortController === controller) captainAbortController = null
-  }
+  })()
+  captainInFlight = request
+  return request.promise
 }
 
 function beginAuxiliaryRequest(draftId: string, generation: number, type: 'presence' | 'captain'): AuxiliaryRequestContext {
@@ -852,23 +880,42 @@ function isCurrentAuxiliaryRequest(context: AuxiliaryRequestContext, type: 'pres
 }
 
 function abortAuxiliaryRequests() {
-  manualPresenceAbortController?.abort()
-  captainAbortController?.abort()
-  manualPresenceAbortController = null
-  captainAbortController = null
+  manualPresenceInFlight?.controller.abort()
+  captainInFlight?.controller.abort()
+  manualPresenceInFlight = null
+  captainInFlight = null
+  manualPresenceAuxiliaryLoading.value = false
+  captainAuxiliaryLoading.value = false
 }
 
-function startAuxiliaryEnrichment(id: string, generation: number) {
+function refreshAuxiliaryEnrichment(id: string, generation: number) {
   if (
-    auxiliaryEnrichmentGeneration === generation
-    || !isActiveDraft(id, generation)
+    !isActiveDraft(id, generation)
+    || connectionStatus.value !== 'connected'
     || !selectedMontagem.value
     || selectedMontagem.value.arquivado
   ) return
 
-  auxiliaryEnrichmentGeneration = generation
   void loadEligibleManualPresencePlayers()
   void loadEligibleCaptains()
+}
+
+function intersectActiveCaptainIds(canonicalIds: readonly string[] | undefined) {
+  if (!canonicalIds || activeEligibleCaptainIds.value === null) return []
+  const activeIds = new Set(activeEligibleCaptainIds.value)
+  return canonicalIds.filter((id) => activeIds.has(id))
+}
+
+async function retryManualPresenceEnrichment() {
+  if (!(await loadEligibleManualPresencePlayers())) return
+  await preparationPanel.value?.focusManualPresenceSelector()
+}
+
+async function retryCaptainEnrichment() {
+  if (!(await loadEligibleCaptains())) return
+  if (await preparationPanel.value?.focusCaptainControl()) return
+  await nextTick()
+  draftWorkspace.value?.querySelector<InstanceType<typeof globalThis.HTMLElement>>('.draft-substitute-action:not(:disabled)')?.focus()
 }
 
 async function confirmPresence() {
@@ -1080,11 +1127,11 @@ async function connectRealtime(id: string, generation: number) {
     async (snapshot) => {
       if (!isActiveDraft(id, generation)) return
       const eventContext = beginDraftUpdate(id, generation, 'passive')
-      if (eventContext) applySharedProjection(eventContext, snapshot.montagem)
+      const sharedApplied = eventContext ? applySharedProjection(eventContext, snapshot.montagem) : false
       try {
         if (await loadPersonalizedRealtimeState(id, generation)) {
           scheduleAdministrativeDetail(id, generation)
-          startAuxiliaryEnrichment(id, generation)
+          if (sharedApplied) refreshAuxiliaryEnrichment(id, generation)
         }
       } catch {
         // Keep the last personalized projection if its refresh fails.
@@ -1101,7 +1148,7 @@ async function connectRealtime(id: string, generation: number) {
         connectionStatus.value = 'connected'
         stopFallback()
         scheduleAdministrativeDetail(id, generation)
-        startAuxiliaryEnrichment(id, generation)
+        refreshAuxiliaryEnrichment(id, generation)
       } catch {
         if (isActiveDraft(id, generation)) startFallback(id, generation)
       }
@@ -1141,7 +1188,6 @@ async function runFallbackRequest(id: string, generation: number) {
   try {
     if (await loadPersonalizedRealtimeState(id, generation, controller.signal)) {
       scheduleAdministrativeDetail(id, generation)
-      startAuxiliaryEnrichment(id, generation)
     }
   } catch {
     // A failed fallback GET preserves the last accepted state and degraded health.
@@ -1844,7 +1890,7 @@ function requestOpenMontagem(id: string) {
         @create="openVisualSetup"
       />
 
-      <div class="draft-main" data-draft-workspace>
+      <div ref="draftWorkspace" class="draft-main" data-draft-workspace>
         <DraftWorkspaceHeader
           v-if="selectedMontagem"
           ref="workspaceHeader"
@@ -1870,6 +1916,7 @@ function requestOpenMontagem(id: string) {
 
         <DraftPreparationPanel
           v-if="selectedMontagem && !selectedMontagem.arquivado && preparationStatuses.includes(selectedMontagem.status)"
+          ref="preparationPanel"
           :draft="selectedMontagem"
           :confirmed-presences="confirmedPresences"
           :saving="saving"
@@ -1890,13 +1937,15 @@ function requestOpenMontagem(id: string) {
           :available-manual-presence-players="availableManualPresencePlayers"
           :manual-presence-auxiliary-failed="manualPresenceAuxiliaryFailed"
           :captain-auxiliary-failed="captainAuxiliaryFailed"
+          :manual-presence-auxiliary-loading="manualPresenceAuxiliaryLoading"
+          :captain-auxiliary-loading="captainAuxiliaryLoading"
           @confirm-presence="confirmPresence"
           @cancel-presence="cancelPresence"
           @close-presence="closePresence"
           @update:manual-presence-search="manualPresenceSearch = $event"
           @search-manual-presence="loadEligibleManualPresencePlayers"
-          @retry-manual-presence="loadEligibleManualPresencePlayers"
-          @retry-captains="loadEligibleCaptains"
+          @retry-manual-presence="retryManualPresenceEnrichment"
+          @retry-captains="retryCaptainEnrichment"
           @update:selected-manual-presence-player-id="selectedManualPresencePlayerId = $event"
           @add-manual-presence="addManualPresence"
           @remove-manual-presence="requestManualPresenceRemoval"
@@ -1940,9 +1989,9 @@ function requestOpenMontagem(id: string) {
           @finalize="finalizeMontagem"
           @cancel="requestDraftCancellation"
         />
-        <Alert v-if="captainAuxiliaryFailed && selectedMontagem && !preparationStatuses.includes(selectedMontagem.status)" data-auxiliary-captain-error role="status">
+        <Alert v-if="captainAuxiliaryFailed && selectedMontagem && selectedMontagem.status !== DraftMontagemStatusValues.PresencaAberta && selectedMontagem.status !== DraftMontagemStatusValues.PresencaEncerrada" data-auxiliary-captain-error role="status">
           <AlertDescription>{{ t('drafts.auxiliary.captainFailure') }}</AlertDescription>
-          <Button type="button" variant="outline" @click="loadEligibleCaptains">{{ t('drafts.auxiliary.retry') }}</Button>
+          <Button type="button" variant="outline" :disabled="captainAuxiliaryLoading" @click="retryCaptainEnrichment">{{ t('drafts.auxiliary.retry') }}</Button>
         </Alert>
         <section v-if="selectedMontagem?.arquivado" class="draft-empty-card draft-archive-audit" data-archived-workspace>
           <h2>{{ t('drafts.archive.historyTitle') }}</h2>

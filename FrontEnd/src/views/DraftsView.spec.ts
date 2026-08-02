@@ -605,6 +605,43 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('does not start auxiliary enrichment when fallback or broadcast GET succeeds while realtime remains degraded', async () => {
+    vi.useFakeTimers()
+    serviceMocks.getDraftMontagemRealtimeState.mockRejectedValueOnce(new Error('initial canonical failed'))
+    const wrapper = await mountView()
+    expect((wrapper.vm as unknown as { connectionStatus: string }).connectionStatus).toBe('fallback')
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    playerMocks.listEligibleCaptains.mockClear()
+
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({
+      montagem: { ...montagem, versaoEstado: 8 },
+      canCurrentUserPick: false,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(serviceMocks.listEligibleManualPresencePlayers).not.toHaveBeenCalled()
+    expect(playerMocks.listEligibleCaptains).not.toHaveBeenCalled()
+
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({
+      montagem: { ...montagem, versaoEstado: 9 },
+      canCurrentUserPick: false,
+      serverNow: montagem.dataAtualizacao,
+    })
+    await realtimeMock.handlers.get(montagem.id)?.({ montagem: { ...montagem, versaoEstado: 9 }, serverNow: montagem.dataAtualizacao })
+    await flushPromises()
+    await (wrapper.vm as unknown as {
+      loadEligibleManualPresencePlayers: () => Promise<boolean>
+      loadEligibleCaptains: () => Promise<boolean>
+    }).loadEligibleManualPresencePlayers()
+    await (wrapper.vm as unknown as { loadEligibleCaptains: () => Promise<boolean> }).loadEligibleCaptains()
+    expect(serviceMocks.listEligibleManualPresencePlayers).not.toHaveBeenCalled()
+    expect(playerMocks.listEligibleCaptains).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('does not let pending administrative enrichment hold fallback canonical in-flight', async () => {
     vi.useFakeTimers()
     const wrapper = await mountView()
@@ -886,9 +923,106 @@ describe('DraftsView reason actions', () => {
     wrapper.unmount()
   })
 
+  it('deduplicates rapid exact auxiliary retries while allowing a changed presence search to supersede', async () => {
+    const wrapper = await mountView()
+    const presence = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    const captains = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    playerMocks.listEligibleCaptains.mockClear()
+    serviceMocks.listEligibleManualPresencePlayers.mockReturnValue(presence.promise)
+    playerMocks.listEligibleCaptains.mockReturnValue(captains.promise)
+    const vm = wrapper.vm as unknown as {
+      manualPresenceSearch: string
+      manualPresenceAuxiliaryLoading: boolean
+      captainAuxiliaryLoading: boolean
+      loadEligibleManualPresencePlayers: () => Promise<boolean>
+      loadEligibleCaptains: () => Promise<boolean>
+    }
+
+    const firstPresence = vm.loadEligibleManualPresencePlayers()
+    const duplicatePresence = vm.loadEligibleManualPresencePlayers()
+    const firstCaptain = vm.loadEligibleCaptains()
+    const duplicateCaptain = vm.loadEligibleCaptains()
+    await nextTick()
+
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenCalledTimes(1)
+    expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1)
+    expect((serviceMocks.listEligibleManualPresencePlayers.mock.calls[0]?.[4] as AbortSignal).aborted).toBe(false)
+    expect((playerMocks.listEligibleCaptains.mock.calls[0]?.[0] as AbortSignal).aborted).toBe(false)
+    expect(vm.manualPresenceAuxiliaryLoading).toBe(true)
+    expect(vm.captainAuxiliaryLoading).toBe(true)
+
+    vm.manualPresenceSearch = 'novo'
+    void vm.loadEligibleManualPresencePlayers()
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenCalledTimes(2)
+    expect((serviceMocks.listEligibleManualPresencePlayers.mock.calls[0]?.[4] as AbortSignal).aborted).toBe(true)
+
+    presence.resolve([])
+    captains.resolve([])
+    await Promise.all([firstPresence, duplicatePresence, firstCaptain, duplicateCaptain])
+    wrapper.unmount()
+  })
+
+  it('preserves draft-scoped starter and substitution eligibility and intersects each with active global captains', async () => {
+    const starter = { ...montagem.presencas[0]!, jogadorId: 'starter-active', nomeExibicao: 'Starter ativo' }
+    const inactiveStarter = { ...starter, id: 'presenca-inativa', jogadorId: 'starter-inactive', nomeExibicao: 'Starter inativo', ordemConfirmacao: 2 }
+    const projection = {
+      ...adminProjection('PresencaEncerrada'),
+      modo: 'TempoReal',
+      cicloVersao: 'ModoPosPresenca',
+      presencas: [starter, inactiveStarter],
+      capitaesElegiveisIds: ['starter-active', 'starter-inactive'],
+      capitaesElegiveisSubstituicaoIds: ['starter-active', 'starter-inactive', 'reserve-active'],
+    } as DraftMontagemAdmin
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(projection)
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({ montagem: sharedFromAdmin(projection), canCurrentUserPick: false })
+    playerMocks.listEligibleCaptains.mockResolvedValue([
+      { id: 'starter-active', nomeExibicao: 'Starter ativo' },
+      { id: 'reserve-active', nomeExibicao: 'Reserva ativa' },
+      { id: 'global-outsider', nomeExibicao: 'Fora do draft' },
+    ])
+
+    const wrapper = await mountView()
+    const vm = wrapper.vm as unknown as {
+      selectedMontagem: DraftMontagemAdmin
+      eligibleCaptainIds: string[]
+      substitutionEligibleCaptainIds: string[]
+    }
+
+    expect(vm.selectedMontagem.capitaesElegiveisIds).toEqual(['starter-active', 'starter-inactive'])
+    expect(vm.selectedMontagem.capitaesElegiveisSubstituicaoIds).toEqual(['starter-active', 'starter-inactive', 'reserve-active'])
+    expect(vm.eligibleCaptainIds).toEqual(['starter-active'])
+    expect(vm.substitutionEligibleCaptainIds).toEqual(['starter-active', 'reserve-active'])
+    expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('eligibleCaptainIds')).toEqual(['starter-active'])
+    wrapper.unmount()
+  })
+
+  it('refreshes auxiliary requests after healthy reconnect and a relevant connected canonical update', async () => {
+    const wrapper = await mountView()
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    playerMocks.listEligibleCaptains.mockClear()
+
+    await realtimeMock.reconnectHandlers.get(montagem.id)?.()
+    await flushPromises()
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenCalledTimes(1)
+    expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1)
+
+    serviceMocks.listEligibleManualPresencePlayers.mockClear()
+    playerMocks.listEligibleCaptains.mockClear()
+    await emitRealtime(montagem.id, { ...montagem, versaoEstado: 8 })
+    await flushPromises()
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenCalledTimes(1)
+    expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenCalledWith(montagem.id, '', 1, 20, expect.any(AbortSignal))
+    expect(playerMocks.listEligibleCaptains).toHaveBeenCalledTimes(1)
+    expect(playerMocks.listEligibleCaptains).toHaveBeenCalledWith(expect.any(AbortSignal))
+    wrapper.unmount()
+  })
+
   it('aborts captain enrichment on generation change and leaves its stale completion inert', async () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
-    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection())
+    serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id
+      ? { ...adminProjectionB(), capitaesElegiveisIds: ['capitao-b'], capitaesElegiveisSubstituicaoIds: ['capitao-b'] }
+      : adminProjection())
     serviceMocks.getDraftMontagemRealtimeState.mockImplementation(async (id) => ({ montagem: id === montagemB.id ? montagemB : montagem }))
     const staleCaptains = deferred<Array<{ id: string; nomeExibicao: string }>>()
     playerMocks.listEligibleCaptains
@@ -924,12 +1058,19 @@ describe('DraftsView reason actions', () => {
     expect((wrapper.vm as unknown as { connectionStatus: string; errors: string[] }).connectionStatus).toBe('connected')
     expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual([])
 
-    serviceMocks.listEligibleManualPresencePlayers.mockResolvedValueOnce([{ id: 'retry-player', nomeExibicao: 'Retry Player' }])
-    await feedback.get('button').trigger('click')
+    const recovered = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    serviceMocks.listEligibleManualPresencePlayers.mockReturnValueOnce(recovered.promise)
+    const retryButton = feedback.get('button')
+    ;(retryButton.element as HTMLButtonElement).focus()
+    await retryButton.trigger('click')
+    await nextTick()
+    expect(wrapper.get('[data-auxiliary-presence-error] button').attributes('disabled')).toBeDefined()
+    recovered.resolve([{ id: 'retry-player', nomeExibicao: 'Retry Player' }])
     await flushPromises()
     expect(serviceMocks.listEligibleManualPresencePlayers).toHaveBeenLastCalledWith(montagem.id, '', 1, 20, expect.any(AbortSignal))
     expect(wrapper.find('[data-auxiliary-presence-error]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Retry Player')
+    expect(document.activeElement).toBe(wrapper.get('select[name="manual-presence-player"]').element)
     wrapper.unmount()
   })
 
@@ -955,12 +1096,19 @@ describe('DraftsView reason actions', () => {
     expect((wrapper.vm as unknown as { connectionStatus: string; errors: string[] }).connectionStatus).toBe('connected')
     expect((wrapper.vm as unknown as { errors: string[] }).errors).toEqual([])
 
-    playerMocks.listEligibleCaptains.mockResolvedValueOnce([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
-    await feedback.get('button').trigger('click')
+    const recovered = deferred<Array<{ id: string; nomeExibicao: string }>>()
+    playerMocks.listEligibleCaptains.mockReturnValueOnce(recovered.promise)
+    const retryButton = feedback.get('button')
+    ;(retryButton.element as HTMLButtonElement).focus()
+    await retryButton.trigger('click')
+    await nextTick()
+    expect(wrapper.get('[data-auxiliary-captain-error] button').attributes('disabled')).toBeDefined()
+    recovered.resolve([{ id: 'jogador-1', nomeExibicao: 'Ahri' }])
     await flushPromises()
     expect(playerMocks.listEligibleCaptains).toHaveBeenLastCalledWith(expect.any(AbortSignal))
     expect(wrapper.find('[data-auxiliary-captain-error]').exists()).toBe(false)
     expect(wrapper.getComponent({ name: 'DraftPreparationPanel' }).props('eligibleCaptainIds')).toEqual(['jogador-1'])
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="toggle-captain-jogador-1"]').element)
     wrapper.unmount()
   })
 
@@ -2615,7 +2763,7 @@ describe('DraftsView reason actions', () => {
       modo: 'TempoReal' as const,
       cicloVersao: 'ModoPosPresenca' as const,
       presencas,
-      capitaesElegiveisIds: ['jogador-1', 'jogador-2'],
+      capitaesElegiveisIds: ['jogador-1', 'jogador-2', 'jogador-3'],
     }
     serviceMocks.getDraftMontagemAdminById.mockResolvedValue(initial)
     playerMocks.listEligibleCaptains.mockResolvedValue([
