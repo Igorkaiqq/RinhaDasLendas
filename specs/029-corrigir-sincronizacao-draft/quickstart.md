@@ -62,30 +62,51 @@ Expected: all tests pass and build has zero errors. Focused evidence must includ
 
 ## 3. Migration Validation
 
-Generate/apply only the additive system-authorship migration planned in `data-model.md`; no timer index migration is expected because `(status, modo, turno_expira_em)` already exists.
+The exact production baseline is `20260726104907_AddDraftMontagemArchiving`. Feature 028 and Feature 029 must then be applied in order:
 
-Use the runner selected in section 2. Direct SDK commands are:
+1. `20260729124041_CorrigirNucleoCicloDraft`
+2. `20260731012844_AddDraftMontagemSystemActor`
+
+No timer index migration is expected because `(status, modo, turno_expira_em)` already exists. The commands below use only the stable devcontainer names and `/tmp/feature029-migration`, never a repository path for backup artifacts.
 
 ```bash
-dotnet ef database update --project BackEnd/src/RinhaDasLendas.Infrastructure --startup-project BackEnd/src/RinhaDasLendas.Api
-dotnet test BackEnd/RinhaDasLendas.sln --configuration Release --filter FullyQualifiedName~Migration
+docker.exe exec rinhadaslendas_devcontainer-app-1 mkdir -p /tmp/feature029-migration
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet ef migrations list --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release
+docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet ef migrations script 20260726104907_AddDraftMontagemArchiving 20260731012844_AddDraftMontagemSystemActor --idempotent --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api --configuration Release --output /tmp/feature029-migration/028-029-idempotent.sql
+docker.exe exec rinhadaslendas_devcontainer-app-1 test -s /tmp/feature029-migration/028-029-idempotent.sql
 ```
 
-Linux Compose commands are:
+Expected before deploy: both Feature 028 and Feature 029 migrations are pending when the database is at the stated baseline. Stop if an unexpected migration appears between the from/to IDs.
+
+Preflight and backup, including a query that works before or after the actor column exists:
 
 ```bash
-docker compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml exec -T app dotnet ef database update --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api
-docker compose -p rinhadaslendas_devcontainer -f .devcontainer/docker-compose.yml exec -T app dotnet test /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/RinhaDasLendas.sln --configuration Release --filter FullyQualifiedName~Migration
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -c "SELECT count(*) AS system_rows FROM draft_montagem_acoes_administrativas a WHERE to_jsonb(a)->>'responsavel_tipo' = 'System';"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_dump -U postgres -d rinha_das_lendas --format=custom --file=/tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 test -s /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres --if-exists rinha_feature029_restore_check
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 createdb -U postgres rinha_feature029_restore_check
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 pg_restore -U postgres --exit-on-error --dbname=rinha_feature029_restore_check /tmp/rinha-das-lendas-before-feature029.dump
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 dropdb -U postgres rinha_feature029_restore_check
 ```
 
-Windows fallback commands are:
+Apply the reviewed exact script and validate postconditions:
 
 ```bash
-docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet ef database update --project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Infrastructure --startup-project /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/src/RinhaDasLendas.Api
+docker.exe exec -e PGPASSWORD=postgres rinhadaslendas_devcontainer-app-1 psql -h postgres -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 --file=/tmp/feature029-migration/028-029-idempotent.sql
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -c "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" IN ('20260729124041_CorrigirNucleoCicloDraft','20260731012844_AddDraftMontagemSystemActor') ORDER BY \"MigrationId\";"
+docker.exe exec rinhadaslendas_devcontainer-postgres-1 psql -U postgres -d rinha_das_lendas -v ON_ERROR_STOP=1 -c "SELECT count(*) AS invalid_actor_rows FROM draft_montagem_acoes_administrativas WHERE NOT ((responsavel_tipo = 'User' AND responsavel_usuario_id IS NOT NULL) OR (responsavel_tipo = 'System' AND responsavel_usuario_id IS NULL));"
 docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/RinhaDasLendas.sln --configuration Release --filter FullyQualifiedName~Migration
 ```
 
-Expected: existing audit rows are `User`, system rows allow null user FK and the consistency constraint rejects invalid combinations. Schema downgrade succeeds only before the first `System` action; afterward an explicit `P0001` guard preserves the additive schema and requires roll-forward. Application rollback MUST keep this compatible schema.
+Expected after deploy: both migration IDs are returned, `invalid_actor_rows = 0`, existing audit rows are `User`, and the migration suite passes. Deploy backend before frontend and retain one replica.
+
+Rollback policy:
+
+- Before any `System` row exists, restore the validated backup or test the EF downgrade to `20260729124041_CorrigirNucleoCicloDraft` in a disposable database.
+- After the first `System` row, never downgrade `20260731012844_AddDraftMontagemSystemActor`: the tested `P0001` guard prevents data loss.
+- A post-`System` binary rollback must keep the additive Feature 029 schema. Correct forward-compatible binaries or data with a new roll-forward migration, then redeploy.
+- A database restore is an incident operation: stop writers, preserve the failed database, restore the verified custom-format backup to a new database first, validate migration history and actor invariants, then switch connectivity.
 
 ## 4. Frontend Verification
 
@@ -146,17 +167,17 @@ Expected: candidate SQL selects only ID; every item has independent scope/comman
 
 ### Unit 12 automated operational evidence (2026-08-02)
 
-- Actual isolated PostgreSQL plus TestServer SignalR: two authenticated clients joined the same draft and received identity-neutral archive/restore snapshots; measured archive delivery was `762 ms` and restore delivery was `317 ms`, both within the `<= 2000 ms` limit.
-- Frontend fallback: fake-clock regression applied the first available canonical response after the exact `3000 ms` cadence, within the `3000 ms + 2000 ms <= 5000 ms` recovery budget.
-- Cross-layer backend matrix: `55/55` tests passed for actor migration, GET/Join authorization parity, publisher request-cancellation independence, PostgreSQL publication/republication/reconciliation, worker isolation, candidate projections and multiclient delivery.
-- Cross-layer frontend matrix: `300/300` tests passed for transport/reconnect, fallback, stale races, dirty clone, auxiliary isolation, accessible dialog and i18n.
-- Full gates: backend `831/831`; frontend `602/602`; backend Release build with `0` warnings and `0` errors; ESLint clean; frontend production build successful.
+- Actual isolated PostgreSQL plus TestServer SignalR: two authenticated clients traverse presence, publication, mode, captains, order, start, timeout, picks, substitution, finalization, archive and restore. Every committed version is compared with both client snapshots and its post-commit publisher timestamp under the `<= 2000 ms` bound; no one-off wall-clock sample is recorded as evidence.
+- Frontend fallback: three deterministic fake-clock runs start the deferred HTTP request at exactly `3000 ms`, accept success before `5000 ms`, and separately prove abort at the `2000 ms` request deadline.
+- Unit 12 backend integration matrix: `11/11` tests passed for GET/Join authorization distinctions, real publisher success/failure/timeout/request-cancellation independence, executed PostgreSQL candidate projections, publication/republication/reconciliation and multiclient delivery. Existing focused actor/worker suites remain part of the full backend gate.
+- Unit 12 frontend matrix: `298/298` tests passed for transport/reconnect, fallback, stale races, dirty clone, auxiliary isolation, accessible dialog and i18n.
+- Full gates: backend `838/838`; frontend `614/614`; backend Release build with `0` warnings and `0` errors; ESLint clean; frontend production build successful.
 - Metrics expose only bounded `event` and `outcome` labels. Draft ID, state version, operation and failure type remain structured log fields and are absent from metric tags.
-- Migration verification: `11/11` migration tests passed. EF listed `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` as pending in the reused development database, and generated a non-empty idempotent script at `/tmp/task12-feature029-idempotent.sql` inside the app container.
+- Migration verification: `11/11` migration tests passed. EF listed exactly `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` after the stated baseline, and generated the non-empty exact from/to script at `/tmp/feature029-migration/028-029-idempotent.sql` inside the app container.
 
 ### Deployment and rollback policy
 
-1. Back up PostgreSQL, apply the idempotent migrations and verify constraints before deploying the backend.
+1. Follow section 3: verify the exact baseline/from-to IDs, preflight `System` rows, test the backup restore, apply the reviewed idempotent script and verify postconditions before deploying the backend.
 2. Deploy the backend before the frontend and retain the one-replica constraint; this feature does not add Redis, backplane, outbox or another store.
 3. If rollback is needed before any `System` audit row exists, the migration guard permits the tested schema downgrade.
 4. After the first `System` audit row, do not downgrade `20260731012844_AddDraftMontagemSystemActor`: its `P0001` guard intentionally blocks data-loss rollback. Roll back application binaries only while retaining the additive compatible schema, then roll forward with a corrective migration if required.

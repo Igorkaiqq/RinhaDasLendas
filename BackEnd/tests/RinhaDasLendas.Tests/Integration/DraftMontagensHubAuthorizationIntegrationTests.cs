@@ -19,6 +19,31 @@ namespace RinhaDasLendas.Tests.Integration;
 
 public sealed class DraftMontagensHubAuthorizationIntegrationTests
 {
+    [Fact]
+    public async Task RealtimeDeveDistinguir401DeHandshake403DePoliticaE404DeRecursoOculto()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var active = await factory.SeedV2PresenceDraftAsync();
+        var archived = await factory.SeedV2PresenceDraftAsync();
+        await ArchiveAsync(factory, archived.DraftId, archived.AdminUserId);
+        using var anonymous = factory.CreateAnonymousClient();
+        using var player = factory.CreateRoleClient(active.Players[0].UserId, AuthRoles.Jogador);
+
+        (await anonymous.GetAsync($"/api/v1/draft-montagens/{active.DraftId}/realtime-state")).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized);
+        (await player.GetAsync($"/api/v1/draft-montagens/{active.DraftId}/administracao")).StatusCode
+            .Should().Be(HttpStatusCode.Forbidden);
+        (await player.GetAsync($"/api/v1/draft-montagens/{archived.DraftId}/realtime-state")).StatusCode
+            .Should().Be(HttpStatusCode.NotFound);
+        (await player.GetAsync($"/api/v1/draft-montagens/{Guid.NewGuid()}/realtime-state")).StatusCode
+            .Should().Be(HttpStatusCode.NotFound);
+
+        await using var anonymousHub = CreateHubConnection(factory, "pt-BR");
+        var handshake = () => anonymousHub.StartAsync();
+        var exception = await handshake.Should().ThrowAsync<HttpRequestException>();
+        exception.Which.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
     [Theory]
     [InlineData("pt-BR", "Este draft não está disponível para sincronização em tempo real")]
     [InlineData("en-US", "This draft is not available for real-time synchronization")]

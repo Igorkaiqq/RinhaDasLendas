@@ -427,6 +427,34 @@ async function confirmReasonAction(wrapper: VueWrapper, buttonText: string, reas
   await flushPromises()
 }
 
+async function triggerDirtyIntent(
+  wrapper: VueWrapper,
+  intent: 'remote-update' | 'switch-draft' | 'route-leave' | 'draft-removed' | 'archive',
+) {
+  let target: HTMLElement
+  let routeDecision: Promise<boolean> | null = null
+  if (intent === 'draft-removed') {
+    target = wrapper.get('input[name="draft-search"]').element as HTMLElement
+    target.focus()
+    await wrapper.get('input[name="draft-search"]').setValue('segunda')
+  } else {
+    target = wrapper.get('[data-testid="archive-draft"]').element as HTMLElement
+    target.focus()
+    if (intent === 'remote-update') {
+      await emitRealtime(montagem.id, { ...montagem, status: 'Aberta', versaoEstado: montagem.versaoEstado + 1 })
+    } else if (intent === 'switch-draft') {
+      wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('select', montagemB.id)
+    } else if (intent === 'route-leave') {
+      routeDecision = Promise.resolve(routeGuardMock.guard!())
+    } else {
+      await wrapper.get('[data-testid="archive-draft"]').trigger('click')
+    }
+  }
+  await flushPromises()
+  expect(wrapper.getComponent({ name: 'DraftUnsavedLayoutDialog' }).props('intent')).toBe(intent)
+  return { target, routeDecision }
+}
+
 describe('DraftsView reason actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -580,18 +608,24 @@ describe('DraftsView reason actions', () => {
     vi.useRealTimers()
   })
 
-  it('applies the first available fallback response within the 3000 ms cadence plus 2000 ms deadline', async () => {
+  it.each([1, 2, 3])('applies deferred fallback run %s within the exact 3000 ms cadence plus 2000 ms deadline', async () => {
     vi.useFakeTimers()
     serviceMocks.getDraftMontagemRealtimeState.mockRejectedValueOnce(new Error('backend unavailable'))
     const wrapper = await mountView()
     const backendAvailableAt = Date.now()
-    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValueOnce({
+    const fallback = deferred<DraftMontagemRealtimeState>()
+    serviceMocks.getDraftMontagemRealtimeState.mockReturnValueOnce(fallback.promise)
+
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(serviceMocks.getDraftMontagemRealtimeState).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1999)
+    fallback.resolve({
       montagem: { ...montagem, nome: 'Recovered', versaoEstado: montagem.versaoEstado + 1 },
       canCurrentUserPick: false,
       serverNow: montagem.dataAtualizacao,
     })
-
-    await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
 
     const recoveryElapsed = Date.now() - backendAvailableAt
@@ -4229,6 +4263,49 @@ describe('DraftsView reason actions', () => {
     await expect(discarding).resolves.toBe(true)
     wrapper.unmount()
   })
+
+  it.each(['remote-update', 'switch-draft', 'route-leave', 'draft-removed', 'archive'] as const)(
+    'restores the invoking focus after keeping dirty layout for %s',
+    async (intent) => {
+      serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+      serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+      const wrapper = await mountView()
+      serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection('Aberta'))
+      wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('dirty-change', true, 7)
+      const { target, routeDecision } = await triggerDirtyIntent(wrapper, intent)
+
+      await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+      await flushPromises()
+
+      expect(document.activeElement).toBe(target)
+      if (routeDecision) await expect(routeDecision).resolves.toBe(false)
+      wrapper.unmount()
+    },
+  )
+
+  it.each(['remote-update', 'switch-draft', 'route-leave', 'draft-removed', 'archive'] as const)(
+    'moves focus to a stable destination after discarding dirty layout for %s',
+    async (intent) => {
+      serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])
+      serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+      const wrapper = await mountView()
+      serviceMocks.getDraftMontagemAdminById.mockImplementation(async (id) => id === montagemB.id ? adminProjectionB() : adminProjection('Aberta'))
+      wrapper.getComponent({ name: 'DraftVisualBoard' }).vm.$emit('dirty-change', true, 7)
+      const { routeDecision } = await triggerDirtyIntent(wrapper, intent)
+
+      await wrapper.get('[data-testid="discard-layout"]').trigger('click')
+      await flushPromises()
+
+      if (routeDecision) await expect(routeDecision).resolves.toBe(true)
+      const reasonDialog = wrapper.findComponent({ name: 'DraftReasonDialog' })
+      if (intent === 'archive' && reasonDialog.props('open')) {
+        expect(reasonDialog.element.contains(document.activeElement)).toBe(true)
+      } else {
+        expectStageFocus(wrapper)
+      }
+      wrapper.unmount()
+    },
+  )
 
   it('guards remote removal and archive before either intent can discard the board', async () => {
     serviceMocks.listDraftMontagens.mockResolvedValue([resumo, resumoB])

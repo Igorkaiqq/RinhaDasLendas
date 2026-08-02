@@ -1100,7 +1100,11 @@ public sealed class EndpointCoverageIntegrationTests
                 Guid.Parse("00000000-0000-0000-0000-000000000004"),
             };
             var userId = GetExistingUserId();
-            var now = new DateTimeOffset(2026, 7, 24, 18, 0, 0, TimeSpan.Zero);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var daysUntilFriday = ((int)DayOfWeek.Friday - (int)today.DayOfWeek + 7) % 7;
+            var nextFriday = today.AddDays(daysUntilFriday + 7);
+            var previousFriday = nextFriday.AddDays(-7);
+            var now = new DateTimeOffset(nextFriday.ToDateTime(new TimeOnly(18, 0)), TimeSpan.Zero);
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
             foreach (var id in ids)
@@ -1113,7 +1117,7 @@ public sealed class EndpointCoverageIntegrationTests
                          criado_por_usuario_id, criado_em, atualizado_em)
                     VALUES
                         ({id}, {"Agenda empatada"}, NULL, {new TimeOnly(18, 0)}, {new TimeOnly(20, 0)},
-                         {status}, {now}, {(status == 1 ? now : (DateTimeOffset?)null)}, NULL, {new DateOnly(2026, 7, 24)},
+                         {status}, {now}, {(status == 1 ? now : (DateTimeOffset?)null)}, NULL, {previousFriday},
                          {userId}, {now}, {now})
                     """);
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -1128,7 +1132,7 @@ public sealed class EndpointCoverageIntegrationTests
                      encerramento_previsto_em, nome_snapshot, status, draft_montagem_id, codigo_falha,
                      claim_id, claim_expires_at, ultima_tentativa_em, criada_em, atualizada_em)
                 VALUES
-                    ({Guid.Parse("10000000-0000-0000-0000-000000000001")}, {ids[0]}, {new DateOnly(2026, 7, 24)},
+                    ({Guid.Parse("10000000-0000-0000-0000-000000000001")}, {ids[0]}, {previousFriday},
                      {now}, {now.AddHours(2)}, {"Agenda empatada"}, {(short)OcorrenciaAgendamentoPresencaStatus.Bloqueada}, NULL,
                      {MessageCodes.PresenceScheduleDiscordUnavailable}, NULL, NULL, {now}, {now}, {now})
                 """);

@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
@@ -7,16 +9,19 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
 using RinhaDasLendas.Application.Enums;
 using RinhaDasLendas.Application.Interfaces;
+using RinhaDasLendas.Application.Services;
 using RinhaDasLendas.Api.Filters;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Models;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Messages;
 using RinhaDasLendas.Infrastructure.Persistence;
@@ -457,11 +462,12 @@ public sealed class DraftMontagemCycleIntegrationTests
     }
 }
 
-internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
+internal sealed class DraftMontagemCycleApiFactory(
+    bool useRealPublisher = false,
+    ControlledDraftMontagemRealtimeNotifier? controlledNotifier = null) : SecurityApiFactory(useIsolatedPostgreSql: true)
 {
     public RecordingDraftMontagemRealtimePublisher Publisher { get; } = new();
-
-    public DraftMontagemCycleApiFactory() : base(useIsolatedPostgreSql: true) { }
+    public CommitRecordingDraftMontagemRealtimePublisher CommitRecorder { get; } = new();
 
     public HttpClient CreateRoleClient(Guid? userId, params string[] roles) => CreateJwtClient(userId, roles);
 
@@ -470,8 +476,24 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
+            if (controlledNotifier is not null)
+            {
+                services.RemoveAll<IDraftMontagemRealtimeNotifier>();
+                services.AddSingleton<IDraftMontagemRealtimeNotifier>(controlledNotifier);
+            }
             services.RemoveAll<IDraftMontagemRealtimePublisher>();
-            services.AddSingleton<IDraftMontagemRealtimePublisher>(Publisher);
+            if (useRealPublisher)
+            {
+                services.AddSingleton(CommitRecorder);
+                services.AddScoped<IDraftMontagemRealtimePublisher>(provider =>
+                    new CommitRecordingPublisher(
+                        ActivatorUtilities.CreateInstance<DraftMontagemRealtimePublisher>(provider),
+                        provider.GetRequiredService<CommitRecordingDraftMontagemRealtimePublisher>()));
+            }
+            else
+            {
+                services.AddSingleton<IDraftMontagemRealtimePublisher>(Publisher);
+            }
         });
     }
 
@@ -537,6 +559,16 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
             .DraftMontagens.AsNoTracking().SingleAsync(item => item.Id == draftId);
     }
 
+    public async Task<bool> IsPresenceConfirmedAsync(Guid draftId, Guid userId)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>()
+            .DraftMontagemPresencas.AsNoTracking()
+            .Where(item => item.DraftMontagemId == draftId && item.UsuarioId == userId)
+            .Select(item => item.Confirmada)
+            .SingleAsync();
+    }
+
     public async Task<DraftMontagem> GetDraftWithGraphAsync(Guid draftId)
     {
         await using var scope = Services.CreateAsyncScope();
@@ -561,6 +593,53 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
         participants.Add(new DraftMontagemParticipante(existing.JogadorId, DraftMontagemParticipanteEstado.Livre, existing.Ordem + 100));
 
         await new DraftMontagemRepository(db).SaveChangesAsync(CancellationToken.None);
+    }
+
+    public async Task ConfigurePendingPublicationAsync(Guid draftId, DraftMontagemPublicacaoDiscordTipo type)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        var draft = await db.DraftMontagens.Include(item => item.PublicacoesDiscord).SingleAsync(item => item.Id == draftId);
+        if (draft.HorarioEncerramentoPresenca is null)
+        {
+            draft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddHours(1));
+        }
+        draft.ConfigurarPublicacaoDiscordPendente(type, null, null, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+    }
+
+    public async Task ExpirePublicationClaimAsync(Guid draftId, DraftMontagemPublicacaoDiscordTipo type)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        await db.DraftMontagemPublicacoesDiscord
+            .Where(item => item.DraftMontagemId == draftId && item.Tipo == type)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.ClaimExpiraEm, DateTimeOffset.UtcNow.AddMinutes(-1)));
+    }
+
+    public async Task<Guid> SeedExpiredPresenceCandidateAsync()
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        var draft = DraftMontagem.CriarPorPresenca("Presenca expirada", null, 2);
+        draft.ConfigurarEncerramentoPresenca(DateTimeOffset.UtcNow.AddMinutes(-1));
+        db.DraftMontagens.Add(draft);
+        await db.SaveChangesAsync();
+        return draft.Id;
+    }
+
+    public async Task<CandidateQueryCapture> ExecuteCandidateQueriesAsync(DateTimeOffset now)
+    {
+        var interceptor = new CandidateCommandCaptureInterceptor();
+        var options = new DbContextOptionsBuilder<RinhaDasLendasDbContext>()
+            .UseNpgsql(ConnectionString)
+            .AddInterceptors(interceptor)
+            .Options;
+        await using var db = new RinhaDasLendasDbContext(options);
+        var repository = new DraftMontagemRepository(db);
+        var realtime = await repository.ListExpiredRealtimeAsync(now, 25, CancellationToken.None);
+        var presence = await repository.ListExpiredPresenceAsync(now, 20, CancellationToken.None);
+        return new CandidateQueryCapture(realtime, presence, interceptor.CommandTexts);
     }
 
     public async Task<CycleFixture> SeedLegacyOpenDraftAsync(DraftMontagemStatus? forcedStatus = null)
@@ -619,6 +698,86 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
             ]);
         player.VincularUsuario(userId);
         return player;
+    }
+}
+
+internal enum ControlledNotifierBehavior
+{
+    Success,
+    Failure,
+    Timeout,
+    Gate,
+}
+
+internal sealed class ControlledDraftMontagemRealtimeNotifier(ControlledNotifierBehavior behavior) : IDraftMontagemRealtimeNotifier
+{
+    private readonly TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task Entered => entered.Task;
+    public CancellationToken PublicationToken { get; private set; }
+
+    public void Release() => release.TrySetResult();
+
+    public async Task SharedStateUpdatedAsync(
+        Guid draftMontagemId,
+        DraftMontagemRealtimeSnapshotDto state,
+        CancellationToken cancellationToken)
+    {
+        PublicationToken = cancellationToken;
+        entered.TrySetResult();
+        if (behavior == ControlledNotifierBehavior.Failure) throw new InvalidOperationException("transport failure");
+        if (behavior == ControlledNotifierBehavior.Timeout) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        if (behavior == ControlledNotifierBehavior.Gate) await release.Task.WaitAsync(cancellationToken);
+    }
+
+    public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task RestoredAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed record CandidateQueryCapture(
+    IReadOnlyCollection<DraftMontagemRealtimeCandidate> Realtime,
+    IReadOnlyCollection<DraftMontagemPresenceClosureCandidate> Presence,
+    IReadOnlyCollection<string> CommandTexts);
+
+internal sealed class CandidateCommandCaptureInterceptor : DbCommandInterceptor
+{
+    public List<string> CommandTexts { get; } = [];
+
+    public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+        DbCommand command,
+        CommandEventData eventData,
+        InterceptionResult<DbDataReader> result,
+        CancellationToken cancellationToken = default)
+    {
+        CommandTexts.Add(command.CommandText);
+        return ValueTask.FromResult(result);
+    }
+}
+
+internal sealed class CommitRecordingDraftMontagemRealtimePublisher
+{
+    private readonly ConcurrentQueue<(Guid DraftId, long Timestamp)> publications = new();
+
+    public int Count => publications.Count;
+
+    public bool TryDequeue(out (Guid DraftId, long Timestamp) publication) => publications.TryDequeue(out publication);
+
+    public void Record(Guid draftId) => publications.Enqueue((draftId, Stopwatch.GetTimestamp()));
+}
+
+internal sealed class CommitRecordingPublisher(
+    IDraftMontagemRealtimePublisher inner,
+    CommitRecordingDraftMontagemRealtimePublisher recorder) : IDraftMontagemRealtimePublisher
+{
+    public Task PublishAfterCommitAsync(
+        Guid draftId,
+        DraftMontagemSnapshotScope snapshotScope = DraftMontagemSnapshotScope.Active,
+        DraftMontagemAvailabilityChange availability = DraftMontagemAvailabilityChange.None)
+    {
+        recorder.Record(draftId);
+        return inner.PublishAfterCommitAsync(draftId, snapshotScope, availability);
     }
 }
 

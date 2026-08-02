@@ -384,9 +384,14 @@ async function discardLayout() {
   pendingLayoutIntentAction = null
   pendingRouteResolution = null
   await nextTick()
-  routeResolution?.(true)
+  if (routeResolution) {
+    await restoreStageFocus()
+    routeResolution(true)
+    return
+  }
   if (action) await action()
   await reconcileDeferredArchivedDraft()
+  if (!pendingReasonAction.value) await restoreStageFocus()
 }
 
 async function reconcileDeferredArchivedDraft(expectedDraftId = deferredArchivedDraftId) {
