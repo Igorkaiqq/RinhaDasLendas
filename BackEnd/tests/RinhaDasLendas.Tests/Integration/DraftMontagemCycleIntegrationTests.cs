@@ -159,7 +159,8 @@ public sealed class DraftMontagemCycleIntegrationTests
         persisted.Times.Select(team => team.Ordem).Should().BeEquivalentTo([1, 2]);
         factory.CommitRecorder.Count.Should().Be(1);
         factory.CommitRecorder.TryDequeue(out var publication).Should().BeTrue();
-        publication.Should().Be(new CommitPublicationObservation(fixture.DraftId, ordered.VersaoEstado, publication.Ordinal, publication.Timestamp));
+        publication.DraftId.Should().Be(fixture.DraftId);
+        publication.Version.Should().Be(ordered.VersaoEstado);
         notifier.Snapshots.Should().ContainSingle()
             .Which.Montagem.VersaoEstado.Should().Be(ordered.VersaoEstado);
     }
@@ -175,15 +176,62 @@ public sealed class DraftMontagemCycleIntegrationTests
         await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
         factory.Publisher.Reset();
 
-        var act = () => factory.TrySaveStaleReverseOrderAsync(fixture.DraftId);
+        var failure = await factory.TrySaveStaleReverseOrderAsync(fixture.DraftId);
 
-        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftStateConflict);
+        failure.Exception.MessageCode.Should().Be(MessageCodes.DraftStateConflict);
+        failure.TrackedEntriesAfterFailure.Should().Be(0);
+        failure.ReloadedOrders.Should().Equal(1, 2);
         var persisted = await factory.GetDraftWithGraphAsync(fixture.DraftId);
         persisted.Times.OrderBy(team => team.Ordem).Select(team => team.CapitaoId)
             .Should().Equal(fixture.Players[0].PlayerId, fixture.Players[1].PlayerId);
         persisted.Times.Select(team => team.Ordem).Should().BeEquivalentTo([1, 2]);
         persisted.Times.Should().OnlyContain(team => team.Ordem > 0);
         factory.Publisher.Publications.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OrdensConcorrentesComMesmaVersaoBase_DevemTerUmVencedorERollbackSeguro()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var setup = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+        var captains = await PostAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
+        factory.Publisher.Reset();
+        factory.ArmReorderingConcurrency(fixture.DraftId);
+        using var first = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        using var second = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+
+        var responses = await Task.WhenAll(
+                first.PostAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/ordem-escolha", new
+                {
+                    Modo = nameof(DraftMontagemOrdemEscolhaModo.Manual),
+                    CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId },
+                }),
+                second.PostAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/ordem-escolha", new
+                {
+                    Modo = nameof(DraftMontagemOrdemEscolhaModo.Manual),
+                    CapitaesIds = new[] { fixture.Players[1].PlayerId, fixture.Players[0].PlayerId },
+                }))
+            .WaitAsync(TimeSpan.FromSeconds(15));
+
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+        factory.ReorderingLoadedVersions.Should().Equal(captains.VersaoEstado, captains.VersaoEstado);
+        var winner = (await responses.Single(response => response.StatusCode == HttpStatusCode.OK)
+            .Content.ReadFromJsonAsync<DraftMontagemResponseDto>())!;
+        var conflict = (await responses.Single(response => response.StatusCode == HttpStatusCode.Conflict)
+            .Content.ReadFromJsonAsync<ApiErrorResponse>())!;
+        conflict.MessageCode.Should().Be(MessageCodes.DraftStateConflict);
+        var persisted = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        persisted.VersaoEstado.Should().Be(captains.VersaoEstado + 1);
+        persisted.Times.OrderBy(team => team.Ordem).Select(team => team.CapitaoId)
+            .Should().Equal(winner.Times.Select(team => team.CapitaoId));
+        persisted.Times.Select(team => team.Ordem).Should().OnlyHaveUniqueItems().And.BeEquivalentTo([1, 2]);
+        persisted.Times.Should().OnlyContain(team => team.Ordem > 0);
+        factory.Publisher.Publications.Should().ContainSingle()
+            .Which.DraftId.Should().Be(fixture.DraftId);
     }
 
     [Fact]
@@ -524,16 +572,24 @@ internal sealed class DraftMontagemCycleApiFactory(
     bool useRealPublisher = false,
     ControlledDraftMontagemRealtimeNotifier? controlledNotifier = null) : SecurityApiFactory(useIsolatedPostgreSql: true)
 {
+    private readonly ReorderingConcurrencyCoordinator reorderingConcurrency = new();
     public RecordingDraftMontagemRealtimePublisher Publisher { get; } = new();
     public CommitRecordingDraftMontagemRealtimePublisher CommitRecorder { get; } = new();
+    public IReadOnlyCollection<long> ReorderingLoadedVersions => reorderingConcurrency.LoadedVersions;
 
     public HttpClient CreateRoleClient(Guid? userId, params string[] roles) => CreateJwtClient(userId, roles);
+
+    public void ArmReorderingConcurrency(Guid draftId) => reorderingConcurrency.Arm(draftId);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
+            services.Replace(ServiceDescriptor.Scoped<IDraftMontagemRepository>(provider =>
+                new ReorderingCoordinatedDraftMontagemRepository(
+                    new DraftMontagemRepository(provider.GetRequiredService<RinhaDasLendasDbContext>()),
+                    reorderingConcurrency)));
             if (controlledNotifier is not null)
             {
                 services.RemoveAll<IDraftMontagemRealtimeNotifier>();
@@ -654,7 +710,7 @@ internal sealed class DraftMontagemCycleApiFactory(
         await new DraftMontagemRepository(db).SaveChangesAsync(CancellationToken.None);
     }
 
-    public async Task TrySaveStaleReverseOrderAsync(Guid draftId)
+    public async Task<StaleReorderingFailure> TrySaveStaleReverseOrderAsync(Guid draftId)
     {
         await using var staleScope = Services.CreateAsyncScope();
         var staleDb = staleScope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
@@ -671,7 +727,21 @@ internal sealed class DraftMontagemCycleApiFactory(
         }
 
         staleDraft.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, captains);
-        await new DraftMontagemRepository(staleDb).SaveTeamReorderingAsync(draftId, CancellationToken.None);
+        var repository = new DraftMontagemRepository(staleDb);
+        try
+        {
+            await repository.SaveTeamReorderingAsync(draftId, CancellationToken.None);
+            throw new InvalidOperationException("Expected stale reordering conflict.");
+        }
+        catch (DomainException exception)
+        {
+            var trackedEntries = staleDb.ChangeTracker.Entries().Count();
+            var reloaded = await repository.GetByIdAsync(draftId, CancellationToken.None);
+            return new StaleReorderingFailure(
+                exception,
+                trackedEntries,
+                reloaded!.Times.OrderBy(team => team.Ordem).Select(team => team.Ordem).ToList());
+        }
     }
 
     public async Task ConfigurePendingPublicationAsync(Guid draftId, DraftMontagemPublicacaoDiscordTipo type)
@@ -880,6 +950,99 @@ internal sealed class CommitRecordingPublisher(
 }
 
 internal sealed record CommitPublicationObservation(Guid DraftId, long Version, long Ordinal, long Timestamp);
+
+internal sealed record StaleReorderingFailure(
+    DomainException Exception,
+    int TrackedEntriesAfterFailure,
+    IReadOnlyCollection<int> ReloadedOrders);
+
+internal sealed class ReorderingConcurrencyCoordinator
+{
+    private readonly ConcurrentQueue<long> loadedVersions = new();
+    private readonly object sync = new();
+    private TaskCompletionSource release = NewCompletionSource();
+    private Guid? draftId;
+    private int loadedCount;
+
+    public IReadOnlyCollection<long> LoadedVersions => loadedVersions;
+
+    public void Arm(Guid id)
+    {
+        lock (sync)
+        {
+            draftId = id;
+            loadedCount = 0;
+            loadedVersions.Clear();
+            release = NewCompletionSource();
+        }
+    }
+
+    public async Task AfterLoadAsync(Guid id, long version, CancellationToken cancellationToken)
+    {
+        Task releaseTask;
+        lock (sync)
+        {
+            if (draftId != id || loadedCount >= 2)
+            {
+                return;
+            }
+
+            loadedVersions.Enqueue(version);
+            loadedCount++;
+            if (loadedCount == 2)
+            {
+                release.TrySetResult();
+            }
+
+            releaseTask = release.Task;
+        }
+
+        await releaseTask.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+    }
+
+    private static TaskCompletionSource NewCompletionSource() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+}
+
+internal sealed class ReorderingCoordinatedDraftMontagemRepository(
+    IDraftMontagemRepository inner,
+    ReorderingConcurrencyCoordinator coordinator) : IDraftMontagemRepository
+{
+    public Task AddAsync(DraftMontagem montagem, CancellationToken cancellationToken) => inner.AddAsync(montagem, cancellationToken);
+    public Task<bool> AnyAsync(Guid id, CancellationToken cancellationToken) => inner.AnyAsync(id, cancellationToken);
+
+    public async Task<DraftMontagem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var montagem = await inner.GetByIdAsync(id, cancellationToken);
+        if (montagem is not null)
+        {
+            await coordinator.AfterLoadAsync(id, montagem.VersaoEstado, cancellationToken);
+        }
+
+        return montagem;
+    }
+
+    public Task<DraftMontagem?> ReloadByIdAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdAsync(id, cancellationToken);
+    public Task<DraftMontagem?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.GetByIdIncludingArchivedAsync(id, cancellationToken);
+    public Task<DraftMontagem?> ReloadByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken) => inner.ReloadByIdIncludingArchivedAsync(id, cancellationToken);
+    public Task<IReadOnlyCollection<DraftMontagemRealtimeCandidate>> ListExpiredRealtimeAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredRealtimeAsync(now, limit, cancellationToken);
+    public Task<IReadOnlyCollection<DraftMontagemPresenceClosureCandidate>> ListExpiredPresenceAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken) => inner.ListExpiredPresenceAsync(now, limit, cancellationToken);
+    public Task<IReadOnlyCollection<DraftMontagem>> ListActiveForDiscordAsync(CancellationToken cancellationToken) => inner.ListActiveForDiscordAsync(cancellationToken);
+    public Task<IReadOnlyCollection<DraftMontagem>> ListAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, int page, int pageSize, CancellationToken cancellationToken) => inner.ListAsync(search, status, includeCancelled, includeArchived, page, pageSize, cancellationToken);
+    public Task<int> CountAsync(string? search, DraftMontagemStatus? status, bool includeCancelled, bool includeArchived, CancellationToken cancellationToken) => inner.CountAsync(search, status, includeCancelled, includeArchived, cancellationToken);
+    public Task<IReadOnlyCollection<Jogador>> GetJogadoresByIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetJogadoresByIdsAsync(jogadoresIds, cancellationToken);
+    public Task<IReadOnlyCollection<Guid>> GetCapitaesElegiveisIdsAsync(IReadOnlyCollection<Guid> jogadoresIds, CancellationToken cancellationToken) => inner.GetCapitaesElegiveisIdsAsync(jogadoresIds, cancellationToken);
+    public Task<Jogador?> GetJogadorByUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken) => inner.GetJogadorByUsuarioIdAsync(usuarioId, cancellationToken);
+    public Task<IReadOnlyCollection<Jogador>> SearchJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, int page, int pageSize, CancellationToken cancellationToken) => inner.SearchJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, page, pageSize, cancellationToken);
+    public Task<int> CountJogadoresElegiveisParaPresencaManualAsync(Guid draftMontagemId, string? search, CancellationToken cancellationToken) => inner.CountJogadoresElegiveisParaPresencaManualAsync(draftMontagemId, search, cancellationToken);
+    public Task<DraftMontagemPublicacaoClaimResult?> TryClaimPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, DateTimeOffset expiraEm, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryClaimPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, expiraEm, agora, cancellationToken);
+    public Task<DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
+    public Task<DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
+    public Task<IReadOnlyCollection<DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+    public Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken) => inner.SaveTeamReorderingAsync(draftMontagemId, cancellationToken);
+    public Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken) => inner.TrySaveChangesAsync(cancellationToken);
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
+}
 
 internal sealed record CyclePlayer(Guid UserId, Guid PlayerId);
 internal sealed record CycleFixture(Guid DraftId, Guid AdminUserId, IReadOnlyList<CyclePlayer> Players);

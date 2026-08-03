@@ -550,10 +550,20 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         }
         catch (Exception exception)
         {
-            await transaction.RollbackAsync(CancellationToken.None);
-            if (DraftMontagemSaveConflictClassifier.Classify(exception) is not null
-                || (DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(exception)
-                    && await HasStaleTrackedDraftVersionAsync(cancellationToken)))
+            var isConflict = DraftMontagemSaveConflictClassifier.Classify(exception) is not null;
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                isConflict = isConflict
+                    || (DraftMontagemSaveConflictClassifier.IsStructuralUniqueViolation(exception)
+                        && await HasStaleTrackedDraftVersionAsync(CancellationToken.None));
+            }
+            finally
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+
+            if (isConflict)
             {
                 throw new DomainException(MessageCodes.DraftStateConflict);
             }
