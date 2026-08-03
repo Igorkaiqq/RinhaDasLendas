@@ -6,12 +6,44 @@ import { api } from './api'
 import { getAccessToken } from './authState'
 
 const RETRY_DELAYS = [0, 2000, 5000, 10000, 15000]
-const ACCESS_TOKEN_QUERY_VALUE = /([?&]access_token=)[^&#\s]*/gi
+const MAX_LOG_DECODE_ATTEMPTS = 3
+const CREDENTIAL_LOG_MESSAGE = 'SignalR transport log omitted because it may contain credentials.'
+const ACCESS_TOKEN_PARAMETER = /(?:^|[?&#;\s])access_token\s*=/i
+const ENCODED_ACCESS_TOKEN_PARAMETER = /access(?:_|%(?:25)*5f)token(?:=|%(?:25)*3d)/i
+const URL_OR_QUERY = /(?:\b(?:https?|wss?):\/\/|[?&#]|%(?:25)*(?:3f|26|23))/i
+const MALFORMED_PERCENT_ENCODING = /%(?![0-9a-f]{2})/i
+
+function sanitizeSignalRLogMessage(message: string) {
+  let candidate = message
+  for (let attempt = 0; attempt <= MAX_LOG_DECODE_ATTEMPTS; attempt++) {
+    if (ACCESS_TOKEN_PARAMETER.test(candidate) || ENCODED_ACCESS_TOKEN_PARAMETER.test(candidate)) {
+      return CREDENTIAL_LOG_MESSAGE
+    }
+
+    const hasUrlOrQuery = URL_OR_QUERY.test(candidate)
+    if (MALFORMED_PERCENT_ENCODING.test(candidate)) {
+      return hasUrlOrQuery || /access.*token/i.test(candidate) ? CREDENTIAL_LOG_MESSAGE : message
+    }
+    if (attempt === MAX_LOG_DECODE_ATTEMPTS) {
+      return hasUrlOrQuery && /%[0-9a-f]{2}/i.test(candidate) ? CREDENTIAL_LOG_MESSAGE : message
+    }
+
+    let decoded: string
+    try {
+      decoded = decodeURIComponent(candidate)
+    } catch {
+      return hasUrlOrQuery ? CREDENTIAL_LOG_MESSAGE : message
+    }
+    if (decoded === candidate) return message
+    candidate = decoded
+  }
+  return CREDENTIAL_LOG_MESSAGE
+}
 
 const signalRLogger: signalR.ILogger = {
   log(logLevel, message) {
     if (logLevel < signalR.LogLevel.Warning || logLevel >= signalR.LogLevel.None) return
-    const safeMessage = message.replace(ACCESS_TOKEN_QUERY_VALUE, '$1[REDACTED]')
+    const safeMessage = sanitizeSignalRLogMessage(message)
     if (logLevel === signalR.LogLevel.Warning) {
       globalThis.console.warn(safeMessage)
       return

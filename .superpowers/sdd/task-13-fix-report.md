@@ -51,7 +51,7 @@ exit 0
 
 ## Design
 
-- The custom SignalR `ILogger` emits only Warning, Error and Critical diagnostics. Before console output it redacts case-insensitive `access_token` query values; tests invoke the real logger contract with realistic WebSocket URLs and prove the credential is absent.
+- The custom SignalR `ILogger` emits only Warning, Error and Critical diagnostics. A fail-closed sanitizer performs at most three decode attempts for detection and replaces the entire message with fixed safe copy when it finds a literal, mixed-case or percent-encoded `access_token`, or when URL/query decoding is malformed or remains ambiguous. It never emits decoded input or a partial credential-bearing URL; safe non-URL warning/error messages remain unchanged.
 - `DraftMontagemRealtimeConnection` accepts a global restored handler with the same lifecycle guard and teardown semantics as existing callbacks.
 - A connection without a draft ID starts authenticated SignalR but does not invoke `JoinDraftMontagem`; it receives only global availability events.
 - `DraftsView` owns exactly one transport. Normal detail uses a group connection. Empty and archived states use an availability-only connection. Each transition disconnects the previous transport before starting the replacement.
@@ -61,3 +61,26 @@ exit 0
 
 - No backend code, endpoint, payload, localization key or user-visible text changed.
 - Existing flat HTTP, shared snapshot, monotonic version and dirty-layout contracts remain unchanged.
+
+## Security Finding Follow-up
+
+The original literal query regex did not cover encoded key components, encoded delimiters, fragments or malformed percent sequences. The replacement table covers plain, mixed-case, `access%5Ftoken%3D`, `%3Faccess_token%3D`, encoded values, repeated parameters, extra parameters, fragments and malformed encoding. Every case asserts absence of both raw and encoded token strings and receives only the fixed safe message.
+
+Fresh follow-up gate:
+
+```text
+npm test -- src/services/draftMontagemRealtime.spec.ts
+1 file passed, 26 tests passed
+
+npm test
+41 files passed, 628 tests passed
+
+npm run lint:check
+exit 0
+
+npm run build
+exit 0
+
+git diff --check
+exit 0
+```

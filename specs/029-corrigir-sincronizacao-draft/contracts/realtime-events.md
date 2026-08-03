@@ -83,6 +83,6 @@ Only degraded statuses are announced in the localized accessible UI. `connected`
 
 ## Observability
 
-Structured dimensions: draft ID, `versaoEstado`, operation/event name, elapsed publication milliseconds, connection transition, conflict code and outcome. Never log access tokens, claims, payload bodies, player-sensitive fields or Hub URLs containing credentials. The browser SignalR logger keeps only warning-or-higher diagnostics and case-insensitively redacts every `access_token` query value before writing to the console.
+Structured dimensions: draft ID, `versaoEstado`, operation/event name, elapsed publication milliseconds, connection transition, conflict code and outcome. Never log access tokens, claims, payload bodies, player-sensitive fields or Hub URLs containing credentials. The browser SignalR logger keeps only warning-or-higher diagnostics. It uses bounded decoding only to detect literal, mixed-case or percent-encoded `access_token` parameters; credential-bearing or ambiguously encoded URL/query messages are replaced in full by a fixed safe message. Decoded input and partial URLs are never emitted, while safe non-URL diagnostics remain useful.
 
 The Application publisher receives no request cancellation token. Each notifier call receives only its own 5-second timeout token; timeout cancellation and every other notifier failure are absorbed and observed after commit.

@@ -57,6 +57,9 @@ vi.mock('@microsoft/signalr', () => ({
 
 import { DraftMontagemRealtimeConnection } from './draftMontagemRealtime'
 
+const credential = ['sensitive/value', 'signature'].join('+')
+const encodedCredential = encodeURIComponent(credential)
+
 function lifecycleHandlers() {
   const statuses: DraftConnectionStatus[] = []
   return {
@@ -426,23 +429,47 @@ describe('DraftMontagemRealtimeConnection', () => {
     expect(handlers.onRestored).toHaveBeenCalledWith('draft-1')
   })
 
-  it('redacts access_token query values from useful SignalR warning and error logs', async () => {
+  it.each([
+    { name: 'plain key', message: `WebSocket failed: wss://example.test/hub?access_token=${credential}` },
+    { name: 'mixed-case key', message: `WebSocket failed: wss://example.test/hub?AcCeSs_ToKeN=${credential}` },
+    { name: 'encoded key and equals', message: `WebSocket failed: wss://example.test/hub?access%5Ftoken%3D${encodedCredential}` },
+    { name: 'encoded query delimiter', message: `WebSocket failed: wss://example.test/hub%3Faccess_token%3D${encodedCredential}` },
+    { name: 'encoded value', message: `WebSocket failed: wss://example.test/hub?access_token=${encodedCredential}` },
+    { name: 'repeated key', message: `WebSocket failed: wss://example.test/hub?access_token=${credential}&ACCESS_TOKEN=second-secret` },
+    { name: 'extra parameters', message: `WebSocket failed: wss://example.test/hub?id=42&access_token=${credential}&transport=WebSockets` },
+    { name: 'fragment key', message: `WebSocket failed: wss://example.test/hub#access_token=${credential}` },
+    { name: 'malformed percent encoding', message: `WebSocket failed: wss://example.test/hub?access%5Gtoken%3D${encodedCredential}%` },
+  ])('fails closed for $name without emitting any token representation', async ({ message }) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    await new DraftMontagemRealtimeConnection('draft-1').connect(vi.fn())
+    const logger = signalRMock.builder.configureLogging.mock.calls[0]?.[0] as {
+      log(level: number, message: string): void
+    }
+
+    logger.log(3, message)
+
+    const output = warn.mock.calls.flat().join(' ')
+    expect(output).not.toContain(credential)
+    expect(output).not.toContain(encodedCredential)
+    expect(output).not.toContain('second-secret')
+    expect(output).not.toMatch(/access(?:_|%5f|%255f)token/i)
+    expect(output).toBe('SignalR transport log omitted because it may contain credentials.')
+    expect(warn).toHaveBeenCalledOnce()
+  })
+
+  it('preserves useful warning and error messages that contain no URL or credential query', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     await new DraftMontagemRealtimeConnection('draft-1').connect(vi.fn())
     const logger = signalRMock.builder.configureLogging.mock.calls[0]?.[0] as {
       log(level: number, message: string): void
     }
-    const token = ['header', 'payload', 'signature'].join('.')
 
-    logger.log(3, `WebSocket connected to wss://example.test/hubs/draft-montagens?id=42&access_token=${token}&transport=WebSockets`)
-    logger.log(4, `Failed URL: wss://example.test/hubs/draft-montagens?ACCESS_TOKEN=${token}#close`)
+    logger.log(3, 'SignalR reconnecting after transport interruption.')
+    logger.log(4, 'SignalR connection closed unexpectedly.')
 
-    const output = [...warn.mock.calls, ...error.mock.calls].flat().join(' ')
-    expect(output).not.toContain(token)
-    expect(output).not.toMatch(/access_token=[^&\s#]*\.(?:payload|signature)/i)
-    expect(output).toMatch(/access_token=\[REDACTED\]/i)
-    expect(warn).toHaveBeenCalledOnce()
+    expect(warn).toHaveBeenCalledWith('SignalR reconnecting after transport interruption.')
+    expect(error).toHaveBeenCalledWith('SignalR connection closed unexpectedly.')
     expect(error).toHaveBeenCalledOnce()
   })
 })
