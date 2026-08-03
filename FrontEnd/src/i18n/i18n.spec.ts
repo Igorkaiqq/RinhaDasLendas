@@ -11,7 +11,12 @@ const settingsComponents = import.meta.glob('../components/settings/*.vue', {
 }) as Record<string, string>
 
 const draftComponents = import.meta.glob(
-  ['../views/DraftsView.vue', '../components/drafts/**/*.vue'],
+  [
+    '../views/DraftsView.vue',
+    '../components/drafts/**/*.vue',
+    '../views/{SeriesView,SeriesDetailView,MatchDetailView}.vue',
+    '../components/competitive/{SeriesScoreboard,FearlessPanel,MatchOperationPanel}.vue',
+  ],
   {
     eager: true,
     import: 'default',
@@ -490,7 +495,7 @@ describe('i18n', () => {
     }
   })
 
-  it('keeps draft visible text and accessible names in i18n', () => {
+  it('keeps draft and competitive visible text and accessible names in i18n', () => {
     for (const [path, source] of Object.entries(draftComponents)) {
       expect(draftHardcodedTextViolations(source), path).toEqual([])
     }

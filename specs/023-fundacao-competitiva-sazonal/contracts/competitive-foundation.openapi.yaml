@@ -615,6 +615,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeriesDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -642,6 +644,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeriesDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -669,6 +673,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SeriesDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -709,6 +715,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MatchDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -828,6 +836,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MatchMutationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -861,6 +871,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MatchMutationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -894,6 +906,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MatchMutationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1624,7 +1638,7 @@ components:
           format: uuid
     SeriesDetail:
       type: object
-      required: [id, seasonId, versaoRegrasId, tipo, formato, modoDraft, estado, lados, placar, partidas, bloqueiosFearless, elegivelOficial, revisaoNecessaria, versao]
+      required: [id, seasonId, versaoRegrasId, tipo, formato, modoDraft, estado, agendadaPara, lados, placar, partidas, bloqueiosFearless, elegivelOficial, revisaoNecessaria, versao, acoesPermitidas]
       properties:
         id:
           type: string
@@ -1718,7 +1732,7 @@ components:
             $ref: '#/components/schemas/SeasonSummary'
     MatchDetail:
       type: object
-      required: [id, serieId, ordem, estado, picks, conflitoFearless]
+      required: [id, serieId, ordem, estado, picks, conflitoFearless, acoesPermitidas]
       properties:
         id:
           type: string

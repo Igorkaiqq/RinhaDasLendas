@@ -87,12 +87,12 @@ description: "Lista de tarefas para implementar a Fundação Competitiva Sazonal
 
 ### Tests
 
-- [ ] T033 [P] [US2] Criar testes de Série MD3/MD5, dois lados, snapshots, estados, placar, surrender, cancelamento, conclusão e bloqueio de partidas excedentes em `BackEnd/tests/RinhaDasLendas.Tests/Domain/SerieTests.cs`
-- [ ] T034 [P] [US2] Criar testes de Fearless bilateral, picks confirmados, remakes preservados/desconsiderados, isolamento entre Séries e reconstrução após correção em `BackEnd/tests/RinhaDasLendas.Tests/Domain/FearlessTests.cs`
-- [ ] T035 [P] [US2] Criar testes de correção de Série concluída para `2-0 → 1-1` com anulação explícita, inversão de vencedor e anulação da Partida decisiva em `BackEnd/tests/RinhaDasLendas.Tests/Application/CompetitiveCorrectionHandlerTests.cs`
-- [ ] T036 [P] [US2] Criar testes de handlers para DraftMontagem finalizado/arquivado, capitães, data local de São Paulo, Season ativa, ETags compartilhadas e concorrência entre Partidas em `BackEnd/tests/RinhaDasLendas.Tests/Application/DailySeriesHandlerTests.cs`
-- [ ] T037 [P] [US2] Criar testes HTTP de criação/início/cancelamento de Série, Partidas, picks, resultados, remakes, anulações e correções conforme OpenAPI em `BackEnd/tests/RinhaDasLendas.Tests/Integration/DailySeriesApiTests.cs`
-- [ ] T038 [P] [US2] Criar testes Vue para placar, Fearless, operação de Partida, remake, correção, conflito 409 e ausência de textos hardcoded em `FrontEnd/src/components/competitive/DailySeriesOperation.spec.ts`
+- [x] T033 [P] [US2] Criar testes de Série MD3/MD5, dois lados, snapshots, estados, placar, surrender, cancelamento, conclusão e bloqueio de partidas excedentes em `BackEnd/tests/RinhaDasLendas.Tests/Domain/SerieTests.cs`
+- [x] T034 [P] [US2] Criar testes de Fearless bilateral, picks confirmados, remakes preservados/desconsiderados, isolamento entre Séries e reconstrução após correção em `BackEnd/tests/RinhaDasLendas.Tests/Domain/FearlessTests.cs`
+- [x] T035 [P] [US2] Criar testes de correção de Série concluída para `2-0 → 1-1` com anulação explícita, inversão de vencedor e anulação da Partida decisiva em `BackEnd/tests/RinhaDasLendas.Tests/Application/CompetitiveCorrectionHandlerTests.cs`
+- [x] T036 [P] [US2] Criar testes de handlers para DraftMontagem finalizado/arquivado, capitães, data local de São Paulo, Season ativa, ETags compartilhadas e concorrência entre Partidas em `BackEnd/tests/RinhaDasLendas.Tests/Application/DailySeriesHandlerTests.cs`
+- [x] T037 [P] [US2] Criar testes HTTP de criação/início/cancelamento de Série, Partidas, picks, resultados, remakes, anulações e correções conforme OpenAPI em `BackEnd/tests/RinhaDasLendas.Tests/Integration/DailySeriesApiTests.cs`
+- [x] T038 [P] [US2] Criar testes Vue para placar, Fearless, operação de Partida, remake, correção, conflito 409 e ausência de textos hardcoded em `FrontEnd/src/components/competitive/DailySeriesOperation.spec.ts`
 
 ### Implementation
 
