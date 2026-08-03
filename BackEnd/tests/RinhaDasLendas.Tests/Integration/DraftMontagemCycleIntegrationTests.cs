@@ -192,13 +192,15 @@ public sealed class DraftMontagemCycleIntegrationTests
     [Fact]
     public async Task OrdensConcorrentesComMesmaVersaoBase_DevemTerUmVencedorERollbackSeguro()
     {
-        await using var factory = new DraftMontagemCycleApiFactory();
+        var notifier = new ControlledDraftMontagemRealtimeNotifier(ControlledNotifierBehavior.Success);
+        await using var factory = new DraftMontagemCycleApiFactory(useRealPublisher: true, controlledNotifier: notifier);
         var fixture = await factory.SeedV2PresenceDraftAsync();
         using var setup = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
         await PostAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
         await PatchAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
         var captains = await PostAndReadAsync<DraftMontagemResponseDto>(setup, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
-        factory.Publisher.Reset();
+        while (factory.CommitRecorder.TryDequeue(out _)) { }
+        notifier.Reset();
         factory.ArmReorderingConcurrency(fixture.DraftId);
         using var first = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
         using var second = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
@@ -230,8 +232,13 @@ public sealed class DraftMontagemCycleIntegrationTests
             .Should().Equal(winner.Times.Select(team => team.CapitaoId));
         persisted.Times.Select(team => team.Ordem).Should().OnlyHaveUniqueItems().And.BeEquivalentTo([1, 2]);
         persisted.Times.Should().OnlyContain(team => team.Ordem > 0);
-        factory.Publisher.Publications.Should().ContainSingle()
-            .Which.DraftId.Should().Be(fixture.DraftId);
+        factory.CommitRecorder.Count.Should().Be(1);
+        factory.CommitRecorder.TryDequeue(out var publication).Should().BeTrue();
+        publication.DraftId.Should().Be(fixture.DraftId);
+        publication.Version.Should().Be(persisted.VersaoEstado);
+        notifier.Snapshots.Should().ContainSingle().Which.Should().Match<DraftMontagemRealtimeSnapshotDto>(snapshot =>
+            snapshot.Montagem.Id == fixture.DraftId
+            && snapshot.Montagem.VersaoEstado == persisted.VersaoEstado);
     }
 
     [Fact]
