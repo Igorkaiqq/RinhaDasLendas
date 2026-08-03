@@ -5,6 +5,7 @@ import type { DraftConnectionStatus, DraftMontagemRealtimeSnapshot } from '@/typ
 const signalRMock = vi.hoisted(() => {
   let stateUpdated: ((state: DraftMontagemRealtimeSnapshot) => void) | undefined
   let archived: ((draftMontagemId: string) => void) | undefined
+  let restored: ((draftMontagemId: string) => void) | undefined
   const createConnection = () => ({
     on: vi.fn(),
     onreconnecting: vi.fn(),
@@ -19,6 +20,7 @@ const signalRMock = vi.hoisted(() => {
   const queuedConnections: ReturnType<typeof createConnection>[] = []
   const builder = {
     withUrl: vi.fn().mockReturnThis(),
+    configureLogging: vi.fn().mockReturnThis(),
     withAutomaticReconnect: vi.fn().mockReturnThis(),
     build: vi.fn(() => queuedConnections.shift() ?? connection),
   }
@@ -31,12 +33,22 @@ const signalRMock = vi.hoisted(() => {
     resetConnections: () => queuedConnections.splice(0),
     emitStateUpdated: (state: DraftMontagemRealtimeSnapshot) => stateUpdated?.(state),
     emitArchived: (draftMontagemId: string) => archived?.(draftMontagemId),
+    emitRestored: (draftMontagemId: string) => restored?.(draftMontagemId),
   }
 })
 
 vi.mock('@microsoft/signalr', () => ({
   HubConnectionState: {
     Connected: 'Connected',
+  },
+  LogLevel: {
+    Trace: 0,
+    Debug: 1,
+    Information: 2,
+    Warning: 3,
+    Error: 4,
+    Critical: 5,
+    None: 6,
   },
   HubConnectionBuilder: vi.fn(function HubConnectionBuilder() {
     return signalRMock.builder
@@ -51,6 +63,7 @@ function lifecycleHandlers() {
     onStateUpdated: vi.fn(),
     onReady: vi.fn().mockResolvedValue(undefined),
     onArchived: vi.fn(),
+    onRestored: vi.fn(),
     onDegraded: vi.fn((status: Exclude<DraftConnectionStatus, 'connected'>) => statuses.push(status)),
     statuses,
   }
@@ -71,6 +84,10 @@ describe('DraftMontagemRealtimeConnection', () => {
       }
       if (event === 'DraftMontagemArchived') {
         signalRMock.emitArchived = (draftMontagemId: string) =>
+          (handler as unknown as (id: string) => void)(draftMontagemId)
+      }
+      if (event === 'DraftMontagemRestored') {
+        signalRMock.emitRestored = (draftMontagemId: string) =>
           (handler as unknown as (id: string) => void)(draftMontagemId)
       }
     })
@@ -101,12 +118,14 @@ describe('DraftMontagemRealtimeConnection', () => {
       handlers.onReady,
       handlers.onArchived,
       handlers.onDegraded,
+      handlers.onRestored,
     )
 
     expect(signalRMock.builder.withAutomaticReconnect).toHaveBeenCalledWith([0, 2000, 5000, 10000, 15000])
     expect(order).toEqual([
       'on:DraftMontagemStateUpdated',
       'on:DraftMontagemArchived',
+      'on:DraftMontagemRestored',
       'onreconnecting',
       'onreconnected',
       'onclose',
@@ -121,7 +140,13 @@ describe('DraftMontagemRealtimeConnection', () => {
     const handlers = lifecycleHandlers()
     const connection = new DraftMontagemRealtimeConnection('draft-1')
 
-    await connection.connect(handlers.onStateUpdated, handlers.onReady, handlers.onArchived, handlers.onDegraded)
+    await connection.connect(
+      handlers.onStateUpdated,
+      handlers.onReady,
+      handlers.onArchived,
+      handlers.onDegraded,
+      handlers.onRestored,
+    )
     handlers.onReady.mockClear()
     signalRMock.connection.invoke.mockClear()
     const reconnectHandler = signalRMock.connection.onreconnected.mock.calls[0]?.[0]
@@ -197,7 +222,13 @@ describe('DraftMontagemRealtimeConnection', () => {
     vi.useFakeTimers()
     const handlers = lifecycleHandlers()
     const connection = new DraftMontagemRealtimeConnection('draft-1')
-    await connection.connect(handlers.onStateUpdated, handlers.onReady, handlers.onArchived, handlers.onDegraded)
+    await connection.connect(
+      handlers.onStateUpdated,
+      handlers.onReady,
+      handlers.onArchived,
+      handlers.onDegraded,
+      handlers.onRestored,
+    )
     const closeHandler = signalRMock.connection.onclose.mock.calls[0]?.[0]
     const reconnectHandler = signalRMock.connection.onreconnected.mock.calls[0]?.[0]
 
@@ -205,11 +236,13 @@ describe('DraftMontagemRealtimeConnection', () => {
     closeHandler()
     await reconnectHandler()
     signalRMock.emitArchived('draft-1')
+    signalRMock.emitRestored('draft-1')
 
     expect(signalRMock.connection.invoke).toHaveBeenCalledWith('LeaveDraftMontagem', 'draft-1')
     expect(signalRMock.connection.stop).toHaveBeenCalledOnce()
     expect(handlers.onReady).toHaveBeenCalledOnce()
     expect(handlers.onArchived).not.toHaveBeenCalled()
+    expect(handlers.onRestored).not.toHaveBeenCalled()
     expect(handlers.onDegraded).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBe(0)
   })
@@ -357,5 +390,59 @@ describe('DraftMontagemRealtimeConnection', () => {
 
     expect(signalRMock.connection.on).toHaveBeenCalledWith('DraftMontagemArchived', expect.any(Function))
     expect(onArchived).toHaveBeenCalledWith('draft-1')
+  })
+
+  it('registers and delivers the restored event as an ID-only payload', async () => {
+    const handlers = lifecycleHandlers()
+    const connection = new DraftMontagemRealtimeConnection('draft-1')
+
+    await connection.connect(
+      handlers.onStateUpdated,
+      handlers.onReady,
+      handlers.onArchived,
+      handlers.onDegraded,
+      handlers.onRestored,
+    )
+    signalRMock.emitRestored('draft-1')
+
+    expect(signalRMock.connection.on).toHaveBeenCalledWith('DraftMontagemRestored', expect.any(Function))
+    expect(handlers.onRestored).toHaveBeenCalledWith('draft-1')
+  })
+
+  it('keeps global availability events without joining an archived draft group', async () => {
+    const handlers = lifecycleHandlers()
+    const connection = new DraftMontagemRealtimeConnection()
+
+    await connection.connect(
+      handlers.onStateUpdated,
+      handlers.onReady,
+      handlers.onArchived,
+      handlers.onDegraded,
+      handlers.onRestored,
+    )
+    signalRMock.emitRestored('draft-1')
+
+    expect(signalRMock.connection.invoke).not.toHaveBeenCalledWith('JoinDraftMontagem', expect.anything())
+    expect(handlers.onRestored).toHaveBeenCalledWith('draft-1')
+  })
+
+  it('redacts access_token query values from useful SignalR warning and error logs', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await new DraftMontagemRealtimeConnection('draft-1').connect(vi.fn())
+    const logger = signalRMock.builder.configureLogging.mock.calls[0]?.[0] as {
+      log(level: number, message: string): void
+    }
+    const token = ['header', 'payload', 'signature'].join('.')
+
+    logger.log(3, `WebSocket connected to wss://example.test/hubs/draft-montagens?id=42&access_token=${token}&transport=WebSockets`)
+    logger.log(4, `Failed URL: wss://example.test/hubs/draft-montagens?ACCESS_TOKEN=${token}#close`)
+
+    const output = [...warn.mock.calls, ...error.mock.calls].flat().join(' ')
+    expect(output).not.toContain(token)
+    expect(output).not.toMatch(/access_token=[^&\s#]*\.(?:payload|signature)/i)
+    expect(output).toMatch(/access_token=\[REDACTED\]/i)
+    expect(warn).toHaveBeenCalledOnce()
+    expect(error).toHaveBeenCalledOnce()
   })
 })

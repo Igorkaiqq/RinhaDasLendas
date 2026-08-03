@@ -450,6 +450,8 @@ async function loadVisualMontagens() {
 
       if (visualMontagens.value[0]) {
         await openMontagem(visualMontagens.value[0].id)
+      } else {
+        await connectAvailabilityRealtime(activeDraftGeneration)
       }
     }
   } catch (error) {
@@ -520,6 +522,7 @@ async function openMontagem(id: string, publicProjection?: DraftMontagem) {
     initializeGenerationRequests()
     const archived = publicProjection?.arquivado || visualMontagens.value.find((draft) => draft.id === id)?.arquivado
     if (archived) {
+      await connectAvailabilityRealtime(generation)
       if (!(await refreshMontagemDetail(id, generation, publicProjection))) return
     } else {
       await connectRealtime(id, generation)
@@ -1185,9 +1188,35 @@ async function connectRealtime(id: string, generation: number) {
       connectionStatus.value = status
       startFallback(id, generation, status === 'fallback')
     },
+    async (restoredId) => {
+      if (!isActiveDraft(id, generation)) return
+      await handleDraftRestored(restoredId)
+    },
   )
   if (!isActiveDraft(id, generation)) {
     if (realtimeConnection.value === connection) realtimeConnection.value = null
+    await connection.disconnect()
+  }
+}
+
+async function connectAvailabilityRealtime(generation: number) {
+  if (realtimeConnection.value || activeDraftGeneration !== generation) return
+  const connection = new DraftMontagemRealtimeConnection()
+  realtimeConnection.value = connection
+  await connection.connect(
+    () => undefined,
+    undefined,
+    async (archivedId) => {
+      if (activeDraftGeneration !== generation) return
+      await handleDraftArchived(archivedId)
+    },
+    undefined,
+    async (restoredId) => {
+      if (activeDraftGeneration !== generation) return
+      await handleDraftRestored(restoredId)
+    },
+  )
+  if (activeDraftGeneration !== generation) {
     await connection.disconnect()
   }
 }
@@ -1738,6 +1767,7 @@ async function removeArchivedAndReconcile(draftId: string, previousIndex: number
   if (reload) await loadVisualMontagens()
   selectedDraftId.value = null
   if (visualMontagens.value.length === 0) {
+    await connectAvailabilityRealtime(activeDraftGeneration)
     saving.value = false
     if (restoreFocus) await restoreStageFocus()
     return
@@ -1784,6 +1814,16 @@ async function handleDraftArchived(draftId: string) {
     return
   }
   await removeArchivedAndReconcile(draftId, index)
+}
+
+async function handleDraftRestored(draftId: string) {
+  await loadVisualMontagens()
+  const restored = visualMontagens.value.find((draft) => draft.id === draftId && !draft.arquivado)
+  if (!restored) return
+  if (deferredArchivedDraftId === draftId) deferredArchivedDraftId = null
+  if (selectedDraftId.value !== draftId || boardDirty.value) return
+  if (selectedMontagem.value?.id === draftId && !selectedMontagem.value.arquivado) return
+  await openMontagem(draftId)
 }
 
 async function handleArchiveAccessDenied(inaccessibleId?: string | null, inaccessibleIndex?: number) {

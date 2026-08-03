@@ -45,7 +45,9 @@ Payload: draft UUID string. It remains a list-level invalidation signal. If it t
 
 ### `DraftMontagemRestored`
 
-Payload: draft UUID string. It is the availability counterpart of `DraftMontagemArchived`; list clients reconcile the restored draft. Archive publication reloads the snapshot with `ReloadByIdIncludingArchivedAsync`; restore uses the normal non-archived reload.
+Payload: draft UUID string. It is the availability counterpart of `DraftMontagemArchived`; every mounted list client reloads its current server-side filters, then reconciles the selected detail only when applicable. Archive publication reloads the snapshot with `ReloadByIdIncludingArchivedAsync`; restore uses the normal non-archived reload.
+
+`DraftMontagemArchived` and `DraftMontagemRestored` are global availability events. A mounted drafts view therefore retains exactly one authenticated Hub transport even when it has no active non-archived draft group: normal selections use the group connection, while an empty list or archived detail uses an availability-only connection that does not invoke `JoinDraftMontagem`. Connection replacement tears down the old lifecycle before starting the next one; stale availability callbacks are ignored by generation.
 
 ## Publication Coverage
 
@@ -81,6 +83,6 @@ Only degraded statuses are announced in the localized accessible UI. `connected`
 
 ## Observability
 
-Structured dimensions: draft ID, `versaoEstado`, operation/event name, elapsed publication milliseconds, connection transition, conflict code and outcome. Never log access tokens, claims, payload bodies, player-sensitive fields or Hub URLs containing credentials.
+Structured dimensions: draft ID, `versaoEstado`, operation/event name, elapsed publication milliseconds, connection transition, conflict code and outcome. Never log access tokens, claims, payload bodies, player-sensitive fields or Hub URLs containing credentials. The browser SignalR logger keeps only warning-or-higher diagnostics and case-insensitively redacts every `access_token` query value before writing to the console.
 
 The Application publisher receives no request cancellation token. Each notifier call receives only its own 5-second timeout token; timeout cancellation and every other notifier failure are absorbed and observed after commit.

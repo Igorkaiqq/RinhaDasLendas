@@ -6,6 +6,19 @@ import { api } from './api'
 import { getAccessToken } from './authState'
 
 const RETRY_DELAYS = [0, 2000, 5000, 10000, 15000]
+const ACCESS_TOKEN_QUERY_VALUE = /([?&]access_token=)[^&#\s]*/gi
+
+const signalRLogger: signalR.ILogger = {
+  log(logLevel, message) {
+    if (logLevel < signalR.LogLevel.Warning || logLevel >= signalR.LogLevel.None) return
+    const safeMessage = message.replace(ACCESS_TOKEN_QUERY_VALUE, '$1[REDACTED]')
+    if (logLevel === signalR.LogLevel.Warning) {
+      globalThis.console.warn(safeMessage)
+      return
+    }
+    globalThis.console.error(safeMessage)
+  },
+}
 
 async function stopBestEffort(connection: signalR.HubConnection) {
   try {
@@ -18,6 +31,7 @@ async function stopBestEffort(connection: signalR.HubConnection) {
 export type DraftMontagemRealtimeHandler = (state: DraftMontagemRealtimeSnapshot) => void
 export type DraftMontagemRealtimeReadyHandler = () => void | Promise<void>
 export type DraftMontagemArchivedHandler = (draftMontagemId: string) => void | Promise<void>
+export type DraftMontagemRestoredHandler = (draftMontagemId: string) => void | Promise<void>
 export type DraftMontagemRealtimeDegradedHandler = (status: Exclude<DraftConnectionStatus, 'connected'>) => void
 
 export class DraftMontagemRealtimeConnection {
@@ -26,13 +40,14 @@ export class DraftMontagemRealtimeConnection {
   private lifecycle = 0
   private disconnecting: Promise<void> | null = null
 
-  constructor(private readonly draftMontagemId: string) {}
+  constructor(private readonly draftMontagemId?: string) {}
 
   async connect(
     onStateUpdated: DraftMontagemRealtimeHandler,
     onReady?: DraftMontagemRealtimeReadyHandler,
     onArchived?: DraftMontagemArchivedHandler,
     onDegraded?: DraftMontagemRealtimeDegradedHandler,
+    onRestored?: DraftMontagemRestoredHandler,
   ) {
     await this.disconnect()
     const lifecycle = ++this.lifecycle
@@ -40,6 +55,7 @@ export class DraftMontagemRealtimeConnection {
     const baseUrl = String(api.defaults.baseURL ?? '').replace(/\/$/, '')
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${baseUrl}/hubs/draft-montagens`, { accessTokenFactory: () => getAccessToken() ?? '' })
+      .configureLogging(signalRLogger)
       .withAutomaticReconnect(RETRY_DELAYS)
       .build()
     this.connection = connection
@@ -85,6 +101,11 @@ export class DraftMontagemRealtimeConnection {
       scheduleRestart()
     }
     const join = async () => {
+      if (!this.draftMontagemId) {
+        restartAttempt = 0
+        await reportReady()
+        return true
+      }
       try {
         await connection.invoke('JoinDraftMontagem', this.draftMontagemId)
       } catch {
@@ -125,6 +146,11 @@ export class DraftMontagemRealtimeConnection {
         if (isCurrent()) void onArchived(archivedId)
       })
     }
+    if (onRestored) {
+      connection.on('DraftMontagemRestored', (restoredId) => {
+        if (isCurrent()) void onRestored(restoredId)
+      })
+    }
     connection.onreconnecting(() => {
       reportDegraded('reconnecting')
     })
@@ -160,7 +186,7 @@ export class DraftMontagemRealtimeConnection {
 
     const disconnecting = (async () => {
       try {
-        if (connection.state === signalR.HubConnectionState.Connected) {
+        if (this.draftMontagemId && connection.state === signalR.HubConnectionState.Connected) {
           try {
             await connection.invoke('LeaveDraftMontagem', this.draftMontagemId)
           } catch {

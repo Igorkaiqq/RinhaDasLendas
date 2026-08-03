@@ -5,7 +5,7 @@
 | Concern | Owner |
 |---------|-------|
 | Active draft generation, canonical GET/fallback, final status, version gate, request lanes, 409 reconciliation, pending navigation intent | `DraftsView.vue` |
-| SignalR start/Join/retry/callback/stop and readiness/degradation handoff | `draftMontagemRealtime.ts` |
+| SignalR start/optional Join/retry/global availability callback/stop and readiness/degradation handoff | `draftMontagemRealtime.ts` |
 | Editable clone, dirty/base version, local moves and save payload | `DraftVisualBoard.vue` |
 | One accessible discard/continue decision | `DraftUnsavedLayoutDialog.vue` |
 
@@ -18,6 +18,8 @@ No new Pinia store or transport store is introduced.
 3. Only after Join succeeds, `DraftsView` executes personalized `GET /realtime-state`; initial open and recovery remain degraded until this GET succeeds.
 4. Event and GET use the same version gate. An event between Join and GET wins if its version is higher, but does not bypass the canonical GET health gate.
 5. Optional eligible-player enrichment starts independently and cannot fail the main opening.
+
+When no non-archived draft is active, the view keeps one availability-only SignalR connection instead of disconnecting from global archive/restore delivery. Selecting a normal draft replaces it with one group connection; selecting an archived detail or removing the final visible draft replaces the group connection with one availability-only connection. The two transports never coexist.
 
 ## Snapshot Lanes
 
@@ -89,6 +91,7 @@ The dialog traps focus, has title/description, returns focus when intent is canc
 - `beforeunload` sets `event.preventDefault()` and `event.returnValue` only while dirty; browsers provide native localized copy.
 - Component unmount removes `beforeunload`, stops realtime, aborts enrichment/fallback and increments generation.
 - A second intent while the dialog is open replaces neither the first intent nor the pending canonical snapshot; it is ignored until resolution.
+- Every `DraftMontagemRestored` callback reloads the currently filtered list. A restored selected archived detail reopens through a new generation; a dirty active board keeps its clone and active connection, clears only obsolete deferred archive availability, and does not apply stale shared state.
 
 ## Administrative Audit Actor
 

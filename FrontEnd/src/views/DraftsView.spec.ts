@@ -61,9 +61,12 @@ const routeGuardMock = vi.hoisted(() => ({ guard: null as null | (() => boolean 
 const realtimeMock = vi.hoisted(() => ({
   handlers: new Map<string, (state: DraftMontagemRealtimeSnapshot) => void | Promise<void>>(),
   archivedHandlers: new Map<string, (draftMontagemId: string) => void | Promise<void>>(),
+  restoredHandlers: new Map<string, (draftMontagemId: string) => void | Promise<void>>(),
   reconnectHandlers: new Map<string, () => void | Promise<void>>(),
   degradedHandlers: new Map<string, (status: 'reconnecting' | 'fallback' | 'disconnected') => void>(),
   disconnected: [] as string[],
+  connected: [] as string[],
+  lifecycle: [] as string[],
   order: [] as string[],
   startGate: null as Promise<void> | null,
   joinGate: null as Promise<void> | null,
@@ -111,12 +114,18 @@ vi.mock('@/services/draftMontagens', () => ({
 
 vi.mock('@/services/draftMontagemRealtime', () => ({
   DraftMontagemRealtimeConnection: class DraftMontagemRealtimeConnection {
-    constructor(private readonly id: string) {}
-    connect = vi.fn().mockImplementation(async (onStateUpdated, onReady, onArchived, onDegraded) => {
-      realtimeMock.handlers.set(this.id, onStateUpdated)
-      realtimeMock.reconnectHandlers.set(this.id, onReady)
-      realtimeMock.archivedHandlers.set(this.id, onArchived)
-      realtimeMock.degradedHandlers.set(this.id, onDegraded)
+    private readonly key: string
+    constructor(private readonly id?: string) {
+      this.key = id ?? '__availability__'
+    }
+    connect = vi.fn().mockImplementation(async (onStateUpdated, onReady, onArchived, onDegraded, onRestored) => {
+      realtimeMock.connected.push(this.key)
+      realtimeMock.lifecycle.push(`connect:${this.key}`)
+      realtimeMock.handlers.set(this.key, onStateUpdated)
+      realtimeMock.reconnectHandlers.set(this.key, onReady)
+      realtimeMock.archivedHandlers.set(this.key, onArchived)
+      realtimeMock.restoredHandlers.set(this.key, onRestored)
+      realtimeMock.degradedHandlers.set(this.key, onDegraded)
       realtimeMock.order.push('start')
       await realtimeMock.startGate
       realtimeMock.order.push('JoinDraftMontagem')
@@ -124,7 +133,8 @@ vi.mock('@/services/draftMontagemRealtime', () => ({
       await onReady?.()
     })
     disconnect = vi.fn().mockImplementation(async () => {
-      realtimeMock.disconnected.push(this.id)
+      realtimeMock.disconnected.push(this.key)
+      realtimeMock.lifecycle.push(`disconnect:${this.key}`)
     })
   },
 }))
@@ -467,9 +477,12 @@ describe('DraftsView reason actions', () => {
     routeGuardMock.guard = null
     realtimeMock.handlers.clear()
     realtimeMock.archivedHandlers.clear()
+    realtimeMock.restoredHandlers.clear()
     realtimeMock.reconnectHandlers.clear()
     realtimeMock.degradedHandlers.clear()
     realtimeMock.disconnected = []
+    realtimeMock.connected = []
+    realtimeMock.lifecycle = []
     realtimeMock.order = []
     realtimeMock.startGate = null
     realtimeMock.joinGate = null
@@ -4432,6 +4445,78 @@ describe('DraftsView reason actions', () => {
     expect((wrapper.vm as unknown as { boardDirty: boolean }).boardDirty).toBe(true)
     expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem.arquivado).toBe(false)
     expect(serviceMocks.getDraftMontagemArchivingById).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps one availability connection after remote archive and converges when another session restores the filtered draft', async () => {
+    const archivedList: DraftMontagemResumo[] = []
+    const restoredSummary = { ...resumo, arquivado: false, versaoEstado: 9 }
+    const restored = { ...montagem, arquivado: false, versaoEstado: 9 }
+    serviceMocks.listDraftMontagens.mockReset()
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([resumo])
+      .mockResolvedValueOnce(archivedList)
+      .mockResolvedValueOnce([restoredSummary])
+    serviceMocks.getDraftMontagemRealtimeState.mockResolvedValue({
+      montagem: restored,
+      canCurrentUserPick: false,
+      serverNow: restored.dataAtualizacao,
+    })
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue({ ...adminProjection(), versaoEstado: 9 })
+    const wrapper = await mountView()
+
+    await realtimeMock.archivedHandlers.get(montagem.id)?.(montagem.id)
+    await flushPromises()
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem | null }).selectedMontagem).toBeNull()
+    expect(realtimeMock.lifecycle).toEqual([
+      `connect:${montagem.id}`,
+      `disconnect:${montagem.id}`,
+      'connect:__availability__',
+    ])
+
+    await realtimeMock.restoredHandlers.get('__availability__')?.(montagem.id)
+    await flushPromises()
+
+    expect(serviceMocks.listDraftMontagens).toHaveBeenLastCalledWith({ status: '', includeArchived: false })
+    expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens).toEqual([restoredSummary])
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem).toMatchObject({ id: montagem.id, arquivado: false, versaoEstado: 9 })
+    expect(realtimeMock.lifecycle).toEqual([
+      `connect:${montagem.id}`,
+      `disconnect:${montagem.id}`,
+      'connect:__availability__',
+      'disconnect:__availability__',
+      `connect:${montagem.id}`,
+    ])
+    wrapper.unmount()
+  })
+
+  it('reloads the included list on restore without replacing a dirty clone or duplicating its active connection', async () => {
+    const openSummary = { ...resumo, status: 'Aberta' as const, modo: 'Manual' as const }
+    const restoredSummary = { ...openSummary, arquivado: false, versaoEstado: 9 }
+    serviceMocks.listDraftMontagens.mockReset()
+    serviceMocks.getDraftMontagemAdminById.mockReset()
+    serviceMocks.listDraftMontagens
+      .mockResolvedValueOnce([openSummary, resumoB])
+      .mockResolvedValueOnce([openSummary, resumoB])
+      .mockResolvedValueOnce([restoredSummary, resumoB])
+    serviceMocks.getDraftMontagemAdminById.mockResolvedValue(adminProjection('Aberta'))
+    const wrapper = await mountView()
+    wrapper.getComponent({ name: 'DraftNavigator' }).vm.$emit('update:includeArchived', true)
+    await flushPromises()
+    ;(wrapper.vm as unknown as { handleBoardDirtyChange: (dirty: boolean, baseVersion: number) => void }).handleBoardDirtyChange(true, 7)
+
+    await realtimeMock.archivedHandlers.get(montagem.id)?.(montagem.id)
+    await flushPromises()
+    await wrapper.get('[data-testid="keep-editing"]').trigger('click')
+    await realtimeMock.restoredHandlers.get(montagem.id)?.(montagem.id)
+    await flushPromises()
+
+    expect(serviceMocks.listDraftMontagens).toHaveBeenLastCalledWith({ status: '', includeArchived: true })
+    expect((wrapper.vm as unknown as { boardDirty: boolean }).boardDirty).toBe(true)
+    expect((wrapper.vm as unknown as { selectedMontagem: DraftMontagem }).selectedMontagem).toMatchObject({ id: montagem.id, arquivado: false })
+    expect((wrapper.vm as unknown as { visualMontagens: DraftMontagemResumo[] }).visualMontagens[0]).toEqual(restoredSummary)
+    expect(realtimeMock.connected.filter((id) => id === montagem.id)).toHaveLength(1)
+    expect(realtimeMock.disconnected).not.toContain(montagem.id)
     wrapper.unmount()
   })
 
