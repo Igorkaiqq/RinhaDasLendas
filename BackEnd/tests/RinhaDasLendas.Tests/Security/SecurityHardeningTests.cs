@@ -1170,6 +1170,8 @@ public sealed class SecurityHardeningTests
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class TestOptionsMonitor(BotInternalAuthOptions options) : IOptionsMonitor<BotInternalAuthOptions>

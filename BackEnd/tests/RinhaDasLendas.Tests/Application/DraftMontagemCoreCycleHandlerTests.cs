@@ -267,6 +267,77 @@ public sealed class DraftMontagemCoreCycleHandlerTests
     }
 
     [Fact]
+    public async Task DefinirOrdemDevePersistirReordenacaoAtomicamenteAntesDePublicar()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarPresencaEncerrada(jogadores);
+        var jogadoresIds = jogadores.Select(jogador => jogador.Id).ToHashSet();
+        var capitaesIds = jogadores.Take(2).Select(jogador => jogador.Id).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds);
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        var persistido = false;
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.SaveTeamReorderingAsync(montagem.Id, It.IsAny<CancellationToken>()))
+            .Callback(() => persistido = true)
+            .Returns(Task.CompletedTask);
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>();
+        notifier.Setup(item => item.StateUpdatedAsync(
+                montagem.Id,
+                It.IsAny<DraftMontagemRealtimeStateDto>(),
+                It.IsAny<CancellationToken>()))
+            .Callback(() => persistido.Should().BeTrue())
+            .Returns(Task.CompletedTask);
+        var handler = new DefinirOrdemEscolhaDraftMontagemCommandHandler(
+            repository.Object,
+            new DefinirOrdemEscolhaDraftMontagemValidator(),
+            notifier.Object);
+
+        var result = await handler.Handle(
+            new DefinirOrdemEscolhaDraftMontagemCommand(
+                montagem.Id,
+                new DefinirOrdemEscolhaDraftMontagemRequestDto("Manual", capitaesIds.AsEnumerable().Reverse().ToList())),
+            CancellationToken.None);
+
+        result.Should().NotBeNull();
+        repository.Verify(item => item.SaveTeamReorderingAsync(montagem.Id, CancellationToken.None), Times.Once);
+        repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        notifier.Verify(item => item.StateUpdatedAsync(
+            montagem.Id,
+            It.IsAny<DraftMontagemRealtimeStateDto>(),
+            CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task DefinirOrdemQuandoPersistenciaFalhaNaoDevePublicar()
+    {
+        var jogadores = CriarJogadores(10);
+        var montagem = CriarPresencaEncerrada(jogadores);
+        var jogadoresIds = jogadores.Select(jogador => jogador.Id).ToHashSet();
+        var capitaesIds = jogadores.Take(2).Select(jogador => jogador.Id).ToList();
+        montagem.SelecionarModo(DraftMontagemModo.TempoReal, jogadoresIds);
+        montagem.DefinirCapitaes(capitaesIds, capitaesIds.ToHashSet());
+        var repository = new Mock<IDraftMontagemRepository>();
+        repository.Setup(item => item.GetByIdAsync(montagem.Id, It.IsAny<CancellationToken>())).ReturnsAsync(montagem);
+        repository.Setup(item => item.SaveTeamReorderingAsync(montagem.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DomainException(MessageCodes.DraftStateConflict));
+        var notifier = new Mock<IDraftMontagemRealtimeNotifier>(MockBehavior.Strict);
+        var handler = new DefinirOrdemEscolhaDraftMontagemCommandHandler(
+            repository.Object,
+            new DefinirOrdemEscolhaDraftMontagemValidator(),
+            notifier.Object);
+
+        var act = () => handler.Handle(
+            new DefinirOrdemEscolhaDraftMontagemCommand(
+                montagem.Id,
+                new DefinirOrdemEscolhaDraftMontagemRequestDto("Manual", capitaesIds.AsEnumerable().Reverse().ToList())),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftStateConflict);
+        notifier.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task ConsultaAdminDeveSepararElegibilidadeInicialDeElegibilidadeParaSubstituicao()
     {
         var jogadores = CriarJogadores(12);

@@ -441,6 +441,45 @@ public sealed class DraftMontagemRepository(RinhaDasLendasDbContext dbContext) :
         }
     }
 
+    public async Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            await SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        try
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE draft_montagem_times
+                SET ordem = -ordem
+                WHERE draft_montagem_id = {draftMontagemId}
+                """, cancellationToken);
+            foreach (var entry in dbContext.ChangeTracker.Entries<DraftMontagemTime>()
+                         .Where(entry => entry.Entity.DraftMontagemId == draftMontagemId))
+            {
+                var order = entry.Property(team => team.Ordem);
+                order.OriginalValue = -order.OriginalValue;
+                order.IsModified = true;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (DraftMontagemSaveConflictClassifier.Classify(exception) is not null)
+            {
+                throw new DomainException(MessageCodes.DraftStateConflict);
+            }
+
+            throw;
+        }
+    }
+
     public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
     {
         try

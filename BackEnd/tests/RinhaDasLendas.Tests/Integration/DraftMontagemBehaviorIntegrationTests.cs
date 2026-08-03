@@ -1762,5 +1762,6 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
+        public Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken) => inner.SaveTeamReorderingAsync(draftMontagemId, cancellationToken);
     }
 }

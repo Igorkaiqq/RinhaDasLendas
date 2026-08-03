@@ -12,7 +12,8 @@ namespace RinhaDasLendas.Application.Handlers.DraftMontagens;
 
 public sealed class DefinirOrdemEscolhaDraftMontagemCommandHandler(
     IDraftMontagemRepository repository,
-    IValidator<DefinirOrdemEscolhaDraftMontagemRequestDto> validator) : IRequestHandler<DefinirOrdemEscolhaDraftMontagemCommand, DraftMontagemResponseDto?>
+    IValidator<DefinirOrdemEscolhaDraftMontagemRequestDto> validator,
+    IDraftMontagemRealtimeNotifier notifier) : IRequestHandler<DefinirOrdemEscolhaDraftMontagemCommand, DraftMontagemResponseDto?>
 {
     public async Task<DraftMontagemResponseDto?> Handle(DefinirOrdemEscolhaDraftMontagemCommand command, CancellationToken cancellationToken)
     {
@@ -25,8 +26,12 @@ public sealed class DefinirOrdemEscolhaDraftMontagemCommandHandler(
 
         var modo = Enum.Parse<DraftMontagemOrdemEscolhaModo>(command.Request.Modo, true);
         montagem.DefinirOrdemEscolha(modo, command.Request.CapitaesIds);
-        await repository.SaveChangesAsync(cancellationToken);
+        await repository.SaveTeamReorderingAsync(command.Id, cancellationToken);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
+        await notifier.StateUpdatedAsync(
+            command.Id,
+            DraftMontagemRealtimeStateFactory.Create(updated, DateTimeOffset.UtcNow),
+            cancellationToken);
         return DraftMontagemResponseDto.FromEntity(updated);
     }
 }

@@ -3,13 +3,17 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RinhaDasLendas.Application.Commands.DraftMontagens;
 using RinhaDasLendas.Application.Dtos;
+using RinhaDasLendas.Application.Interfaces;
 using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
+using RinhaDasLendas.Domain.Exceptions;
 using RinhaDasLendas.Infrastructure.Identity;
 using RinhaDasLendas.Infrastructure.Persistence;
 using RinhaDasLendas.Infrastructure.Repositories;
@@ -112,6 +116,54 @@ public sealed class DraftMontagemCycleIntegrationTests
         finalized.Montagem.TurnoAtualCapitaoId.Should().BeNull();
         finalized.Montagem.Escolhas.Should().HaveCount(3);
         finalized.Montagem.Substituicoes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task OrdemManualInvertida_DevePersistirAtomicamenteEPublicarUmaVez()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+        var captains = await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
+        factory.ResetNotifications();
+
+        var response = await admin.PostAsJsonAsync($"/api/v1/draft-montagens/{fixture.DraftId}/ordem-escolha", new
+        {
+            Modo = nameof(DraftMontagemOrdemEscolhaModo.Manual),
+            CapitaesIds = new[] { fixture.Players[1].PlayerId, fixture.Players[0].PlayerId },
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var ordered = (await response.Content.ReadFromJsonAsync<DraftMontagemResponseDto>())!;
+        ordered.Times.Select(team => team.CapitaoId).Should().Equal(fixture.Players[1].PlayerId, fixture.Players[0].PlayerId);
+        ordered.VersaoEstado.Should().Be(captains.VersaoEstado + 1);
+        var persisted = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        persisted.Times.OrderBy(team => team.Ordem).Select(team => team.CapitaoId)
+            .Should().Equal(fixture.Players[1].PlayerId, fixture.Players[0].PlayerId);
+        persisted.Times.Select(team => team.Ordem).Should().BeEquivalentTo([1, 2]);
+        factory.NotificationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReordenacaoComVersaoDefasada_DeveReverterOrdensTemporarias()
+    {
+        await using var factory = new DraftMontagemCycleApiFactory();
+        var fixture = await factory.SeedV2PresenceDraftAsync();
+        using var admin = factory.CreateRoleClient(fixture.AdminUserId, AuthRoles.Admin);
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/encerrar-presenca", new { ContinuarComMenosDez = true, TamanhoEquipe = 2 });
+        await PatchAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/modo", new { Modo = nameof(DraftMontagemModo.TempoReal) });
+        await PostAndReadAsync<DraftMontagemResponseDto>(admin, $"/api/v1/draft-montagens/{fixture.DraftId}/capitaes", new { CapitaesIds = new[] { fixture.Players[0].PlayerId, fixture.Players[1].PlayerId } });
+
+        var act = () => factory.TrySaveStaleReverseOrderAsync(fixture.DraftId);
+
+        await act.Should().ThrowAsync<DomainException>().WithMessage(MessageCodes.DraftStateConflict);
+        var persisted = await factory.GetDraftWithGraphAsync(fixture.DraftId);
+        persisted.Times.OrderBy(team => team.Ordem).Select(team => team.CapitaoId)
+            .Should().Equal(fixture.Players[0].PlayerId, fixture.Players[1].PlayerId);
+        persisted.Times.Select(team => team.Ordem).Should().BeEquivalentTo([1, 2]);
+        factory.NotificationCount.Should().Be(0);
     }
 
     [Fact]
@@ -384,9 +436,15 @@ public sealed class DraftMontagemCycleIntegrationTests
 
 internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
 {
+    private readonly CycleNotificationCounter _notifications = new();
+
     public DraftMontagemCycleApiFactory() : base(useIsolatedPostgreSql: true) { }
 
+    public int NotificationCount => _notifications.Count;
+
     public HttpClient CreateRoleClient(Guid? userId, params string[] roles) => CreateJwtClient(userId, roles);
+
+    public void ResetNotifications() => _notifications.Reset();
 
     public async Task<CycleFixture> SeedV2PresenceDraftAsync()
     {
@@ -476,6 +534,26 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
         await new DraftMontagemRepository(db).SaveChangesAsync(CancellationToken.None);
     }
 
+    public async Task TrySaveStaleReverseOrderAsync(Guid draftId)
+    {
+        await using var staleScope = Services.CreateAsyncScope();
+        var staleDb = staleScope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+        var staleDraft = await staleDb.DraftMontagens.Include(item => item.Times).SingleAsync(item => item.Id == draftId);
+        var captains = staleDraft.Times.OrderBy(team => team.Ordem).Select(team => team.CapitaoId!.Value).Reverse().ToList();
+
+        await using (var winnerScope = Services.CreateAsyncScope())
+        {
+            var winnerDb = winnerScope.ServiceProvider.GetRequiredService<RinhaDasLendasDbContext>();
+            await winnerDb.DraftMontagens.Where(item => item.Id == draftId)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(item => item.VersaoEstado, item => item.VersaoEstado + 1)
+                    .SetProperty(item => item.DataAtualizacao, DateTimeOffset.UtcNow));
+        }
+
+        staleDraft.DefinirOrdemEscolha(DraftMontagemOrdemEscolhaModo.Manual, captains);
+        await new DraftMontagemRepository(staleDb).SaveTeamReorderingAsync(draftId, CancellationToken.None);
+    }
+
     public async Task<CycleFixture> SeedLegacyOpenDraftAsync(DraftMontagemStatus? forcedStatus = null)
     {
         _ = CreateAnonymousClient();
@@ -532,6 +610,30 @@ internal sealed class DraftMontagemCycleApiFactory : SecurityApiFactory
             ]);
         player.VincularUsuario(userId);
         return player;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureServices(services =>
+            services.Replace(ServiceDescriptor.Scoped<IDraftMontagemRealtimeNotifier>(_ => _notifications)));
+    }
+
+    private sealed class CycleNotificationCounter : IDraftMontagemRealtimeNotifier
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public Task StateUpdatedAsync(Guid draftMontagemId, DraftMontagemRealtimeStateDto state, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _count);
+            return Task.CompletedTask;
+        }
+
+        public Task ArchivedAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public void Reset() => Volatile.Write(ref _count, 0);
     }
 }
 
