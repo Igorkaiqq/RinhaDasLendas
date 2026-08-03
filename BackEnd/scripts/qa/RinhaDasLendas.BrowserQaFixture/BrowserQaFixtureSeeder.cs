@@ -8,6 +8,7 @@ namespace RinhaDasLendas.BrowserQaFixture;
 
 public static class BrowserQaFixtureSeeder
 {
+    private const string DatabasePrefix = "rinha_feature029_browser_qa_";
     private const string RequiredMigration = "20260731012844_AddDraftMontagemSystemActor";
 
     public static async Task<BrowserQaFixtureMetadata> SeedAsync(
@@ -18,16 +19,23 @@ public static class BrowserQaFixtureSeeder
             .UseNpgsql(options.ConnectionString)
             .Options;
         await using var db = new RinhaDasLendasDbContext(dbOptions);
-        var pendingMigrations = await db.Database.GetPendingMigrationsAsync(cancellationToken);
-        if (pendingMigrations.Any())
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        var databaseName = db.Database.GetDbConnection().Database;
+        if (!databaseName.StartsWith(DatabasePrefix, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("O banco descartável deve estar totalmente migrado antes da fixture.");
+            throw new InvalidOperationException($"O banco descartável deve usar o prefixo {DatabasePrefix}.");
         }
 
-        var appliedMigrations = await db.Database.GetAppliedMigrationsAsync(cancellationToken);
-        if (!appliedMigrations.Contains(RequiredMigration, StringComparer.Ordinal))
+        var knownMigrations = db.Database.GetMigrations().ToArray();
+        var appliedMigrations = (await db.Database.GetAppliedMigrationsAsync(cancellationToken)).ToArray();
+        var pendingMigrations = (await db.Database.GetPendingMigrationsAsync(cancellationToken)).ToArray();
+        if (knownMigrations.LastOrDefault() != RequiredMigration
+            || appliedMigrations.LastOrDefault() != RequiredMigration
+            || !appliedMigrations.SequenceEqual(knownMigrations, StringComparer.Ordinal)
+            || pendingMigrations.Length != 0)
         {
-            throw new InvalidOperationException($"O banco descartável deve conter a migration {RequiredMigration}.");
+            throw new InvalidOperationException(
+                $"O banco descartável deve conter exatamente a sequência de migrations até {RequiredMigration}, sem migrations pendentes ou posteriores.");
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);

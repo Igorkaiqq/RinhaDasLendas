@@ -49,11 +49,41 @@ A saída JSON contém apenas IDs dos dois drafts, das contas autenticadas e dos 
 Para acelerar somente a espera do worker real, a expiração do turno pode ser ajustada diretamente no banco descartável depois que o draft estiver `Aberta` em modo `TempoReal`. Use o ID devolvido pela fixture, confira o nome do banco e nunca execute este ajuste em outro ambiente:
 
 ```sql
-UPDATE draft_montagens
-SET turno_expira_em = now() - interval '1 second'
-WHERE id = '<presenceDraftId>'
-  AND status = 'Aberta'
-  AND modo = 'TempoReal';
+DO $$
+DECLARE
+    target_draft_id uuid := '<presenceDraftId>';
+    target_count integer;
+    updated_count integer;
+BEGIN
+    IF left(current_database(), length('rinha_feature029_browser_qa_')) <> 'rinha_feature029_browser_qa_' THEN
+        RAISE EXCEPTION 'Banco recusado: execute somente em rinha_feature029_browser_qa_*';
+    END IF;
+
+    SELECT count(*)
+    INTO target_count
+    FROM draft_montagens
+    WHERE id = target_draft_id
+      AND status = 'Aberta'
+      AND modo = 'TempoReal'
+      AND turno_expira_em IS NOT NULL;
+
+    IF target_count <> 1 THEN
+        RAISE EXCEPTION 'Draft recusado: esperado exatamente um draft TempoReal aberto com turno ativo';
+    END IF;
+
+    UPDATE draft_montagens
+    SET turno_expira_em = now() - interval '1 second'
+    WHERE id = target_draft_id
+      AND status = 'Aberta'
+      AND modo = 'TempoReal'
+      AND turno_expira_em IS NOT NULL;
+
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+    IF updated_count <> 1 THEN
+        RAISE EXCEPTION 'Atualização recusada: esperado alterar exatamente uma linha';
+    END IF;
+END
+$$;
 ```
 
 O serviço hospedado da API deve permanecer ativo para que o avanço seja produzido pelo worker real, e não pela fixture.
