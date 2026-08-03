@@ -92,6 +92,7 @@ The dialog traps focus, has title/description, returns focus when intent is canc
 - Component unmount removes `beforeunload`, stops realtime, aborts enrichment/fallback and increments generation.
 - A second intent while the dialog is open replaces neither the first intent nor the pending canonical snapshot; it is ignored until resolution.
 - Every `DraftMontagemRestored` callback reloads the currently filtered list. A restored selected archived detail reopens through a new generation; a dirty active board keeps its clone and active connection, clears only obsolete deferred archive availability, and does not apply stale shared state.
+- Restore preserves the operational status defined by Feature 022. A draft canceled by active archiving remains `Cancelada`; after restore it may leave an `includeArchived` result and remain absent from the default list because it is no longer archived and canceled drafts are hidden there. Default-list two-client convergence is validated with a restored `Finalizada` draft.
 
 ## Administrative Audit Actor
 

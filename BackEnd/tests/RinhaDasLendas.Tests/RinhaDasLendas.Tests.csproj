@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\scripts\qa\RinhaDasLendas.BrowserQaFixture\RinhaDasLendas.BrowserQaFixture.csproj" />
     <ProjectReference Include="..\..\src\RinhaDasLendas.Application\RinhaDasLendas.Application.csproj" />
     <ProjectReference Include="..\..\src\RinhaDasLendas.Api\RinhaDasLendas.Api.csproj" />
     <ProjectReference Include="..\..\src\RinhaDasLendas.Domain\RinhaDasLendas.Domain.csproj" />

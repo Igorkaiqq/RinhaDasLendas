@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RinhaDasLendas.Infrastructu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RinhaDasLendas.Tests", "tests\RinhaDasLendas.Tests\RinhaDasLendas.Tests.csproj", "{6D02955F-0CF9-4101-9F84-D763BF10EF97}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RinhaDasLendas.BrowserQaFixture", "scripts\qa\RinhaDasLendas.BrowserQaFixture\RinhaDasLendas.BrowserQaFixture.csproj", "{D22D920C-B07E-438B-AFE9-E43FBF497810}"
+EndProject
 Global
   GlobalSection(SolutionConfigurationPlatforms) = preSolution
     Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,9 @@ Global
     {6D02955F-0CF9-4101-9F84-D763BF10EF97}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {6D02955F-0CF9-4101-9F84-D763BF10EF97}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {6D02955F-0CF9-4101-9F84-D763BF10EF97}.Release|Any CPU.Build.0 = Release|Any CPU
+    {D22D920C-B07E-438B-AFE9-E43FBF497810}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {D22D920C-B07E-438B-AFE9-E43FBF497810}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {D22D920C-B07E-438B-AFE9-E43FBF497810}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {D22D920C-B07E-438B-AFE9-E43FBF497810}.Release|Any CPU.Build.0 = Release|Any CPU
   EndGlobalSection
 EndGlobal
-

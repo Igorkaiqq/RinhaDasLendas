@@ -470,13 +470,17 @@ Expected: PASS with unequivocal <=2s/<=5s assertions.
 ## Task 13: Verification, Docs e Deploy
 
 **Files:**
+- Create local QA fixture: `BackEnd/scripts/qa/RinhaDasLendas.BrowserQaFixture/`
+- Create fixture guide: `BackEnd/scripts/qa/README.md`
+- Modify solution/test references: `BackEnd/RinhaDasLendas.sln`, `BackEnd/tests/RinhaDasLendas.Tests/RinhaDasLendas.Tests.csproj`
+- Create fixture tests: `BackEnd/tests/RinhaDasLendas.Tests/Scripts/`
 - Modify with measured evidence: `specs/029-corrigir-sincronizacao-draft/quickstart.md`
 - Reconcile: `specs/029-corrigir-sincronizacao-draft/contracts/realtime-sync.openapi.yaml`
 - Reconcile: `specs/029-corrigir-sincronizacao-draft/contracts/realtime-events.md`
 - Reconcile: `specs/029-corrigir-sincronizacao-draft/contracts/ui-contracts.md`
 - Modify: `docs/superpowers/plans/2026-07-30-corrigir-sincronizacao-draft.md`
 
-**Interfaces:** No runtime interface; verifies exact contracts from Tasks 1-12.
+**Interfaces:** No runtime interface; verifies exact contracts from Tasks 1-12. The executable QA fixture is explicit, rejects non-disposable databases and is never referenced by the API.
 
 - [ ] **RED gate:** Run `docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet test /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/RinhaDasLendas.sln --configuration Release && docker.exe exec rinhadaslendas_devcontainer-app-1 dotnet build /workspaces/RinhaDasLendas/.worktrees/feature-024/BackEnd/RinhaDasLendas.sln --configuration Release && npm --prefix FrontEnd test && npm --prefix FrontEnd run lint:check && npm --prefix FrontEnd run build`.
 

@@ -204,6 +204,8 @@ Expected: Vitest passes, ESLint reports no errors, and Vue/TypeScript production
 
 ## 5. Multiclient Journey
 
+Para uma execução local reproduzível, crie um banco descartável com prefixo `rinha_feature029_browser_qa_`, aplique todas as migrations e execute explicitamente o projeto descrito em `BackEnd/scripts/qa/README.md`. A fixture recebe conexão, UUIDs e credenciais efêmeras somente pelo ambiente, recusa bancos não descartáveis ou já populados e não adiciona endpoint nem bypass à aplicação.
+
 1. Start API and frontend through the existing devcontainer/Vite workflow.
 2. Open one normal participant session and one Admin+ session on the same draft.
 3. Confirm/cancel/add/remove presence, close/reopen presence, select mode, define/draw captains, define order and start realtime.
@@ -258,6 +260,18 @@ Expected: candidate SQL selects only ID; every item has independent scope/comman
 - Full gates: backend `838/838`; frontend `614/614`; backend Release build with `0` warnings and `0` errors; ESLint clean; frontend production build successful.
 - Metrics expose only bounded `event` and `outcome` labels. Draft ID, state version, operation and failure type remain structured log fields and are absent from metric tags.
 - Migration verification: `11/11` migration tests passed. EF listed exactly `20260729124041_CorrigirNucleoCicloDraft` and `20260731012844_AddDraftMontagemSystemActor` after the stated baseline, generated the non-empty exact from/to script, and a disposable Feature 028 backup/restore returned Feature 028 as the exact maximum migration in source and restored databases.
+
+### Unit 13 browser and final gate evidence (2026-08-03)
+
+- Disposable database `rinha_feature029_browser_qa_unit13_e8de489` was migrated through `20260731012844_AddDraftMontagemSystemActor` and populated only by `BackEnd/scripts/qa/RinhaDasLendas.BrowserQaFixture`. Two isolated Chromium sessions authenticated as distinct SuperAdmin users linked to active players.
+- The real UI traversed presence cancellation/reconfirmation, manual close with two starters per team and one reserve, realtime mode, captain selection, randomized order, start, worker timeouts, authenticated picks, captain substitution by the reserve and automatic finalization. Persisted evidence contained `7` timeout choices, `2` authenticated picks and `1` substitution; `POST .../ordem-escolha` returned `200` at HEAD `e8de489`.
+- The actual one-second hosted worker processed expired turns. A safe disposable-only SQL expiry adjustment is documented in `BackEnd/scripts/qa/README.md`; no runtime endpoint or application bypass was added.
+- Finalized archive response ended at epoch `1785731754446`; the second session removed it at `1785731754441` (`-5 ms`, event observed before response completion). Finalized restore response ended at `1785731891716`; the second session restored it to the default list at `1785731891703` (`-13 ms`). Both satisfy the `<= 2000 ms` event bound.
+- API and Hub were stopped together. The replacement API logged `Now listening` at epoch `1785732321795`; both sessions completed the first recovered canonical GET at `1785732323292`, yielding `1497 ms` from backend availability to convergence, within `<= 5000 ms`.
+- A real authenticated stale layout PUT used base version `1` against persisted version `2` and returned `409` in `18 ms`. Dirty layout protected draft switch, route change and archive, and remote update exposed explicit continue/discard reconciliation.
+- Feature 022 semantics were preserved: archiving the active manual draft changed it to `Cancelada`; it appeared while archived with `includeArchived`; restore removed the archive condition while preserving `Cancelada`, so it legitimately left that result and remained hidden from the default list. Default-list `Restored` convergence used the `Finalizada` draft.
+- Chromium consoles contained outage diagnostics only; no access token, claims, payload body or credential-bearing Hub URL appeared. Screenshots: `/tmp/opencode/feature029-unit13-final-desktop-e8de489.png`, `/tmp/opencode/feature029-unit13-final-tablet-e8de489.png` and `/tmp/opencode/feature029-unit13-final-mobile-e8de489.png`.
+- Fresh final gates: backend `854/854`; frontend `628/628` in `41/41` files; migration `11/11`; backend Release build `0` warnings and `0` errors; ESLint clean; frontend production build successful with `2801` transformed modules and only the known chunk-size warning.
 
 ### Deployment and rollback policy
 
