@@ -1759,6 +1759,7 @@ public sealed class DraftMontagemBehaviorIntegrationTests
         public Task<DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryConcluirPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, messageId, agora, cancellationToken);
         public Task<DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken) => inner.TryRegistrarFalhaPublicacaoDiscordAsync(draftMontagemId, tipo, claimId, guildId, channelId, erroCodigo, agora, cancellationToken);
         public Task<IReadOnlyCollection<DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => inner.MarcarPublicacoesExpiradasParaReconciliacaoAsync(agora, cancellationToken);
+        public Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken) => inner.SaveTeamReorderingAsync(draftMontagemId, cancellationToken);
 
         public async Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {

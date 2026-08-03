@@ -26,6 +26,7 @@ public interface IDraftMontagemRepository
     Task<DraftMontagemVersionStamp?> TryConcluirPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string messageId, DateTimeOffset agora, CancellationToken cancellationToken);
     Task<DraftMontagemVersionStamp?> TryRegistrarFalhaPublicacaoDiscordAsync(Guid draftMontagemId, DraftMontagemPublicacaoDiscordTipo tipo, Guid claimId, string? guildId, string? channelId, string? erroCodigo, DateTimeOffset agora, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken);
+    Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken);
     Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

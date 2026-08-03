@@ -1174,6 +1174,8 @@ public sealed class SecurityHardeningTests
 
         public Task<IReadOnlyCollection<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp>> MarcarPublicacoesExpiradasParaReconciliacaoAsync(DateTimeOffset agora, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<RinhaDasLendas.Domain.Models.DraftMontagemVersionStamp>>([]);
 
+        public Task SaveTeamReorderingAsync(Guid draftMontagemId, CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<DraftMontagemSaveResultado> TrySaveChangesAsync(CancellationToken cancellationToken)
         {
             TrySaveCalls++;

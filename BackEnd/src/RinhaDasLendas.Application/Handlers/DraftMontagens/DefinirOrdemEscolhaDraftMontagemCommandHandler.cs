@@ -26,7 +26,7 @@ public sealed class DefinirOrdemEscolhaDraftMontagemCommandHandler(
 
         var modo = Enum.Parse<DraftMontagemOrdemEscolhaModo>(command.Request.Modo, true);
         montagem.DefinirOrdemEscolha(modo, command.Request.CapitaesIds);
-        await repository.SaveChangesAsync(cancellationToken);
+        await repository.SaveTeamReorderingAsync(command.Id, cancellationToken);
         await publisher.PublishAfterCommitAsync(command.Id);
         var updated = await repository.GetByIdAsync(command.Id, cancellationToken) ?? montagem;
         return DraftMontagemResponseDto.FromEntity(updated);

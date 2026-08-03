@@ -81,6 +81,8 @@ public sealed class DraftMontagemRealtimeMutationBehaviorMatrixTests
         scenario.Sequence.Should().BeEmpty();
         scenario.Repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         scenario.Repository.Verify(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        scenario.Repository.Verify(item => item.SaveTeamReorderingAsync(
+            It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         scenario.Publisher.Verify(
             item => item.PublishAfterCommitAsync(
                 It.IsAny<Guid>(),
@@ -560,6 +562,9 @@ public sealed class DraftMontagemRealtimeMutationBehaviorMatrixTests
             repository.Setup(item => item.TrySaveChangesAsync(It.IsAny<CancellationToken>()))
                 .Callback(() => sequence.Add("save"))
                 .ReturnsAsync(DraftMontagemSaveResultado.Persistido);
+            repository.Setup(item => item.SaveTeamReorderingAsync(draft.Id, It.IsAny<CancellationToken>()))
+                .Callback(() => sequence.Add("save"))
+                .Returns(Task.CompletedTask);
             var publisher = new Mock<IDraftMontagemRealtimePublisher>();
             publisher.Setup(item => item.PublishAfterCommitAsync(
                     draft.Id,
