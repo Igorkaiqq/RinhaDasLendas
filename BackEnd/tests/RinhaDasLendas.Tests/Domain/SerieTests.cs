@@ -3,6 +3,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
+using RinhaDasLendas.Domain.ValueObjects;
 using Xunit;
 
 namespace RinhaDasLendas.Tests.Domain;
@@ -163,6 +164,7 @@ public sealed class SerieTests
         var lados = serie.Lados.OrderBy(lado => lado.Ordem).ToArray();
         var primeira = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(1));
         var segunda = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(2));
+        RegistrarPicks(serie, primeira, 1, usuarioId, Agora.AddMinutes(2));
 
         serie.ConfirmarPartida(
             primeira.Id,
@@ -181,6 +183,77 @@ public sealed class SerieTests
         serie.Resultado.LadoVencedorId.Should().BeNull();
         serie.LadoVencedorId.Should().BeNull();
         serie.Estado.Should().Be(SerieEstado.EmAndamento);
+    }
+
+    [Fact]
+    public void Deve_exigir_dez_picks_validos_antes_de_confirmar_partida_padrao_sem_mutacao()
+    {
+        var usuarioId = Guid.NewGuid();
+        var serie = CriarSerie(SerieFormato.Md3);
+        serie.Iniciar(usuarioId, Agora);
+        var partida = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(1));
+        var antes = SerieSnapshot.Capturar(serie);
+
+        var act = () => serie.ConfirmarPartida(
+            partida.Id,
+            serie.Lados.Single(lado => lado.Ordem == 1).Id,
+            MotivoTerminoPartida.Normal,
+            usuarioId,
+            Agora.AddMinutes(2));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        SerieSnapshot.Capturar(serie).Should().BeEquivalentTo(antes, options => options.WithStrictOrdering());
+    }
+
+    [Theory]
+    [InlineData("2026-08-10T03:00:00+00:00", true)]
+    [InlineData("2026-08-12T02:59:59+00:00", true)]
+    [InlineData("2026-08-10T02:59:59+00:00", false)]
+    [InlineData("2026-08-12T03:00:00+00:00", false)]
+    public void Deve_criar_diaria_por_factory_publica_somente_dentro_do_periodo_local_da_season(
+        string instante,
+        bool deveAceitar)
+    {
+        var usuarioId = Guid.NewGuid();
+        var season = new Season(
+            "Season",
+            2026,
+            1,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 12),
+            usuarioId,
+            Agora);
+        var agendadaPara = DateTimeOffset.Parse(instante, System.Globalization.CultureInfo.InvariantCulture);
+        var dataLocal = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTime(agendadaPara, TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo")).DateTime);
+        var lados = CriarInputsDosLados();
+
+        var act = () => Serie.CriarDiaria(
+            season,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            SerieFormato.Md3,
+            ModoDraft.Padrao,
+            agendadaPara,
+            dataLocal,
+            usuarioId,
+            Agora,
+            lados);
+
+        if (deveAceitar)
+        {
+            var serie = act.Should().NotThrow().Subject;
+            serie.SeasonId.Should().Be(season.Id);
+            serie.DataLocal.Should().Be(dataLocal);
+            serie.Lados.Should().HaveCount(2);
+            serie.Lados.SelectMany(lado => lado.ParticipantesEsperados).Should().HaveCount(4);
+        }
+        else
+        {
+            act.Should().Throw<DomainException>().WithMessage(MessageCodes.DailySeriesDateInvalid);
+        }
     }
 
     [Theory]
@@ -220,6 +293,7 @@ public sealed class SerieTests
         for (var indice = 0; indice < vencedoresPorOrdem.Length; indice++)
         {
             var partida = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(indice * 2 + 1));
+            RegistrarPicks(serie, partida, indice * 10 + 1, usuarioId, Agora.AddMinutes(indice * 2 + 1));
             serie.ConfirmarPartida(
                 partida.Id,
                 lados[vencedoresPorOrdem[indice] - 1].Id,
@@ -253,6 +327,7 @@ public sealed class SerieTests
         for (var indice = 0; indice < 2; indice++)
         {
             var partida = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(indice * 2 + 1));
+            RegistrarPicks(serie, partida, indice * 10 + 1, usuarioId, Agora.AddMinutes(indice * 2 + 1));
             serie.ConfirmarPartida(
                 partida.Id,
                 segundoLadoId,
@@ -278,6 +353,8 @@ public sealed class SerieTests
         var primeira = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(1));
         var segunda = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(2));
         var excedente = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(3));
+        RegistrarPicks(serie, primeira, 1, usuarioId, Agora.AddMinutes(3));
+        RegistrarPicks(serie, segunda, 11, usuarioId, Agora.AddMinutes(3));
         serie.ConfirmarPartida(primeira.Id, vencedorId, MotivoTerminoPartida.Normal, usuarioId, Agora.AddMinutes(4));
         serie.ConfirmarPartida(segunda.Id, vencedorId, MotivoTerminoPartida.Normal, usuarioId, Agora.AddMinutes(5));
         var antes = SerieSnapshot.Capturar(serie);
@@ -407,6 +484,7 @@ public sealed class SerieTests
         for (var indice = 1; indice <= 2; indice++)
         {
             var partida = serie.AdicionarPartida(usuarioId, Agora.AddMinutes(indice * 2 - 1));
+            RegistrarPicks(serie, partida, (indice - 1) * 10 + 1, usuarioId, Agora.AddMinutes(indice * 2 - 1));
             serie.ConfirmarPartida(
                 partida.Id,
                 vencedorId,
@@ -423,6 +501,46 @@ public sealed class SerieTests
         CriarLado(1, "Aurora", "AUR"),
         CriarLado(2, "Eclipse", "ECL"),
     ];
+
+    private static IReadOnlyList<LadoSerieInput> CriarInputsDosLados() =>
+    [
+        CriarInputDoLado(1, "Aurora", "AUR"),
+        CriarInputDoLado(2, "Eclipse", "ECL"),
+    ];
+
+    private static LadoSerieInput CriarInputDoLado(int ordem, string nome, string tag)
+    {
+        var capitaoId = Guid.NewGuid();
+        return new LadoSerieInput(
+            ordem,
+            LadoSerieTipo.Temporario,
+            Guid.NewGuid(),
+            nome,
+            tag,
+            capitaoId,
+            $"Capitao {nome}",
+            [
+                new ParticipanteEsperadoSerieInput(capitaoId, $"{nome} 1", 1),
+                new ParticipanteEsperadoSerieInput(Guid.NewGuid(), $"{nome} 2", 2),
+            ]);
+    }
+
+    private static void RegistrarPicks(
+        Serie serie,
+        Partida partida,
+        int primeiroChampionId,
+        Guid usuarioId,
+        DateTimeOffset registradoEm)
+    {
+        var lados = serie.Lados.OrderBy(lado => lado.Ordem).ToArray();
+        var picks = Enumerable.Range(0, 10)
+            .Select(indice => (
+                lados[indice / 5].Id,
+                primeiroChampionId + indice,
+                indice % 5 + 1))
+            .ToArray();
+        serie.RegistrarPicks(partida.Id, picks, usuarioId, registradoEm);
+    }
 
     private static LadoSerie CriarLado(int ordem, string nome, string tag)
     {

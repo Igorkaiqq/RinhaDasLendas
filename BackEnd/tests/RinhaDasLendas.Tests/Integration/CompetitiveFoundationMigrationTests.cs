@@ -645,7 +645,7 @@ public sealed partial class CompetitiveFoundationMigrationTests
             new NpgsqlParameter("series_id", foundation.FirstSeriesId));
         Func<Task> matchWinner = () => ExecuteAsync(
             database,
-            "UPDATE partidas SET lado_vencedor_id = @side_id WHERE id = @match_id",
+            "UPDATE partidas SET estado = 'Confirmada', lado_vencedor_id = @side_id, motivo_termino = 'Normal', confirmada_em = now() WHERE id = @match_id",
             new NpgsqlParameter("side_id", secondSeriesSideId),
             new NpgsqlParameter("match_id", matchId));
 
@@ -1007,6 +1007,8 @@ public sealed partial class CompetitiveFoundationMigrationTests
             "ck_operacoes_idempotentes_recurso_tipo_valido:c:CHECK (recurso_tipo::text = ANY (ARRAY['CalendarioCompetitivo'::character varying, 'Season'::character varying, 'Competicao'::character varying, 'Rodada'::character varying, 'VersaoRegras'::character varying, 'EventoCompetitivo'::character varying, 'Serie'::character varying, 'Partida'::character varying]::text[]))",
             "ck_participantes_esperados_series_ordem_positiva:c:CHECK (ordem > 0)",
             "ck_partidas_decisao_picks_remake_valida:c:CHECK (decisao_picks_remake IS NULL OR (decisao_picks_remake::text = ANY (ARRAY['PreservarPicks'::character varying, 'DesconsiderarPicks'::character varying]::text[])))",
+            "ck_partidas_estado_remake_coerente:c:CHECK (estado::text = 'Remake'::text AND decisao_picks_remake IS NOT NULL OR estado::text <> 'Remake'::text AND decisao_picks_remake IS NULL)",
+            "ck_partidas_estado_resultado_coerente:c:CHECK (estado::text = 'Confirmada'::text AND lado_vencedor_id IS NOT NULL AND motivo_termino IS NOT NULL AND confirmada_em IS NOT NULL OR estado::text <> 'Confirmada'::text AND lado_vencedor_id IS NULL AND motivo_termino IS NULL AND confirmada_em IS NULL)",
             "ck_partidas_estado_valido:c:CHECK (estado::text = ANY (ARRAY['Rascunho'::character varying, 'Confirmada'::character varying, 'Remake'::character varying, 'Anulada'::character varying]::text[]))",
             "ck_partidas_motivo_termino_valido:c:CHECK (motivo_termino IS NULL OR (motivo_termino::text = ANY (ARRAY['Normal'::character varying, 'Surrender'::character varying]::text[])))",
             "ck_partidas_ordem_positiva:c:CHECK (ordem > 0)",

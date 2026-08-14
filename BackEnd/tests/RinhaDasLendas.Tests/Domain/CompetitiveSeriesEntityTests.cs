@@ -3,6 +3,7 @@ using RinhaDasLendas.Domain.Constants;
 using RinhaDasLendas.Domain.Entities;
 using RinhaDasLendas.Domain.Enums;
 using RinhaDasLendas.Domain.Exceptions;
+using RinhaDasLendas.Domain.ValueObjects;
 using System.Reflection;
 
 namespace RinhaDasLendas.Tests.Domain;
@@ -194,6 +195,24 @@ public sealed class CompetitiveSeriesEntityTests
 
         constructor.Should().NotBeNull();
         constructor!.IsPrivate.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Deve_expor_factory_publica_com_inputs_immutaveis_para_criacao_de_diaria()
+    {
+        var factory = typeof(Serie).GetMethod(
+            nameof(Serie.CriarDiaria),
+            BindingFlags.Public | BindingFlags.Static);
+
+        factory.Should().NotBeNull();
+        typeof(Serie).GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+        typeof(LadoSerieInput).IsPublic.Should().BeTrue();
+        typeof(ParticipanteEsperadoSerieInput).IsPublic.Should().BeTrue();
+        typeof(LadoSerieInput).GetProperties().Should().OnlyContain(property => property.SetMethod == null);
+        typeof(ParticipanteEsperadoSerieInput).GetProperties()
+            .Should().OnlyContain(property => property.SetMethod == null);
+        factory!.GetParameters().Should().Contain(parameter =>
+            parameter.ParameterType == typeof(IReadOnlyCollection<LadoSerieInput>));
     }
 
     [Fact]

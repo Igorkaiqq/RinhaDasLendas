@@ -120,7 +120,6 @@ export interface SeriesFixture {
   tipo: SeriesType
   formato: SeriesFormat
   modoDraft: DraftMode
-  fearlessHabilitado: boolean
   estado: SeriesState
   agendadaPara: string
   lados: SideFixture[]
@@ -377,7 +376,6 @@ export function makeSeries(
     tipo: 'ConfrontoOficial',
     formato: 'Md3',
     modoDraft: 'Padrao',
-    fearlessHabilitado: false,
     estado: 'Agendada',
     agendadaPara: '2026-06-01T22:00:00Z',
     lados: sides,

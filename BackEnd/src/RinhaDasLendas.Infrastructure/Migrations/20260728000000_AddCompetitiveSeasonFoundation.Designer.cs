@@ -1697,6 +1697,10 @@ namespace RinhaDasLendas.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_partidas_decisao_picks_remake_valida", "decisao_picks_remake IS NULL OR decisao_picks_remake IN ('PreservarPicks', 'DesconsiderarPicks')");
 
+                            t.HasCheckConstraint("ck_partidas_estado_remake_coerente", "(estado = 'Remake' AND decisao_picks_remake IS NOT NULL) OR (estado <> 'Remake' AND decisao_picks_remake IS NULL)");
+
+                            t.HasCheckConstraint("ck_partidas_estado_resultado_coerente", "(estado = 'Confirmada' AND lado_vencedor_id IS NOT NULL AND motivo_termino IS NOT NULL AND confirmada_em IS NOT NULL) OR (estado <> 'Confirmada' AND lado_vencedor_id IS NULL AND motivo_termino IS NULL AND confirmada_em IS NULL)");
+
                             t.HasCheckConstraint("ck_partidas_estado_valido", "estado IN ('Rascunho', 'Confirmada', 'Remake', 'Anulada')");
 
                             t.HasCheckConstraint("ck_partidas_motivo_termino_valido", "motivo_termino IS NULL OR motivo_termino IN ('Normal', 'Surrender')");

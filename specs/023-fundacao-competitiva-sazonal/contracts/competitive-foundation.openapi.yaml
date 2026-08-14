@@ -51,6 +51,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
             Location:
               $ref: '#/components/headers/Location'
           content:
@@ -102,6 +104,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -132,6 +136,8 @@ paths:
               description: Nova versão do calendário
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -162,6 +168,8 @@ paths:
               description: Nova versão do calendário
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -215,6 +223,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
             Location:
               $ref: '#/components/headers/Location'
           content:
@@ -252,6 +262,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
             Location:
               $ref: '#/components/headers/Location'
           content:
@@ -325,6 +337,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -376,6 +390,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
             Location:
               $ref: '#/components/headers/Location'
           content:
@@ -423,6 +439,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -460,6 +478,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
             Location:
               $ref: '#/components/headers/Location'
           content:
@@ -495,6 +515,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -567,6 +589,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -611,6 +635,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -640,6 +666,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -669,6 +697,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -711,6 +741,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -797,6 +829,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -832,6 +866,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -867,6 +903,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -902,6 +940,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -937,6 +977,8 @@ paths:
               description: Nova versão da Série
               schema:
                 type: string
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
           content:
             application/json:
               schema:
@@ -993,6 +1035,10 @@ components:
       description: Versão fraca do recurso, por exemplo W/"7"
       schema:
         type: string
+    IdempotencyReplayed:
+      description: Indica replay idempotente da resposta original quando true
+      schema:
+        type: boolean
     Location:
       description: URI canônica do recurso criado
       schema:

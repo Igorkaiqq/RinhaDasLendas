@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n, setLocale } from '@/i18n'
 import { api } from '@/services/api'
+import { setPermissions } from '@/services/authState'
 import * as matchService from '@/services/matches'
+import * as seasonService from '@/services/seasons'
 import * as seriesService from '@/services/series'
 import {
   makeMatch,
@@ -26,6 +28,10 @@ const competitiveComponentSources = import.meta.glob(
   ['./MatchOperationPanel.vue'],
   { eager: true, import: 'default', query: '?raw' },
 ) as Record<string, string>
+const operationViewSources = import.meta.glob(
+  ['../../views/MatchDetailView.vue', '../../views/SeriesDetailView.vue'],
+  { eager: true, import: 'default', query: '?raw' },
+) as Record<string, string>
 
 vi.mock('@/services/api', () => ({
   api: {
@@ -40,6 +46,12 @@ const sideOneId = '00000000-0000-4000-8000-000000000008'
 const sideTwoId = '00000000-0000-4000-8000-000000000009'
 const seriesId = '00000000-0000-4000-8000-000000000006'
 const matchId = '00000000-0000-4000-8000-000000000007'
+const mutationInvalidates = [
+  'series-detail',
+  'series-scoreboard',
+  'series-fearless',
+  'match-detail',
+] as const
 const correctedPicksPayload = {
   lados: [
     {
@@ -112,7 +124,6 @@ function operationalSeries(overrides: Partial<SeriesDto> = {}): SeriesDto {
     tipo: 'DiariaTemporaria',
     formato: 'Md3',
     modoDraft: 'Fearless',
-    fearlessHabilitado: true,
     estado: 'EmAndamento',
     placar: [1, 0],
     partidas: [firstMatch],
@@ -150,7 +161,12 @@ function mutationResult(series: SeriesDto, match: MatchDto) {
 }
 
 function observed<T>(data: T, etag: string | null) {
-  return { data, etag }
+  return {
+    data,
+    etag,
+    idempotencyReplayed: false,
+    invalidates: mutationInvalidates,
+  }
 }
 
 function deferred<T>() {
@@ -360,7 +376,7 @@ function staleConflictFixture(operation: MatchOperation) {
   }
   if (operation === 'remake') {
     return {
-      original: confirmed,
+      original: { ...confirmed, acoesPermitidas: ['remake'] },
       refreshed: matchDto({
         estado: 'Remake',
         picks: confirmed.picks,
@@ -382,7 +398,10 @@ function staleConflictFixture(operation: MatchOperation) {
     }
   }
   return {
-    original: confirmed,
+    original:
+      operation === 'result'
+        ? { ...confirmed, acoesPermitidas: ['confirm'] }
+        : confirmed,
     refreshed: completedMatch({
       ladoVencedorId: sideTwoId,
       motivoTermino: 'Surrender',
@@ -395,6 +414,7 @@ function staleConflictFixture(operation: MatchOperation) {
 
 afterEach(() => {
   setLocale('pt')
+  setPermissions(null)
   vi.restoreAllMocks()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
@@ -428,15 +448,47 @@ describe('T047 Series and Match service contracts', () => {
     await expect(seriesService.getSeriesResult('series/id')).resolves.toEqual(
       seriesResult(series),
     )
-    expect(api.get).toHaveBeenNthCalledWith(1, '/api/v1/series', {
-      params: { page: 2, pageSize: 10 },
-    })
+    const params = vi.mocked(api.get).mock.calls[0]?.[1]
+      ?.params as URLSearchParams
+    expect([...params]).toEqual([
+      ['page', '2'],
+      ['pageSize', '10'],
+    ])
+    expect(api.get).toHaveBeenNthCalledWith(1, '/api/v1/series', { params })
     expect(api.get).toHaveBeenNthCalledWith(2, '/api/v1/series/series%2Fid')
     expect(api.get).toHaveBeenNthCalledWith(
       3,
       '/api/v1/series/series%2Fid/resultado',
     )
     expect(series).not.toHaveProperty('etag')
+  })
+
+  it('serializes current, selected and all Season scopes without bracketed query keys', async () => {
+    const firstSeasonId = '00000000-0000-4000-8000-000000000001'
+    const secondSeasonId = '00000000-0000-4000-8000-000000000002'
+    vi.mocked(api.get).mockResolvedValue({ data: seriesPage([]), headers: {} })
+
+    await seriesService.listSeries()
+    await seriesService.listSeries({
+      scope: {
+        mode: 'selected',
+        seasonIds: [firstSeasonId, secondSeasonId],
+      },
+    })
+    await seriesService.listSeries({ scope: { mode: 'all' } })
+
+    expect([
+      ...(vi.mocked(api.get).mock.calls[0]?.[1]?.params as URLSearchParams),
+    ]).toEqual([])
+    expect([
+      ...(vi.mocked(api.get).mock.calls[1]?.[1]?.params as URLSearchParams),
+    ]).toEqual([
+      ['temporadaIds', firstSeasonId],
+      ['temporadaIds', secondSeasonId],
+    ])
+    expect([
+      ...(vi.mocked(api.get).mock.calls[2]?.[1]?.params as URLSearchParams),
+    ]).toEqual([['todas', 'true']])
   })
 
   it('gets a Match from its encoded route and observes only the containing Series ETag', async () => {
@@ -473,12 +525,17 @@ describe('T047 Series and Match service contracts', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(generatedKey)
     vi.mocked(api.post).mockResolvedValue({
       data: created,
-      headers: { etag: '"series-created:opaque"' },
+      headers: {
+        etag: '"series-created:opaque"',
+        'idempotency-replayed': 'true',
+      },
     })
 
     await expect(seriesService.createSeries(payload)).resolves.toEqual({
       data: created,
       etag: '"series-created:opaque"',
+      idempotencyReplayed: true,
+      invalidates: mutationInvalidates,
     })
     expect(api.post).toHaveBeenCalledWith('/api/v1/series', payload, {
       headers: { 'Idempotency-Key': generatedKey },
@@ -559,12 +616,17 @@ describe('T047 Series and Match service contracts', () => {
     async ({ route, payload, responseData, invoke }) => {
       vi.mocked(api.post).mockResolvedValue({
         data: responseData,
-        headers: { etag: '"series/mutated:opaque"' },
+        headers: {
+          etag: '"series/mutated:opaque"',
+          'idempotency-replayed': 'true',
+        },
       })
 
       await expect(invoke()).resolves.toEqual({
         data: responseData,
         etag: '"series/mutated:opaque"',
+        idempotencyReplayed: true,
+        invalidates: mutationInvalidates,
       })
       expect(api.post).toHaveBeenCalledWith(route, payload, {
         headers: {
@@ -698,11 +760,16 @@ describe('T047 Series and Match service contracts', () => {
       const result = mutationResult(operationalSeries(), completedMatch())
       vi.mocked(api.post).mockResolvedValue({
         data: result,
-        headers: { etag: '"series/next:opaque"' },
+        headers: {
+          etag: '"series/next:opaque"',
+          'idempotency-replayed': 'true',
+        },
       })
       await expect(invoke()).resolves.toEqual({
         data: result,
         etag: '"series/next:opaque"',
+        idempotencyReplayed: true,
+        invalidates: mutationInvalidates,
       })
       expect(api.post).toHaveBeenCalledWith(
         `/api/v1/partidas/match%2Fid/${suffix}`,
@@ -875,7 +942,7 @@ describe('Series list, detail and scoreboard', () => {
       )
       for (const text of [
         'Série diária',
-        'MD3',
+        'Melhor de 3',
         'Fearless',
         'side-fixture-1',
         'side-fixture-2',
@@ -1019,6 +1086,7 @@ describe('Series list, detail and scoreboard', () => {
         estado: 'Agendada',
         acoesPermitidas: ['start'],
       }),
+      after: operationalSeries({ estado: 'EmAndamento' }),
       install: () => {
         const spy = vi
           .spyOn(seriesService, 'startSeries')
@@ -1044,6 +1112,10 @@ describe('Series list, detail and scoreboard', () => {
     {
       name: 'cancel',
       series: operationalSeries({ acoesPermitidas: ['cancel'] }),
+      after: operationalSeries({
+        estado: 'Cancelada',
+        acoesPermitidas: [],
+      }),
       install: () => {
         const spy = vi.spyOn(seriesService, 'cancelSeries').mockResolvedValue(
           observed(
@@ -1081,6 +1153,11 @@ describe('Series list, detail and scoreboard', () => {
         placar: [2, 0],
         acoesPermitidas: ['annul'],
       }),
+      after: operationalSeries({
+        estado: 'Anulada',
+        placar: [0, 0],
+        acoesPermitidas: [],
+      }),
       install: () => {
         const spy = vi.spyOn(seriesService, 'annulSeries').mockResolvedValue(
           observed(
@@ -1117,6 +1194,10 @@ describe('Series list, detail and scoreboard', () => {
     {
       name: 'next match',
       series: operationalSeries({ acoesPermitidas: ['create-match'] }),
+      after: operationalSeries({
+        partidas: [matchDto(), matchDto({ id: 'match-two', ordem: 2 })],
+        acoesPermitidas: ['create-match'],
+      }),
       install: () => {
         const spy = vi
           .spyOn(seriesService, 'createMatch')
@@ -1139,10 +1220,10 @@ describe('Series list, detail and scoreboard', () => {
 
   it.each(seriesUiCases)(
     'performs allowed Series $name behavior with the observed ETag',
-    async ({ series, install, act, assertState }) => {
-      vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
-        observed(series, '"series-ui-etag"'),
-      )
+    async ({ series, after, install, act, assertState }) => {
+      vi.spyOn(seriesService, 'getSeries')
+        .mockResolvedValueOnce(observed(series, '"series-ui-etag"'))
+        .mockResolvedValue(observed(after, '"series-ui-reloaded"'))
       vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
         seriesResult(series),
       )
@@ -1246,12 +1327,12 @@ describe('Match operation forms and correction effects', () => {
       ),
       revisaoNecessaria: false,
     })
-    vi.spyOn(matchService, 'getMatch').mockResolvedValue(
-      observed(first, '"before"'),
-    )
-    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
-      observed(before, '"before"'),
-    )
+    vi.spyOn(matchService, 'getMatch')
+      .mockResolvedValueOnce(observed(first, '"before"'))
+      .mockResolvedValue(observed(corrected, '"after-correction"'))
+    vi.spyOn(seriesService, 'getSeries')
+      .mockResolvedValueOnce(observed(before, '"before"'))
+      .mockResolvedValue(observed(after, '"after-correction"'))
     vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
       seriesResult(before),
     )
@@ -1647,6 +1728,9 @@ describe('capabilities and recoverable API states', () => {
     vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
       observed(series, '"current"'),
     )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
     vi.spyOn(matchService, 'correctMatch').mockRejectedValue(validationError())
     const wrapper = mount(MatchDetailView, {
       attachTo: document.body,
@@ -1730,6 +1814,7 @@ describe('dialog, keyboard, busy and reduced-motion contracts', () => {
     const opener = getButton(wrapper, 'Registrar remake')
     ;(opener.element as HTMLElement).focus()
     await opener.trigger('click')
+    await flushPromises()
     const dialog = wrapper.get('[role="alertdialog"]')
     const labelledBy = dialog.attributes('aria-labelledby')
     const describedBy = dialog.attributes('aria-describedby')
@@ -1963,5 +2048,556 @@ describe('PT/EN and structural i18n contract', () => {
         'competitive.series.match.conflict.reconfirm',
       ]),
     )
+  })
+})
+
+describe('T048 review findings', () => {
+  it('leaves failed conflict reconciliation retryable and builds differences only after a fresh reload', async () => {
+    const original = completedMatch({ acoesPermitidas: ['remake'] })
+    const originalSeries = operationalSeries({ partidas: [original] })
+    const refreshed = matchDto({
+      estado: 'Remake',
+      decisaoPicksRemake: 'DesconsiderarPicks',
+      acoesPermitidas: ['correct'],
+    })
+    const refreshedSeries = operationalSeries({ partidas: [refreshed] })
+    vi.spyOn(matchService, 'getMatch')
+      .mockResolvedValueOnce(observed(original, '"current"'))
+      .mockRejectedValueOnce(new Error('reconciliation unavailable'))
+      .mockResolvedValue(observed(refreshed, '"fresh"'))
+    vi.spyOn(seriesService, 'getSeries')
+      .mockResolvedValueOnce(observed(originalSeries, '"current"'))
+      .mockResolvedValue(observed(refreshedSeries, '"fresh"'))
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(refreshedSeries),
+    )
+    vi.spyOn(matchService, 'registerMatchRemake').mockRejectedValue(
+      staleError(),
+    )
+
+    const wrapper = mount(MatchDetailView, {
+      props: { matchId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await openAndSubmit(wrapper, 'remake', 'Entrada preservada')
+    await flushPromises()
+
+    expect(wrapper.get('main').attributes('aria-busy')).toBe('false')
+    expect(wrapper.get('[data-reconciliation-error]').text()).toContain(
+      'Não foi possível sincronizar os dados competitivos.',
+    )
+    expect(wrapper.find('[data-version-conflict]').exists()).toBe(false)
+
+    await getButton(wrapper, 'Tentar sincronizar novamente').trigger('click')
+    await flushPromises()
+    expect(
+      wrapper.get('[data-version-conflict] [data-after]').text(),
+    ).toContain('Desconsiderar picks')
+  })
+
+  it.each([
+    ['remake', 'remakeReason'],
+    ['annul', 'annulReason'],
+    ['correction', 'correctionReason'],
+  ] as const)(
+    'maps Justificativa validation to the active %s field',
+    async (operation, fieldName) => {
+      const match = completedMatch({
+        acoesPermitidas: [operation === 'correction' ? 'correct' : operation],
+      })
+      const series = operationalSeries({ partidas: [match] })
+      vi.spyOn(matchService, 'getMatch').mockResolvedValue(
+        observed(match, '"current"'),
+      )
+      vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+        observed(series, '"current"'),
+      )
+      vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+        seriesResult(series),
+      )
+      const error = new matchService.MatchServiceError(
+        400,
+        'ME031',
+        [],
+        [
+          {
+            field: 'Justificativa',
+            messageCode: 'MV127',
+            message: 'Justificativa estruturada',
+          },
+        ],
+      )
+      if (operation === 'remake')
+        vi.spyOn(matchService, 'registerMatchRemake').mockRejectedValue(error)
+      else if (operation === 'annul')
+        vi.spyOn(matchService, 'annulMatch').mockRejectedValue(error)
+      else vi.spyOn(matchService, 'correctMatch').mockRejectedValue(error)
+
+      const wrapper = mount(MatchDetailView, {
+        attachTo: document.body,
+        props: { matchId },
+        global: globalMountOptions(),
+      })
+      await flushPromises()
+      await openAndSubmit(wrapper, operation, 'Entrada preservada')
+      await flushPromises()
+      const field = wrapper.get(`textarea[name="${fieldName}"]`)
+      expect(field.attributes('aria-invalid')).toBe('true')
+      expect(document.activeElement).toBe(field.element)
+      expect(
+        field.element.parentElement?.nextElementSibling?.textContent,
+      ).toContain('Justificativa estruturada')
+    },
+  )
+
+  it('renders captain snapshot identity and a localized fallback without UUIDs', async () => {
+    const series = operationalSeries()
+    series.lados[0] = {
+      ...series.lados[0]!,
+      capitaoJogadorId: sideOneId,
+      participantes: [
+        {
+          jogadorId: sideOneId,
+          nomeExibicao: 'Capitã Ahri',
+          tag: 'MID',
+        },
+      ],
+    } as (typeof series.lados)[number] & {
+      participantes: Array<{
+        jogadorId: string
+        nomeExibicao: string
+        tag?: string | null
+      }>
+    }
+    series.lados[1] = {
+      ...series.lados[1]!,
+      capitaoJogadorId: sideTwoId,
+    }
+    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+      observed(series, '"captains"'),
+    )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+    const wrapper = mount(SeriesDetailView, {
+      props: { seriesId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Capitã Ahri · MID')
+    expect(wrapper.text()).toContain('Capitão não identificado')
+    expect(wrapper.text()).not.toContain(sideOneId)
+    expect(wrapper.text()).not.toContain(sideTwoId)
+  })
+
+  it('uses numeric input intent for correction champions', async () => {
+    const match = completedMatch({ acoesPermitidas: ['correct'] })
+    const wrapper = mount(MatchOperationPanel, {
+      props: {
+        match,
+        series: operationalSeries({ partidas: [match] }),
+        busy: false,
+      },
+      global: globalMountOptions(),
+    })
+    await getButton(wrapper, 'Corrigir partida').trigger('click')
+    for (const input of wrapper.findAll('input[data-correction-pick]'))
+      expect(input.attributes('inputmode')).toBe('numeric')
+  })
+
+  it('contains overscroll in every scrollable operation dialog', () => {
+    const sources = [
+      ...Object.values(competitiveComponentSources),
+      ...Object.values(operationViewSources),
+    ]
+    expect(sources).toHaveLength(3)
+    for (const source of sources) {
+      expect(source).toContain('overflow: auto')
+      expect(source).toContain('overscroll-behavior: contain')
+    }
+  })
+
+  it('never synthesizes confirm or remake actions from correct', async () => {
+    const confirmed = completedMatch({ acoesPermitidas: ['correct'] })
+    const series = operationalSeries({ partidas: [confirmed] })
+    vi.spyOn(matchService, 'getMatch').mockResolvedValue(
+      observed(confirmed, '"authoritative"'),
+    )
+    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+      observed(series, '"authoritative"'),
+    )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+
+    const wrapper = mount(MatchDetailView, {
+      props: { matchId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+
+    expect(getButton(wrapper, 'Corrigir partida').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Confirmar resultado')
+    expect(wrapper.text()).not.toContain('Registrar remake')
+  })
+
+  it('resets annul-Series confirmation whenever a dialog closes', async () => {
+    const match = completedMatch({ acoesPermitidas: ['annul'] })
+    const wrapper = mount(MatchOperationPanel, {
+      attachTo: document.body,
+      props: {
+        match,
+        series: operationalSeries({
+          estado: 'Concluida',
+          placar: [2, 0],
+          partidas: [match, completedMatch({ id: 'match-two', ordem: 2 })],
+        }),
+        busy: false,
+      },
+      global: globalMountOptions(),
+    })
+
+    await getButton(wrapper, 'Anular partida').trigger('click')
+    await wrapper.get('input[name="annulSeries"]').setValue(true)
+    await getButton(wrapper, 'Cancelar').trigger('click')
+    await getButton(wrapper, 'Anular partida').trigger('click')
+    await wrapper.get('textarea[name="annulReason"]').setValue('Revisão')
+    await getButton(wrapper, 'Confirmar anulação').trigger('click')
+
+    expect(wrapper.emitted('annul')?.[0]?.[0]).toMatchObject({
+      anularSerieSeInconclusiva: false,
+    })
+  })
+
+  it('requires visible before/after confirmation when correction annuls the Series', async () => {
+    const first = completedMatch({ acoesPermitidas: ['correct'] })
+    const second = completedMatch({ id: 'match-two', ordem: 2 })
+    const wrapper = mount(MatchOperationPanel, {
+      attachTo: document.body,
+      props: {
+        match: second,
+        series: operationalSeries({
+          estado: 'Concluida',
+          placar: [2, 0],
+          partidas: [first, second],
+        }),
+        busy: false,
+      },
+      global: globalMountOptions(),
+    })
+
+    await getButton(wrapper, 'Corrigir partida').trigger('click')
+    await wrapper
+      .get('input[name="correctedWinner"][value="' + sideTwoId + '"]')
+      .setValue(true)
+    await wrapper
+      .get('textarea[name="correctionReason"]')
+      .setValue('Resultado revisto')
+    expect(wrapper.get('[data-correction-series-impact]').text()).toContain(
+      '2 — 0',
+    )
+    expect(wrapper.get('[data-correction-series-impact]').text()).toContain(
+      '1 — 1',
+    )
+    await getButton(wrapper, 'Confirmar correção').trigger('click')
+    expect(wrapper.emitted('correct')).toBeUndefined()
+    expect(wrapper.get('#correction-annul-series-error').text()).toBeTruthy()
+
+    await wrapper.get('input[name="correctionAnnulSeries"]').setValue(true)
+    await getButton(wrapper, 'Confirmar correção').trigger('click')
+    expect(wrapper.emitted('correct')?.[0]?.[0]).toEqual({
+      justificativa: 'Resultado revisto',
+      ladoVencedorId: sideTwoId,
+      motivoTermino: 'Normal',
+      anularSerieSeInconclusiva: true,
+    })
+  })
+
+  it('focuses and associates winner and remake validation errors', async () => {
+    const match = matchDto({ acoesPermitidas: ['confirm', 'remake'] })
+    const wrapper = mount(MatchOperationPanel, {
+      attachTo: document.body,
+      props: { match, series: operationalSeries(), busy: false },
+      global: globalMountOptions(),
+    })
+
+    await getButton(wrapper, 'Confirmar resultado').trigger('click')
+    const winner = wrapper.get('input[name="winner"]')
+    expect(winner.attributes('aria-errormessage')).toBe('winner-error')
+    expect(document.activeElement).toBe(winner.element)
+
+    await getButton(wrapper, 'Registrar remake').trigger('click')
+    await wrapper.get('input[name="remakePickDecision"]').setValue(true)
+    await getButton(wrapper, 'Confirmar remake').trigger('click')
+    const reason = wrapper.get('textarea[name="remakeReason"]')
+    expect(reason.attributes('aria-errormessage')).toBe('remake-reason-error')
+    expect(document.activeElement).toBe(reason.element)
+  })
+
+  it('uses invalidations as an atomic reload and never duplicates a replayed Match', async () => {
+    const existing = matchDto()
+    const before = operationalSeries({ partidas: [existing] })
+    const after = operationalSeries({
+      partidas: [existing],
+      acoesPermitidas: ['cancel'],
+    })
+    vi.spyOn(seriesService, 'getSeries')
+      .mockResolvedValueOnce(observed(before, '"before"'))
+      .mockResolvedValueOnce(observed(after, '"after"'))
+    vi.spyOn(seriesService, 'getSeriesResult')
+      .mockResolvedValueOnce(seriesResult(before))
+      .mockResolvedValueOnce(seriesResult(after))
+    vi.spyOn(seriesService, 'createMatch').mockResolvedValue({
+      ...observed(existing, '"mutation"'),
+      idempotencyReplayed: true,
+    })
+
+    const wrapper = mount(SeriesDetailView, {
+      props: { seriesId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await getButton(wrapper, 'Criar próxima partida').trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper.findAll('ol[aria-label="Partidas da série"] li'),
+    ).toHaveLength(1)
+    expect(seriesService.getSeries).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('Criar próxima partida')
+  })
+
+  it('shows Series conflict differences and reconfirms createMatch only explicitly', async () => {
+    const before = operationalSeries({
+      partidas: [],
+      acoesPermitidas: ['create-match'],
+    })
+    const concurrent = operationalSeries({
+      partidas: [matchDto()],
+      acoesPermitidas: ['create-match'],
+    })
+    vi.spyOn(seriesService, 'getSeries')
+      .mockResolvedValueOnce(observed(before, '"before"'))
+      .mockResolvedValue(observed(concurrent, '"fresh"'))
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(concurrent),
+    )
+    const create = vi
+      .spyOn(seriesService, 'createMatch')
+      .mockRejectedValueOnce(new seriesService.SeriesServiceError(409, 'MV110'))
+      .mockResolvedValue(observed(matchDto({ ordem: 2 }), '"mutation"'))
+
+    const wrapper = mount(SeriesDetailView, {
+      attachTo: document.body,
+      props: { seriesId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await getButton(wrapper, 'Criar próxima partida').trigger('click')
+    await flushPromises()
+
+    const conflict = wrapper.get('[data-series-version-conflict]')
+    expect(conflict.text()).toContain('0')
+    expect(conflict.text()).toContain('1')
+    expect(create).toHaveBeenCalledOnce()
+    await getButton(wrapper, 'Confirmar novamente').trigger('click')
+    await flushPromises()
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(create.mock.calls[1]?.[1]).toBe('"fresh"')
+  })
+
+  it('removes only the attempted Series action after 403', async () => {
+    const series = operationalSeries({
+      estado: 'Agendada',
+      acoesPermitidas: ['start', 'cancel'],
+    })
+    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+      observed(series, '"current"'),
+    )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+    vi.spyOn(seriesService, 'startSeries').mockRejectedValue(
+      new seriesService.SeriesServiceError(403, 'MA002'),
+    )
+
+    const wrapper = mount(SeriesDetailView, {
+      props: { seriesId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await getButton(wrapper, 'Iniciar série').trigger('click')
+    await getButton(wrapper, 'Confirmar início').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Iniciar série')
+    expect(wrapper.text()).toContain('Cancelar série')
+  })
+
+  it('removes only the attempted Match action after 403', async () => {
+    const match = matchDto({ acoesPermitidas: ['confirm', 'annul'] })
+    const series = operationalSeries({ partidas: [match] })
+    vi.spyOn(matchService, 'getMatch').mockResolvedValue(
+      observed(match, '"current"'),
+    )
+    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+      observed(series, '"current"'),
+    )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+    vi.spyOn(matchService, 'confirmMatchResult').mockRejectedValue(
+      new matchService.MatchServiceError(403, 'MA002'),
+    )
+    const wrapper = mount(MatchDetailView, {
+      props: { matchId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await wrapper.get('input[name="winner"]').setValue(true)
+    await getButton(wrapper, 'Confirmar resultado').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Confirmar resultado')
+    expect(wrapper.text()).toContain('Anular partida')
+  })
+
+  it('blocks stale reconfirmation after one finite reconciliation attempt', async () => {
+    const match = matchDto({ acoesPermitidas: ['remake'] })
+    const series = operationalSeries({ partidas: [match] })
+    const getMatch = vi
+      .spyOn(matchService, 'getMatch')
+      .mockResolvedValueOnce(observed(match, '"current"'))
+      .mockResolvedValueOnce(observed(match, '"match-a"'))
+      .mockResolvedValueOnce(observed(match, '"match-b"'))
+    vi.spyOn(seriesService, 'getSeries')
+      .mockResolvedValueOnce(observed(series, '"current"'))
+      .mockResolvedValueOnce(observed(series, '"series-a"'))
+      .mockResolvedValueOnce(observed(series, '"series-b"'))
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+    vi.spyOn(matchService, 'registerMatchRemake').mockRejectedValue(
+      staleError(),
+    )
+    const wrapper = mount(MatchDetailView, {
+      props: { matchId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    await openAndSubmit(wrapper, 'remake', 'Conservar entrada')
+    await flushPromises()
+
+    expect(wrapper.find('[data-version-conflict]').exists()).toBe(false)
+    expect(
+      getButton(wrapper, 'Tentar sincronizar novamente').attributes('disabled'),
+    ).toBeUndefined()
+    expect(getMatch).toHaveBeenCalledTimes(3)
+    await flushPromises()
+    expect(getMatch).toHaveBeenCalledTimes(3)
+  })
+
+  it('applies Season scope to URL and list requests', async () => {
+    globalThis.history.replaceState({}, '', '/series')
+    const season = {
+      id: '00000000-0000-4000-8000-000000000001',
+      nome: 'Temporada ativa',
+      ano: 2026,
+      ordemNoAno: 1,
+      dataInicio: '2026-01-01',
+      dataFimExclusiva: '2027-01-01',
+      estado: 'Ativa' as const,
+      versao: 1,
+    }
+    vi.spyOn(seasonService, 'listSeasons').mockResolvedValue(
+      observed(
+        {
+          page: 1,
+          pageSize: 100,
+          items: [season],
+          totalItems: 1,
+          totalPages: 1,
+          calendarioConfigurado: true,
+          temporadaAtual: season,
+          versaoCalendario: 1,
+        },
+        '"calendar"',
+      ),
+    )
+    const list = vi
+      .spyOn(seriesService, 'listSeries')
+      .mockResolvedValue(seriesPage([]))
+    const wrapper = mount(SeriesView, { global: globalMountOptions() })
+    await flushPromises()
+
+    await getButton(wrapper, 'Todas as temporadas').trigger('click')
+    await flushPromises()
+    expect(list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: { mode: 'all' } }),
+    )
+    expect(new URL(globalThis.location.href).searchParams.get('todas')).toBe(
+      'true',
+    )
+  })
+
+  it('renders localized format and existing competitive context IDs', async () => {
+    stubMedia({ mobile: false })
+    const series = operationalSeries()
+    vi.spyOn(seasonService, 'listSeasons').mockResolvedValue(
+      observed(
+        {
+          page: 1,
+          pageSize: 100,
+          items: [],
+          totalItems: 0,
+          totalPages: 0,
+          calendarioConfigurado: true,
+          temporadaAtual: null,
+          versaoCalendario: 1,
+        },
+        null,
+      ),
+    )
+    vi.spyOn(seriesService, 'listSeries').mockResolvedValue(
+      seriesPage([series]),
+    )
+    const wrapper = mount(SeriesView, { global: globalMountOptions() })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Melhor de 3')
+    expect(wrapper.text()).toContain(series.seasonId)
+    expect(wrapper.text()).toContain(series.competicaoId)
+    expect(wrapper.text()).toContain(series.rodadaId)
+    expect(wrapper.text()).toContain(series.versaoRegrasId)
+  })
+
+  it('traps and restores focus for Series view dialogs', async () => {
+    const series = operationalSeries({
+      estado: 'Agendada',
+      acoesPermitidas: ['start'],
+    })
+    vi.spyOn(seriesService, 'getSeries').mockResolvedValue(
+      observed(series, '"current"'),
+    )
+    vi.spyOn(seriesService, 'getSeriesResult').mockResolvedValue(
+      seriesResult(series),
+    )
+    const wrapper = mount(SeriesDetailView, {
+      attachTo: document.body,
+      props: { seriesId },
+      global: globalMountOptions(),
+    })
+    await flushPromises()
+    const opener = getButton(wrapper, 'Iniciar série')
+    ;(opener.element as HTMLElement).focus()
+    await opener.trigger('click')
+    await flushPromises()
+    const dialog = wrapper.get('[role="alertdialog"]')
+    expect(dialog.element.contains(document.activeElement)).toBe(true)
+    await dialog.trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(opener.element)
   })
 })

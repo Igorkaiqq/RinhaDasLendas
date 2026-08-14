@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using System.Reflection;
 using RinhaDasLendas.Domain.Entities;
@@ -146,6 +147,15 @@ public sealed class CompetitivePersistenceModelTests
             index.GetDatabaseName() == "ux_picks_partidas_slot_valido" && index.GetFilter() == "valido");
         validPickIndexes.Should().Contain(index =>
             index.GetDatabaseName() == "ux_picks_partidas_champion_valido" && index.GetFilter() == "valido");
+
+        var matchConstraints = context.GetService<IDesignTimeModel>().Model
+            .FindEntityType(typeof(Partida))!.GetCheckConstraints();
+        matchConstraints.Should().Contain(constraint =>
+            constraint.Name == "ck_partidas_estado_resultado_coerente"
+            && constraint.Sql == "(estado = 'Confirmada' AND lado_vencedor_id IS NOT NULL AND motivo_termino IS NOT NULL AND confirmada_em IS NOT NULL) OR (estado <> 'Confirmada' AND lado_vencedor_id IS NULL AND motivo_termino IS NULL AND confirmada_em IS NULL)");
+        matchConstraints.Should().Contain(constraint =>
+            constraint.Name == "ck_partidas_estado_remake_coerente"
+            && constraint.Sql == "(estado = 'Remake' AND decisao_picks_remake IS NOT NULL) OR (estado <> 'Remake' AND decisao_picks_remake IS NULL)");
 
         typeof(RinhaDasLendasDbContext).Assembly
             .GetType("RinhaDasLendas.Infrastructure.Persistence.Configurations.CompetitiveForeignKeyIndexConvention")

@@ -69,15 +69,15 @@ public sealed class DailySeriesHandlerTests
         result.ModoDraft.Should().Be(contexto.Regras.ModoDraft);
         result.AgendadaPara.Should().Be(AgendadaPara);
         result.DataLocal.Should().Be(DataLocalSaoPaulo);
-        result.CriadaPorUsuarioId.Should().Be(contexto.Ator.UserId);
-        result.AtualizadaPorUsuarioId.Should().Be(contexto.Ator.UserId);
+        result.CriadaPorUsuarioId.Should().Be(contexto.Ator.UserId!.Value);
+        result.AtualizadaPorUsuarioId.Should().Be(contexto.Ator.UserId!.Value);
         result.DraftMontagemId.Should().Be(contexto.Draft.Id);
         result.Lados.Select(item => item.OrigemId).Should().BeEquivalentTo(contexto.Draft.Times.Select(item => item.Id));
         result.Lados.Select(item => item.CapitaoJogadorId).Should().BeEquivalentTo(contexto.CapitaesIds);
         result.Lados.SelectMany(item => item.ParticipantesEsperados).Select(item => item.JogadorId)
             .Should().BeEquivalentTo(contexto.Jogadores.Select(item => item.Id));
         result.Lados.SelectMany(item => item.ParticipantesEsperados).Select(item => item.NomeSnapshot)
-            .Should().BeEquivalentTo(contexto.Jogadores.Select(item => item.Nome));
+            .Should().BeEquivalentTo(contexto.Jogadores.Select(item => item.NomeExibicao));
         contexto.Authorization.LastContext.Should().Be(new CompetitiveAuthorizationContext(
             AuthPermissions.CanManageMatches,
             "CriarSerie",
@@ -90,7 +90,7 @@ public sealed class DailySeriesHandlerTests
         auditoria!.RecursoTipo.Should().Be(RecursoCompetitivoTipo.Serie);
         auditoria.RecursoId.Should().Be(result.Id);
         auditoria.Acao.Should().Be(AcaoAuditoriaCompetitiva.SerieCriada);
-        auditoria.AtorUsuarioId.Should().Be(contexto.Ator.UserId, "o ator autenticado deve ser a unica fonte confiavel");
+        auditoria.AtorUsuarioId.Should().Be(contexto.Ator.UserId!.Value, "o ator autenticado deve ser a unica fonte confiavel");
         auditoria.Capacidade.Should().Be(AuthPermissions.CanManageMatches);
         auditoria.Justificativa.Should().BeNull();
         auditoria.ValorAnterior.Should().BeNull();
@@ -301,8 +301,8 @@ public sealed class DailySeriesHandlerTests
             CancellationToken.None));
         var resultados = await Task.WhenAll(primeiraOperacao, segundaOperacao);
 
-        resultados.Should().ContainSingle(item => item is null);
-        var conflito = resultados.Should().ContainSingle(item => item is DomainException).Subject
+        resultados.Should().ContainSingle(item => item == null);
+        var conflito = resultados.Should().ContainSingle(item => item != null && item.GetType() == typeof(DomainException)).Subject
             .Should().BeOfType<DomainException>().Subject;
         conflito.MessageCode.Should().Be(MessageCodes.CompetitiveResourceVersionStale);
         await using var assertionContext = database.CreateContext();
@@ -469,11 +469,13 @@ public sealed class DailySeriesHandlerTests
     private static void DistribuirJogadores(DraftMontagem draft, IReadOnlyList<Guid> jogadoresIds)
     {
         var times = draft.Times.OrderBy(item => item.Ordem).ToArray();
+        var jogadoresSemCapitaes = jogadoresIds.Skip(times.Length).ToArray();
         var layouts = times.Select((time, index) => new DraftMontagemLayoutTime(
             time.Id,
             time.Nome,
             time.CapitaoId,
-            jogadoresIds.Skip(index * 5).Take(5)
+            new[] { jogadoresIds[index] }
+                .Concat(jogadoresSemCapitaes.Skip(index * 4).Take(4))
                 .Select((jogadorId, ordem) => new DraftMontagemLayoutParticipante(jogadorId, ordem + 1, null))
                 .ToArray()))
             .ToArray();
@@ -625,9 +627,9 @@ public sealed class DailySeriesHandlerTests
             CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<string>>([]);
     }
 
-    private sealed class FixedClock : ISystemClock
+    private sealed class FixedClock : TimeProvider
     {
-        public DateTimeOffset UtcNow => Agora;
+        public override DateTimeOffset GetUtcNow() => Agora;
     }
 
     private sealed record ConcurrentSeriesSeed(

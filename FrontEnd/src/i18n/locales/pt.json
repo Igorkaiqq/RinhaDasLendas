@@ -86,10 +86,22 @@
       "eyebrow": "Fluxo da rinha",
       "title": "Do cadastro ao draft em quatro etapas.",
       "steps": {
-        "players": { "title": "Jogadores completos", "description": "Cada participante informa Riot ID, elo, links úteis e preferências de rota para deixar o balanceamento mais confiável." },
-        "presence": { "title": "Presença confirmada", "description": "A lista de presença indica quem realmente vai jogar, evitando montar times com ausentes ou reservas indefinidos." },
-        "draft": { "title": "Capitães e escolhas", "description": "A montagem em tempo real organiza capitães, ordem de picks, reservas e times finais com histórico visível." },
-        "history": { "title": "Base para estatísticas", "description": "O histórico de jogadores, drafts e partidas prepara rankings, retrospecto e futuras integrações com Riot." }
+        "players": {
+          "title": "Jogadores completos",
+          "description": "Cada participante informa Riot ID, elo, links úteis e preferências de rota para deixar o balanceamento mais confiável."
+        },
+        "presence": {
+          "title": "Presença confirmada",
+          "description": "A lista de presença indica quem realmente vai jogar, evitando montar times com ausentes ou reservas indefinidos."
+        },
+        "draft": {
+          "title": "Capitães e escolhas",
+          "description": "A montagem em tempo real organiza capitães, ordem de picks, reservas e times finais com histórico visível."
+        },
+        "history": {
+          "title": "Base para estatísticas",
+          "description": "O histórico de jogadores, drafts e partidas prepara rankings, retrospecto e futuras integrações com Riot."
+        }
       }
     },
     "roadmap": {
@@ -97,16 +109,40 @@
       "eyebrow": "Em evolução",
       "title": "O painel também mostra para onde a plataforma está indo.",
       "items": {
-        "discord": { "tag": "BOT", "title": "Discord mais presente", "description": "Comandos, avisos e presença automática aproximam a organização do canal onde a comunidade já conversa." },
-        "riot": { "tag": "API", "title": "Dados da Riot", "description": "A integração futura pode reduzir cadastro manual e enriquecer estatísticas com dados oficiais." },
-        "stats": { "tag": "MMR", "title": "Estatísticas e ranking", "description": "Partidas registradas viram comparação de desempenho, histórico de times e evolução dos jogadores." }
+        "discord": {
+          "tag": "BOT",
+          "title": "Discord mais presente",
+          "description": "Comandos, avisos e presença automática aproximam a organização do canal onde a comunidade já conversa."
+        },
+        "riot": {
+          "tag": "API",
+          "title": "Dados da Riot",
+          "description": "A integração futura pode reduzir cadastro manual e enriquecer estatísticas com dados oficiais."
+        },
+        "stats": {
+          "tag": "MMR",
+          "title": "Estatísticas e ranking",
+          "description": "Partidas registradas viram comparação de desempenho, histórico de times e evolução dos jogadores."
+        }
       }
     },
     "cards": {
-      "discord": { "title": "Discord do grupo", "description": "Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo." },
-      "players": { "title": "Jogadores", "description": "Cadastre participantes, elos e preferências de rota." },
-      "draft": { "title": "Draft", "description": "Estrutura preparada para capitães, ordem de picks e times balanceados." },
-      "matches": { "title": "Partidas", "description": "Base visual pronta para registrar jogos, placares e histórico." }
+      "discord": {
+        "title": "Discord do grupo",
+        "description": "Centralize jogadores, chamadas e organização das rinhas com dados consistentes para o grupo."
+      },
+      "players": {
+        "title": "Jogadores",
+        "description": "Cadastre participantes, elos e preferências de rota."
+      },
+      "draft": {
+        "title": "Draft",
+        "description": "Estrutura preparada para capitães, ordem de picks e times balanceados."
+      },
+      "matches": {
+        "title": "Partidas",
+        "description": "Base visual pronta para registrar jogos, placares e histórico."
+      }
     }
   },
   "placeholder": {
@@ -144,7 +180,9 @@
     "player": {
       "loading": "Carregando perfil de jogador…",
       "messages": { "saved": "Perfil de jogador salvo." },
-      "errors": { "saveFallback": "Não foi possível salvar o perfil de jogador." }
+      "errors": {
+        "saveFallback": "Não foi possível salvar o perfil de jogador."
+      }
     }
   },
   "routes": {
@@ -1273,69 +1311,150 @@
         "title": "Segurança e identidade visual",
         "summary": "A plataforma avançou em proteção, preparação de entrega, visibilidade operacional e consistência da marca.",
         "details": {
-          "security-baseline": { "title": "Base de segurança fortalecida", "description": "Controles preventivos e padrões seguros passaram a proteger melhor os fluxos internos." },
-          "deployment-readiness": { "title": "Entregas mais previsíveis", "description": "A preparação de ambientes e verificações de implantação reduzem riscos durante novas versões." },
-          "operational-observability": { "title": "Mais visibilidade operacional", "description": "Sinais e registros de operação ajudam a identificar falhas e acompanhar a saúde da aplicação." },
-          "visual-identity": { "title": "Identidade visual consolidada", "description": "Telas e componentes receberam uma linguagem visual mais consistente com a arena competitiva." }
+          "security-baseline": {
+            "title": "Base de segurança fortalecida",
+            "description": "Controles preventivos e padrões seguros passaram a proteger melhor os fluxos internos."
+          },
+          "deployment-readiness": {
+            "title": "Entregas mais previsíveis",
+            "description": "A preparação de ambientes e verificações de implantação reduzem riscos durante novas versões."
+          },
+          "operational-observability": {
+            "title": "Mais visibilidade operacional",
+            "description": "Sinais e registros de operação ajudam a identificar falhas e acompanhar a saúde da aplicação."
+          },
+          "visual-identity": {
+            "title": "Identidade visual consolidada",
+            "description": "Telas e componentes receberam uma linguagem visual mais consistente com a arena competitiva."
+          }
         }
       },
       "2026_06_6": {
         "title": "Discord e confirmação de presença",
         "summary": "Contas vinculadas, presença compartilhada e publicação de times aproximaram o fluxo do canal da comunidade.",
         "details": {
-          "discord-account-link": { "title": "Conta Discord vinculada", "description": "Usuários podem vincular o Discord sem perder o acesso tradicional à plataforma." },
-          "shared-presence-list": { "title": "Presença entre Web e Discord", "description": "Confirmações e cancelamentos usam o mesmo estado oficial nos dois canais." },
-          "presence-closing": { "title": "Encerramento organizado da presença", "description": "A lista pode ser encerrada no horário definido e prepara times e reservas com regras claras." },
-          "final-teams-publication": { "title": "Times publicados no Discord", "description": "Ao finalizar o draft, a comunidade recebe a composição dos times no canal configurado." }
+          "discord-account-link": {
+            "title": "Conta Discord vinculada",
+            "description": "Usuários podem vincular o Discord sem perder o acesso tradicional à plataforma."
+          },
+          "shared-presence-list": {
+            "title": "Presença entre Web e Discord",
+            "description": "Confirmações e cancelamentos usam o mesmo estado oficial nos dois canais."
+          },
+          "presence-closing": {
+            "title": "Encerramento organizado da presença",
+            "description": "A lista pode ser encerrada no horário definido e prepara times e reservas com regras claras."
+          },
+          "final-teams-publication": {
+            "title": "Times publicados no Discord",
+            "description": "Ao finalizar o draft, a comunidade recebe a composição dos times no canal configurado."
+          }
         }
       },
       "2026_06_5": {
         "title": "Draft em tempo real",
         "summary": "Capitães e participantes passaram a acompanhar escolhas, turnos e estado oficial do draft sem atualizar a página.",
         "details": {
-          "synchronized-picks": { "title": "Escolhas sincronizadas", "description": "Cada escolha válida atualiza times, disponíveis e histórico para todos os participantes conectados." },
-          "captain-turns": { "title": "Turnos dos capitães", "description": "Somente o capitão da vez pode escolher, mantendo a ordem justa e auditável." },
-          "turn-timer": { "title": "Tempo controlado por turno", "description": "O relógio mantém o draft em movimento e avança a vez quando o prazo termina." },
-          "reconnection-state": { "title": "Retomada após reconexão", "description": "Quem retorna ao draft recebe o estado oficial atual, incluindo turno, times e escolhas anteriores." }
+          "synchronized-picks": {
+            "title": "Escolhas sincronizadas",
+            "description": "Cada escolha válida atualiza times, disponíveis e histórico para todos os participantes conectados."
+          },
+          "captain-turns": {
+            "title": "Turnos dos capitães",
+            "description": "Somente o capitão da vez pode escolher, mantendo a ordem justa e auditável."
+          },
+          "turn-timer": {
+            "title": "Tempo controlado por turno",
+            "description": "O relógio mantém o draft em movimento e avança a vez quando o prazo termina."
+          },
+          "reconnection-state": {
+            "title": "Retomada após reconexão",
+            "description": "Quem retorna ao draft recebe o estado oficial atual, incluindo turno, times e escolhas anteriores."
+          }
         }
       },
       "2026_06_4": {
         "title": "Contas, permissões e perfis",
         "summary": "Autenticação, níveis de acesso e vínculo com jogador tornaram a participação mais segura e pessoal.",
         "details": {
-          "account-access": { "title": "Contas e sessões protegidas", "description": "Cadastro, login e sessão permitem acesso individual às áreas protegidas da plataforma." },
-          "role-permissions": { "title": "Permissões por responsabilidade", "description": "Papéis controlam ações administrativas e mantêm o servidor como fonte de verdade das permissões." },
-          "player-profile-link": { "title": "Conta vinculada ao jogador", "description": "Cada participante completa e mantém seus dados de jogo antes de entrar nos drafts." },
-          "account-recovery": { "title": "Recuperação de acesso", "description": "Fluxos de redefinição e alteração de senha ajudam usuários a recuperar a própria conta com segurança." }
+          "account-access": {
+            "title": "Contas e sessões protegidas",
+            "description": "Cadastro, login e sessão permitem acesso individual às áreas protegidas da plataforma."
+          },
+          "role-permissions": {
+            "title": "Permissões por responsabilidade",
+            "description": "Papéis controlam ações administrativas e mantêm o servidor como fonte de verdade das permissões."
+          },
+          "player-profile-link": {
+            "title": "Conta vinculada ao jogador",
+            "description": "Cada participante completa e mantém seus dados de jogo antes de entrar nos drafts."
+          },
+          "account-recovery": {
+            "title": "Recuperação de acesso",
+            "description": "Fluxos de redefinição e alteração de senha ajudam usuários a recuperar a própria conta com segurança."
+          }
         }
       },
       "2026_06_3": {
         "title": "Montagem visual de times",
         "summary": "O draft passou a usar jogadores cadastrados em uma organização visual com times dinâmicos e reservas.",
         "details": {
-          "registered-player-pool": { "title": "Jogadores cadastrados no draft", "description": "A seleção reutiliza a base ativa e elimina a digitação manual de participantes." },
-          "visual-team-building": { "title": "Montagem visual", "description": "Jogadores podem ser organizados entre áreas e times de forma direta, sem duplicidades." },
-          "dynamic-teams-reserves": { "title": "Times e reservas dinâmicos", "description": "A quantidade de participantes determina os times, capitães necessários e jogadores de reserva." },
-          "player-details": { "title": "Detalhes durante a montagem", "description": "Elo, rotas e identidades de jogo ficam disponíveis sem abandonar o draft." }
+          "registered-player-pool": {
+            "title": "Jogadores cadastrados no draft",
+            "description": "A seleção reutiliza a base ativa e elimina a digitação manual de participantes."
+          },
+          "visual-team-building": {
+            "title": "Montagem visual",
+            "description": "Jogadores podem ser organizados entre áreas e times de forma direta, sem duplicidades."
+          },
+          "dynamic-teams-reserves": {
+            "title": "Times e reservas dinâmicos",
+            "description": "A quantidade de participantes determina os times, capitães necessários e jogadores de reserva."
+          },
+          "player-details": {
+            "title": "Detalhes durante a montagem",
+            "description": "Elo, rotas e identidades de jogo ficam disponíveis sem abandonar o draft."
+          }
         }
       },
       "2026_06_2": {
         "title": "Jogadores, rotas e times",
         "summary": "Cadastros estruturados substituíram listas soltas e criaram uma base reutilizável para organizar a comunidade.",
         "details": {
-          "player-directory": { "title": "Diretório de jogadores", "description": "Perfis reúnem identificação, elo e links úteis para consulta e organização." },
-          "route-preferences": { "title": "Preferências de rota", "description": "Cada jogador informa prioridades entre as cinco rotas e pode indicar uma rota que prefere evitar." },
-          "player-availability": { "title": "Disponibilidade preservada", "description": "Jogadores inativos permanecem no histórico, mas deixam de participar de novos fluxos." },
-          "reusable-teams": { "title": "Times reutilizáveis", "description": "Nome, tag, capitão e composição ficam salvos para partidas, drafts e consultas futuras." }
+          "player-directory": {
+            "title": "Diretório de jogadores",
+            "description": "Perfis reúnem identificação, elo e links úteis para consulta e organização."
+          },
+          "route-preferences": {
+            "title": "Preferências de rota",
+            "description": "Cada jogador informa prioridades entre as cinco rotas e pode indicar uma rota que prefere evitar."
+          },
+          "player-availability": {
+            "title": "Disponibilidade preservada",
+            "description": "Jogadores inativos permanecem no histórico, mas deixam de participar de novos fluxos."
+          },
+          "reusable-teams": {
+            "title": "Times reutilizáveis",
+            "description": "Nome, tag, capitão e composição ficam salvos para partidas, drafts e consultas futuras."
+          }
         }
       },
       "2026_06_1": {
         "title": "Fundação e internacionalização",
         "summary": "Padrões arquiteturais, contratos compartilhados e catálogos bilíngues estabeleceram a base da plataforma.",
         "details": {
-          "architecture-foundation": { "title": "Fundação arquitetural", "description": "Camadas e responsabilidades claras prepararam a aplicação para crescer com manutenção segura." },
-          "localized-interface": { "title": "Interface em português e inglês", "description": "Navegação, páginas e mensagens passaram a usar catálogos de tradução sincronizados." },
-          "shared-standards": { "title": "Padrões compartilhados", "description": "Rotas, constantes, mensagens e processo de desenvolvimento ganharam convenções verificáveis." }
+          "architecture-foundation": {
+            "title": "Fundação arquitetural",
+            "description": "Camadas e responsabilidades claras prepararam a aplicação para crescer com manutenção segura."
+          },
+          "localized-interface": {
+            "title": "Interface em português e inglês",
+            "description": "Navegação, páginas e mensagens passaram a usar catálogos de tradução sincronizados."
+          },
+          "shared-standards": {
+            "title": "Padrões compartilhados",
+            "description": "Rotas, constantes, mensagens e processo de desenvolvimento ganharam convenções verificáveis."
+          }
         }
       }
     }
@@ -1494,6 +1613,190 @@
       "refreshAfterSave": "A alteração foi salva, mas os dados não puderam ser atualizados. Recarregue a página para consultar o estado atual.",
       "codes": {
         "MC103": "O calendário mudou. Revise os dados e confirme novamente."
+      }
+    }
+  },
+  "competitive": {
+    "series": {
+      "eyebrow": "Operação competitiva",
+      "title": "Séries",
+      "description": "Acompanhe confrontos, placares, partidas e bloqueios Fearless.",
+      "loading": "Carregando séries…",
+      "empty": "Nenhuma série encontrada.",
+      "calendarEmpty": "Ative uma temporada para consultar as séries atuais.",
+      "retry": "Tentar novamente",
+      "side": "Lado da série",
+      "sides": "Lados da série",
+      "captain": "Capitão",
+      "captainIdentity": "Capitão: {identity}",
+      "captainUnknown": "Capitão não identificado",
+      "types": {
+        "DiariaTemporaria": "Série diária",
+        "ConfrontoOficial": "Confronto oficial",
+        "Amistoso": "Amistoso"
+      },
+      "states": {
+        "Agendada": "Agendada",
+        "EmAndamento": "Em andamento",
+        "Concluida": "Concluída",
+        "Cancelada": "Cancelada",
+        "Anulada": "Anulada"
+      },
+      "modes": {
+        "Padrao": "Padrão",
+        "Fearless": "Fearless"
+      },
+      "formats": {
+        "Md3": "Melhor de 3",
+        "Md5": "Melhor de 5"
+      },
+      "context": {
+        "season": "Temporada",
+        "competition": "Competição",
+        "round": "Rodada",
+        "rules": "Versão de regras"
+      },
+      "filters": {
+        "label": "Filtros de séries",
+        "type": "Natureza",
+        "apply": "Aplicar filtros"
+      },
+      "columns": {
+        "series": "Série",
+        "sides": "Lados",
+        "score": "Placar",
+        "schedule": "Horário"
+      },
+      "accessibility": {
+        "table": "Séries competitivas",
+        "cards": "Séries competitivas em cards"
+      },
+      "scoreboard": {
+        "label": "Placar da série",
+        "required": "Vitórias necessárias: {count}"
+      },
+      "fearless": {
+        "eyebrow": "Bloqueio bilateral",
+        "label": "Campeões bloqueados",
+        "side": "Bloqueios para {name}",
+        "empty": "Nenhum campeão bloqueado.",
+        "reviewRequired": "Há revisão necessária. Confirmações ficam bloqueadas até a correção ou anulação dos fatos inconsistentes."
+      },
+      "actions": {
+        "start": "Iniciar série",
+        "cancel": "Cancelar série",
+        "annul": "Anular série",
+        "createMatch": "Criar próxima partida"
+      },
+      "dialogs": {
+        "start": {
+          "title": "Iniciar série",
+          "description": "A série entrará em andamento e poderá receber resultados.",
+          "confirm": "Confirmar início"
+        },
+        "cancel": {
+          "title": "Cancelar série",
+          "description": "Informe por que esta série não continuará.",
+          "confirm": "Confirmar cancelamento"
+        },
+        "annul": {
+          "title": "Anular série",
+          "description": "A anulação é final e preserva o histórico para auditoria.",
+          "confirm": "Confirmar anulação"
+        }
+      },
+      "matches": {
+        "title": "Partidas",
+        "label": "Partidas da série",
+        "item": "Partida {order}"
+      },
+      "errors": {
+        "load": "Não foi possível carregar as séries.",
+        "loadDetail": "Não foi possível carregar a série.",
+        "loadMatch": "Não foi possível carregar a partida.",
+        "unauthorized": "Sua sessão expirou. Entre novamente para continuar.",
+        "forbidden": "Você não possui permissão para esta ação.",
+        "notFound": "Esta série não está disponível.",
+        "matchNotFound": "Esta partida não está disponível.",
+        "validation": "Revise os campos indicados.",
+        "versionConflict": "A série mudou. Compare os dados e confirme novamente.",
+        "idempotencyConflict": "Esta chave de idempotência já foi usada com outro conteúdo."
+      },
+      "match": {
+        "eyebrow": "Partida {order}",
+        "reason": "Justificativa",
+        "reconciling": "Sincronizando a versão da série…",
+        "reconciliationPending": "As versões ainda divergem. As ações permanecem bloqueadas até uma nova sincronização.",
+        "reconciliationFailed": "Não foi possível sincronizar os dados competitivos. Tente novamente.",
+        "retryReconciliation": "Tentar sincronizar novamente",
+        "reviewResolved": "Conflitos Fearless resolvidos",
+        "states": {
+          "Rascunho": "Rascunho",
+          "Confirmada": "Confirmada",
+          "Remake": "Remake",
+          "Anulada": "Anulada"
+        },
+        "picks": {
+          "title": "Picks confirmados",
+          "description": "Informe cinco campeões distintos para cada lado.",
+          "position": "Campeão {position}",
+          "save": "Salvar picks",
+          "required": "Informe os dez campeões da partida.",
+          "unique": "Cada campeão só pode aparecer uma vez na partida."
+        },
+        "result": {
+          "title": "Resultado",
+          "winner": "Lado vencedor",
+          "winnerRequired": "Selecione o lado vencedor.",
+          "reason": "Motivo do término",
+          "normal": "Normal",
+          "surrender": "Surrender",
+          "confirm": "Confirmar resultado",
+          "values": {
+            "Normal": "Normal",
+            "Surrender": "Surrender"
+          }
+        },
+        "remake": {
+          "open": "Registrar remake",
+          "description": "Escolha como tratar os picks do remake.",
+          "decision": "Tratamento dos picks",
+          "preserve": "Preservar picks",
+          "discard": "Desconsiderar picks",
+          "decisionRequired": "Escolha como tratar os picks do remake.",
+          "reasonRequired": "Informe a justificativa do remake.",
+          "confirm": "Confirmar remake",
+          "decisions": {
+            "PreservarPicks": "Preservar picks",
+            "DesconsiderarPicks": "Desconsiderar picks"
+          }
+        },
+        "annul": {
+          "open": "Anular partida",
+          "description": "A partida deixará de contar no placar e no Fearless.",
+          "seriesIfNeeded": "Anular a série se o placar ficar inconclusivo",
+          "reasonRequired": "Informe a justificativa da anulação.",
+          "confirm": "Confirmar anulação"
+        },
+        "correction": {
+          "open": "Corrigir partida",
+          "description": "Revise o resultado ou os picks. Partidas posteriores podem exigir revisão.",
+          "picks": "Picks corrigidos",
+          "reasonRequired": "A justificativa da correção é obrigatória",
+          "seriesImpact": "Impacto no placar da série",
+          "confirmSeriesAnnul": "Confirmo que esta correção anulará a série",
+          "annulSeriesRequired": "Confirme explicitamente a anulação da série.",
+          "confirm": "Confirmar correção"
+        },
+        "conflict": {
+          "title": "A série mudou",
+          "description": "A série mudou. Compare os dados e confirme novamente.",
+          "before": "Antes",
+          "after": "Agora",
+          "noPicks": "Nenhum pick confirmado",
+          "preserved": "Entrada preservada: {value}",
+          "reconfirm": "Confirmar novamente"
+        }
       }
     }
   },

@@ -55,4 +55,21 @@ public sealed class PickPartida
     public int VersaoFato { get; private set; }
     public bool Valido { get; private set; }
     public DateTimeOffset RegistradoEm { get; private set; }
+
+    internal static PickPartida CriarNovaVersao(
+        Partida partida,
+        Guid ladoSerieId,
+        int championId,
+        int ordem,
+        int versaoFato,
+        DateTimeOffset registradoEm)
+    {
+        var pick = new PickPartida(partida, ladoSerieId, championId, ordem, registradoEm)
+        {
+            VersaoFato = versaoFato,
+        };
+        return pick;
+    }
+
+    internal void Invalidar() => Valido = false;
 }

@@ -102,6 +102,71 @@ public sealed class FearlessTests
     }
 
     [Fact]
+    public void Deve_substituir_picks_de_rascunho_com_nova_linhagem_e_uma_atualizacao_por_agregado()
+    {
+        var serie = CriarSerieFearless();
+        var partida = serie.AdicionarPartida(UsuarioId, Agora.AddMinutes(1));
+        var primeiraVersaoEm = Agora.AddMinutes(2);
+        var segundaVersaoEm = Agora.AddMinutes(3);
+        serie.RegistrarPicks(partida.Id, CriarPicks(serie, 1, 10), UsuarioId, primeiraVersaoEm);
+        var versaoSerieAnterior = serie.Versao;
+        var versaoPartidaAnterior = partida.Versao;
+
+        serie.RegistrarPicks(partida.Id, CriarPicks(serie, 11, 10), UsuarioId, segundaVersaoEm);
+
+        partida.Picks.Should().HaveCount(20);
+        partida.Picks.Where(pick => pick.VersaoFato == 1)
+            .Should().HaveCount(10).And.OnlyContain(pick => !pick.Valido && pick.RegistradoEm == primeiraVersaoEm);
+        partida.Picks.Where(pick => pick.VersaoFato == 2)
+            .Should().HaveCount(10).And.OnlyContain(pick => pick.Valido && pick.RegistradoEm == segundaVersaoEm);
+        partida.Picks.Where(pick => pick.Valido).Select(pick => pick.ChampionId)
+            .Should().BeEquivalentTo(Enumerable.Range(11, 10));
+        partida.Versao.Should().Be(versaoPartidaAnterior + 1);
+        partida.AtualizadaEm.Should().Be(segundaVersaoEm);
+        serie.Versao.Should().Be(versaoSerieAnterior + 1);
+        serie.AtualizadaEm.Should().Be(segundaVersaoEm);
+        serie.ObterBloqueiosFearless(2).Should().BeEmpty();
+        serie.RevisaoNecessaria.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Deve_rejeitar_substituicao_invalida_de_picks_de_rascunho_sem_mutacao()
+    {
+        var serie = CriarSerieFearless();
+        var partida = serie.AdicionarPartida(UsuarioId, Agora.AddMinutes(1));
+        serie.RegistrarPicks(partida.Id, CriarPicks(serie, 1, 10), UsuarioId, Agora.AddMinutes(2));
+        var substituicaoInvalida = CriarPicks(serie, 11, 10);
+        substituicaoInvalida[9] = CriarPick(serie, 2, 11, 5);
+        var antes = SerieSnapshot.Capturar(serie);
+
+        var act = () => serie.RegistrarPicks(
+            partida.Id,
+            substituicaoInvalida,
+            UsuarioId,
+            Agora.AddMinutes(3));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        SerieSnapshot.Capturar(serie).Should().BeEquivalentTo(antes, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Deve_reservar_substituicao_de_rascunho_e_rejeitar_registro_apos_confirmacao()
+    {
+        var serie = CriarSerieFearless();
+        var partida = ConfirmarPartida(serie, 1, 1);
+        var antes = SerieSnapshot.Capturar(serie);
+
+        var act = () => serie.RegistrarPicks(
+            partida.Id,
+            CriarPicks(serie, 11, 10),
+            UsuarioId,
+            Agora.AddHours(1));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.SeriesTransitionInvalid);
+        SerieSnapshot.Capturar(serie).Should().BeEquivalentTo(antes, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
     public void Deve_ignorar_picks_de_rascunho_ate_a_confirmacao_da_partida()
     {
         var serie = CriarSerieFearless();
@@ -153,6 +218,23 @@ public sealed class FearlessTests
         {
             bloqueios.Should().BeEmpty();
         }
+    }
+
+    [Fact]
+    public void Deve_rejeitar_preservacao_de_picks_em_remake_sem_dez_picks_sem_mutacao()
+    {
+        var serie = CriarSerieFearless();
+        var remake = serie.AdicionarPartida(UsuarioId, Agora.AddMinutes(1));
+        var antes = SerieSnapshot.Capturar(serie);
+
+        var act = () => serie.MarcarPartidaComoRemake(
+            remake.Id,
+            DecisaoPicksRemake.PreservarPicks,
+            UsuarioId,
+            Agora.AddMinutes(2));
+
+        act.Should().Throw<DomainException>().WithMessage(MessageCodes.ValidationError);
+        SerieSnapshot.Capturar(serie).Should().BeEquivalentTo(antes, options => options.WithStrictOrdering());
     }
 
     [Fact]
@@ -211,10 +293,16 @@ public sealed class FearlessTests
         var segunda = ConfirmarPartida(serie, 11, 2);
         var picksCorrigidos = CriarPicks(serie, 21, 10);
         picksCorrigidos[0] = CriarPick(serie, 1, 11, 1);
+        var versaoAnterior = segunda.Versao;
+        var atualizadaEmAnterior = segunda.AtualizadaEm;
+        var corrigidaEm = Agora.AddHours(2);
 
-        serie.CorrigirPicks(primeira.Id, picksCorrigidos, UsuarioId, Agora.AddHours(2));
+        serie.CorrigirPicks(primeira.Id, picksCorrigidos, UsuarioId, corrigidaEm);
 
         segunda.ConflitoFearless.Should().BeTrue();
+        segunda.Versao.Should().Be(versaoAnterior + 1);
+        segunda.AtualizadaEm.Should().Be(corrigidaEm);
+        segunda.AtualizadaEm.Should().BeAfter(atualizadaEmAnterior);
         serie.RevisaoNecessaria.Should().BeTrue();
         serie.ObterBloqueiosFearless(3)
             .Should().BeEquivalentTo(Enumerable.Range(11, 20).Except([21]));
@@ -248,14 +336,17 @@ public sealed class FearlessTests
         serie.CorrigirPicks(primeira.Id, primeiraCorrigida, UsuarioId, Agora.AddHours(2));
         segunda.ConflitoFearless.Should().BeTrue();
         serie.RevisaoNecessaria.Should().BeTrue();
+        var versaoComConflito = segunda.Versao;
 
-        serie.CorrigirPicks(segunda.Id, CriarPicks(serie, 31, 10), UsuarioId, Agora.AddHours(3));
+        serie.CorrigirPicks(primeira.Id, CriarPicks(serie, 21, 10), UsuarioId, Agora.AddHours(3));
 
         serie.Partidas.Should().OnlyContain(partida => !partida.ConflitoFearless);
+        segunda.Versao.Should().Be(versaoComConflito + 1);
+        segunda.AtualizadaEm.Should().Be(Agora.AddHours(3));
         serie.RevisaoNecessaria.Should().BeFalse();
-        serie.ObterBloqueiosFearless(3).Should().BeEquivalentTo(new[] { 11 }.Concat(Enumerable.Range(22, 19)));
+        serie.ObterBloqueiosFearless(3).Should().BeEquivalentTo(Enumerable.Range(11, 20));
         var terceira = serie.AdicionarPartida(UsuarioId, Agora.AddHours(4));
-        serie.RegistrarPicks(terceira.Id, CriarPicks(serie, 41, 10), UsuarioId, Agora.AddHours(4).AddMinutes(1));
+        serie.RegistrarPicks(terceira.Id, CriarPicks(serie, 31, 10), UsuarioId, Agora.AddHours(4).AddMinutes(1));
 
         var act = () => serie.ConfirmarPartida(
             terceira.Id,

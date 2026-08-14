@@ -144,6 +144,16 @@ public sealed partial class CompetitiveFoundationOpenApiContractTests
                     $"{operation.DisplayName} declares x-capability and needs an explicit 2xx content schema");
         }
 
+        foreach (var operation in operations.Where(operation =>
+                     operation.Lines.Any(line => line.Text == "- $ref: '#/components/parameters/IdempotencyKey'")))
+        {
+            ReadResponses(operation)
+                .Where(response => response.Key.StartsWith('2'))
+                .Should().OnlyContain(response => response.Value.Any(line =>
+                        line.Indent == 12 && line.Text == "Idempotency-Replayed:"),
+                    $"{operation.DisplayName} declares Idempotency-Key and must expose replay metadata");
+        }
+
         var t030Statuses = new Dictionary<(string Path, string Method), string[]>
         {
             [("/temporadas", "get")] = ["200", "400", "401"],

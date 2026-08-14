@@ -43,7 +43,6 @@ describe('competitive fixtures', () => {
       tipo: 'ConfrontoOficial',
       formato: 'Md3',
       modoDraft: 'Padrao',
-      fearlessHabilitado: false,
       elegivelOficial: true,
       versao: 1,
       etag: '"1"',
@@ -71,7 +70,6 @@ describe('competitive fixtures', () => {
       competicaoId: null,
       rodadaId: null,
       modoDraft: 'Fearless',
-      fearlessHabilitado: true,
       elegivelOficial: false,
       bloqueiosFearless: [1, 2],
       revisaoNecessaria: true,
@@ -90,7 +88,6 @@ describe('competitive fixtures', () => {
     expect(friendlySeries).toMatchObject({
       tipo: 'Amistoso',
       modoDraft: 'Fearless',
-      fearlessHabilitado: true,
       elegivelOficial: false,
       bloqueiosFearless: [1, 2],
       revisaoNecessaria: true,

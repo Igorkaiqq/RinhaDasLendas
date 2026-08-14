@@ -291,7 +291,7 @@ public sealed class CompetitiveCorrectionHandlerTests
         {
             Actor.SetupGet(actor => actor.UserId).Returns(_actorId);
             Actor.SetupGet(actor => actor.Roles).Returns([AuthRoles.SuperAdmin]);
-            Clock.SetupGet(clock => clock.UtcNow).Returns(Agora);
+            Clock.Setup(clock => clock.GetUtcNow()).Returns(Agora);
             Authorization
                 .Setup(service => service.AuthorizeAsync(
                     It.IsAny<CompetitiveAuthorizationContext>(), It.IsAny<CancellationToken>()))
@@ -305,7 +305,7 @@ public sealed class CompetitiveCorrectionHandlerTests
         public Mock<ICurrentActor> Actor { get; } = new();
         public Mock<ICompetitiveAuthorizationService> Authorization { get; } = new();
         public Mock<ICompetitiveAuditRepository> AuditRepository { get; } = new(MockBehavior.Strict);
-        public Mock<ISystemClock> Clock { get; } = new();
+        public Mock<TimeProvider> Clock { get; } = new();
         public List<RegistroAuditoriaCompetitiva> StagedAudits { get; } = [];
 
         public void SetupSerie(Serie serie)
@@ -378,6 +378,16 @@ public sealed class CompetitiveCorrectionHandlerTests
             for (var index = 0; index < vencedores.Length; index++)
             {
                 var partida = serie.AdicionarPartida(_actorId, Agora.AddMinutes(index * 2 - 20));
+                serie.RegistrarPicks(
+                    partida.Id,
+                    lados.SelectMany((lado, ladoIndex) => Enumerable.Range(1, 5)
+                        .Select(ordem => (
+                            lado.Id,
+                            ChampionId: index * 10 + ladoIndex * 5 + ordem,
+                            Ordem: ordem)))
+                        .ToArray(),
+                    _actorId,
+                    Agora.AddMinutes(index * 2 - 20));
                 serie.ConfirmarPartida(
                     partida.Id,
                     lados[vencedores[index] - 1].Id,
